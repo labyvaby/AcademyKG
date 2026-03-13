@@ -1,0 +1,10 @@
+
+services:
+  mama_frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mama_frontend_container
+    ports:
+      - "5173:5173"
+    restart: always

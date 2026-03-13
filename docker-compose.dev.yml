@@ -1,0 +1,8 @@
+
+services:
+  frontend:
+    build: .
+    container_name: mama_frontend_dev
+    ports:
+      - "5174:5173"
+    restart: unless-stopped
