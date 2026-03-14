@@ -17,7 +17,6 @@ import { useTheme } from "@mui/material/styles";
 // import { useDelete, useInvalidate } from "@refinedev/core";
 import type { Expense } from "../../pages/expenses/types";
 import { ExpensesService } from "../../services/expenses";
-import { deleteExpensePhotoByUrl } from "../../services/storage";
 
 type DeleteExpenseDialogProps = {
   open: boolean;
@@ -50,15 +49,6 @@ export const DeleteExpenseDialog: React.FC<DeleteExpenseDialogProps> = ({
 
       // Delete DB row via service
       await ExpensesService.delete(record.id);
-
-      // Best-effort delete photo from storage (non-blocking for UX)
-      if (record.photo) {
-        try {
-          await deleteExpensePhotoByUrl(record.photo);
-        } catch {
-          // ignore storage deletion errors
-        }
-      }
 
       if (onDeleted) onDeleted(record.id);
       onClose();

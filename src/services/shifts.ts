@@ -37,8 +37,7 @@ type ApiShift = {
 };
 
 const toShift = (d: ApiShift): Shift => {
-  // Handle nested employee object if present
-  let employeeData = undefined;
+  let employeeData: { full_name: string } | undefined = undefined;
   let employeeId = "";
 
   if (typeof d.employee === 'object' && d.employee !== null) {
@@ -72,18 +71,17 @@ const toShift = (d: ApiShift): Shift => {
 
 export const fetchShifts = async (params?: { employee?: string, startDate?: string, endDate?: string, shift_date?: string }): Promise<Shift[]> => {
   try {
-    const query = new URLSearchParams();
-    query.append("ordering", "-clockIn");
-    query.append("page_size", "1000");
+    const queryParams = new URLSearchParams();
+    if (params?.employee) queryParams.append("employee", params.employee);
+    if (params?.startDate) queryParams.append("start_date", params.startDate);
+    if (params?.endDate) queryParams.append("end_date", params.endDate);
+    if (params?.shift_date) queryParams.append("shift_date", params.shift_date);
+    queryParams.append("page_size", "1000");
 
-    if (params?.employee) query.append("employee", params.employee);
-    if (params?.startDate) query.append("clockIn_0", dayjs(params.startDate).startOf('day').toISOString());
-    if (params?.endDate) query.append("clockIn_1", dayjs(params.endDate).endOf('day').toISOString());
-    if (params?.shift_date) query.append("shift_date", params.shift_date);
+    const res: any = await apiFetch(`/api/v1/work-shifts/?${queryParams.toString()}`);
+    const results = res?.data?.results ?? res?.results ?? [];
 
-    const res: any = await apiFetch(`/api/v1/work-shifts/?${query.toString()}`);
-    const results = res?.data?.results || res?.results || [];
-    return results.map(toShift);
+    return results.map((d: any) => toShift(d));
   } catch (e) {
     console.error("fetchShifts failed", e);
     return [];
@@ -96,34 +94,20 @@ export const fetchShiftsForDate = async (date: string): Promise<Shift[]> => {
 
 export const createShift = async (shift: Partial<Shift>): Promise<Shift | null> => {
     try {
-        const clockIn = dayjs(`${shift.shift_date}T${shift.start_time}`).toISOString();
-        let clockOut = null;
-        if (shift.end_time) {
-            let clockOutDate = shift.shift_date;
-            if (shift.is_night_shift) {
-                // If the end time is early (e.g. 08:00), it's probably next day
-                const [h] = (shift.end_time || "00:00").split(':').map(Number);
-                if (h < 12) {
-                   clockOutDate = dayjs(shift.shift_date).add(1, 'day').format('YYYY-MM-DD');
-                }
-            }
-            clockOut = dayjs(`${clockOutDate}T${shift.end_time}`).toISOString();
-        }
-
-        const body = {
+        const payload = {
             employee: shift.employes_id,
-            clockIn: clockIn,
-            clockOut: clockOut,
-            isNightShift: !!shift.is_night_shift
+            shift_date: shift.shift_date,
+            start_time: shift.start_time,
+            end_time: shift.end_time,
+            is_night_shift: !!shift.is_night_shift,
         };
 
         const res: any = await apiFetch("/api/v1/work-shifts/", {
             method: "POST",
-            body: JSON.stringify(body)
+            body: JSON.stringify(payload),
         });
         
-        const data = res?.data || res;
-        return toShift(data);
+        return toShift(res?.data ?? res);
     } catch (e) {
         console.error("createShift failed", e);
         return null;
@@ -132,32 +116,19 @@ export const createShift = async (shift: Partial<Shift>): Promise<Shift | null> 
 
 export const updateShift = async (id: string, shift: Partial<Shift>): Promise<Shift | null> => {
     try {
-        const body: any = {};
-        if (shift.employes_id) body.employee = shift.employes_id;
-        if (shift.is_night_shift !== undefined) body.isNightShift = shift.is_night_shift;
-        
-        if (shift.shift_date && shift.start_time) {
-            body.clockIn = dayjs(`${shift.shift_date}T${shift.start_time}`).toISOString();
-        }
-        
-        if (shift.shift_date && shift.end_time) {
-            let clockOutDate = shift.shift_date;
-             if (shift.is_night_shift) {
-                const [h] = (shift.end_time || "00:00").split(':').map(Number);
-                if (h < 12) {
-                   clockOutDate = dayjs(shift.shift_date).add(1, 'day').format('YYYY-MM-DD');
-                }
-            }
-            body.clockOut = dayjs(`${clockOutDate}T${shift.end_time}`).toISOString();
-        }
+        const payload: any = {};
+        if (shift.employes_id) payload.employee = shift.employes_id;
+        if (shift.is_night_shift !== undefined) payload.is_night_shift = shift.is_night_shift;
+        if (shift.shift_date) payload.shift_date = shift.shift_date;
+        if (shift.start_time) payload.start_time = shift.start_time;
+        if (shift.end_time) payload.end_time = shift.end_time;
 
         const res: any = await apiFetch(`/api/v1/work-shifts/${id}/`, {
             method: "PATCH",
-            body: JSON.stringify(body)
+            body: JSON.stringify(payload),
         });
         
-        const data = res?.data || res;
-        return toShift(data);
+        return toShift(res?.data ?? res);
     } catch (e) {
         console.error("updateShift failed", e);
         return null;

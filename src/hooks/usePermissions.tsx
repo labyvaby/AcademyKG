@@ -75,7 +75,7 @@ async function fetchPermissions(opts: { force?: boolean } = {}): Promise<void> {
       const showLoading = !globalState.loaded || force;
       setGlobal({ loading: showLoading, lastFetchedAt: Date.now() }, version);
 
-      // 1. Текущий пользователь
+      // 1. Текущий пользователь (может содержать вложенный employee по новому API)
       const meRes: any = await apiFetch('/api/v1/users/me/');
       const user = meRes?.data ?? meRes;
 
@@ -90,46 +90,42 @@ async function fetchPermissions(opts: { force?: boolean } = {}): Promise<void> {
         return;
       }
 
-      // 2. Ищем сотрудника напрямую по authUser (поле на Employee)
-      let employeeId: string | null = null;
-      try {
-        const empByAuthRes: any = await apiFetch(`/api/v1/employees/?authUser=${user.id}`);
-        const empByAuth = empByAuthRes?.data?.results ?? empByAuthRes?.results ?? [];
-        if (Array.isArray(empByAuth) && empByAuth.length > 0) {
-          employeeId = empByAuth[0].id;
-        }
-      } catch {
-        // ignore
+      // 2. Получаем employee: сначала из вложенного поля users/me, затем fallbacks
+      let emp: any = null;
+
+      // Новый API: users/me возвращает nested employee
+      if (user.employee?.id) {
+        emp = user.employee;
       }
 
-      // Fallback: ищем привязку employee-auth-link по authUser
-      if (!employeeId) {
+      // Fallback: поиск по authUser
+      if (!emp) {
         try {
-          const linkRes: any = await apiFetch(`/api/v1/employee-auth-links/?authUser=${user.id}`);
-          const links = linkRes?.data?.results ?? linkRes?.data ?? linkRes?.results ?? [];
-          if (Array.isArray(links) && links.length > 0) {
-            employeeId = links[0].employee;
+          const empByAuthRes: any = await apiFetch(`/api/v1/employees/?authUser=${user.id}`);
+          const empByAuth = empByAuthRes?.data?.results ?? empByAuthRes?.results ?? [];
+          if (Array.isArray(empByAuth) && empByAuth.length > 0) {
+            emp = empByAuth[0];
           }
         } catch {
-          // ignore
+          // ignore — may return 403 for non-admins
         }
       }
 
-      // Fallback: ищем сотрудника по номеру телефона из профиля
-      if (!employeeId && user.phoneNumber) {
+      // Fallback: поиск по телефону
+      if (!emp && user.phoneNumber) {
         try {
           const phone = user.phoneNumber.replace(/[^0-9]/g, '').slice(-9);
           const empListRes: any = await apiFetch(`/api/v1/employees/?search=${phone}`);
           const empList = empListRes?.data?.results ?? empListRes?.results ?? [];
           if (Array.isArray(empList) && empList.length > 0) {
-            employeeId = empList[0].id;
+            emp = empList[0];
           }
         } catch {
           // ignore
         }
       }
 
-      if (!employeeId) {
+      if (!emp?.id) {
         // Нет привязки к сотруднику — показываем базовый профиль без роли
         setGlobal({
           role: null,
@@ -138,22 +134,24 @@ async function fetchPermissions(opts: { force?: boolean } = {}): Promise<void> {
           loading: false,
           loaded: true,
           currentUserId: user.id,
+          employeeId: null,
         }, version);
         return;
       }
 
-      // 3. Детали сотрудника
-      const empRes: any = await apiFetch(`/api/v1/employees/${employeeId}/`);
-      const emp = empRes?.data ?? empRes;
-
-      if (!emp?.id) {
-        setGlobal({ role: null, employee: null, permissions: [], loading: false, loaded: true, currentUserId: user.id }, version);
-        return;
+      // 3. Если employee получен без полных деталей — загружаем детали
+      if (!emp.roleName && emp.id) {
+        try {
+          const empRes: any = await apiFetch(`/api/v1/employees/${emp.id}/`);
+          const fullEmp = empRes?.data ?? empRes;
+          if (fullEmp?.id) emp = fullEmp;
+        } catch {
+          // use partial emp
+        }
       }
 
       // 4. Формируем объект роли из roleName
-      // Нормализуем: API может вернуть display-имя или внутренний slug
-      const rawRoleName = (emp.roleName ?? '').toLowerCase().trim();
+      const rawRoleName = (emp.roleName ?? emp.role_name ?? '').toLowerCase().trim();
       const ROLE_ALIAS: Record<string, string> = {
         'супер-администратор': 'superadmin',
         'супер админ': 'superadmin',
@@ -310,20 +308,35 @@ export const useHasRole = (roleName: RoleName | RoleName[]): boolean => {
 
 /** Принудительный сброс всех данных (при Logout) */
 export const clearPermissions = () => {
-  setGlobal({
+  inFlight = null;
+  globalFetchVersion++;
+  globalState = {
     role: null,
     employee: null,
     permissions: [],
     loading: false,
-    loaded: true,
+    loaded: false,
     currentUserId: null,
     employeeId: null,
     lastFetchedAt: 0,
-  });
+  };
+  notify();
 };
 
 /** Принудительная перезагрузка профиля (например после смены роли или логина) */
 export const refetchPermissions = (): Promise<void> => {
-  setGlobal({ loaded: false, loading: true, currentUserId: null });
+  inFlight = null;
+  globalFetchVersion++;
+  globalState = {
+    ...globalState,
+    loaded: false,
+    loading: true,
+    currentUserId: null,
+    employeeId: null,
+    employee: null,
+    role: null,
+    lastFetchedAt: 0,
+  };
+  notify();
   return fetchPermissions({ force: true });
 };

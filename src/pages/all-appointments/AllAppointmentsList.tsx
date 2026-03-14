@@ -140,7 +140,7 @@ export const AllAppointmentsList: React.FC = () => {
     const availableYears = React.useMemo(() => {
         const currentYear = dayjs().year();
         const startYear = 2023; // Assuming clinic data starts around 2023
-        const years = [];
+        const years: string[] = [];
         for (let y = currentYear; y >= startYear; y--) {
             years.push(y.toString());
         }

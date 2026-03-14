@@ -337,7 +337,7 @@ const NotificationHistoryView: React.FC = () => {
                         .in("id", aptIds);
 
                     if (aptsData) {
-                        aptsMap = aptsData.reduce((acc, curr) => ({ ...acc, [curr.id]: curr }), {});
+                        aptsMap = (aptsData as any[]).reduce((acc: any, curr: any) => ({ ...acc, [curr.id]: curr }), {});
                     }
                 }
 
@@ -352,7 +352,7 @@ const NotificationHistoryView: React.FC = () => {
                         .in("id", patientIds);
 
                     if (patientsData) {
-                        patientsMap = patientsData.reduce((acc, curr) => ({ ...acc, [curr.id]: curr }), {});
+                        patientsMap = (patientsData as any[]).reduce((acc: any, curr: any) => ({ ...acc, [curr.id]: curr }), {});
                     }
                 }
 
@@ -368,8 +368,8 @@ const NotificationHistoryView: React.FC = () => {
                         Appointments: apt ? {
                             appointment_at: apt.appointment_at,
                             Patients: patient ? {
-                                full_name: patient.full_name,
-                                phone: patient.phone
+                                full_name: (patient as any).full_name,
+                                phone: (patient as any).phone
                             } : null
                         } : null
                     };

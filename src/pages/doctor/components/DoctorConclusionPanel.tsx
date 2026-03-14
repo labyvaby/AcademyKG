@@ -183,7 +183,7 @@ export const DoctorConclusionPanel: React.FC<DoctorConclusionPanelProps> = ({
 
             if (cError) console.error("Error loading conclusions:", cError);
 
-            const concludedBy = new Map(concs?.map((c: any) => [c.doctor_id, c.doctor]) || []);
+            const concludedBy = new Map<string, any>(concs?.map((c: any) => [c.doctor_id, c.doctor]) || []);
 
             // Merge lists: performers + anyone else who has a conclusion
             const doctorMap = new Map<string, { id: string, full_name: string, hasConclusion: boolean }>();
@@ -236,7 +236,7 @@ export const DoctorConclusionPanel: React.FC<DoctorConclusionPanelProps> = ({
                 query = query.eq("doctor_id", targetDoctorId);
             }
 
-            const { data: concData, error: concError } = await query.maybeSingle<MedicalConclusionRow>();
+            const { data: concData, error: concError } = await (query as any).maybeSingle();
 
             console.log(`[ConclusionPanel] MedicalConclusion fetch: ${concData ? 'Found' : 'Not Found'}`);
 

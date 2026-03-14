@@ -8,7 +8,7 @@ export type Expense = {
   comment?: string | null;
   category?: string | null;
   category_id?: string | null;
-  photo?: string | null; // public URL
+  photo?: string | File | null; // public URL or File for upload
   created_at: string;
   updated_at: string;
   affects_month?: string | null; // YYYY-MM, which salary month this expense deducts from
@@ -23,7 +23,7 @@ export type ExpenseFormValues = {
   comment?: string | null;
   category?: string | null;
   category_id?: string | null;
-  photo?: string | null; // existing photo URL (edit mode)
+  photo?: string | File | null; // existing photo URL or new file during multipart upload
   photoFile?: File | null; // selected file in form
   created_at?: string;
   affects_month?: string | null; // YYYY-MM
@@ -37,6 +37,9 @@ export type EmployeesRow = {
   specializationNames?: string[]; // список специализаций сотрудника
   serviceIds?: string[]; // ID услуг привязанных к сотруднику
   avatar_url?: string; // from EmployeesView: "Фото"
+  user_email?: string | null;
+  user_phone_number?: string | null;
+  role?: string;
 };
 
 export const coerceNumber = (v: unknown): number => {

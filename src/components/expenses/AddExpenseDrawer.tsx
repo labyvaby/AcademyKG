@@ -21,8 +21,7 @@ import AccountBalanceWalletOutlined from "@mui/icons-material/AccountBalanceWall
 import CreditCardOutlined from "@mui/icons-material/CreditCardOutlined";
 import { useNotification } from "@refinedev/core";
 import { ExpensesService } from "../../services/expenses";
-import { uploadExpensePhoto } from "../../services/storage";
-import { supabase } from "../../utility/supabaseClient";
+import { apiFetch } from "../../utility/apiClient";
 import type { Expense, ExpenseFormValues } from "../../pages/expenses/types";
 import { AppCard, CustomDateTimePicker } from "../ui";
 import dayjs from "dayjs";
@@ -91,18 +90,16 @@ export const AddExpenseDrawer: React.FC<AddExpenseDrawerProps> = ({
     const fetchCategories = async () => {
       setLoadingCategories(true);
       try {
-        const { data, error } = await supabase
-          .from("ExpenseCategories") // Corrected table name case if needed, assuming CamelCase based on previous code, but listing said ExpenseCategories
-          .select("id, name")
-          .order("name", { ascending: true });
-
-        if (error) throw error;
-        setCategories(
-          data?.map((c) => ({
-            id: String(c.id),
-            name: c.name,
-          })) || []
-        );
+        const res: any = await apiFetch("/api/v1/expense-categories/?page_size=200");
+        const data = res?.data?.results ?? res?.results ?? [];
+        if (Array.isArray(data)) {
+          setCategories(
+            data.map((c: any) => ({
+              id: String(c.id),
+              name: c.name,
+            }))
+          );
+        }
       } catch (error) {
         console.error("Error fetching expense categories:", error);
         notify?.({
@@ -170,14 +167,8 @@ export const AddExpenseDrawer: React.FC<AddExpenseDrawerProps> = ({
     }
 
     setBusy(true);
-    let publicUrl: string | null = null;
 
     try {
-      if (values.photoFile) {
-        const res = await uploadExpensePhoto(values.photoFile);
-        publicUrl = res.publicUrl;
-      }
-
       const createdAtDate = expenseDate ? dayjs(expenseDate) : dayjs();
       const lower = (values.category || "").toLowerCase();
       let affectsMonth: string | null = null;
@@ -198,7 +189,7 @@ export const AddExpenseDrawer: React.FC<AddExpenseDrawerProps> = ({
         comment: values.comment?.trim() || null,
         category: values.category?.trim() || null,
         category_id: values.category_id || null,
-        photo: publicUrl,
+        photo: values.photoFile,
         created_at: createdAtDate.toISOString(),
         affects_month: affectsMonth,
       };

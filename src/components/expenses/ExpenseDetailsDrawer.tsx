@@ -72,7 +72,7 @@ export const ExpenseDetailsDrawer: React.FC<ExpenseDetailsDrawerProps> = ({
           {record.photo ? (
             <Avatar
               variant="rounded"
-              src={record.photo}
+              src={record.photo as string | undefined}
               sx={{ width: "100%", height: 200 }}
             />
           ) : (

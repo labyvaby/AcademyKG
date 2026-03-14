@@ -362,20 +362,14 @@ export const HomeAddAppointmentDrawer: React.FC<
       const paidCash = typeof cash === "number" ? cash : 0;
       const paidCashless = typeof cashless === "number" ? cashless : 0;
 
-      type ServicePayloadItem = {
-        service_id: string;
-        doctor_id: string;
-        price: number;
-        discount: number;
-        total: number;
-      };
-
-      const servicesPayload: ServicePayloadItem[] = [];
+      // Build unified services array per new API spec:
+      // services: услуги (с performer) + товары (без performer)
+      const allServicesPayload: any[] = [];
       let remainingDiscount = discountAmount;
 
       for (const row of validServiceRows) {
         const service = servicesOpts.find((s) => s.id === row.serviceId);
-        const price = Number(service?.price) || 0;  // Number() устраняет строки типа '01200.000'
+        const price = Number(service?.price) || 0;
         let itemDiscount = 0;
         if (remainingDiscount > 0) {
           if (remainingDiscount >= price) {
@@ -387,13 +381,21 @@ export const HomeAddAppointmentDrawer: React.FC<
           }
         }
         const totalItem = price - itemDiscount;
-        servicesPayload.push({
-          sellableItem: row.serviceId,
+        allServicesPayload.push({
+          sellable_item: row.serviceId,
           performer: row.doctorId,
-          price,
+          quantity: 1,
           discount: itemDiscount,
           total: totalItem,
-        } as any); // Временно для игнорирования типов TS
+        });
+      }
+
+      // Add products to the same services array (no performer required)
+      for (const row of productRows.filter((r) => r.productId)) {
+        allServicesPayload.push({
+          sellable_item: row.productId,
+          quantity: row.quantity || 1,
+        });
       }
 
       const payments = [
@@ -401,52 +403,31 @@ export const HomeAddAppointmentDrawer: React.FC<
         paidCashless > 0 ? { type: "card", amount: paidCashless } : null,
       ].filter(Boolean) as Array<{ type: string; amount: number }>;
 
-      // Подготовка payload для товаров
-      type ProductPayloadItem = {
-        product_id: string;
-        quantity: number;
-        price: number;
-      };
-
-      const productsPayload: ProductPayloadItem[] = productRows
-        .filter((row) => row.productId)
-        .map((row) => {
-          const prod = products.find(
-            (p) => p.sellable_item_id === row.productId
-          );
-          return {
-            sellableItem: row.productId,
-            quantity: row.quantity || 1,
-            price: prod?.price || 0,
-          } as unknown as ProductPayloadItem; // Временно bypass types
-        });
-
       const requestPayload = {
         patient: patientId,
-        appointmentAt: dayjs(visitDateTime).format(),
-        adminComment: adminComment || null,
+        appointment_at: dayjs(visitDateTime).toISOString(),
+        admin_comment: adminComment || "",
         complaints: complaints || null,
-        doctorComplaints: doctorComplaints || null,
-        isNight: workMode === "night",
+        doctor_complaints: doctorComplaints || null,
+        is_night: workMode === "night",
         status: "scheduled",
-        services: servicesPayload,
+        services: allServicesPayload,
         payments,
-        products: productsPayload,
       };
 
-      // Диагностический лог - проверь в DevTools > Console перед созданием приема
-      console.log('[CreateAppointment] Sending payload:', JSON.stringify(requestPayload, null, 2));
-
       try {
-        await apiFetch("/api/v1/rpc/create_full_appointment/", {
+        await apiFetch("/appointment/appointments/", {
           method: "POST",
           body: JSON.stringify(requestPayload),
         });
       } catch (err: any) {
-        // Перехват 400/500 ошибки для отладки
         console.error("API Error creating appointment:", err);
-        alert(`Ошибка API: ${JSON.stringify(err, null, 2)}`);
-        return; // прерываем выполнение
+        notify?.({
+          type: "error",
+          message: "Ошибка при создании приёма",
+          description: err?.message || String(err),
+        });
+        return;
       }
 
       // Сброс локального состояния

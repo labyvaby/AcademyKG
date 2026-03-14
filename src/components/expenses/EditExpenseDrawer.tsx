@@ -20,8 +20,7 @@ import PhotoCameraOutlined from "@mui/icons-material/PhotoCameraOutlined";
 import AccountBalanceWalletOutlined from "@mui/icons-material/AccountBalanceWalletOutlined";
 import CreditCardOutlined from "@mui/icons-material/CreditCardOutlined";
 import { useNotification } from "@refinedev/core";
-import { uploadExpensePhoto } from "../../services/storage";
-import { supabase } from "../../utility/supabaseClient";
+import { apiFetch } from "../../utility/apiClient";
 import { ExpensesService } from "../../services/expenses";
 import type { Expense, ExpenseFormValues } from "../../pages/expenses/types";
 import { AppCard, CustomDateTimePicker } from "../ui";
@@ -92,24 +91,17 @@ export const EditExpenseDrawer: React.FC<EditExpenseDrawerProps> = ({
     let cancelled = false;
     const load = async () => {
       try {
-        const { data, error } = await supabase.from("ExpenseCategories").select("id, name");
+        const res: any = await apiFetch("/api/v1/expense-categories/?page_size=200");
+        const data = res?.data?.results ?? res?.results ?? [];
 
-        if (error) {
-          console.error("Error loading categories:", error);
-          return;
-        }
-
-        const cats: ExpenseCategory[] = [];
-        if (data) {
-          data.forEach((c) => {
-            if (c.id && c.name) {
-              cats.push({ id: String(c.id), name: c.name });
-            }
-          });
-        }
-
-        if (!cancelled) {
-          setCategories(cats);
+        if (Array.isArray(data)) {
+          const cats: ExpenseCategory[] = data.map((c: any) => ({
+            id: String(c.id),
+            name: c.name,
+          }));
+          if (!cancelled) {
+            setCategories(cats);
+          }
         }
       } catch (e) {
         console.error("Failed to load categories in EditExpenseDrawer", e);
@@ -163,17 +155,6 @@ export const EditExpenseDrawer: React.FC<EditExpenseDrawerProps> = ({
     try {
       setBusy(true);
 
-      let publicUrl: string | null = values.photo || null;
-      if (values.photoFile) {
-        try {
-          const res = await uploadExpensePhoto(values.photoFile);
-          publicUrl = res.publicUrl;
-        } catch (e) {
-          console.error("Upload expense photo failed:", e);
-          notify?.({ type: "error", message: "Не удалось загрузить фото расхода" });
-        }
-      }
-
       const createdAtDate = values.created_at ? dayjs(values.created_at) : dayjs();
       const lowerCat = (values.category || "").toLowerCase();
       let affectsMonth: string | null = null;
@@ -192,7 +173,7 @@ export const EditExpenseDrawer: React.FC<EditExpenseDrawerProps> = ({
         comment: values.comment?.trim() || null,
         category: values.category?.trim() || null,
         category_id: values.category_id || null,
-        photo: publicUrl,
+        photo: values.photoFile || values.photo, // Pass File if selected, otherwise keep URL
         created_at: createdAtDate.toISOString(),
         affects_month: affectsMonth,
       };
@@ -300,7 +281,7 @@ export const EditExpenseDrawer: React.FC<EditExpenseDrawerProps> = ({
                 >
                   <Avatar
                     variant="rounded"
-                    src={previewUrl || values.photo || undefined}
+                    src={previewUrl || (typeof values.photo === 'string' ? values.photo : undefined)}
                     sx={{ width: 48, height: 48 }}
                   >
                     <PhotoCameraOutlined />

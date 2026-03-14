@@ -21,7 +21,6 @@ import PhotoCameraOutlined from "@mui/icons-material/PhotoCameraOutlined";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import { useNotification } from "@refinedev/core";
 import { createProduct, CreateProductData } from "../../services/products";
-import { uploadProductPhoto } from "../../services/storage";
 import { AppCard } from "../ui";
 
 // Custom styles for the toggle tabs
@@ -102,16 +101,9 @@ export const AddProductDrawer: React.FC<AddProductDrawerProps> = ({
 
         setBusy(true);
         try {
-            let publicUrl = values.image_url;
-
-            if (photoFile) {
-                const res = await uploadProductPhoto(photoFile);
-                publicUrl = res.publicUrl;
-            }
-
             await createProduct({
                 ...values,
-                image_url: publicUrl,
+                image_url: photoFile || values.image_url,
                 name: values.name.trim(),
                 barcode: values.barcode?.trim() || undefined,
                 unit: values.unit?.trim() || undefined,

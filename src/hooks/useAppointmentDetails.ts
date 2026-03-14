@@ -44,38 +44,76 @@ export const useAppointmentDetails = (appointmentId: string | null) => {
             if (!appointmentId) return emptyResult;
 
             try {
-                // 1. Детали приёма
-                const apptRes: any = await apiFetch(`/api/v1/appointments/${appointmentId}/`);
-                const apptData: AggregatedAppointmentRow = apptRes?.data ?? apptRes;
+                // 1. Детали приёма через новый endpoint
+                let apptData: any = null;
+                try {
+                    const res: any = await apiFetch(`/appointment/appointments/${appointmentId}/`);
+                    apptData = res?.data ?? res;
+                } catch {
+                    // fallback to aggregated
+                    const res: any = await apiFetch(`/api/v1/appointments-aggregated/${appointmentId}/`);
+                    apptData = res?.data ?? res;
+                }
 
-                if (!apptData?.id) return emptyResult;
+                if (!apptData) return emptyResult;
 
-                const mapped = mapAggregatedRowToAppointment(apptData);
-                const patientId = apptData.patient_id ?? (apptData as any).patient;
+                const mapped = mapAggregatedRowToAppointment(apptData as any);
 
                 // 2. Данные пациента
-                let patientData: AppointmentDetailsData['patientData'] = null;
-                if (patientId) {
-                    try {
-                        const pRes: any = await apiFetch(`/api/v1/children/${patientId}/`);
-                        const p = pRes?.data ?? pRes;
-                        patientData = {
-                            phone: p?.phone ?? p?.contactPhone ?? null,
-                            birth_date: p?.birthDate ?? p?.birth_date ?? null,
-                            inn: p?.inn ?? null,
-                            photo_url: p?.photoUrl ?? p?.photo_url ?? null,
-                        };
-                    } catch {
-                        // patient not critical
+                const patientData = {
+                    phone: apptData.patient_phone || apptData.patient?.phone || null,
+                    birth_date: apptData.patient_birth_date || apptData.patient?.birth_date || null,
+                    inn: apptData.patient_inn || apptData.patient?.inn || null,
+                    photo_url: apptData.patient_photo_url || apptData.patient?.photo_url || null,
+                };
+
+                // 3. Doctors — из services (performer) или legacy fields
+                const doctorMap = new Map<string, any>();
+                const services: any[] = apptData.services ?? [];
+                services.forEach((s: any) => {
+                    if (s.performer?.id) {
+                        doctorMap.set(s.performer.id, {
+                            id: s.performer.id,
+                            full_name: s.performer.full_name || "Специалист",
+                            phone: s.performer.phone || null,
+                            photo_url: s.performer.photo_url || null,
+                        });
                     }
+                });
+                if (apptData.doctor_id && !doctorMap.has(apptData.doctor_id)) {
+                    doctorMap.set(apptData.doctor_id, {
+                        id: apptData.doctor_id,
+                        full_name: apptData.doctor_name || "Специалист",
+                        phone: apptData.doctor_phone || null,
+                        photo_url: apptData.doctor_photo_url || null,
+                    });
                 }
+                const doctors = Array.from(doctorMap.values());
+
+                // 4. Products — из products array (новый API) или из products в services
+                const products: any[] = apptData.products ?? [];
+                const appointmentProducts = products.map((p: any) => ({
+                    sellable_item_id: p.sellable_item?.id ?? p.id ?? p.sellable_item_id,
+                    name: p.sellable_item?.display_name ?? p.name ?? "",
+                    price: p.sellable_item?.display_price ?? p.price ?? 0,
+                    quantity: p.quantity ?? 1,
+                    photo_url: p.sellable_item?.product?.image_url ?? p.photo_url ?? null,
+                }));
+
+                // 5. Services photos map
+                const servicesPhotos = new Map<string, string>();
+                services.forEach((s: any) => {
+                    const id = s.sellable_item?.id ?? s.id;
+                    const photo = s.sellable_item?.service?.image_url ?? s.image_url;
+                    if (id && photo) servicesPhotos.set(id, photo);
+                });
 
                 return {
                     item: mapped,
                     patientData,
-                    appointmentDoctors: [],
-                    appointmentProducts: [],
-                    servicesPhotos: new Map(),
+                    appointmentDoctors: doctors as any,
+                    appointmentProducts,
+                    servicesPhotos,
                 };
             } catch (err) {
                 console.error("[useAppointmentDetails] Unexpected error:", err);

@@ -214,54 +214,5 @@ export const deletePatientPhotoByUrl = async (
   }
 };
 
-// Product bucket helpers
-const PRODUCTS_BUCKET = importMetaEnv.VITE_STORAGE_PRODUCTS_BUCKET || "product_photo";
+// Product bucket helpers (Deprecated: handled by Django API)
 
-/**
- * Upload file to products bucket and return public URL and file path
- */
-export const uploadProductPhoto = async (
-  file: File
-): Promise<{ publicUrl: string; path: string }> => {
-  const ext = getFileExtension(file.name);
-  const unique =
-    typeof crypto !== "undefined" && "randomUUID" in crypto
-      ? crypto.randomUUID()
-      : String(Date.now());
-  const filePath = `photos/${unique}${ext ? `.${ext}` : ""}`;
-
-  // Сжатие изображения перед загрузкой
-  let fileToUpload: File | Blob = file;
-  try {
-    fileToUpload = await compressImage(file);
-    console.log(`[STORAGE_DEBUG] Product photo compressed: ${file.size} -> ${(fileToUpload as Blob).size} байт`);
-  } catch (e) {
-    console.warn("[STORAGE_DEBUG] Compression failed, uploading original:", e);
-  }
-
-  const { error: uploadError } = await supabase.storage
-    .from(PRODUCTS_BUCKET)
-    .upload(filePath, fileToUpload, {
-      upsert: false,
-      cacheControl: "3600",
-    });
-  if (uploadError) throw uploadError;
-
-  const { data } = supabase.storage.from(PRODUCTS_BUCKET).getPublicUrl(filePath);
-  return { publicUrl: data.publicUrl, path: filePath };
-};
-
-/**
- * Delete file in products bucket by its public URL (no-op on parse failure)
- */
-export const deleteProductPhotoByUrl = async (
-  publicUrl?: string | null
-): Promise<void> => {
-  if (!publicUrl) return;
-  const path = extractPathFromPublicUrlForBucket(publicUrl, PRODUCTS_BUCKET);
-  if (!path) return;
-  const { error } = await supabase.storage.from(PRODUCTS_BUCKET).remove([path]);
-  if (error) {
-    // ignore non-fatal errors
-  }
-};

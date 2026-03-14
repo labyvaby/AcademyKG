@@ -55,11 +55,20 @@ export async function apiFetch<T = unknown>(
 ): Promise<T> {
   const url = `${BASE_URL}${path}`;
 
-  const buildHeaders = (token?: string | null): HeadersInit => ({
-    "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    ...(options.headers as Record<string, string> | undefined),
-  });
+  const buildHeaders = (token?: string | null): HeadersInit => {
+    const headers: Record<string, string> = {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(options.headers as Record<string, string> | undefined),
+    };
+
+    // Only set Content-Type if it's not FormData (browser sets it for FormData)
+    // and if it's not already set in options.headers
+    if (!(options.body instanceof FormData) && !headers["Content-Type"]) {
+      headers["Content-Type"] = "application/json";
+    }
+
+    return headers;
+  };
 
   const doRequest = async (token?: string | null): Promise<Response> =>
     fetch(url, {

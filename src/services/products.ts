@@ -1,19 +1,19 @@
-import { supabase } from "../utility/supabaseClient";
+import { apiFetch } from "../utility/apiClient";
+import { getPrimaryWarehouseId } from "./warehouse";
 
 export type Product = {
-  sellable_item_id: string;
+  sellable_item_id: string; // Map from 'id' in API
   name: string;
   description?: string;
   category?: string;
   barcode?: string;
   unit?: string;
-  is_for_sale?: boolean;
-  is_infusion?: boolean;
-  image_url?: string;
+  is_for_sale?: boolean; // Map from 'isForSale'
+  is_infusion?: boolean; // Map from 'isInfusion'
+  image_url?: string;    // Map from 'imageUrl'
   comment?: string;
   created_at: string;
   updated_at: string;
-  // Augmented fields from joins
   price?: number;
   stock?: number;
 };
@@ -26,7 +26,7 @@ export type CreateProductData = {
   unit?: string;
   is_for_sale?: boolean;
   is_infusion?: boolean;
-  image_url?: string;
+  image_url?: string | File;
   comment?: string;
   price?: number;
   stock?: number;
@@ -34,291 +34,212 @@ export type CreateProductData = {
 
 export type UpdateProductData = Partial<CreateProductData>;
 
+const mapApiToProduct = (apiP: any, pricesMap?: Map<string, number>, stockMap?: Map<string, number>): Product => {
+    const id = apiP.id;
+    return {
+        sellable_item_id: id,
+        name: apiP.name,
+        description: apiP.description,
+        category: apiP.category,
+        barcode: apiP.barcode,
+        unit: apiP.unit,
+        is_for_sale: apiP.isForSale,
+        is_infusion: apiP.isInfusion,
+        image_url: apiP.imageUrl,
+        comment: apiP.comment,
+        created_at: apiP.createdAt,
+        updated_at: apiP.updatedAt,
+        price: pricesMap?.get(id) || apiP.price,
+        stock: stockMap?.get(id) || apiP.stock || 0
+    };
+};
 
+export const getProducts = async (): Promise<Product[]> => {
+    try {
+        // Try catalog/sellable-items?type=product first (new API)
+        const res: any = await apiFetch("/catalog/sellable-items/?type=product&is_active=true&page_size=1000");
+        const items = res?.data?.results ?? res?.results ?? res ?? [];
 
-export const getPrimaryWarehouseId = async () => {
-    const { data, error } = await supabase
-        .from("Warehouses")
-        .select("id")
-        .order("is_primary", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-    
-    if (error) console.error("Error fetching warehouse:", error);
-    return data?.id;
-}
-
-export const getProducts = async () => {
-  // 1. Fetch Products
-  const { data: products, error } = await supabase
-    .from("Products")
-    .select(`
-      sellable_item_id,
-      name,
-      description,
-      category,
-      barcode,
-      unit,
-      is_for_sale,
-      is_infusion,
-      image_url,
-      comment,
-      created_at,
-      updated_at
-    `)
-    .order("created_at", { ascending: false });
-
-  if (error) throw error;
-  if (!products || products.length === 0) return [];
-
-  const ids = products.map((p) => p.sellable_item_id).filter(id => id);
-
-  // 2. Fetch Prices
-  let pricesMap = new Map<string, number>();
-  if (ids.length > 0) {
-    const { data: prices } = await supabase
-      .from("Prices")
-      .select("sellable_item_id, price")
-      .eq("is_current", true)
-      .in("sellable_item_id", ids);
-
-    if (prices) {
-      prices.forEach((p) => {
-        pricesMap.set(p.sellable_item_id, p.price);
-      });
+        if (Array.isArray(items) && items.length > 0) {
+            return items.map((item: any) => ({
+                sellable_item_id: item.id,
+                name: item.display_name ?? item.name ?? "Без названия",
+                price: item.display_price ?? item.price,
+                image_url: item.product?.image_url ?? item.image_url,
+                is_for_sale: item.product?.is_for_sale ?? true,
+                is_infusion: item.product?.is_infusion ?? false,
+                created_at: item.created_at ?? "",
+                updated_at: item.updated_at ?? "",
+                stock: item.stock ?? 0,
+            } as Product));
+        }
+    } catch {
+        // fallback to old endpoint below
     }
-  }
 
-  // 3. Fetch Stock (Inventory)
-  // Note: Inventory view usually aggregates by product_id
-  let stockMap = new Map<string, number>();
-  if (ids.length > 0) {
-      const { data: inventory } = await supabase
-        .from("Inventory")
-        .select("product_id, quantity")
-        .in("product_id", ids);
-      
-      if (inventory) {
-          inventory.forEach((i: any) => {
-              // Inventory view might have multiple rows per product if warehouses are involved, 
-              // but here we just sum them up or assume unique product_id if aggregated.
-              // Let's assume the View returns aggregated or we sum it.
-              const prev = stockMap.get(i.product_id) || 0;
-              stockMap.set(i.product_id, prev + (i.quantity || 0));
-          });
-      }
-  }
+    // Fallback: old endpoints
+    const res: any = await apiFetch("/api/v1/products/?page_size=1000");
+    const products = res?.data?.results ?? res?.results ?? res ?? [];
 
+    if (!Array.isArray(products)) return [];
 
-  // 4. Merge
-  const merged = products.map((p: Record<string, unknown>) => {
-      const id = p.sellable_item_id as string;
-      return {
-          sellable_item_id: id,
-          name: p.name as string,
-          description: p.description as string | undefined,
-          category: p.category as string | undefined,
-          barcode: p.barcode as string | undefined,
-          unit: p.unit as string | undefined,
-          is_for_sale: p.is_for_sale as boolean | undefined,
-          is_infusion: p.is_infusion as boolean | undefined,
-          image_url: p.image_url as string | undefined,
-          comment: p.comment as string | undefined,
-          created_at: p.created_at as string,
-          updated_at: p.updated_at as string,
-          price: pricesMap.get(id),
-          stock: stockMap.get(id) || 0
-      };
-  });
+    const pricesRes: any = await apiFetch("/api/v1/prices/?page_size=1000&is_current=true");
+    const prices = pricesRes?.data?.results ?? pricesRes?.results ?? pricesRes ?? [];
+    const pricesMap = new Map<string, number>();
+    if (Array.isArray(prices)) {
+        prices.forEach((p: any) => { pricesMap.set(p.sellableItem, Number(p.price)); });
+    }
 
-  return merged as Product[];
+    const invRes: any = await apiFetch("/api/v1/inventory/?page_size=1000");
+    const inventory = invRes?.data?.results ?? invRes?.results ?? invRes ?? [];
+    const stockMap = new Map<string, number>();
+    if (Array.isArray(inventory)) {
+        inventory.forEach((i: any) => {
+            const productId = i.product || i.product_id;
+            const prev = stockMap.get(productId) || 0;
+            stockMap.set(productId, prev + Number(i.quantity));
+        });
+    }
+
+    return products.map((p: any) => mapApiToProduct(p, pricesMap, stockMap));
 };
 
 export const createProduct = async (productData: CreateProductData) => {
-  // 1. Create SellableItem
-  const { data: sellableItem, error: sellableError } = await supabase
-    .from("SellableItems")
-    .insert([{ 
-        type: "product",
-        is_active: productData.is_for_sale ?? true 
-    }])
-    .select()
-    .single();
+    const formData = new FormData();
+    
+    const mapping: Record<string, string> = {
+        name: 'name',
+        description: 'description',
+        category: 'category',
+        barcode: 'barcode',
+        unit: 'unit',
+        is_for_sale: 'isForSale',
+        is_infusion: 'isInfusion',
+        image_url: 'imageUrl',
+        comment: 'comment'
+    };
 
-  if (sellableError) throw sellableError;
-  const sellableId = sellableItem.id;
+    Object.entries(productData).forEach(([key, value]) => {
+        const apiKey = mapping[key];
+        if (apiKey && value !== undefined && value !== null) {
+            if (value instanceof File) {
+                formData.append(apiKey, value);
+            } else {
+                formData.append(apiKey, String(value));
+            }
+        }
+    });
 
-  try {
-      // 2. Create Product
-      const { data: product, error: productError } = await supabase
-        .from("Products")
-        .insert([{
-            sellable_item_id: sellableId,
-            name: productData.name,
-            description: productData.description,
-            category: productData.category,
-            barcode: productData.barcode,
-            unit: productData.unit,
-            is_for_sale: productData.is_for_sale,
-            is_infusion: productData.is_infusion,
-            image_url: productData.image_url,
-            comment: productData.comment,
-        }])
-        .select()
-        .single();
+    const res: any = await apiFetch("/api/v1/products/", {
+        method: "POST",
+        body: formData,
+    });
+    
+    const product = res?.data ?? res;
+    const sellableId = product.id;
 
-      if (productError) throw productError;
+    // 3. Create Price
+    if (productData.price !== undefined) {
+        await apiFetch("/api/v1/prices/", {
+            method: "POST",
+            body: JSON.stringify({
+                sellableItem: sellableId,
+                price: productData.price,
+                isCurrent: true
+            })
+        });
+    }
 
-      // 3. Create Price (if provided)
-      if (productData.price !== undefined) {
-          await supabase.from("Prices").insert([{
-              sellable_item_id: sellableId,
-              price: productData.price,
-              is_current: true
-          }]);
-      }
+    // 4. Create StockMovement
+    const warehouseId = await getPrimaryWarehouseId();
+    if (warehouseId && productData.stock !== undefined && productData.stock !== 0) {
+        await apiFetch("/api/v1/stock-movements/", {
+            method: "POST",
+            body: JSON.stringify({
+                product: sellableId,
+                warehouse: warehouseId,
+                quantity: productData.stock,
+                moveType: "receipt",
+                unitCost: productData.price || 0
+            })
+        });
+    }
 
-      // 4. Create Inventory (if stock provided)
-      const warehouseId = await getPrimaryWarehouseId();
-      if (warehouseId && productData.stock !== undefined) {
-          const { error: stockError } = await supabase.from("StockMovements").insert([{
-              product_id: sellableId,
-              warehouse_id: warehouseId,
-              quantity: productData.stock,
-              move_type: "receipt",
-              // We use Selling Price as proxy for Cost Price for initial stock
-              unit_cost: (productData.price || 0) * productData.stock,
-              created_at: new Date().toISOString()
-          }]);
-          if (stockError) throw stockError;
-      }
-
-       return product as Product;
-  } catch (err) {
-      console.error("Error in createProduct flow, attempting cleanup...", err);
-      // Cleanup sellable item if product creation failed
-      await supabase.from("SellableItems").delete().eq("id", sellableId);
-      throw err;
-  }
+    return mapApiToProduct(product);
 };
 
 export const updateProduct = async (id: string, productData: UpdateProductData) => {
-  // Update Product Table
-  const { data, error } = await supabase
-    .from("Products")
-    .update({
-        name: productData.name,
-        description: productData.description,
-        category: productData.category,
-        barcode: productData.barcode,
-        unit: productData.unit,
-        is_for_sale: productData.is_for_sale,
-        is_infusion: productData.is_infusion,
-        image_url: productData.image_url,
-        comment: productData.comment,
-    })
-    .eq("sellable_item_id", id)
-    .select()
-    .single();
+    const formData = new FormData();
+    
+    const mapping: Record<string, string> = {
+        name: 'name',
+        description: 'description',
+        category: 'category',
+        barcode: 'barcode',
+        unit: 'unit',
+        is_for_sale: 'isForSale',
+        is_infusion: 'isInfusion',
+        image_url: 'imageUrl',
+        comment: 'comment'
+    };
 
-  if (error) throw error;
-  
-  // Update SellableItems (is_active)
-  if (productData.is_for_sale !== undefined) {
-      await supabase.from("SellableItems").update({ is_active: productData.is_for_sale }).eq("id", id);
-  }
+    Object.entries(productData).forEach(([key, value]) => {
+        const apiKey = mapping[key];
+        if (apiKey && value !== undefined && value !== null) {
+            if (value instanceof File) {
+                formData.append(apiKey, value);
+            } else {
+                formData.append(apiKey, String(value));
+            }
+        }
+    });
 
-  // Update Price
-  if (productData.price !== undefined) {
-      const { data: currentPrice } = await supabase.from("Prices").select("id").eq("sellable_item_id", id).eq("is_current", true).limit(1).maybeSingle();
-      
-      if (currentPrice) {
-          await supabase.from("Prices").update({ price: productData.price }).eq("id", currentPrice.id);
-      } else {
-          await supabase.from("Prices").insert([{ sellable_item_id: id, price: productData.price, is_current: true }]);
-      }
-  }
+    const res: any = await apiFetch(`/api/v1/products/${id}/`, {
+        method: "PATCH",
+        body: formData,
+    });
 
-   // Update Stock
-   const warehouseId = await getPrimaryWarehouseId();
-   if (warehouseId && productData.stock !== undefined) {
-        // Calculate current stock to find diff uses Inventory view which is faster
-        const { data: inv } = await supabase
-            .from("Inventory")
-            .select("quantity")
-            .eq("product_id", id)
-            .eq("warehouse_id", warehouseId)
-            .maybeSingle();
-        
-        const currentStock = inv?.quantity || 0;
+    const product = res?.data ?? res;
+
+    // Update Price
+    if (productData.price !== undefined) {
+        await apiFetch("/api/v1/prices/", {
+            method: "POST",
+            body: JSON.stringify({
+                sellableItem: id,
+                price: productData.price,
+                isCurrent: true
+            })
+        });
+    }
+
+    // Update Stock
+    const warehouseId = await getPrimaryWarehouseId();
+    if (warehouseId && productData.stock !== undefined) {
+        const invRes: any = await apiFetch(`/api/v1/inventory/?product_id=${id}&warehouse_id=${warehouseId}`);
+        const inv = invRes?.data?.results?.[0] ?? invRes?.results?.[0] ?? invRes?.[0];
+        const currentStock = Number(inv?.quantity || 0);
         const diff = productData.stock - currentStock;
 
         if (diff !== 0) {
-            // Fetch current price if not provided in update
-            let currentPriceVal = productData.price;
-            if (currentPriceVal === undefined) {
-                 const { data: pPrice } = await supabase.from("Prices").select("price").eq("sellable_item_id", id).eq("is_current", true).limit(1).maybeSingle();
-                 currentPriceVal = pPrice?.price || 0;
-            }
-
-            const { error: stockError } = await supabase.from("StockMovements").insert([{ 
-                product_id: id, 
-                warehouse_id: warehouseId, 
-                quantity: diff,
-                move_type: "adjustment",
-                // Use Price as proxy for Cost
-                unit_cost: (currentPriceVal || 0) * diff,
-                created_at: new Date().toISOString()
-            }]);
-            if (stockError) throw stockError;
+            await apiFetch("/api/v1/stock-movements/", {
+                method: "POST",
+                body: JSON.stringify({
+                    product: id,
+                    warehouse: warehouseId,
+                    quantity: diff,
+                    moveType: "adjustment",
+                    unitCost: productData.price || 0
+                })
+            });
         }
-   }
+    }
 
-  return data as Product;
+    return mapApiToProduct(product);
 };
 
 export const deleteProduct = async (id: string) => {
-    // 0. Check for sales history
-    const { count } = await supabase
-        .from("SaleLines")
-        .select("*", { count: 'exact', head: true })
-        .eq("sellable_item_id", id);
-
-    if (count !== null && count > 0) {
-        // Archive instead of delete
-        const { data: current } = await supabase
-            .from("Products")
-            .select("name")
-            .eq("sellable_item_id", id)
-            .single();
-            
-        const newName = current?.name?.includes('(Архив)') 
-            ? current.name 
-            : `${current?.name} (Архив)`;
-
-        // Update Product
-        await supabase.from("Products").update({
-            name: newName,
-            is_for_sale: false
-        }).eq("sellable_item_id", id);
-
-        // Update SellableItem
-        await supabase.from("SellableItems").update({ 
-            is_active: false 
-        }).eq("id", id);
-
-        throw new Error("ARCHIVED");
-    }
-
-    // Correct deletion order: Dependents first
-    // 1. Delete StockMovements
-    await supabase.from("StockMovements").delete().eq("product_id", id);
-    // 2. Delete Prices
-    await supabase.from("Prices").delete().eq("sellable_item_id", id);
-    // 3. Delete Products
-    const { error: prodError } = await supabase.from("Products").delete().eq("sellable_item_id", id);
-    if (prodError) throw prodError;
-    // 4. Delete SellableItem
-    const { error: sellableError } = await supabase.from("SellableItems").delete().eq("id", id);
-    if (sellableError) throw sellableError;
+    await apiFetch(`/api/v1/products/${id}/`, {
+        method: "DELETE"
+    });
 };

@@ -33,7 +33,6 @@ import AddExpenseDrawer from "../../components/expenses/AddExpenseDrawer";
 import EditExpenseDrawer from "../../components/expenses/EditExpenseDrawer";
 import { DeleteExpenseDialog } from "../../components/expenses/DeleteExpenseDialog";
 import { PaymentInfoBlock } from "../../components/ui";
-import { supabase } from "../../utility/supabaseClient";
 import { ExpensesService } from "../../services/expenses";
 import { fetchEmployees } from "../../services/employees";
 import { usePageTitle } from "../../hooks/usePageTitle";
@@ -42,7 +41,7 @@ import { PageHeader, AppBottomSheet } from "../../components/ui";
 import { usePermissions } from "../../hooks/usePermissions";
 import { EMPLOYEES_SOURCE } from "../../features/employees/api";
 
-const CATEGORIES_TABLE = "ExpenseCategories";
+
 
 const MONTH_NAMES = [
   "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
@@ -269,32 +268,7 @@ const ExpensesListPage: React.FC = () => {
     return () => { cancelled = true; };
   }, [reloadTick]);
 
-  // REALTIME: Подписка на изменения расходов и категорий
-  React.useEffect(() => {
-    const channel = supabase
-      .channel("expenses-realtime")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "Expenses" },
-        () => {
-          console.log("Realtime: Expenses changed, reloading...");
-          setReloadTick(t => t + 1);
-        }
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: CATEGORIES_TABLE },
-        () => {
-          console.log("Realtime: Expense categories changed, reloading...");
-          setReloadTick(t => t + 1);
-        }
-      )
-      .subscribe();
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, []);
 
   const employeeNameById = React.useMemo(() => {
     const m = new Map<string, string>();
@@ -695,7 +669,7 @@ const ExpensesListPage: React.FC = () => {
                 }}
               >
                 <img
-                  src={expense.photo}
+                  src={expense.photo as string}
                   alt={expense.name}
                   style={{
                     maxWidth: "100%",
@@ -1135,7 +1109,7 @@ const ExpensesListPage: React.FC = () => {
                               >
                                 <Avatar
                                   variant="rounded"
-                                  src={exp.photo || undefined}
+                                  src={exp.photo ? (exp.photo as string) : undefined}
                                   sx={{ mr: 2, width: 40, height: 40, bgcolor: "action.selected", color: "text.secondary" }}
                                 >
                                   <ReceiptLongOutlined />

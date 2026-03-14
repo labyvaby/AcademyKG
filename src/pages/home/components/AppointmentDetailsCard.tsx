@@ -134,10 +134,11 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
     if (!appointmentId) return;
     const fetchConclusionDoctors = async () => {
       try {
-        const res: any = await apiFetch(`/api/v1/conclusions/?appointment=${appointmentId}&page_size=100`);
-        const items: any[] = res?.data?.results ?? res?.results ?? [];
-        const doctors = items
-          .map((d: any) => d.doctor ? { id: d.doctor, full_name: d.doctorName ?? "" } : null)
+        const res: any = await apiFetch(`/api/v1/conclusions/?appointment_id=${appointmentId}`);
+        const items = res?.results ?? res?.data ?? res ?? [];
+
+        const doctors = (items || [])
+          .map((d: any) => d.doctor ? { id: d.doctor, full_name: d.doctor_name ?? "" } : null)
           .filter(Boolean);
         setConclusionDoctors(doctors);
       } catch {
@@ -205,7 +206,7 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
       setActionLoading(true);
       await apiFetch(`/api/v1/appointments/${appointmentId}/`, {
         method: "PATCH",
-        body: JSON.stringify({ status: newStatus }),
+        body: JSON.stringify({ status: newStatus, updated_at: new Date().toISOString() }),
       });
 
       // Notify parent/context if needed
@@ -247,7 +248,9 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
       if (!item || deleting) return;
       try {
         setDeleting(true);
-        await apiFetch(`/api/v1/appointments/${item.id}/`, { method: "DELETE" });
+        await apiFetch(`/api/v1/appointments/${item.id}/`, {
+            method: "DELETE",
+        });
 
         // onUpdate(); // Parent should refresh list
         open?.({

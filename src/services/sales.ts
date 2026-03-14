@@ -159,7 +159,7 @@ export const createSale = async (data: CreateSaleData) => {
             .select("id, type")
             .in("id", itemIds);
 
-        const itemTypeMap = new Map(items?.map(i => [i.id, i.type]) || []);
+        const itemTypeMap = new Map<string, string>((items as any[])?.map((i: any) => [i.id, i.type]) || []);
 
         for (const line of data.lines) {
             if (itemTypeMap.get(line.sellable_item_id) === 'product') {
@@ -222,8 +222,8 @@ export const deleteSale = async (id: string) => {
                 .select("id, type, product_id")
                 .in("id", itemIds);
 
-            const itemTypeMap = new Map(items?.map(i => [i.id, i.type]) || []);
-            const itemProductMap = new Map(items?.map(i => [i.id, i.product_id]) || []);
+            const itemTypeMap = new Map<string, string>((items as any[])?.map((i: any) => [i.id, i.type]) || []);
+            const itemProductMap = new Map<string, string>((items as any[])?.map((i: any) => [i.id, i.product_id]) || []);
 
             // Проверяем, какие товары ещё существуют в базе
             const productIds = Array.from(itemProductMap.values()).filter(Boolean);
@@ -235,10 +235,10 @@ export const deleteSale = async (id: string) => {
                     .select("id")
                     .in("id", productIds);
 
-                existingProductIds = new Set(existingProducts?.map(p => p.id) || []);
+                existingProductIds = new Set((existingProducts as any[])?.map((p: any) => p.id) || []);
             }
 
-            const movements = [];
+            const movements: any[] = [];
             for (const line of sale.SaleLines) {
                  const itemType = itemTypeMap.get(line.sellable_item_id);
                  const productId = itemProductMap.get(line.sellable_item_id);
@@ -354,7 +354,7 @@ export const updateSale = async (id: string, data: { patient_id?: string | null;
             .select("id, type")
             .in("id", Array.from(allItemIds));
         
-        const itemTypeMap = new Map(items?.map(i => [i.id, i.type]) || []);
+        const itemTypeMap = new Map<string, string>((items as any[])?.map((i: any) => [i.id, i.type]) || []);
 
         // A) Process New/Updated
         for (const newLine of newLines) {

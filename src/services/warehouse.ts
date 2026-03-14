@@ -1,5 +1,4 @@
-
-import { supabase } from "../utility/supabaseClient";
+import { apiFetch } from "../utility/apiClient";
 
 export type Warehouse = {
     id: string;
@@ -39,68 +38,34 @@ export type StockMovement = {
     user_name?: string; // created_by name
 };
 
-export const getWarehouses = async () => {
-    const { data, error } = await supabase
-        .from("Warehouses")
-        .select("*")
-        .order("is_primary", { ascending: false })
-        .order("name");
-    
-    if (error) throw error;
-    return data as Warehouse[];
+export const getWarehouses = async (): Promise<Warehouse[]> => {
+    const res: any = await apiFetch("/api/v1/warehouses/");
+    return (res?.data?.results ?? res?.results ?? (Array.isArray(res?.data) ? res.data : null) ?? (Array.isArray(res) ? res : [])) as Warehouse[];
 };
 
-export const getInventory = async (warehouseId?: string) => {
-    let query = supabase
-        .from("Inventory")
-        .select(`
-            *,
-            Products:product_id (name, image_url, barcode, unit, category)
-        `);
-    
-    if (warehouseId) {
-        query = query.eq("warehouse_id", warehouseId);
-    }
-
-    const { data, error } = await query;
-
-    if (error) throw error;
-
-    return data.map((item: any) => ({
-        ...item,
-        product_name: item.Products?.name,
-        product_image: item.Products?.image_url,
-        product_barcode: item.Products?.barcode,
-        product_unit: item.Products?.unit,
-        product_category: item.Products?.category,
-    })) as StockItem[];
+export const getPrimaryWarehouseId = async () => {
+    const warehouses = await getWarehouses() as Warehouse[];
+    const primary = warehouses.find(w => w.is_primary);
+    return primary?.id || warehouses[0]?.id || null;
 };
 
-export const getStockMovements = async (productId?: string, warehouseId?: string, limit = 50) => {
-    let query = supabase
-        .from("StockMovements")
-        .select(`
-            *,
-            Products:product_id (name)
-        `)
-        .order("created_at", { ascending: false })
-        .limit(limit);
-
-    if (productId) {
-        query = query.eq("product_id", productId);
-    }
+export const getInventory = async (warehouseId?: string): Promise<StockItem[]> => {
+    let url = "/api/v1/inventory/";
     if (warehouseId) {
-        query = query.eq("warehouse_id", warehouseId);
+        url += `?warehouse_id=${warehouseId}`;
     }
+    const res: any = await apiFetch(url);
+    return (res?.data?.results ?? res?.results ?? (Array.isArray(res?.data) ? res.data : null) ?? (Array.isArray(res) ? res : [])) as StockItem[];
+};
 
-    const { data, error } = await query;
-    if (error) throw error;
+export const getStockMovements = async (productId?: string, warehouseId?: string, limit = 50): Promise<StockMovement[]> => {
+    const params = new URLSearchParams();
+    if (productId) params.append("product_id", productId);
+    if (warehouseId) params.append("warehouse_id", warehouseId);
+    params.append("limit", limit.toString());
 
-    return data.map((item: any) => ({
-        ...item,
-        product_name: item.Products?.name,
-        user_name: item.Employees?.full_name || "Система", // Fallback
-    })) as StockMovement[];
+    const res: any = await apiFetch(`/api/v1/stock-movements/?${params.toString()}`);
+    return (res?.data?.results ?? res?.results ?? (Array.isArray(res?.data) ? res.data : null) ?? (Array.isArray(res) ? res : [])) as StockMovement[];
 };
 
 type CreateMovementParams = {
@@ -118,30 +83,22 @@ type CreateMovementParams = {
 export const createStockMovement = async (params: CreateMovementParams) => {
     if (params.quantity === 0) return;
 
-    const { error } = await supabase
-        .from("StockMovements")
-        .insert([{ 
-            ...params,
-            comment: params.comment || null 
-        }]);
-
-    if (error) throw error;
+    return await apiFetch("/api/v1/stock-movements/", {
+        method: "POST",
+        body: JSON.stringify(params)
+    });
 };
 
 export const createWarehouse = async (name: string, address: string = "", is_primary: boolean = false) => {
-    const { data, error } = await supabase
-        .from("Warehouses")
-        .insert([{ name, address, is_primary }])
-        .select()
-        .single();
-    if (error) throw error;
-    return data;
+    return await apiFetch("/api/v1/warehouses/", {
+        method: "POST",
+        body: JSON.stringify({ name, address, is_primary })
+    });
 };
 
 export const updateWarehouse = async (id: string, data: { name?: string; address?: string; is_primary?: boolean }) => {
-    const { error } = await supabase
-        .from("Warehouses")
-        .update(data)
-        .eq("id", id);
-    if (error) throw error;
+    return await apiFetch(`/api/v1/warehouses/${id}/`, {
+        method: "PATCH",
+        body: JSON.stringify(data)
+    });
 };

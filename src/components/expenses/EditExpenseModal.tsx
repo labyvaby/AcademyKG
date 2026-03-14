@@ -180,7 +180,7 @@ export const EditExpenseModal: React.FC<EditExpenseModalProps> = ({
 
       // After successful DB update, delete old photo if replaced
       if (values.photoFile && hadOldPhoto) {
-        await deleteExpensePhotoByUrl(record.photo);
+        await deleteExpensePhotoByUrl(record.photo as string | null | undefined);
       }
 
       notify?.({
@@ -302,7 +302,7 @@ export const EditExpenseModal: React.FC<EditExpenseModalProps> = ({
                   </Stack>
                 ) : record.photo ? (
                   <Stack direction="row" spacing={1} alignItems="center">
-                    <Avatar variant="rounded" src={record.photo} sx={{ width: 64, height: 64 }} />
+                    <Avatar variant="rounded" src={record.photo as string | undefined} sx={{ width: 64, height: 64 }} />
                     <Typography variant="body2" color="text.secondary">Текущее фото</Typography>
                   </Stack>
                 ) : (

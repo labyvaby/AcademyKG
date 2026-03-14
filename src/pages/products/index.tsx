@@ -23,7 +23,6 @@ import { useNotification } from "@refinedev/core";
 import EditOutlined from "@mui/icons-material/EditOutlined";
 import DeleteOutlineOutlined from "@mui/icons-material/DeleteOutlineOutlined";
 import FilterListIcon from "@mui/icons-material/FilterList";
-import { supabase } from "../../utility/supabaseClient";
 
 import { PageHeader, AppBottomSheet, AppCard } from "../../components/ui";
 import { usePageTitle } from "../../hooks/usePageTitle";
@@ -85,48 +84,7 @@ const ProductsPage: React.FC = () => {
     fetchProducts();
   }, [fetchProducts]);
 
-  // REALTIME: Подписка на изменения товаров, цен, остатков и признаков активности
-  React.useEffect(() => {
-    const channel = supabase
-      .channel("products-realtime")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "Products" },
-        () => {
-          console.log("Realtime: Products changed, reloading...");
-          fetchProducts();
-        }
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "SellableItems" },
-        () => {
-          console.log("Realtime: SellableItems changed, reloading...");
-          fetchProducts();
-        }
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "Prices" },
-        () => {
-          console.log("Realtime: Prices changed, reloading...");
-          fetchProducts();
-        }
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "StockMovements" },
-        () => {
-          console.log("Realtime: Stock changed, reloading...");
-          fetchProducts();
-        }
-      )
-      .subscribe();
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [fetchProducts]);
 
   // Auto-select first product on desktop if none selected
   React.useEffect(() => {

@@ -182,7 +182,8 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
     if (!appointment) return null;
 
     const handleSaveFree = async () => {
-        if (loading) return;
+        if (loading || !appointment) return;
+        
         const prevDetails = queryClient.getQueryData<any>(['appointment-details', appointment.id]);
         const updates = {
             status: APPOINTMENT_STATUSES.FREE,
@@ -192,6 +193,8 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
             debt: 0,
             admin_comment: adminComment,
         };
+
+        // Optimistic update
         if (prevDetails) {
             queryClient.setQueryData(['appointment-details', appointment.id], {
                 ...prevDetails,
@@ -202,17 +205,25 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
             if (!Array.isArray(old)) return old;
             return old.map((a: any) => a.id === appointment.id ? { ...a, ...updates } : a);
         });
+
         try {
             setLoading(true);
             await apiFetch(`/api/v1/appointments/${appointment.id}/`, {
                 method: "PATCH",
-                body: JSON.stringify(updates),
+                body: JSON.stringify({
+                    ...updates,
+                    updated_at: new Date().toISOString()
+                })
             });
+
             notify?.({ type: "success", message: "Приём отмечен как бесплатный" });
             onSaved();
             onClose();
         } catch (e: unknown) {
-            if (prevDetails) queryClient.setQueryData(['appointment-details', appointment.id], prevDetails);
+            console.error("Failed to save free appointment:", e);
+            if (prevDetails) {
+                queryClient.setQueryData(['appointment-details', appointment.id], prevDetails);
+            }
             queryClient.invalidateQueries({ queryKey: ["appointments", "daily"] });
             notify?.({ type: "error", message: "Ошибка при сохранении" });
         } finally {
@@ -229,38 +240,38 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
 
         if (balanceDiff === 0 && bonusesDiff === 0) return;
 
-        if (balanceDiff > 0 || bonusesDiff > 0) {
-            // Deduct increment
+        if (balanceDiff > 0 || bonusesUsed > appointment.paid_bonuses) {
+            // Deduct increment using API RPC or adjustment endpoint
             await apiFetch(`/api/v1/rpc/deduct_patient_balance/`, {
                 method: "POST",
                 body: JSON.stringify({
                     patient: appointment.patient_id,
-                    amount: Math.max(0, balanceDiff) + Math.max(0, bonusesDiff),
-                }),
+                    amount: Math.max(0, balanceDiff) + Math.max(0, bonusesUsed)
+                })
             });
         }
 
         if (balanceDiff < 0) {
-            // Refund balance (top up back)
+            // Refund balance using API
             await apiFetch(`/api/v1/rpc/top_up_patient_balance/`, {
                 method: "POST",
                 body: JSON.stringify({
                     patient: appointment.patient_id,
                     amount: Math.abs(balanceDiff),
-                    comment: `Возврат за приём (корректировка)`,
-                }),
+                    comment: `Возврат за приём (корректировка)`
+                })
             });
         }
 
         if (bonusesDiff < 0) {
-            // Refund bonuses (top up back)
+            // Refund bonuses using API
             await apiFetch(`/api/v1/rpc/top_up_patient_balance/`, {
                 method: "POST",
                 body: JSON.stringify({
                     patient: appointment.patient_id,
                     amount: Math.abs(bonusesDiff),
-                    comment: `Возврат бонусов за приём (корректировка)`,
-                }),
+                    comment: `Возврат бонусов за приём (корректировка)`
+                })
             });
         }
 
@@ -312,7 +323,10 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
 
             await apiFetch(`/api/v1/appointments/${appointment.id}/`, {
                 method: "PATCH",
-                body: JSON.stringify(updates),
+                body: JSON.stringify({
+                    ...updates,
+                    updated_at: new Date().toISOString()
+                })
             });
 
             await adjustPatientBalanceIfNeeded();
