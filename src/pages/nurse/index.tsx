@@ -557,8 +557,6 @@ export const NursePage: React.FC = () => {
                   setInitialPatientId(patientId);
                   setVisitOpen(true);
                 }}
-                isConclusionVisible={conclusionOpen}
-                onToggleConclusion={() => setConclusionOpen(!conclusionOpen)}
               />
             </Grid>
           )}
@@ -635,8 +633,6 @@ export const NursePage: React.FC = () => {
                   setInitialPatientId(patientId);
                   setVisitOpen(true);
                 }}
-                isConclusionVisible={false}
-                onToggleConclusion={() => setActiveTab(1)}
               />
             )}
             {activeTab === 1 && selectedAppointmentId && (

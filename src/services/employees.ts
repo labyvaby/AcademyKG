@@ -75,7 +75,8 @@ export const fetchMedicalStaff = async (): Promise<EmployeesRow[]> => {
     const data = await fetchEmployeesBase();
     return data
       .filter((emp) => {
-        const role = (emp.role || "").toLowerCase();
+        const roleRaw = emp.role;
+        const role = (typeof roleRaw === "string" ? roleRaw : (roleRaw as any)?.name ?? "").toLowerCase();
         return role === "doctor" || role === "nurse";
       })
       .map(toRow);

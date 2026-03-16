@@ -412,7 +412,7 @@ const ScheduleCalendar = React.forwardRef<ScheduleCalendarHandle, ScheduleCalend
 
   // Filter state
   const [selectedSpec, setSelectedSpec] = useState<string | null>(null);
-  const [selectedRole, setSelectedRole] = useState<'all' | 'doctor' | 'nurse' | 'admin' | 'accountant' | 'other'>('all');
+  const [selectedRole, setSelectedRole] = useState<string>('all');
 
   const [isDrawerOpen, setIsDrawerOpen] = useState<boolean>(false);
   const [selectedDate, setSelectedDate] = useState<dayjs.Dayjs | null>(null);
@@ -432,45 +432,57 @@ const ScheduleCalendar = React.forwardRef<ScheduleCalendarHandle, ScheduleCalend
   const fetchData = async () => {
     try {
       setIsLoading(true);
-      // 1. Сотрудники
-      const empRes = await apiFetch("/api/v1/employees/");
-      const empData = (empRes as any)?.data?.results || (empRes as any)?.data || empRes || [];
 
-      const loadedEmps: Employee[] = empData.map((e: any) => ({
+      // 1. Сотрудники
+      const empRes = await apiFetch("/api/v1/employees/?page_size=200");
+      const empData = (empRes as any)?.data?.results || (empRes as any)?.data || empRes || [];
+      const loadedEmps: Employee[] = (Array.isArray(empData) ? empData : []).map((e: any) => ({
         id: e.id,
         full_name: e.fullName || e.full_name || e.id,
         photo: e.photoUrl || e.photo_url,
-        role: e.roles?.name || e.roleName,
-        employee_specializations: e.EmployeeSpecializations?.map((es: any) => ({
-          specialization: es.Specializations
+        role: e.role?.name || e.roles?.name || e.roleName || null,
+        employee_specializations: (e.specializations || e.EmployeeSpecializations)?.map((es: any) => ({
+          specialization: es.Specializations || es
         }))
       }));
       setEmployees(loadedEmps);
 
-      // 2. Смены (WorkShifts) через сервис
-      const serviceShifts = await fetchShifts({ 
-          startDate: currentMonth.startOf('month').subtract(7, 'day').format('YYYY-MM-DD'),
-          endDate: currentMonth.endOf('month').add(7, 'day').format('YYYY-MM-DD')
+      // 2. Расписание из /api/v1/employee-schedules/ — грузим весь месяц постранично
+      const startDate = currentMonth.startOf('month').subtract(7, 'day').format('YYYY-MM-DD');
+      const endDate = currentMonth.endOf('month').add(7, 'day').format('YYYY-MM-DD');
+      const schedRes: any = await apiFetch(
+        `/api/v1/employee-schedules/?page_size=500&ordering=date`
+      );
+      const schedResults: any[] = schedRes?.data?.results ?? schedRes?.results ?? [];
+
+      // Фильтруем по диапазону дат на клиенте
+      const inRange = schedResults.filter((s: any) => {
+        const d = s.date ?? "";
+        return d >= startDate && d <= endDate;
       });
 
-      // Маппинг сервис-типа в локальный тип (они почти идентичны)
-      const mappedShifts: Shift[] = serviceShifts.map((s) => ({
-          id: s.id,
-          employes_id: s.employes_id,
-          startDate: s.shift_date || dayjs(s.clock_in).format('YYYY-MM-DD'),
-          endDate: s.shift_date || (s.clock_out ? dayjs(s.clock_out).format('YYYY-MM-DD') : dayjs(s.clock_in).format('YYYY-MM-DD')),
-          start_time: s.start_time || (s.clock_in ? dayjs(s.clock_in).format('HH:mm') : ""),
-          end_time: s.end_time || (s.clock_out ? dayjs(s.clock_out).format('HH:mm') : ""),
-          is_night_shift: s.is_night_shift,
-          employee: s.employee ? {
-              id: s.employes_id,
-              full_name: s.employee.full_name,
-          } : loadedEmps.find(e => e.id === s.employes_id) || null
-      }));
+      const mappedShifts: Shift[] = inRange.map((s: any) => {
+        const empId = typeof s.employee === 'object' ? s.employee?.id : s.employee;
+        const empObj = loadedEmps.find(e => e.id === empId) || (typeof s.employee === 'object' ? {
+          id: empId,
+          full_name: s.employee?.fullName || s.employee?.full_name || "",
+          role: s.employee?.role?.name || null,
+        } as Employee : null);
+        return {
+          id: String(s.id),
+          employes_id: empId,
+          startDate: s.date,
+          endDate: s.date,
+          start_time: s.startTime ? s.startTime.slice(0, 5) : "",
+          end_time: s.endTime ? s.endTime.slice(0, 5) : "",
+          is_night_shift: s.shiftType === 'night',
+          employee: empObj,
+        };
+      });
 
       setShifts(mappedShifts);
     } catch (err) {
-      console.error("Error fetching medical staff and shifts:", err);
+      console.error("Error fetching schedule data:", err);
     } finally {
       setIsLoading(false);
     }
@@ -519,12 +531,7 @@ const ScheduleCalendar = React.forwardRef<ScheduleCalendarHandle, ScheduleCalend
     if (canManage && selectedRole !== 'all') {
       result = result.filter(s => {
         const r = s.employee?.role;
-        if (selectedRole === 'doctor') return r === 'doctor';
-        if (selectedRole === 'nurse') return r === 'nurse';
-        if (selectedRole === 'accountant') return r === 'accountant';
-        if (selectedRole === 'admin') return r === 'admin' || r === 'superadmin';
-        if (selectedRole === 'other') return !['doctor', 'nurse', 'admin', 'superadmin', 'accountant'].includes(r || '');
-        return true;
+        return r === selectedRole;
       });
     }
 
@@ -591,7 +598,8 @@ const ScheduleCalendar = React.forwardRef<ScheduleCalendarHandle, ScheduleCalend
     if (!confirmed) return;
 
     try {
-      const success = await deleteShift(shiftId);
+      await apiFetch(`/api/v1/employee-schedules/${shiftId}/`, { method: "DELETE" });
+      const success = true;
       if (!success) throw new Error("Delete failed");
       
       setShifts((prev) => prev.filter((s) => s.id !== shiftId));
@@ -611,43 +619,47 @@ const ScheduleCalendar = React.forwardRef<ScheduleCalendarHandle, ScheduleCalend
     }
   };
 
+  const saveScheduleEntry = async (employeeId: string, date: string, formData: any) => {
+    await apiFetch("/api/v1/employee-schedules/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        employee: employeeId,
+        date,
+        startTime: formData.start_time ? formData.start_time + ":00" : undefined,
+        endTime: formData.end_time ? formData.end_time + ":00" : undefined,
+        shiftType: formData.is_night_shift ? "night" : "day",
+        isDayOff: false,
+      }),
+    });
+  };
+
   const handleFormSuccess = async (formData: any) => {
     try {
       if (Array.isArray(formData)) {
         // Пакетное создание (при выборе дней недели)
         for (const f of formData) {
-          await createShift({
-            employes_id: f.employes_id,
-            shift_date: f.startDate,
-            start_time: f.start_time,
-            end_time: f.end_time,
-            is_night_shift: !!f.is_night_shift,
-          });
+          await saveScheduleEntry(f.employes_id, f.startDate, f);
         }
       } else if (editingShift) {
         // Редактирование одной записи
-        await updateShift(editingShift.id, {
-            employes_id: formData.employes_id,
-            shift_date: formData.startDate,
-            start_time: formData.start_time,
-            end_time: formData.end_time,
-            is_night_shift: !!formData.is_night_shift,
+        await apiFetch(`/api/v1/employee-schedules/${editingShift.id}/`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            startTime: formData.start_time ? formData.start_time + ":00" : undefined,
+            endTime: formData.end_time ? formData.end_time + ":00" : undefined,
+            shiftType: formData.is_night_shift ? "night" : "day",
+          }),
         });
       } else {
         // Создание одного диапазона (один или несколько дней)
         const start = dayjs(formData.startDate);
         const end = dayjs(formData.endDate);
         const diff = end.diff(start, 'day');
-
         for (let i = 0; i <= diff; i++) {
           const d = start.add(i, 'day').format('YYYY-MM-DD');
-          await createShift({
-            employes_id: formData.employes_id,
-            shift_date: d,
-            start_time: formData.start_time,
-            end_time: formData.end_time,
-            is_night_shift: !!formData.is_night_shift,
-          });
+          await saveScheduleEntry(formData.employes_id, d, formData);
         }
       }
 
@@ -715,18 +727,18 @@ const ScheduleCalendar = React.forwardRef<ScheduleCalendarHandle, ScheduleCalend
               <Chip
                 label="Специалисты"
                 size="small"
-                variant={selectedRole === 'doctor' ? "filled" : "outlined"}
-                color={selectedRole === 'doctor' ? "primary" : "default"}
-                onClick={() => setSelectedRole(selectedRole === 'doctor' ? 'all' : 'doctor')}
+                variant={selectedRole === 'specialist' ? "filled" : "outlined"}
+                color={selectedRole === 'specialist' ? "primary" : "default"}
+                onClick={() => setSelectedRole(selectedRole === 'specialist' ? 'all' : 'specialist')}
                 clickable
                 sx={{ flexShrink: 0 }}
               />
               <Chip
-                label="Медсестры"
+                label="Менеджеры"
                 size="small"
-                variant={selectedRole === 'nurse' ? "filled" : "outlined"}
-                color={selectedRole === 'nurse' ? "primary" : "default"}
-                onClick={() => setSelectedRole(selectedRole === 'nurse' ? 'all' : 'nurse')}
+                variant={selectedRole === 'manager' ? "filled" : "outlined"}
+                color={selectedRole === 'manager' ? "primary" : "default"}
+                onClick={() => setSelectedRole(selectedRole === 'manager' ? 'all' : 'manager')}
                 clickable
                 sx={{ flexShrink: 0 }}
               />
@@ -736,6 +748,15 @@ const ScheduleCalendar = React.forwardRef<ScheduleCalendarHandle, ScheduleCalend
                 variant={selectedRole === 'accountant' ? "filled" : "outlined"}
                 color={selectedRole === 'accountant' ? "primary" : "default"}
                 onClick={() => setSelectedRole(selectedRole === 'accountant' ? 'all' : 'accountant')}
+                clickable
+                sx={{ flexShrink: 0 }}
+              />
+              <Chip
+                label="Ресепшн"
+                size="small"
+                variant={selectedRole === 'receptionist' ? "filled" : "outlined"}
+                color={selectedRole === 'receptionist' ? "primary" : "default"}
+                onClick={() => setSelectedRole(selectedRole === 'receptionist' ? 'all' : 'receptionist')}
                 clickable
                 sx={{ flexShrink: 0 }}
               />

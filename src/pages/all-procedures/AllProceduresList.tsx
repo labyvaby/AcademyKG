@@ -535,8 +535,6 @@ export const AllProceduresList: React.FC = () => {
                                         onUpdate={() => fetchData()}
                                         showPaymentAction={false}
                                         readOnly={true}
-                                        isConclusionVisible={conclusionOpen}
-                                        onToggleConclusion={() => setConclusionOpen(!conclusionOpen)}
                                     />
                                 )}
                             </Grid2>
@@ -564,8 +562,6 @@ export const AllProceduresList: React.FC = () => {
                                     onUpdate={() => fetchData()}
                                     showPaymentAction={false}
                                     readOnly={true}
-                                    isConclusionVisible={conclusionOpen}
-                                    onToggleConclusion={() => setConclusionOpen(!conclusionOpen)}
                                 />
                             )}
                         </Box>

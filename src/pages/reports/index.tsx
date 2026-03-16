@@ -42,7 +42,6 @@ dayjs.locale('ru');
 interface DailyFinancialData {
     date: string;
     services_sum: number;
-    products_sum: number;
     cash_sum: number;
     card_sum: number;
     balance_sum: number;
@@ -52,8 +51,6 @@ interface DailyFinancialData {
     appointments_count: number;
     procedures_count: number;
     waiting_count: number;
-    day_count: number;   // приёмы до 18:00
-    night_count: number; // приёмы с 18:00
 }
 
 const ReportsPage: React.FC = () => {
@@ -119,10 +116,9 @@ const ReportsPage: React.FC = () => {
                 const dateStr = current.format('YYYY-MM-DD');
                 groupedMap.set(dateStr, {
                     date: dateStr,
-                    services_sum: 0, products_sum: 0, cash_sum: 0, card_sum: 0,
+                    services_sum: 0, cash_sum: 0, card_sum: 0,
                     balance_sum: 0, bonuses_sum: 0, discount_sum: 0, debt_sum: 0,
                     appointments_count: 0, procedures_count: 0, waiting_count: 0,
-                    day_count: 0, night_count: 0,
                 });
                 current = current.add(1, 'day');
             }
@@ -136,9 +132,9 @@ const ReportsPage: React.FC = () => {
                 const day = dayjs(at).format('YYYY-MM-DD');
                 if (!groupedMap.has(day)) {
                     groupedMap.set(day, {
-                        date: day, services_sum: 0, products_sum: 0, cash_sum: 0, card_sum: 0,
+                        date: day, services_sum: 0, cash_sum: 0, card_sum: 0,
                         balance_sum: 0, bonuses_sum: 0, discount_sum: 0, debt_sum: 0,
-                        appointments_count: 0, procedures_count: 0, waiting_count: 0, day_count: 0, night_count: 0,
+                        appointments_count: 0, procedures_count: 0, waiting_count: 0,
                     });
                 }
                 const existing = groupedMap.get(day)!;
@@ -154,9 +150,7 @@ const ReportsPage: React.FC = () => {
                     existing.discount_sum += Number(app.discount ?? 0);
                     existing.debt_sum += Number(app.debt ?? 0);
                     existing.appointments_count += 1;
-                    const hour = dayjs(at).hour();
-                    if (hour >= 18) existing.night_count += 1;
-                    else existing.day_count += 1;
+
                 }
                 if (isWaiting) existing.waiting_count += 1;
             });
@@ -181,13 +175,9 @@ const ReportsPage: React.FC = () => {
 
     const financialTotals = useMemo(() => {
         return dailyData.reduce((acc, curr) => {
-            // Реально выставленная сумма = нал + безнал + баланс + бонусы + долг
-            // = total_amount - discount (т.е. finalPrice)
-            // Мед. услуги = finalPrice - товары
             const finalPrice = curr.cash_sum + curr.card_sum + curr.balance_sum + curr.bonuses_sum + curr.debt_sum;
             return {
-                services: acc.services + Math.max(0, finalPrice - curr.products_sum),
-                products: acc.products + curr.products_sum,
+                services: acc.services + finalPrice,
                 cash: acc.cash + curr.cash_sum,
                 card: acc.card + curr.card_sum,
                 discount: acc.discount + curr.discount_sum,
@@ -195,10 +185,8 @@ const ReportsPage: React.FC = () => {
                 appointmentsCount: acc.appointmentsCount + curr.appointments_count,
                 proceduresCount: acc.proceduresCount + curr.procedures_count,
                 waitingCount: acc.waitingCount + curr.waiting_count,
-                dayCount: acc.dayCount + curr.day_count,
-                nightCount: acc.nightCount + curr.night_count,
             };
-        }, { services: 0, products: 0, cash: 0, card: 0, discount: 0, debt: 0, appointmentsCount: 0, proceduresCount: 0, waitingCount: 0, dayCount: 0, nightCount: 0 });
+        }, { services: 0, cash: 0, card: 0, discount: 0, debt: 0, appointmentsCount: 0, proceduresCount: 0, waitingCount: 0 });
     }, [dailyData]);
 
     if (!canSeeFinancial) {
@@ -238,9 +226,7 @@ const ReportsPage: React.FC = () => {
                         dateTo={dateTo}
                         extraCards={[
                             { title: 'Приёмы / Процедуры', primaryValue: `${financialTotals.appointmentsCount} / ${financialTotals.proceduresCount}`, secondaryText: 'Приёмы / Процедуры', color: 'primary' as const },
-                            { title: 'День / Ночь', primaryValue: `${financialTotals.dayCount} / ${financialTotals.nightCount}`, secondaryText: 'до 18:00 / с 18:00', color: 'info' as const },
-                            { title: 'Мед. услуги', primaryValue: formatKGS(financialTotals.services), secondaryText: 'Без товаров', color: 'primary' as const },
-                            { title: 'Товары в приёмах', primaryValue: formatKGS(financialTotals.products), secondaryText: 'Продано в приёмах', color: 'secondary' as const },
+                            { title: 'Мед. услуги', primaryValue: formatKGS(financialTotals.services), secondaryText: 'Итого услуги', color: 'primary' as const },
                             { title: 'Нал + Безнал', primaryValue: formatKGS(financialTotals.cash + financialTotals.card), secondaryText: `Нал: ${formatKGS(financialTotals.cash)} · Безнал: ${formatKGS(financialTotals.card)}`, color: 'success' as const },
                             { title: 'Долги', primaryValue: formatKGS(financialTotals.debt), secondaryText: 'Не оплачено', color: 'warning' as const },
                         ]}
@@ -273,13 +259,7 @@ const ReportsPage: React.FC = () => {
                                                     <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                                                         <PaymentsIcon sx={{ fontSize: 14, color: 'primary.main' }} /> Услуги
                                                     </Typography>
-                                                    <Typography variant="subtitle1" fontWeight={800}>{formatKGS(Math.max(0, (day.cash_sum + day.card_sum + day.balance_sum + day.bonuses_sum + day.debt_sum) - day.products_sum))}</Typography>
-                                                </Grid2>
-                                                <Grid2 size={6}>
-                                                    <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                                        <AnalyticsOutlined sx={{ fontSize: 14, color: 'secondary.main' }} /> Товары
-                                                    </Typography>
-                                                    <Typography variant="subtitle1" color="secondary.main" fontWeight={800}>{formatKGS(day.products_sum)}</Typography>
+                                                    <Typography variant="subtitle1" fontWeight={800}>{formatKGS(day.cash_sum + day.card_sum + day.balance_sum + day.bonuses_sum + day.debt_sum)}</Typography>
                                                 </Grid2>
                                                 <Grid2 size={6}>
                                                     <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
@@ -319,7 +299,7 @@ const ReportsPage: React.FC = () => {
                                     <Table stickyHeader size="small">
                                         <TableHead>
                                             <TableRow>
-                                                {['Дата', 'Приемы', 'Процедуры', 'В ожидании', 'Мед. услуги', 'Товары', 'Наличные', 'Безнал', 'Долг'].map(h => <TableCell key={h} align={h === 'Дата' ? 'left' : h === 'Приемы' || h === 'Процедуры' || h === 'В ожидании' ? 'center' : 'right'} sx={{ fontWeight: 800, ...(h === 'В ожидании' ? { color: 'error.main' } : {}) }}>{h}</TableCell>)}
+                                                {['Дата', 'Приемы', 'Процедуры', 'В ожидании', 'Мед. услуги', 'Наличные', 'Безнал', 'Долг'].map(h => <TableCell key={h} align={h === 'Дата' ? 'left' : h === 'Приемы' || h === 'Процедуры' || h === 'В ожидании' ? 'center' : 'right'} sx={{ fontWeight: 800, ...(h === 'В ожидании' ? { color: 'error.main' } : {}) }}>{h}</TableCell>)}
                                             </TableRow>
                                         </TableHead>
                                         <TableBody>
@@ -334,8 +314,7 @@ const ReportsPage: React.FC = () => {
                                                     }}>
                                                         {day.waiting_count > 0 ? day.waiting_count : '-'}
                                                     </TableCell>
-                                                    <TableCell align="right">{formatKGS(Math.max(0, (day.cash_sum + day.card_sum + day.balance_sum + day.bonuses_sum + day.debt_sum) - day.products_sum))}</TableCell>
-                                                    <TableCell align="right" sx={{ color: 'secondary.main' }}>{day.products_sum > 0 ? formatKGS(day.products_sum) : '-'}</TableCell>
+                                                    <TableCell align="right">{formatKGS(day.cash_sum + day.card_sum + day.balance_sum + day.bonuses_sum + day.debt_sum)}</TableCell>
                                                     <TableCell align="right" sx={{ color: 'success.main', fontWeight: 600 }}>{formatKGS(day.cash_sum)}</TableCell>
                                                     <TableCell align="right" sx={{ color: 'info.main', fontWeight: 600 }}>{formatKGS(day.card_sum)}</TableCell>
                                                     <TableCell align="right" sx={{ color: 'warning.main' }}>{day.debt_sum > 0 ? formatKGS(day.debt_sum) : '-'}</TableCell>
@@ -347,7 +326,6 @@ const ReportsPage: React.FC = () => {
                                                 <TableCell align="center" sx={{ fontWeight: 800 }}>{financialTotals.proceduresCount}</TableCell>
                                                 <TableCell align="center" sx={{ fontWeight: 800, color: 'error.main' }}>{financialTotals.waitingCount > 0 ? financialTotals.waitingCount : '-'}</TableCell>
                                                 <TableCell align="right" sx={{ fontWeight: 800 }}>{formatKGS(financialTotals.services)}</TableCell>
-                                                <TableCell align="right" sx={{ fontWeight: 800, color: 'secondary.main' }}>{formatKGS(financialTotals.products)}</TableCell>
                                                 <TableCell align="right" sx={{ fontWeight: 800, color: 'success.main' }}>{formatKGS(financialTotals.cash)}</TableCell>
                                                 <TableCell align="right" sx={{ fontWeight: 800, color: 'info.main' }}>{formatKGS(financialTotals.card)}</TableCell>
                                                 <TableCell align="right" sx={{ fontWeight: 800, color: 'warning.main' }}>{formatKGS(financialTotals.debt)}</TableCell>

@@ -434,7 +434,6 @@ const DoctorWorkPage: React.FC = () => {
                                 appointmentId={selectedAppointmentId}
                                 onClose={() => setSelectedAppointmentId(null)}
                                 onUpdate={fetchAppointments}
-                                isConclusionVisible={false}
                             />
                         )}
                         {activeTab === 1 && (

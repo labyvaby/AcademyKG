@@ -129,7 +129,6 @@ export const HomePage: React.FC = () => {
     "Пациент не пришел": false,
     "Отменено": true,
   });
-  const [onlyNight, setOnlyNight] = React.useState(false);
   const [doctorId, setDoctorId] = React.useState("");
   // const [revenueMode, setRevenueMode] = React.useState<
   //   'total' | 'cash' | 'cashless'
@@ -277,14 +276,13 @@ export const HomePage: React.FC = () => {
       const statusKey = a.status || "";
       if (status[statusKey] === false) return false;
 
-      if (onlyNight && !a.is_night) return false;
 
       // Filter by doctor ID (checks both primary doctor_id and performer_ids array)
       if (doctorId && a.doctor_id !== doctorId && !a.performer_ids?.includes(doctorId)) return false;
 
       return true;
     }).sort(compareAppointmentsByStatus);
-  }, [dailyAppointments, date, status, onlyNight, doctorId]);
+  }, [dailyAppointments, date, status, doctorId]);
 
   const selectedAppointment = React.useMemo(() =>
     dailyAppointments.find(a => a.id === selectedAppointmentId) || null,
@@ -338,7 +336,6 @@ export const HomePage: React.FC = () => {
       "Пациент не пришел": false, // Default hidden to reduce clutter? Or true? User didn't specify, false is safer for main view.
       "Отменено": true
     });
-    setOnlyNight(false);
     setDoctorId("");
   };
 
@@ -436,8 +433,6 @@ export const HomePage: React.FC = () => {
                   setVisitOpen(true);
                 }}
                 showPaymentAction={true} // Только на странице администратора разрешена оплата
-                isConclusionVisible={conclusionOpen}
-                onToggleConclusion={() => setConclusionOpen(!conclusionOpen)}
               />
             </Grid>
           )}
@@ -513,8 +508,6 @@ export const HomePage: React.FC = () => {
                   setVisitOpen(true);
                 }}
                 showPaymentAction={true}
-                isConclusionVisible={false}
-                onToggleConclusion={() => setActiveTab(1)}
               />
             )}
             {activeTab === 1 && selectedAppointmentId && (
@@ -609,16 +602,6 @@ export const HomePage: React.FC = () => {
               label={s}
             />
           ))}
-
-          <FormControlLabel
-            control={
-              <Checkbox
-                checked={onlyNight}
-                onChange={(e) => setOnlyNight(e.target.checked)}
-              />
-            }
-            label="Только ночные"
-          />
 
           <Typography variant="subtitle2">Доктор</Typography>
           <Autocomplete

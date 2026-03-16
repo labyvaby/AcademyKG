@@ -38,7 +38,6 @@ dayjs.locale('ru');
 interface DailyFinancialData {
     date: string;
     services_sum: number;
-    products_sum: number;
     cash_sum: number;
     card_sum: number;
     discount_sum: number;
@@ -89,7 +88,6 @@ const FinancialReportsPage: React.FC = () => {
                 groupedMap.set(dateStr, {
                     date: dateStr,
                     services_sum: 0,
-                    products_sum: 0,
                     cash_sum: 0,
                     card_sum: 0,
                     discount_sum: 0,
@@ -113,58 +111,6 @@ const FinancialReportsPage: React.FC = () => {
                 }
             });
 
-            // Fetch products within appointments
-            // Join with Appointments to ensure we respect the same filters (no cancelled)
-            // Join with Products to ensure we only count actual products (not services with null performer)
-            const { data: allProducts } = await supabase
-                .from("Products")
-                .select("sellable_item_id");
-
-            const productSellableIds = (allProducts || []).map(p => p.sellable_item_id).filter(Boolean);
-
-            // Fetch current prices for all products (fallback for records before Feb 16 when price column didn't exist)
-            const { data: currentPrices } = productSellableIds.length === 0 ? { data: [] } : await supabase
-                .from("Prices")
-                .select("sellable_item_id, price")
-                .in("sellable_item_id", productSellableIds)
-                .eq("is_current", true);
-
-            const priceByItemId = new Map<string, number>();
-            (currentPrices || []).forEach((p: any) => {
-                if (p.sellable_item_id) priceByItemId.set(p.sellable_item_id, Number(p.price || 0));
-            });
-
-            const { data: productSales, error: productsError } = productSellableIds.length === 0 ? { data: [], error: null } : await supabase
-                .from("AppointmentServices")
-                .select(`
-                    performed_at,
-                    price,
-                    quantity,
-                    sellable_item_id,
-                    Appointments!inner(status)
-                `)
-                .in("sellable_item_id", productSellableIds)
-                .in("Appointments.status", ["Оплачено", "Со скидкой", "Частично оплачено", "Бесплатно"])
-                .gte("performed_at", startOfMonth.toISOString())
-                .lte("performed_at", endOfMonth.toISOString());
-
-            if (productsError) {
-                console.error("Error fetching product sales:", productsError);
-            } else {
-                (productSales || []).forEach((sale: any) => {
-                    if (!sale.performed_at) return;
-                    const day = dayjs(sale.performed_at).format('YYYY-MM-DD');
-                    const existing = groupedMap.get(day);
-                    if (existing) {
-                        // price column added Feb 16 — for older records fall back to current Prices table
-                        const unitPrice = sale.price != null
-                            ? Number(sale.price)
-                            : (priceByItemId.get(sale.sellable_item_id) ?? 0);
-                        existing.products_sum += unitPrice * Number(sale.quantity || 1);
-                    }
-                });
-            }
-
             setDailyData(Array.from(groupedMap.values()));
         } catch (e) {
             console.error(e);
@@ -180,14 +126,13 @@ const FinancialReportsPage: React.FC = () => {
 
     const totals = useMemo(() => {
         return dailyData.reduce((acc, curr) => ({
-            services: acc.services + (curr.services_sum - curr.products_sum),
-            products: acc.products + curr.products_sum,
+            services: acc.services + curr.services_sum,
             cash: acc.cash + curr.cash_sum,
             card: acc.card + curr.card_sum,
             discount: acc.discount + curr.discount_sum,
             debt: acc.debt + curr.debt_sum,
             count: acc.count + curr.appointments_count
-        }), { services: 0, products: 0, cash: 0, card: 0, discount: 0, debt: 0, count: 0 });
+        }), { services: 0, cash: 0, card: 0, discount: 0, debt: 0, count: 0 });
     }, [dailyData]);
 
     if (permissionsLoading) return <CircularProgress />;
@@ -215,21 +160,6 @@ const FinancialReportsPage: React.FC = () => {
                                             <Typography variant="h5" fontWeight={800}>{formatKGS(totals.services)}</Typography>
                                         </Box>
                                         <Avatar sx={{ bgcolor: alpha(theme.palette.primary.main, 0.1), color: 'primary.main' }}>
-                                            <AssessmentOutlined />
-                                        </Avatar>
-                                    </Stack>
-                                </CardContent>
-                            </Card>
-                        </Grid2>
-                        <Grid2 size={{ xs: 12, sm: 3 }}>
-                            <Card variant="outlined" sx={{ borderRadius: 3, bgcolor: alpha(theme.palette.secondary.main, 0.05) }}>
-                                <CardContent sx={{ p: 2 }}>
-                                    <Stack direction="row" justifyContent="space-between" alignItems="center">
-                                        <Box>
-                                            <Typography variant="overline" color="secondary.main">Товары в приемах</Typography>
-                                            <Typography variant="h5" fontWeight={800}>{formatKGS(totals.products)}</Typography>
-                                        </Box>
-                                        <Avatar sx={{ bgcolor: alpha(theme.palette.secondary.main, 0.1), color: 'secondary.main' }}>
                                             <AssessmentOutlined />
                                         </Avatar>
                                     </Stack>
@@ -297,7 +227,6 @@ const FinancialReportsPage: React.FC = () => {
                                             <TableCell sx={{ fontWeight: 800 }}>Дата</TableCell>
                                             <TableCell align="center" sx={{ fontWeight: 800 }}>Приемы</TableCell>
                                             <TableCell align="right" sx={{ fontWeight: 800 }}>Мед. услуги</TableCell>
-                                            <TableCell align="right" sx={{ fontWeight: 800 }}>Товары</TableCell>
                                             <TableCell align="right" sx={{ fontWeight: 800 }}>Скидки</TableCell>
                                             <TableCell align="right" sx={{ fontWeight: 800 }}>Наличные</TableCell>
                                             <TableCell align="right" sx={{ fontWeight: 800 }}>Безнал</TableCell>
@@ -314,10 +243,7 @@ const FinancialReportsPage: React.FC = () => {
                                                     {dayjs(day.date).format('DD.MM')} ({dayjs(day.date).format('ddd')})
                                                 </TableCell>
                                                 <TableCell align="center">{day.appointments_count}</TableCell>
-                                                <TableCell align="right">{formatKGS(day.services_sum - day.products_sum)}</TableCell>
-                                                <TableCell align="right" sx={{ color: 'secondary.main' }}>
-                                                    {day.products_sum > 0 ? formatKGS(day.products_sum) : '-'}
-                                                </TableCell>
+                                                <TableCell align="right">{formatKGS(day.services_sum)}</TableCell>
                                                 <TableCell align="right" sx={{ color: 'error.main' }}>
                                                     {day.discount_sum > 0 ? `-${formatKGS(day.discount_sum)}` : '-'}
                                                 </TableCell>
@@ -337,7 +263,6 @@ const FinancialReportsPage: React.FC = () => {
                                             <TableCell sx={{ fontWeight: 800 }}>ИТОГО</TableCell>
                                             <TableCell align="center" sx={{ fontWeight: 800 }}>{totals.count}</TableCell>
                                             <TableCell align="right" sx={{ fontWeight: 800 }}>{formatKGS(totals.services)}</TableCell>
-                                            <TableCell align="right" sx={{ fontWeight: 800, color: 'secondary.main' }}>{formatKGS(totals.products)}</TableCell>
                                             <TableCell align="right" sx={{ fontWeight: 800, color: 'error.main' }}>-{formatKGS(totals.discount)}</TableCell>
                                             <TableCell align="right" sx={{ fontWeight: 800, color: 'success.main' }}>{formatKGS(totals.cash)}</TableCell>
                                             <TableCell align="right" sx={{ fontWeight: 800, color: 'info.main' }}>{formatKGS(totals.card)}</TableCell>

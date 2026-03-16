@@ -17,13 +17,6 @@ export interface AppointmentDetailsData {
         auth_user_id?: string | null;
         photo_url?: string | null;
     }>;
-    appointmentProducts: Array<{
-        sellable_item_id: string;
-        name: string;
-        price: number;
-        quantity: number;
-        photo_url?: string | null;
-    }>;
     servicesPhotos: Map<string, string>;
 }
 
@@ -31,7 +24,6 @@ const emptyResult: AppointmentDetailsData = {
     item: null,
     patientData: null,
     appointmentDoctors: [],
-    appointmentProducts: [],
     servicesPhotos: new Map(),
 };
 
@@ -84,17 +76,7 @@ export const useAppointmentDetails = (appointmentId: string | null) => {
                 }
                 const doctors = Array.from(doctorMap.values());
 
-                // 4. Products — из products array (новый API) или из products в services
-                const products: any[] = apptData.products ?? [];
-                const appointmentProducts = products.map((p: any) => ({
-                    sellable_item_id: p.sellable_item?.id ?? p.id ?? p.sellable_item_id,
-                    name: p.sellable_item?.display_name ?? p.name ?? "",
-                    price: p.sellable_item?.display_price ?? p.price ?? 0,
-                    quantity: p.quantity ?? 1,
-                    photo_url: p.sellable_item?.product?.image_url ?? p.photo_url ?? null,
-                }));
-
-                // 5. Services photos map
+                // 4. Services photos map
                 const servicesPhotos = new Map<string, string>();
                 services.forEach((s: any) => {
                     const id = s.sellable_item?.id ?? s.id;
@@ -106,7 +88,6 @@ export const useAppointmentDetails = (appointmentId: string | null) => {
                     item: mapped,
                     patientData,
                     appointmentDoctors: doctors as any,
-                    appointmentProducts,
                     servicesPhotos,
                 };
             } catch (err) {
@@ -129,7 +110,6 @@ export const useAppointmentDetails = (appointmentId: string | null) => {
         item: data?.item || null,
         patientData: data?.patientData || null,
         appointmentDoctors: data?.appointmentDoctors || [],
-        appointmentProducts: data?.appointmentProducts || [],
         servicesPhotos: data?.servicesPhotos || new Map(),
         loading: isLoading,
         error: error instanceof Error ? error.message : null,

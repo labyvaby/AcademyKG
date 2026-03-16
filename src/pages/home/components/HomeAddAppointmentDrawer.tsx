@@ -8,21 +8,16 @@ import {
   CircularProgress,
   Divider,
   Drawer,
-  FilterOptionsState,
   FormControlLabel,
-  Grid,
   IconButton,
   Stack,
   Switch,
   TextField,
   Typography,
 } from "@mui/material";
-import { ToggleButton, ToggleButtonGroup } from "@mui/material";
 import Autocomplete, { createFilterOptions } from "@mui/material/Autocomplete";
 import CloseOutlined from "@mui/icons-material/CloseOutlined";
 import DeleteOutlined from "@mui/icons-material/DeleteOutlined";
-import WbSunnyOutlined from "@mui/icons-material/WbSunnyOutlined";
-import NightlightOutlined from "@mui/icons-material/NightlightOutlined";
 import dayjs from "dayjs";
 import "dayjs/locale/ru";
 
@@ -36,7 +31,6 @@ import { type ServiceRow } from "../../../services/services";
 import type { EmployeesRow } from "../../expenses/types";
 import type { PatientOption, ServiceRowEntry } from "../types";
 import { usePermissions } from "../../../hooks/usePermissions";
-import { Product } from "../../../services/products";
 
 export const noSpinnersSx = {
   "& input[type=number]": {
@@ -84,12 +78,6 @@ const patientFilter = createFilterOptions<PatientOption>({
 // ... (existing filters)
 
 
-function inferWorkModeFromISO(iso: string): "day" | "night" {
-  const m = String(iso || "").match(/T(\d{2}):(\d{2})/);
-  if (!m) return "day";
-  const h = Number(m[1]);
-  return h >= 8 && h < 20 ? "day" : "night";
-}
 
 export const HomeAddAppointmentDrawer: React.FC<
   HomeAddAppointmentDrawerProps
@@ -97,7 +85,6 @@ export const HomeAddAppointmentDrawer: React.FC<
   const { open: notify } = useNotification();
 
   const [visitDateTime, setVisitDateTime] = React.useState<string>("");
-  const [workMode, setWorkMode] = React.useState<"day" | "night">("day");
 
   const [patientsOpts, setPatientsOpts] = React.useState<PatientOption[]>([]);
   const [patientsLoading, setPatientsLoading] = React.useState(false);
@@ -105,6 +92,8 @@ export const HomeAddAppointmentDrawer: React.FC<
   const [doctorsLoading, setDoctorsLoading] = React.useState(false);
   const [servicesOpts, setServicesOpts] = React.useState<ServiceRow[]>([]);
   const [servicesLoading, setServicesLoading] = React.useState(false);
+  // Per-employee services cache: employeeId -> ServiceRow[]
+  const [employeeServicesCache, setEmployeeServicesCache] = React.useState<Record<string, ServiceRow[]>>({});
 
   const { isNurse, isAdmin, employeeId } = usePermissions();
   // Ограничиваем только реальных медсестер, не администраторов
@@ -116,15 +105,7 @@ export const HomeAddAppointmentDrawer: React.FC<
     { serviceId: "", doctorId: "", quantity: 1 },
   ]);
 
-  // Товары
-  const [products, setProducts] = React.useState<Product[]>([]);
-  const [productsLoading, setProductsLoading] = React.useState(false);
-  const [productRows, setProductRows] = React.useState<
-    Array<{ productId: string; quantity: number }>
-  >([]);
 
-  const [complaints, setComplaints] = React.useState("");
-  const [doctorComplaints, setDoctorComplaints] = React.useState("");
   const [adminComment, setAdminComment] = React.useState("");
 
   const [isBooking, setIsBooking] = React.useState(false);
@@ -152,22 +133,18 @@ export const HomeAddAppointmentDrawer: React.FC<
   const [isSearchingPatients, setIsSearchingPatients] = React.useState(false);
 
   const fetchPatientsServerSide = React.useCallback(async (query: string) => {
-    if (!query || query.length < 2) {
-      setPatientsSearchResults([]);
-      return;
-    }
-
     setIsSearchingPatients(true);
     try {
       const cleanQ = query.trim();
-      const hasDigits = /\d/.test(cleanQ);
-
-      const res: any = await apiFetch(`/api/v1/children/?search=${encodeURIComponent(cleanQ)}&page_size=50`);
+      const url = cleanQ
+        ? `/api/v1/clients/?search=${encodeURIComponent(cleanQ)}&page_size=50`
+        : `/api/v1/clients/?page_size=50&ordering=fullName`;
+      const res: any = await apiFetch(url);
       const data: any[] = res?.data?.results ?? res?.results ?? [];
 
       const mapped = data.map((r: any) => {
         const fio = r.fullName ?? r.full_name ?? r["ФИО клиента"] ?? "";
-        const phone = r.contactPhone ?? r.phone ?? r["Телефон"] ?? "";
+        const phone = r.phone ?? r.contactPhone ?? r["Телефон"] ?? "";
         return {
           id: String(r.id ?? ""),
           fio,
@@ -187,13 +164,16 @@ export const HomeAddAppointmentDrawer: React.FC<
 
   React.useEffect(() => {
     const timer = setTimeout(() => {
-      if (patientSearchInput) {
-        fetchPatientsServerSide(patientSearchInput);
-      }
+      fetchPatientsServerSide(patientSearchInput || "");
     }, 400);
 
     return () => clearTimeout(timer);
   }, [patientSearchInput, fetchPatientsServerSide]);
+
+  // При открытии дровера — грузим первых клиентов
+  React.useEffect(() => {
+    if (open) fetchPatientsServerSide("");
+  }, [open, fetchPatientsServerSide]);
 
   // При открытии, если дата/время ещё не заданы — заполняем переданным initialDate или текущим временем
   React.useEffect(() => {
@@ -205,7 +185,6 @@ export const HomeAddAppointmentDrawer: React.FC<
     // Если передан initialDate, используем его (предполагаем, что он точный ISO string, готовый к употреблению)
     if (initialDate) {
       setVisitDateTime(initialDate);
-      setWorkMode(inferWorkModeFromISO(initialDate));
       return;
     }
 
@@ -226,7 +205,6 @@ export const HomeAddAppointmentDrawer: React.FC<
       const nowStr = `${baseDate}T${hh}:${mi}`;
       const roundedNow = roundDateTimeLocalToStep(nowStr, 15);
       setVisitDateTime(roundedNow);
-      setWorkMode(inferWorkModeFromISO(roundedNow));
     }
   }, [open, initialDate, selectedDate]);
 
@@ -253,28 +231,89 @@ export const HomeAddAppointmentDrawer: React.FC<
     }
   }, [open, initialDoctorId]);
 
-  // Use cached dictionaries
+  // Use cached dictionaries (patients only)
   const {
     patients: dictPatients,
-    employees: dictEmployees,
-    services: dictServices,
-    products: dictProducts,
     loading: dictLoading,
   } = useDictionaries(open);
 
   React.useEffect(() => {
     if (dictPatients.length > 0) setPatientsOpts(dictPatients);
-    if (dictEmployees.length > 0) setDoctorsOpts(dictEmployees);
-    if (dictServices.length > 0) {
-      setServicesOpts(dictServices.filter((s) => s.is_active !== false));
-    }
-    if (dictProducts.length > 0) setProducts(dictProducts);
-
     setPatientsLoading(dictLoading);
-    setDoctorsLoading(dictLoading);
-    setServicesLoading(dictLoading);
-    setProductsLoading(dictLoading);
-  }, [dictPatients, dictEmployees, dictServices, dictProducts, dictLoading]);
+  }, [dictPatients, dictLoading]);
+
+  // Load employees by date from employees-by-date endpoint
+  const currentDateStr = React.useMemo(() => {
+    if (!visitDateTime) return "";
+    return dayjs(visitDateTime).format("YYYY-MM-DD");
+  }, [visitDateTime]);
+
+  const prevDateRef = React.useRef("");
+  React.useEffect(() => {
+    if (!open || !currentDateStr) return;
+    if (currentDateStr === prevDateRef.current) return;
+    prevDateRef.current = currentDateStr;
+    // Clear employee/service selections when date changes
+    setServiceRows(prev => prev.map(r => ({ ...r, doctorId: "", serviceId: "" })));
+    setEmployeeServicesCache({});
+
+    let cancelled = false;
+    setDoctorsLoading(true);
+    const mapEmps = (results: any[]): EmployeesRow[] =>
+      results.map((e: any) => ({
+        id: String(e.id ?? ""),
+        full_name: e.fullName ?? e.full_name ?? "",
+        specialization: e.specialization?.name ?? e.specializationName ?? "",
+        role: e.role?.name ?? e.roleName ?? "",
+        status: e.status ?? "active",
+        serviceIds: e.serviceIds ?? [],
+      } as unknown as EmployeesRow));
+
+    apiFetch(`/api/v1/appointments/employees-by-date/?date=${currentDateStr}`)
+      .then(async (res: any) => {
+        if (cancelled) return;
+        const results: any[] = res?.data?.results ?? res?.data ?? res?.results ?? [];
+        if (results.length > 0) {
+          setDoctorsOpts(mapEmps(results));
+        } else {
+          // Фоллбэк — все активные сотрудники
+          const fallback: any = await apiFetch("/api/v1/employees/?status=active&page_size=200");
+          if (!cancelled) {
+            const fbResults: any[] = fallback?.data?.results ?? fallback?.results ?? [];
+            setDoctorsOpts(mapEmps(fbResults));
+          }
+        }
+      })
+      .catch(async () => {
+        if (cancelled) return;
+        try {
+          const fallback: any = await apiFetch("/api/v1/employees/?status=active&page_size=200");
+          if (!cancelled) {
+            const fbResults: any[] = fallback?.data?.results ?? fallback?.results ?? [];
+            setDoctorsOpts(mapEmps(fbResults));
+          }
+        } catch { if (!cancelled) setDoctorsOpts([]); }
+      })
+      .finally(() => { if (!cancelled) setDoctorsLoading(false); });
+    return () => { cancelled = true; };
+  }, [open, currentDateStr]);
+
+  // Load services per employee when employee changes in a service row
+  const loadServicesForEmployee = React.useCallback(async (employeeId: string): Promise<ServiceRow[]> => {
+    if (!employeeId) return [];
+    try {
+      const res: any = await apiFetch(`/api/v1/sellable-items/?type=service&isActive=true&employee=${employeeId}&page_size=200`);
+      const results: any[] = res?.data?.results ?? res?.results ?? [];
+      return results.map((item: any) => ({
+        id: item.id,
+        name: item.displayName ?? item.service?.name ?? item.name ?? "",
+        price: item.displayPrice ? parseFloat(item.displayPrice) : (item.service?.price ? parseFloat(item.service.price) : undefined),
+        is_active: item.isActive ?? true,
+      } as ServiceRow)).filter((s: ServiceRow) => s.id && s.name);
+    } catch {
+      return [];
+    }
+  }, []);
 
   // Установка начального клиента, если передан initialPatientId
   // Установка начального клиента, если передан initialPatientId
@@ -296,7 +335,7 @@ export const HomeAddAppointmentDrawer: React.FC<
     }
 
     // 3. Если нигде нет — грузим из базы
-    apiFetch(`/api/v1/children/${initialPatientId}/`).then((res: any) => {
+    apiFetch(`/api/v1/clients/${initialPatientId}/`).then((res: any) => {
       const data = res?.data ?? res;
       if (data?.id) {
         const fio = data.fullName ?? data.full_name ?? data["ФИО клиента"] ?? "";
@@ -359,64 +398,26 @@ export const HomeAddAppointmentDrawer: React.FC<
         return;
       }
 
-      const paidCash = typeof cash === "number" ? cash : 0;
-      const paidCashless = typeof cashless === "number" ? cashless : 0;
-
-      // Build unified services array per new API spec:
-      // services: услуги (с performer) + товары (без performer)
+      // Build services array per new API spec
       const allServicesPayload: any[] = [];
-      let remainingDiscount = discountAmount;
 
       for (const row of validServiceRows) {
-        const service = servicesOpts.find((s) => s.id === row.serviceId);
-        const price = Number(service?.price) || 0;
-        let itemDiscount = 0;
-        if (remainingDiscount > 0) {
-          if (remainingDiscount >= price) {
-            itemDiscount = price;
-            remainingDiscount -= price;
-          } else {
-            itemDiscount = remainingDiscount;
-            remainingDiscount = 0;
-          }
-        }
-        const totalItem = price - itemDiscount;
         allServicesPayload.push({
-          sellable_item: row.serviceId,
+          sellableItem: row.serviceId,
           performer: row.doctorId,
           quantity: 1,
-          discount: itemDiscount,
-          total: totalItem,
         });
       }
 
-      // Add products to the same services array (no performer required)
-      for (const row of productRows.filter((r) => r.productId)) {
-        allServicesPayload.push({
-          sellable_item: row.productId,
-          quantity: row.quantity || 1,
-        });
-      }
-
-      const payments = [
-        paidCash > 0 ? { type: "cash", amount: paidCash } : null,
-        paidCashless > 0 ? { type: "card", amount: paidCashless } : null,
-      ].filter(Boolean) as Array<{ type: string; amount: number }>;
-
-      const requestPayload = {
+      const requestPayload: Record<string, unknown> = {
         patient: patientId,
-        appointment_at: dayjs(visitDateTime).toISOString(),
-        admin_comment: adminComment || "",
-        complaints: complaints || null,
-        doctor_complaints: doctorComplaints || null,
-        is_night: workMode === "night",
-        status: "scheduled",
+        appointmentAt: dayjs(visitDateTime).toISOString(),
+        adminComment: adminComment || "",
         services: allServicesPayload,
-        payments,
       };
 
       try {
-        await apiFetch("/appointment/appointments/", {
+        await apiFetch("/api/v1/appointments/", {
           method: "POST",
           body: JSON.stringify(requestPayload),
         });
@@ -433,15 +434,11 @@ export const HomeAddAppointmentDrawer: React.FC<
       // Сброс локального состояния
       setSelectedPatient(null);
       setServiceRows([{ serviceId: "", doctorId: "", quantity: 1 }]);
-      setProductRows([]);
       setVisitDateTime("");
-      setComplaints("");
-      setDoctorComplaints("");
       setAdminComment("");
       setDiscount("");
       setCash("");
       setCashless("");
-      setWorkMode("day");
       setIsBooking(false);
       setTouched(false);
 
@@ -549,105 +546,28 @@ export const HomeAddAppointmentDrawer: React.FC<
             <Typography variant="h6" sx={{ mb: 1, fontWeight: 600 }}>
               Дата и время приема
             </Typography>
-            <Grid container spacing={1.5} alignItems="stretch">
-              <Grid item xs={12} sm={7.5}>
-                <CustomDateTimePicker
-                  label="Дата и время приема *"
-                  value={visitDateTime ? dayjs(visitDateTime) : null}
-                  onChange={(val) => {
-                    const formatted = val ? val.format() : "";
-                    setVisitDateTime(formatted);
-                    if (formatted) setWorkMode(inferWorkModeFromISO(formatted));
-                  }}
-                  ampm={false}
-                  minutesStep={15}
-                  slotProps={{
-                    textField: {
-                      fullWidth: true,
-                      InputLabelProps: { shrink: true },
-                      sx: {
-                        '& .MuiInputBase-root': {
-                          fontSize: '1.1rem',
-                          fontWeight: 500,
-                        }
-                      }
-                    },
-                  }}
-                />
-              </Grid>
-              <Grid
-                item
-                xs={12}
-                sm={4.5}
-                sx={{ display: "flex", alignItems: "center" }}
-              >
-                <Box sx={{ width: 1 }}>
-                  <ToggleButtonGroup
-                    exclusive
-                    value={workMode}
-                    onChange={(_, v) => {
-                      if (v) setWorkMode(v);
-                    }}
-                    size="small"
-                    sx={{
-                      width: 1,
-                      bgcolor: "action.hover",
-                      borderRadius: 1.5,
-                      p: "3px",
-                      border: "none",
-                      "& .MuiToggleButton-root": {
-                        flex: 1,
-                        border: "none",
-                        borderRadius: 1,
-                        py: 0.75,
-                        transition: "all 0.2s ease-in-out",
-                        // INACTIVE STATE (приглушён)
-                        bgcolor: "transparent",
-                        color: "text.disabled",
-                        boxShadow: "none",
-                        "&:hover": {
-                          bgcolor: "action.selected",
-                        },
-                        // ACTIVE STATE (нажат, тёмный, доминирует)
-                        "&.Mui-selected": {
-                          bgcolor: "primary.main",
-                          color: "primary.contrastText",
-                          boxShadow:
-                            "inset 0 1px 3px rgba(0,0,0,0.2), 0 1px 2px rgba(0,0,0,0.05)",
-                          fontWeight: 600,
-                          "&:hover": {
-                            bgcolor: "primary.dark",
-                          },
-                        },
-                      },
-                    }}
-                  >
-                    <ToggleButton value="day" aria-label="Дневной">
-                      <WbSunnyOutlined
-                        sx={{
-                          fontSize: 20,
-                          color:
-                            workMode === "day"
-                              ? "primary.contrastText"
-                              : "text.disabled",
-                        }}
-                      />
-                    </ToggleButton>
-                    <ToggleButton value="night" aria-label="Ночной">
-                      <NightlightOutlined
-                        sx={{
-                          fontSize: 20,
-                          color:
-                            workMode === "night"
-                              ? "primary.contrastText"
-                              : "text.disabled",
-                        }}
-                      />
-                    </ToggleButton>
-                  </ToggleButtonGroup>
-                </Box>
-              </Grid>
-            </Grid>
+            <CustomDateTimePicker
+              label="Дата и время приема *"
+              value={visitDateTime ? dayjs(visitDateTime) : null}
+              onChange={(val) => {
+                const formatted = val ? val.format() : "";
+                setVisitDateTime(formatted);
+              }}
+              ampm={false}
+              minutesStep={15}
+              slotProps={{
+                textField: {
+                  fullWidth: true,
+                  InputLabelProps: { shrink: true },
+                  sx: {
+                    '& .MuiInputBase-root': {
+                      fontSize: '1.1rem',
+                      fontWeight: 500,
+                    }
+                  }
+                },
+              }}
+            />
             <Stack spacing={0.5}>
               <Stack
                 direction="row"
@@ -691,7 +611,7 @@ export const HomeAddAppointmentDrawer: React.FC<
 
               <Autocomplete
                 disabled={isBooking}
-                options={patientSearchInput.length >= 2 ? patientsSearchResults : patientsOpts}
+                options={patientsSearchResults.length > 0 ? patientsSearchResults : patientsOpts}
                 loading={patientsLoading || isSearchingPatients}
                 value={selectedPatient}
                 onInputChange={(_, val) => setPatientSearchInput(val)}
@@ -759,16 +679,7 @@ export const HomeAddAppointmentDrawer: React.FC<
                               <Autocomplete
                                 fullWidth
                                 disabled={isWorkplaceNurse}
-                                options={
-                                  row.serviceId
-                                    ? (() => {
-                                      const filtered = doctorsOpts.filter((d) =>
-                                        d.serviceIds?.includes(row.serviceId)
-                                      );
-                                      return filtered.length > 0 ? filtered : doctorsOpts;
-                                    })()
-                                    : doctorsOpts
-                                }
+                                options={doctorsOpts}
                                 loading={doctorsLoading}
                                 value={
                                   doctorsOpts.find(
@@ -778,21 +689,16 @@ export const HomeAddAppointmentDrawer: React.FC<
                                 onChange={(_, v) => {
                                   const updated = [...serviceRows];
                                   updated[index].doctorId = v?.id || "";
-                                  if (updated[index].serviceId && v) {
-                                    const currentService = servicesOpts.find(
-                                      (s) => s.id === updated[index].serviceId
-                                    );
-                                    if (currentService) {
-                                      const hasService =
-                                        currentService.employee_ids?.includes(
-                                          v.id
-                                        ) || currentService.employee_id === v.id;
-                                      if (!hasService) {
-                                        updated[index].serviceId = "";
-                                      }
-                                    }
-                                  }
+                                  updated[index].serviceId = "";
                                   setServiceRows(updated);
+                                  // Load services for this employee if not cached
+                                  if (v?.id && !employeeServicesCache[v.id]) {
+                                    setServicesLoading(true);
+                                    loadServicesForEmployee(v.id).then(srvs => {
+                                      setEmployeeServicesCache(prev => ({ ...prev, [v.id]: srvs }));
+                                      setServicesLoading(false);
+                                    });
+                                  }
                                 }}
                                 getOptionLabel={(o) =>
                                   `${o.full_name || o.id} — ${o.specialization || "Нет специализации"}`
@@ -825,30 +731,20 @@ export const HomeAddAppointmentDrawer: React.FC<
                                 <Autocomplete
                                   sx={{ flex: 1 }}
                                   options={
-                                    row.doctorId
-                                      ? (() => {
-                                        const emp = doctorsOpts.find(d => d.id === row.doctorId);
-                                        if (!emp?.serviceIds?.length) return servicesOpts;
-                                        const filtered = servicesOpts.filter(s => emp.serviceIds!.includes(s.id));
-                                        return filtered.length > 0 ? filtered : servicesOpts;
-                                      })()
+                                    row.doctorId && employeeServicesCache[row.doctorId]
+                                      ? employeeServicesCache[row.doctorId]
                                       : servicesOpts
                                   }
                                   loading={servicesLoading}
                                   value={
-                                    servicesOpts.find(
-                                      (s) => s.id === row.serviceId
-                                    ) || null
+                                    (row.doctorId && employeeServicesCache[row.doctorId]
+                                      ? employeeServicesCache[row.doctorId]
+                                      : servicesOpts
+                                    ).find((s) => s.id === row.serviceId) || null
                                   }
                                   onChange={(_, v) => {
                                     const updated = [...serviceRows];
                                     updated[index].serviceId = v?.id || "";
-                                    if (updated[index].doctorId && v) {
-                                      const emp = doctorsOpts.find(d => d.id === updated[index].doctorId);
-                                      if (emp?.serviceIds?.length && !emp.serviceIds.includes(v.id)) {
-                                        updated[index].doctorId = "";
-                                      }
-                                    }
                                     setServiceRows(updated);
                                   }}
                                   getOptionLabel={(o) =>
@@ -925,259 +821,6 @@ export const HomeAddAppointmentDrawer: React.FC<
 
                       <Divider />
 
-                      {/* Товары */}
-                      <Stack
-                        direction="row"
-                        justifyContent="space-between"
-                        alignItems="center"
-                      >
-                        <Typography
-                          variant="body2"
-                          color="text.secondary"
-                          sx={{ fontWeight: 500 }}
-                        >
-                          Товары
-                        </Typography>
-                      </Stack>
-                      {productRows.map((row, index) => (
-                        <Stack key={index} spacing={1.5}>
-                          <Stack spacing={0.5}>
-                            {index === 0 && (
-                              <Stack direction="row" spacing={1.5} sx={{ px: 0.5 }}>
-                                <Typography variant="caption" color="text.secondary" sx={{ flex: 1 }}>
-                                  Название товара
-                                </Typography>
-                                <Typography variant="caption" color="text.secondary" sx={{ width: 100 }}>
-                                  Количество
-                                </Typography>
-                                <Box sx={{ width: 34 }} />
-                              </Stack>
-                            )}
-                            <Stack direction="row" spacing={1} alignItems="flex-start">
-                              <Autocomplete
-                                sx={{ flex: 1 }}
-                                options={products}
-                                loading={productsLoading}
-                                value={
-                                  products.find(
-                                    (p) =>
-                                      p.sellable_item_id === row.productId
-                                  ) || null
-                                }
-                                onChange={(_, product) => {
-                                  setProductRows((prev) => {
-                                    const updated = [...prev];
-                                    updated[index] = {
-                                      ...updated[index],
-                                      productId:
-                                        product?.sellable_item_id || "",
-                                      quantity: product
-                                        ? updated[index].quantity || 1
-                                        : 1,
-                                    };
-                                    return updated;
-                                  });
-                                }}
-                                getOptionLabel={(p) => p.name}
-                                filterOptions={createFilterOptions<Product>({
-                                  matchFrom: "start",
-                                  stringify: (p) =>
-                                    `${p.name ?? ""} ${p.barcode ?? ""
-                                      }`.trim(),
-                                })}
-                                renderOption={(props, option) => (
-                                  <li
-                                    {...props}
-                                    key={option.sellable_item_id}
-                                  >
-                                    <Stack>
-                                      <Typography
-                                        variant="body2"
-                                        sx={{ fontWeight: 500 }}
-                                      >
-                                        {option.name}
-                                      </Typography>
-                                      <Typography
-                                        variant="caption"
-                                        color="text.secondary"
-                                      >
-                                        {option.price || 0} сом{" "}
-                                        {option.stock
-                                          ? `(${option.stock} шт)`
-                                          : ""}
-                                      </Typography>
-                                    </Stack>
-                                  </li>
-                                )}
-                                isOptionEqualToValue={(o, v) =>
-                                  o.sellable_item_id === v.sellable_item_id
-                                }
-                                renderInput={(params) => (
-                                  <TextField
-                                    {...params}
-                                    placeholder="Выберите товар"
-                                    size="small"
-                                    fullWidth
-                                  />
-                                )}
-                              />
-                              <Box
-                                sx={{
-                                  border: 1,
-                                  borderColor: "divider",
-                                  borderRadius: 1,
-                                  bgcolor: "background.paper",
-                                  display: "flex",
-                                  alignItems: "center",
-                                  justifyContent: "space-between",
-                                  height: 40,
-                                  width: 100,
-                                  flexShrink: 0
-                                }}
-                              >
-                                <Button
-                                  size="small"
-                                  onClick={() => {
-                                    if (row.quantity <= 1) {
-                                      setProductRows((prev) =>
-                                        prev.filter((_, i) => i !== index)
-                                      );
-                                    } else {
-                                      setProductRows((prev) =>
-                                        prev.map((r, i) =>
-                                          i === index
-                                            ? { ...r, quantity: r.quantity - 1 }
-                                            : r
-                                        )
-                                      );
-                                    }
-                                  }}
-                                  sx={{
-                                    minWidth: 32,
-                                    px: 0.5,
-                                    minHeight: 34,
-                                  }}
-                                  disabled={!row.productId}
-                                >
-                                  −
-                                </Button>
-                                <TextField
-                                  size="small"
-                                  type="number"
-                                  value={row.quantity}
-                                  onChange={(e) => {
-                                    const val = e.target.value;
-                                    const newVal =
-                                      val === "" ? 1 : Number(val);
-                                    setProductRows((prev) =>
-                                      prev.map((r, i) =>
-                                        i === index
-                                          ? {
-                                            ...r,
-                                            quantity: Math.max(1, newVal),
-                                          }
-                                          : r
-                                      )
-                                    );
-                                  }}
-                                  disabled={!row.productId}
-                                  inputProps={{
-                                    style: {
-                                      textAlign: "center",
-                                      padding: "8px 4px",
-                                    },
-                                    min: 1,
-                                  }}
-                                  sx={{
-                                    width: 30,
-                                    ...noSpinnersSx,
-                                    "& .MuiOutlinedInput-root": {
-                                      "& fieldset": { border: "none" },
-                                    },
-                                  }}
-                                />
-                                <Button
-                                  size="small"
-                                  onClick={() => {
-                                    setProductRows((prev) =>
-                                      prev.map((r, i) =>
-                                        i === index
-                                          ? { ...r, quantity: r.quantity + 1 }
-                                          : r
-                                      )
-                                    );
-                                  }}
-                                  sx={{
-                                    minWidth: 32,
-                                    px: 0.5,
-                                    minHeight: 34,
-                                  }}
-                                  disabled={!row.productId}
-                                >
-                                  +
-                                </Button>
-                              </Box>
-                              <IconButton
-                                size="small"
-                                color="error"
-                                onClick={() => {
-                                  setProductRows((prev) =>
-                                    prev.filter((_, i) => i !== index)
-                                  );
-                                }}
-                                sx={{
-                                  border: '1px solid',
-                                  borderColor: 'error.main',
-                                  '&:hover': {
-                                    backgroundColor: 'rgba(211, 47, 47, 0.08)',
-                                  }
-                                }}
-                              >
-                                <DeleteOutlined fontSize="small" />
-                              </IconButton>
-                            </Stack>
-                          </Stack>
-
-                          {row.productId && (
-                            <Stack
-                              direction="row"
-                              justifyContent="space-between"
-                              alignItems="center"
-                              sx={{ px: 0.5 }}
-                            >
-                              <Typography
-                                variant="body2"
-                                color="text.secondary"
-                              >
-                                Итого:
-                              </Typography>
-                              <Typography variant="body2" fontWeight={500}>
-                                {(products.find(
-                                  (p) => p.sellable_item_id === row.productId
-                                )?.price || 0) * row.quantity}{" "}
-                                сом
-                              </Typography>
-                            </Stack>
-                          )}
-                        </Stack>
-                      ))}
-
-                      {/* Кнопка добавить товар */}
-                      <Button
-                        size="small"
-                        onClick={() => {
-                          setProductRows((prev) => [
-                            ...prev,
-                            { productId: "", quantity: 1 },
-                          ]);
-                        }}
-                        sx={{ alignSelf: "flex-start" }}
-                      >
-                        + Добавить товар
-                      </Button>
-
-                      <Divider />
-
                       {/* Список выбранных услуг */}
                       {serviceRows.some((r) => r.serviceId && r.doctorId) && (
                         <>
@@ -1236,60 +879,6 @@ export const HomeAddAppointmentDrawer: React.FC<
                         </>
                       )}
 
-                      {/* Выбранные товары */}
-                      {productRows.length > 0 && (
-                        <>
-                          <Typography
-                            variant="body2"
-                            color="text.secondary"
-                            sx={{ fontWeight: 500 }}
-                          >
-                            Выбранные товары (
-                            {productRows.filter((r) => r.productId).length}):
-                          </Typography>
-                          <Stack spacing={0} divider={<Divider flexItem />}>
-                            {productRows.map((row, index) => {
-                              if (!row.productId) return null;
-                              const product = products.find(
-                                (p) => p.sellable_item_id === row.productId
-                              );
-                              if (!product) return null;
-
-                              return (
-                                <Stack key={index} sx={{ py: 1 }}>
-                                  <Stack
-                                    direction="row"
-                                    justifyContent="space-between"
-                                    alignItems="center"
-                                  >
-                                    <Typography
-                                      variant="body2"
-                                      fontWeight={500}
-                                    >
-                                      {product.name}
-                                    </Typography>
-                                    <Typography
-                                      variant="body2"
-                                      sx={{
-                                        color: "text.secondary",
-                                        fontWeight: 500,
-                                      }}
-                                    >
-                                      {row.quantity} x {product.price || 0} ={" "}
-                                      <span style={{ color: "black" }}>
-                                        {(product.price || 0) * row.quantity}{" "}
-                                        сом
-                                      </span>
-                                    </Typography>
-                                  </Stack>
-                                </Stack>
-                              );
-                            })}
-                          </Stack>
-                          <Divider />
-                        </>
-                      )}
-
                       {/* Общая стоимость */}
                       <Stack
                         direction="row"
@@ -1301,59 +890,16 @@ export const HomeAddAppointmentDrawer: React.FC<
                         </Typography>
                         <Typography variant="h6">
                           {serviceRows.reduce((sum, row) => {
-                            const service = servicesOpts.find(
-                              (s) => s.id === row.serviceId
-                            );
-                            return sum + (service?.price || 0);
-                          }, 0) +
-                            productRows.reduce((sum, row) => {
-                              const product = products.find(
-                                (p) => p.sellable_item_id === row.productId
-                              );
-                              return sum + (product?.price || 0) * row.quantity;
-                            }, 0)}{" "}
+                            const cache = row.doctorId ? employeeServicesCache[row.doctorId] : null;
+                            const service = (cache || servicesOpts).find((s) => s.id === row.serviceId);
+                            return sum + (Number(service?.price) || 0);
+                          }, 0)}{" "}
                           сом
                         </Typography>
                       </Stack>
                     </Stack>
                   </CardContent>
                 </Card>
-                <Stack spacing={0.5}>
-                  <Typography
-                    variant="body2"
-                    color="text.secondary"
-                    sx={{ fontWeight: 500 }}
-                  >
-                    Жалобы при обращении
-                  </Typography>
-                  <TextField
-                    placeholder="Опишите жалобы клиента (необязательно)"
-                    value={complaints}
-                    onChange={(e) => setComplaints(e.target.value)}
-                    fullWidth
-                    multiline
-                    minRows={3}
-                  />
-                </Stack>
-
-                <Stack spacing={0.5}>
-                  <Typography
-                    variant="body2"
-                    color="text.secondary"
-                    sx={{ fontWeight: 500 }}
-                  >
-                    Жалобы (специалист)
-                  </Typography>
-                  <TextField
-                    placeholder="Опишите жалобы с точки зрения сотрудника"
-                    value={doctorComplaints}
-                    onChange={(e) => setDoctorComplaints(e.target.value)}
-                    fullWidth
-                    multiline
-                    minRows={3}
-                  />
-                </Stack>
-
                 <Stack spacing={0.5}>
                   <Typography
                     variant="body2"

@@ -443,8 +443,6 @@ const HistoryList: React.FC = () => {
                                     onUpdate={() => fetchData()}
                                     showPaymentAction={false} // Hide payment action specifically
                                     readOnly={true} // Enforce read-only mode (hides edit/buttons)
-                                    isConclusionVisible={conclusionOpen}
-                                    onToggleConclusion={() => setConclusionOpen(!conclusionOpen)}
                                 />
                             )}
                         </Grid2>
@@ -472,8 +470,6 @@ const HistoryList: React.FC = () => {
                                 onUpdate={() => fetchData()}
                                 showPaymentAction={false}
                                 readOnly={true}
-                                isConclusionVisible={conclusionOpen}
-                                onToggleConclusion={() => setConclusionOpen(!conclusionOpen)}
                             />
                         )}
                     </Box>

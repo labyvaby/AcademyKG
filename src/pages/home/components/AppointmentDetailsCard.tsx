@@ -28,9 +28,6 @@ import { useQueryClient } from "@tanstack/react-query";
 import dayjs from "dayjs";
 import CalendarMonthOutlined from "@mui/icons-material/CalendarMonthOutlined";
 import MedicalServicesOutlined from "@mui/icons-material/MedicalServicesOutlined";
-import DescriptionOutlined from "@mui/icons-material/DescriptionOutlined";
-import VisibilityOutlined from "@mui/icons-material/VisibilityOutlined";
-import NightlightOutlined from "@mui/icons-material/NightlightOutlined";
 import EditOutlined from "@mui/icons-material/EditOutlined";
 import DeleteOutlineOutlined from "@mui/icons-material/DeleteOutlineOutlined";
 import DirectionsWalkOutlined from "@mui/icons-material/DirectionsWalkOutlined";
@@ -41,7 +38,6 @@ import PatientQuickViewDrawer from "../../../components/patients/PatientQuickVie
 import ServiceQuickViewDrawer from "../../../components/services/ServiceQuickViewDrawer";
 import DoctorQuickViewDrawer from "../../../components/employees/DoctorQuickViewDrawer";
 import { PaymentInfoBlock } from "../../../components/ui";
-import DoctorWorkDrawer from "../../../components/home/DoctorWorkDrawer";
 
 import { apiFetch } from "../../../utility/apiClient";
 import { formatKGS } from "../../../utility/format";
@@ -61,8 +57,6 @@ type AppointmentDetailsCardProps = {
   hideActionsForDoctor?: boolean; // Hide doctor-specific actions (for doctor workspace page)
   extraHeaderActions?: React.ReactNode; // Additional actions to show in header
   showPaymentAction?: boolean; // Показать кнопку "Принять оплату"
-  isConclusionVisible?: boolean;
-  onToggleConclusion?: () => void;
   readOnly?: boolean; // If true, hide all editing/status changing actions
 };
 
@@ -74,8 +68,6 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
   hideActionsForDoctor = false,
   extraHeaderActions,
   showPaymentAction = false,
-  isConclusionVisible = false,
-  onToggleConclusion,
   readOnly = false,
 }) => {
   const theme = useTheme(); // Need theme for matches
@@ -87,7 +79,6 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
     item,
     patientData,
     appointmentDoctors,
-    appointmentProducts,
     servicesPhotos,
     loading: hookLoading,
     error: hookError,
@@ -112,8 +103,6 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
   const { isDoctor, isNurse, isAdmin, isRegistrator, isSuperAdmin, hasPermission, employeeId } = usePermissions();
   const canDelete = isSuperAdmin?.() ?? false;
 
-  // Drawer работы врача с приемом
-  const [doctorWorkOpen, setDoctorWorkOpen] = React.useState(false);
   const isNurseRole = isNurse?.() ?? false;
 
   // Drawer'ы быстрого просмотра
@@ -126,39 +115,12 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
   // Врачи приёма (Calculated from hook data, no state needed if direct usage, but existing code might rely on state?)
   // actually...
 
-  // Врачи, написавшие заключение
-  const [conclusionDoctors, setConclusionDoctors] = React.useState<any[]>([]);
-  const [targetConclusionDoctorId, setTargetConclusionDoctorId] = React.useState<string | null>(null);
-
-  React.useEffect(() => {
-    if (!appointmentId) return;
-    const fetchConclusionDoctors = async () => {
-      try {
-        const res: any = await apiFetch(`/api/v1/conclusions/?appointment_id=${appointmentId}`);
-        const items = res?.results ?? res?.data ?? res ?? [];
-
-        const doctors = (items || [])
-          .map((d: any) => d.doctor ? { id: d.doctor, full_name: d.doctor_name ?? "" } : null)
-          .filter(Boolean);
-        setConclusionDoctors(doctors);
-      } catch {
-        // ignore
-      }
-    };
-    fetchConclusionDoctors();
-  }, [appointmentId, hookLoading]);
 
   // We should call `refresh()` when we update status or delete internally.
   const handleRefresh = React.useCallback(() => {
     refresh();
     onUpdate(); // Call parent update too
   }, [refresh, onUpdate]);
-
-  const isNight = item ? item.is_night : false;
-
-  const productsTotal = React.useMemo(() => {
-    return appointmentProducts.reduce((sum, p) => sum + (p.price * p.quantity), 0);
-  }, [appointmentProducts]);
 
   // Payment Sidebar
   const [paymentOpen, setPaymentOpen] = React.useState(false);
@@ -289,29 +251,6 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
     setConfirmOpen(true);
   };
 
-  const hasIncompleteServices = React.useMemo(() => {
-    if (!item?.services_json || !employeeId) return false;
-    let services: any[] = [];
-    try {
-      if (typeof item.services_json === 'string') {
-        services = JSON.parse(item.services_json);
-      } else if (Array.isArray(item.services_json)) {
-        services = item.services_json;
-      }
-    } catch (e) {
-      console.error("[AppointmentDetailsCard] Error parsing services_json in hasIncompleteServices:", e);
-      return false;
-    }
-
-    if (!Array.isArray(services)) return false;
-
-    // Check if any service where this doctor is performer is NOT completed
-    return services.some(svc => {
-      if (!svc) return false;
-      const docId = svc.doctor_id || svc.performer_id;
-      return docId === employeeId && svc.status !== "Выполнено";
-    });
-  }, [item?.services_json, employeeId]);
 
   if (!appointmentId) {
     return (
@@ -383,31 +322,6 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
 
 
 
-                  {/* Кнопка "Начать прием" — только если "Клиент здесь" и есть невыполненные услуги у врача */}
-                  {(item.status?.toLowerCase() === APPOINTMENT_STATUSES.PATIENT_ARRIVED.toLowerCase() || item.status?.toLowerCase() === APPOINTMENT_STATUSES.PAID.toLowerCase() || item.status === APPOINTMENT_STATUSES.COMPLETED) && isDoctor() && hasIncompleteServices && (
-                    <Button
-                      variant="outlined"
-                      color="primary"
-                      size="small"
-                      startIcon={<MedicalServicesOutlined />}
-                      onClick={() => setDoctorWorkOpen(true)}
-                    >
-                      Начать прием
-                    </Button>
-                  )}
-
-                  {/* Кнопка "Изменить заключение" — если нет невыполненных услуг, но это Врач и он участник (был исполнителем) */}
-                  {isDoctor() && !hasIncompleteServices && item.performer_ids?.includes(employeeId || "") && (
-                    <Button
-                      variant="outlined"
-                      size="small"
-                      startIcon={<EditOutlined />}
-                      onClick={() => setDoctorWorkOpen(true)}
-                    >
-                      Изменить заключение
-                    </Button>
-                  )}
-
                   {/* Кнопка изменения только для админов и регистраторов */}
                   {(isAdmin() || isRegistrator()) && (
                     <Button
@@ -422,19 +336,6 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
                 </>
               )}
 
-              {/* ReadOnly Conclusion Toggle Button - Show even if readOnly, but simple without edits. HIDDEN on Mobile as we use Tabs now */}
-              {!isMobile && onToggleConclusion && item && (
-                (item.has_conclusion || conclusionDoctors.length > 0 || item.conclusion || item.diagnosis_code || item.diagnosis_data)
-              ) && (
-                  <Button
-                    variant={isConclusionVisible ? "contained" : "outlined"}
-                    size="small"
-                    startIcon={<VisibilityOutlined />}
-                    onClick={onToggleConclusion}
-                  >
-                    {isConclusionVisible ? "Скрыть заключение" : "Заключение"}
-                  </Button>
-                )}
 
               {/* Extra header actions */}
               {extraHeaderActions}
@@ -531,10 +432,6 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
               <Typography variant="h6" fontWeight={700} color="text.primary">
                 {item.formatted_date}
               </Typography>
-              {isNight && (
-                <NightlightOutlined sx={{ fontSize: 22, color: 'primary.main' }} />
-              )}
-
               {/* Метаданные создания и изменения */}
               <Stack direction="column" spacing={0} sx={{ ml: 1 }}>
                 {item.created_by_name && (
@@ -892,94 +789,17 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
               </Stack>
             </Box>
 
-            {/* Товары */}
-            {appointmentProducts.length > 0 && (
+
+            {/* Комментарий администратора */}
+            {item.admin_comment && (
               <Box>
-                <Typography variant="caption" color="text.secondary" gutterBottom display="block">
-                  Товары
+                <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                  Комментарий администратора
                 </Typography>
-                <Stack spacing={1.5}>
-                  {appointmentProducts.map((product, idx) => (
-                    <Paper
-                      key={idx}
-                      variant="outlined"
-                      sx={{
-                        p: 2,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 2,
-                        bgcolor: (theme) => alpha(theme.palette.success.main, 0.02),
-                        borderColor: (theme) => alpha(theme.palette.success.main, 0.2),
-                      }}
-                    >
-                      <Avatar
-                        src={product.photo_url || undefined}
-                        variant="rounded"
-                        sx={{
-                          width: 48,
-                          height: 48,
-                          bgcolor: 'success.lighter',
-                          color: 'success.main',
-                        }}
-                      >
-                        📦
-                      </Avatar>
-                      <Box sx={{ flex: 1 }}>
-                        <Typography variant="body1" fontWeight={600}>
-                          {product.name}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.85rem' }}>
-                          {product.quantity} x {formatKGS(product.price)} = <Box component="span" sx={{ fontWeight: 600, color: 'text.primary' }}>{formatKGS(product.price * product.quantity)}</Box>
-                        </Typography>
-                      </Box>
-                    </Paper>
-                  ))}
-                </Stack>
+                <Typography variant="body2" sx={{ bgcolor: "background.paper", p: 1, borderRadius: 1, border: "1px solid", borderColor: "divider" }}>
+                  {item.admin_comment}
+                </Typography>
               </Box>
-            )}
-
-            {/* Complaints, Conclusion & Comments */}
-            {(item.complaints || item.conclusion || item.admin_comment) && (
-              <Stack spacing={2}>
-                {item.complaints && (
-                  <Box>
-                    <Stack direction="row" alignItems="center" gap={1} mb={0.5}>
-                      <DescriptionOutlined color="primary" fontSize="small" />
-                      <Typography variant="subtitle2" color="text.secondary">
-                        Жалобы клиента
-                      </Typography>
-                    </Stack>
-                    <Typography variant="body2" sx={{ bgcolor: "background.paper", p: 1, borderRadius: 1, border: "1px solid", borderColor: "divider" }}>
-                      {item.complaints}
-                    </Typography>
-                  </Box>
-                )}
-
-                {item.doctor_complaints && (
-                  <Box>
-                    <Stack direction="row" alignItems="center" gap={1} mb={0.5}>
-                      <DescriptionOutlined color="secondary" fontSize="small" />
-                      <Typography variant="subtitle2" color="text.secondary">
-                        Жалобы (специалист)
-                      </Typography>
-                    </Stack>
-                    <Typography variant="body2" sx={{ bgcolor: "background.paper", p: 1, borderRadius: 1, border: "1px solid", borderColor: "divider" }}>
-                      {item.doctor_complaints}
-                    </Typography>
-                  </Box>
-                )}
-
-                {item.admin_comment && (
-                  <Box>
-                    <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                      Комментарий администратора
-                    </Typography>
-                    <Typography variant="body2" sx={{ bgcolor: "background.paper", p: 1, borderRadius: 1, border: "1px solid", borderColor: "divider" }}>
-                      {item.admin_comment}
-                    </Typography>
-                  </Box>
-                )}
-              </Stack>
             )}
 
             {(isDoctor() || isNurse()) && (
@@ -1046,10 +866,6 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
           isOpen={editOpen}
           onClose={() => setEditOpen(false)}
           item={item}
-          initialProductRows={appointmentProducts.map(p => ({
-            productId: p.sellable_item_id,
-            quantity: p.quantity
-          }))}
           onDeleted={() => {
             setEditOpen(false);
             onClose();
@@ -1101,8 +917,7 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
           onUpdate();
           handleRefresh();
         }}
-        productsCost={productsTotal}
-      />
+        />
 
       {/* Drawer быстрого просмотра клиента */}
       <PatientQuickViewDrawer
@@ -1132,17 +947,6 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
         doctorId={selectedDoctorId}
       />
 
-      {/* Drawer работы врача с приемом (заключение + диагноз) */}
-      <DoctorWorkDrawer
-        open={doctorWorkOpen}
-        onClose={() => setDoctorWorkOpen(false)}
-        appointment={item}
-        onSuccess={() => {
-          onUpdate(); // Update parent list
-          // Force refresh item fully using the extracted function
-          handleRefresh();
-        }}
-      />
     </Card>
   );
 };

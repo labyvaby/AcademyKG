@@ -20,7 +20,6 @@ import CalendarMonthOutlined from "@mui/icons-material/CalendarMonthOutlined";
 import PersonOutlineOutlined from "@mui/icons-material/PersonOutlineOutlined";
 import MedicalServicesOutlined from "@mui/icons-material/MedicalServicesOutlined";
 import DescriptionOutlined from "@mui/icons-material/DescriptionOutlined";
-import NightlightOutlined from "@mui/icons-material/NightlightOutlined";
 
 import CheckCircleOutlineOutlined from "@mui/icons-material/CheckCircleOutlineOutlined";
 import HourglassEmptyOutlined from "@mui/icons-material/HourglassEmptyOutlined";
@@ -86,7 +85,6 @@ export const AppointmentDetailsPage: React.FC = () => {
     };
   }, [id]);
 
-  const isNight = item ? item.is_night : false;
   const statusIcon =
     item?.status === "Оплачено" ? <CheckCircleOutlineOutlined fontSize="small" /> : <HourglassEmptyOutlined fontSize="small" />;
 
@@ -195,16 +193,6 @@ export const AppointmentDetailsPage: React.FC = () => {
                           />
                         );
                       })()}
-                      {isNight && (
-                        <Chip
-                          size="small"
-                          variant="outlined"
-                          color="info"
-                          label="Ночной"
-                          icon={<NightlightOutlined fontSize="small" />}
-                          sx={{ ml: 1 }}
-                        />
-                      )}
                     </Stack>
                   ) : (
                     <Typography variant="h6">Прием не найден</Typography>

@@ -14,7 +14,6 @@ import {
 } from "@mui/material";
 import { useTheme, alpha } from "@mui/material/styles";
 import FilterListOutlined from "@mui/icons-material/FilterListOutlined";
-import NightlightOutlined from "@mui/icons-material/NightlightOutlined";
 import PaymentsOutlined from "@mui/icons-material/PaymentsOutlined";
 import CreditCardOutlined from "@mui/icons-material/CreditCardOutlined";
 import AccountBalanceWalletOutlined from "@mui/icons-material/AccountBalanceWalletOutlined";
@@ -745,7 +744,6 @@ export const AppointmentsList: React.FC<AppointmentsListProps & { onAddSlot?: (d
                           <Stack direction="row" justifyContent="space-between" alignItems="flex-start" gap={2}>
                             <Stack>
                               <Stack direction="row" alignItems="center" gap={0.5}>
-                                {a.is_night && <Tooltip title="Ночной"><NightlightOutlined color="action" fontSize="small" /></Tooltip>}
                                 <Typography variant="subtitle2">{dayjs(a.appointment_at).format("HH:mm")}</Typography>
                               </Stack>
                               <Typography variant="body2" color="text.secondary">Клиент: {a.patient_name}</Typography>

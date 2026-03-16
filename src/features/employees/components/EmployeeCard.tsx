@@ -21,7 +21,13 @@ import {
   Alert,
   CircularProgress,
   Grid,
+  TextField,
+  MenuItem,
+  Switch,
+  FormControlLabel,
 } from "@mui/material";
+import EditOutlined from "@mui/icons-material/EditOutlined";
+import CalendarMonthOutlined from "@mui/icons-material/CalendarMonthOutlined";
 import PersonOutlineOutlined from "@mui/icons-material/PersonOutlineOutlined";
 import LocalPhoneOutlined from "@mui/icons-material/LocalPhoneOutlined";
 import LocalOfferOutlined from "@mui/icons-material/LocalOfferOutlined";
@@ -72,6 +78,16 @@ const calculateAge = (birthDate: string): string => {
 
 type EmployeeDocument = { id: string; title: string; fileUrl: string };
 
+type EmployeeSchedule = {
+  id: string;
+  date: string;
+  startTime: string | null;
+  endTime: string | null;
+  shiftType: string;
+  isDayOff: boolean;
+  note: string;
+};
+
 type EmployeeDetail = {
   id: string;
   fullName: string;
@@ -88,6 +104,7 @@ type EmployeeDetail = {
   specializations?: { id: string; name: string }[];
   services?: { id: string; name: string; price?: number | null }[];
   documents?: { id: string | number; title: string; file: string }[];
+  schedules?: EmployeeSchedule[];
 };
 
 const STATUS_LABEL: Record<string, string> = {
@@ -158,6 +175,18 @@ const EmployeeCard: React.FC<EmployeeCardProps> = ({ emp }) => {
     severity: "success" | "error";
   }>({ open: false, message: "", severity: "success" });
 
+  // Расписание
+  const [scheduleFormOpen, setScheduleFormOpen] = React.useState(false);
+  const [editingSchedule, setEditingSchedule] = React.useState<EmployeeSchedule | null>(null);
+  const [deleteSchedule, setDeleteSchedule] = React.useState<EmployeeSchedule | null>(null);
+  const [scheduleDate, setScheduleDate] = React.useState("");
+  const [scheduleStartTime, setScheduleStartTime] = React.useState("09:00");
+  const [scheduleEndTime, setScheduleEndTime] = React.useState("18:00");
+  const [scheduleShiftType, setScheduleShiftType] = React.useState("day");
+  const [scheduleIsDayOff, setScheduleIsDayOff] = React.useState(false);
+  const [scheduleNote, setScheduleNote] = React.useState("");
+  const [scheduleBusy, setScheduleBusy] = React.useState(false);
+
   // refreshKey меняется когда emp обновляется после редактирования
   const refreshKey = emp ? `${emp.id}_${emp.phone ?? ""}_${emp.email ?? ""}_${emp.status ?? ""}` : "";
 
@@ -199,6 +228,15 @@ const EmployeeCard: React.FC<EmployeeCardProps> = ({ emp }) => {
               }))
             : [],
           documents: Array.isArray(d.documents) ? d.documents : [],
+          schedules: Array.isArray(d.schedules) ? d.schedules.map((s: any) => ({
+            id: String(s.id),
+            date: s.date ?? "",
+            startTime: s.startTime ?? null,
+            endTime: s.endTime ?? null,
+            shiftType: s.shiftType ?? "day",
+            isDayOff: s.isDayOff ?? false,
+            note: s.note ?? "",
+          })) : [],
         });
       })
       .catch(() => {
@@ -224,6 +262,7 @@ const EmployeeCard: React.FC<EmployeeCardProps> = ({ emp }) => {
   const roleText = d?.roleName ?? (emp as any).roleName ?? "";
   const specializations = d?.specializations ?? [];
   const services = d?.services ?? [];
+  const schedules: EmployeeSchedule[] = d?.schedules ?? [];
   const documents: EmployeeDocument[] = (d?.documents ?? []).map((doc) => ({
     id: String(doc.id),
     title: doc.title,
@@ -288,6 +327,89 @@ const EmployeeCard: React.FC<EmployeeCardProps> = ({ emp }) => {
       setSnackbar({ open: true, message: "Ой, что-то пошло не так", severity: "error" });
     } finally {
       setAddDocLoading(false);
+    }
+  };
+
+  const openScheduleForm = (s?: EmployeeSchedule) => {
+    setEditingSchedule(s ?? null);
+    setScheduleDate(s?.date ?? "");
+    setScheduleStartTime(s?.startTime?.slice(0, 5) ?? "09:00");
+    setScheduleEndTime(s?.endTime?.slice(0, 5) ?? "18:00");
+    setScheduleShiftType(s?.shiftType ?? "day");
+    setScheduleIsDayOff(s?.isDayOff ?? false);
+    setScheduleNote(s?.note ?? "");
+    setScheduleFormOpen(true);
+  };
+
+  const handleScheduleSave = async () => {
+    if (!emp?.id || !scheduleDate) return;
+    setScheduleBusy(true);
+    try {
+      const body: Record<string, unknown> = {
+        employee: emp.id,
+        date: scheduleDate,
+        shiftType: scheduleShiftType,
+        isDayOff: scheduleIsDayOff,
+        note: scheduleNote,
+      };
+      if (!scheduleIsDayOff) {
+        body.startTime = scheduleStartTime + ":00";
+        body.endTime = scheduleEndTime + ":00";
+      }
+      if (editingSchedule) {
+        await apiFetch(`/api/v1/employee-schedules/${editingSchedule.id}/`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        setDetail(prev => prev ? {
+          ...prev,
+          schedules: (prev.schedules ?? []).map(s =>
+            s.id === editingSchedule.id ? { ...s, ...body, startTime: body.startTime as string ?? s.startTime, endTime: body.endTime as string ?? s.endTime } : s
+          ),
+        } : prev);
+      } else {
+        const res: any = await apiFetch("/api/v1/employee-schedules/", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        const newS = res?.data ?? res;
+        setDetail(prev => prev ? {
+          ...prev,
+          schedules: [...(prev.schedules ?? []), {
+            id: String(newS.id ?? Date.now()),
+            date: newS.date ?? scheduleDate,
+            startTime: newS.startTime ?? null,
+            endTime: newS.endTime ?? null,
+            shiftType: newS.shiftType ?? scheduleShiftType,
+            isDayOff: newS.isDayOff ?? scheduleIsDayOff,
+            note: newS.note ?? scheduleNote,
+          }],
+        } : prev);
+      }
+      setSnackbar({ open: true, message: "Расписание сохранено", severity: "success" });
+      setScheduleFormOpen(false);
+    } catch {
+      setSnackbar({ open: true, message: "Ой, что-то пошло не так", severity: "error" });
+    } finally {
+      setScheduleBusy(false);
+    }
+  };
+
+  const handleScheduleDelete = async () => {
+    if (!deleteSchedule) return;
+    try {
+      await apiFetch(`/api/v1/employee-schedules/${deleteSchedule.id}/`, { method: "DELETE" });
+      setDetail(prev => prev ? {
+        ...prev,
+        schedules: (prev.schedules ?? []).filter(s => s.id !== deleteSchedule.id),
+      } : prev);
+      setSnackbar({ open: true, message: "Запись удалена", severity: "success" });
+    } catch {
+      setSnackbar({ open: true, message: "Ой, что-то пошло не так", severity: "error" });
+    } finally {
+      setDeleteSchedule(null);
     }
   };
 
@@ -468,6 +590,53 @@ const EmployeeCard: React.FC<EmployeeCardProps> = ({ emp }) => {
                       }
                       size="small"
                     />
+                  ))}
+                </Stack>
+              )}
+            </Box>
+
+            <Divider sx={{ mb: 2 }} />
+
+            {/* ─── Расписание ─── */}
+            <Box sx={{ mb: 2 }}>
+              <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <CalendarMonthOutlined fontSize="small" color="primary" />
+                  <Typography variant="subtitle2" fontWeight={600}>Расписание</Typography>
+                </Stack>
+                <Tooltip title="Добавить запись">
+                  <IconButton size="small" onClick={() => openScheduleForm()}>
+                    <AddCircleOutlineOutlined fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              </Stack>
+              {schedules.length === 0 ? (
+                <Typography variant="body2" color="text.secondary">Расписание не задано</Typography>
+              ) : (
+                <Stack spacing={0.75}>
+                  {[...schedules].sort((a, b) => a.date.localeCompare(b.date)).map(s => (
+                    <Stack key={s.id} direction="row" alignItems="center" justifyContent="space-between"
+                      sx={{ px: 1.5, py: 0.75, border: "1px solid", borderColor: "divider", borderRadius: 1 }}
+                    >
+                      <Box>
+                        <Stack direction="row" spacing={1} alignItems="center">
+                          <Typography variant="body2" fontWeight={500}>{formatDateRu(s.date)}</Typography>
+                          {s.isDayOff
+                            ? <Chip label="Выходной" size="small" color="default" />
+                            : <Chip label={`${s.startTime?.slice(0,5) ?? ""} – ${s.endTime?.slice(0,5) ?? ""}`} size="small" color="primary" variant="outlined" />
+                          }
+                        </Stack>
+                        {s.note ? <Typography variant="caption" color="text.secondary">{s.note}</Typography> : null}
+                      </Box>
+                      <Stack direction="row">
+                        <IconButton size="small" onClick={() => openScheduleForm(s)}>
+                          <EditOutlined fontSize="small" />
+                        </IconButton>
+                        <IconButton size="small" onClick={() => setDeleteSchedule(s)}>
+                          <DeleteOutline fontSize="small" />
+                        </IconButton>
+                      </Stack>
+                    </Stack>
                   ))}
                 </Stack>
               )}
@@ -731,6 +900,74 @@ const EmployeeCard: React.FC<EmployeeCardProps> = ({ emp }) => {
           >
             {addDocLoading ? "Загрузка…" : "Добавить"}
           </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ─── Форма расписания ─── */}
+      <Dialog open={scheduleFormOpen} onClose={() => setScheduleFormOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle>{editingSchedule ? "Редактировать запись" : "Добавить в расписание"}</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ pt: 1 }}>
+            <TextField
+              label="Дата" type="date" value={scheduleDate}
+              onChange={e => setScheduleDate(e.target.value)}
+              fullWidth InputLabelProps={{ shrink: true }} required
+            />
+            <TextField
+              label="Тип смены" select value={scheduleShiftType}
+              onChange={e => setScheduleShiftType(e.target.value)} fullWidth
+            >
+              <MenuItem value="day">День</MenuItem>
+              <MenuItem value="night">Ночь</MenuItem>
+              <MenuItem value="custom">Произвольный</MenuItem>
+            </TextField>
+            <FormControlLabel
+              control={<Switch checked={scheduleIsDayOff} onChange={e => setScheduleIsDayOff(e.target.checked)} />}
+              label="Выходной"
+            />
+            {!scheduleIsDayOff && (
+              <Stack direction="row" spacing={1}>
+                <TextField
+                  label="Начало" type="time" value={scheduleStartTime}
+                  onChange={e => setScheduleStartTime(e.target.value)}
+                  fullWidth InputLabelProps={{ shrink: true }} required
+                />
+                <TextField
+                  label="Конец" type="time" value={scheduleEndTime}
+                  onChange={e => setScheduleEndTime(e.target.value)}
+                  fullWidth InputLabelProps={{ shrink: true }} required
+                />
+              </Stack>
+            )}
+            <TextField
+              label="Заметка" value={scheduleNote}
+              onChange={e => setScheduleNote(e.target.value)}
+              fullWidth multiline rows={2}
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setScheduleFormOpen(false)} variant="outlined" disabled={scheduleBusy}>Отмена</Button>
+          <Button onClick={handleScheduleSave} variant="contained"
+            disabled={!scheduleDate || (!scheduleIsDayOff && (!scheduleStartTime || !scheduleEndTime)) || scheduleBusy}
+            startIcon={scheduleBusy ? <CircularProgress size={16} color="inherit" /> : undefined}
+          >
+            {scheduleBusy ? "Сохранение…" : "Сохранить"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ─── Подтверждение удаления расписания ─── */}
+      <Dialog open={Boolean(deleteSchedule)} onClose={() => setDeleteSchedule(null)} maxWidth="xs" fullWidth>
+        <DialogTitle>Удалить запись?</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2">
+            Удалить запись от {deleteSchedule ? formatDateRu(deleteSchedule.date) : ""}?
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteSchedule(null)} variant="outlined">Отмена</Button>
+          <Button onClick={handleScheduleDelete} variant="contained" color="error">Удалить</Button>
         </DialogActions>
       </Dialog>
 

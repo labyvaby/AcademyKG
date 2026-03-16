@@ -22,9 +22,6 @@ import type { Patient, HistoryRow } from "../../types/models";
 import type { PatientDocument } from "./components/PatientCard";
 import { usePermissions } from "../../hooks/usePermissions";
 import { PERMISSIONS } from "../../types/rbac";
-import { DoctorConclusionPanel } from "../doctor/components/DoctorConclusionPanel";
-import { DoctorWorkDrawer } from "../../components/home/DoctorWorkDrawer";
-import { useAppointmentDetails } from "../../hooks/useAppointmentDetails";
 import { usePatientBalance } from "./usePatientBalance";
 import BalanceTopUpDrawer from "./components/BalanceTopUpDrawer";
 import { apiFetch } from "../../utility/apiClient";
@@ -33,23 +30,6 @@ import { apiFetch } from "../../utility/apiClient";
  * PatientSearchPage
  */
 
-const DoctorWorkDrawerWrapper: React.FC<{
-  appointmentId: string;
-  open: boolean;
-  onClose: () => void;
-  onSuccess: () => void;
-}> = ({ appointmentId, open, onClose, onSuccess }) => {
-  const { item, loading } = useAppointmentDetails(open ? appointmentId : null);
-
-  return (
-    <DoctorWorkDrawer
-      open={open && !loading}
-      onClose={onClose}
-      appointment={item}
-      onSuccess={onSuccess}
-    />
-  );
-};
 
 export const PatientSearchPage: React.FC = () => {
   const { hasPermission, isAdmin, isRegistrator, isDoctor, isNurse } = usePermissions();
@@ -74,7 +54,6 @@ export const PatientSearchPage: React.FC = () => {
   const canSeeWaitList = isAdmin() || isRegistrator() || isEmployee;
   const canUpdatePatient = isAdmin() || isRegistrator();
 
-  const [isDoctorWorkOpen, setIsDoctorWorkOpen] = React.useState(false);
 
   const {
     loading,
@@ -228,7 +207,6 @@ export const PatientSearchPage: React.FC = () => {
   const [editOpen, setEditOpen] = React.useState(false);
 
   const [historyDetailId, setHistoryDetailId] = React.useState<string | null>(null);
-  const [isConclusionVisible, setIsConclusionVisible] = React.useState(false);
   const [historyTab, setHistoryTab] = React.useState(0);
 
   const theme = useTheme();
@@ -294,9 +272,6 @@ export const PatientSearchPage: React.FC = () => {
           history={history}
           onClick={(row) => {
             setHistoryDetailId(row.ID);
-            if (row.has_conclusion || row.diagnosis_code || row.conclusion) {
-              setIsConclusionVisible(true);
-            }
           }}
         />
       ),
@@ -557,7 +532,6 @@ export const PatientSearchPage: React.FC = () => {
         open={!!historyDetailId}
         onClose={() => {
           setHistoryDetailId(null);
-          setIsConclusionVisible(false);
           setHistoryTab(0);
         }}
         PaperProps={{
@@ -565,8 +539,8 @@ export const PatientSearchPage: React.FC = () => {
             width: {
               xs: "100%",
               sm: "100%",
-              md: isConclusionVisible && isDesktop ? 1000 : isTablet ? "85%" : 600,
-              lg: isConclusionVisible ? 1000 : 600,
+              md: isTablet ? "85%" : 600,
+              lg: 600,
             },
             transition: "width 0.3s",
           },
@@ -576,98 +550,24 @@ export const PatientSearchPage: React.FC = () => {
           sx={{
             height: "100%",
             display: "flex",
-            flexDirection: isConclusionVisible && isDesktop ? "row" : "column",
+            flexDirection: "column",
             overflow: "hidden",
           }}
         >
-          {historyDetailId && (() => {
-            const currentRow = history.find((r) => r.ID === historyDetailId);
-            const dataExists = !!(currentRow?.has_conclusion || currentRow?.diagnosis_code || currentRow?.conclusion || currentRow?.diagnosis_data);
-            const canSeeAlways = isAdmin() || isRegistrator() || isDoctor() || isNurse();
-            const hasConclusionData = dataExists || canSeeAlways;
-
-            return (
-              <>
-                {!isDesktop && hasConclusionData && (
-                  <Box sx={{ borderBottom: 1, borderColor: "divider", bgcolor: "background.paper", px: 3 }}>
-                    <Tabs
-                      value={historyTab}
-                      onChange={(_, v) => setHistoryTab(v)}
-                      variant="fullWidth"
-                    >
-                      <Tab label="Прием" />
-                      <Tab label="Заключение" />
-                    </Tabs>
-                  </Box>
-                )}
-
-                <Box
-                  sx={{
-                    flex: 1,
-                    display: "flex",
-                    flexDirection: isConclusionVisible && isDesktop ? "row" : "column",
-                    overflow: "hidden",
-                  }}
-                >
-                  {(isDesktop || !hasConclusionData || historyTab === 0) && (
-                    <Box
-                      sx={{
-                        flex: isConclusionVisible && isDesktop ? "0 0 450px" : "1 1 auto",
-                        height: "100%",
-                        overflowY: "auto",
-                        borderRight: isConclusionVisible && isDesktop ? "1px solid" : "none",
-                        borderColor: "divider",
-                        display: "flex",
-                        flexDirection: "column",
-                      }}
-                    >
-                      <AppointmentDetailsCard
-                        appointmentId={historyDetailId}
-                        onClose={() => {
-                          setHistoryDetailId(null);
-                          setIsConclusionVisible(false);
-                          setHistoryTab(0);
-                        }}
-                        hideActionsForDoctor={!canUpdatePatient}
-                        isConclusionVisible={isConclusionVisible}
-                        onToggleConclusion={() => {
-                          const next = !isConclusionVisible;
-                          setIsConclusionVisible(next);
-                          if (!isDesktop && next) setHistoryTab(1);
-                        }}
-                        onUpdate={() => reloadHistory()}
-                      />
-                    </Box>
-                  )}
-
-                  {(isDesktop ? isConclusionVisible : hasConclusionData && historyTab === 1) && (
-                    <Box sx={{ flex: 1, height: "100%", overflow: "hidden" }}>
-                      <DoctorConclusionPanel
-                        appointmentId={historyDetailId}
-                        onClose={() => {
-                          setIsConclusionVisible(false);
-                          setHistoryTab(0);
-                        }}
-                        onEditClick={() => setIsDoctorWorkOpen(true)}
-                        readOnly={false}
-                      />
-                    </Box>
-                  )}
-                </Box>
-              </>
-            );
-          })()}
+          {historyDetailId && (
+            <AppointmentDetailsCard
+              appointmentId={historyDetailId}
+              onClose={() => {
+                setHistoryDetailId(null);
+                setHistoryTab(0);
+              }}
+              hideActionsForDoctor={!canUpdatePatient}
+              onUpdate={() => reloadHistory()}
+            />
+          )}
         </Box>
       </Drawer>
 
-      {historyDetailId && (
-        <DoctorWorkDrawerWrapper
-          appointmentId={historyDetailId}
-          open={isDoctorWorkOpen}
-          onClose={() => setIsDoctorWorkOpen(false)}
-          onSuccess={() => reloadHistory()}
-        />
-      )}
 
       <BalanceTopUpDrawer
         open={topUpOpen}
