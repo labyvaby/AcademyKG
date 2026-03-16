@@ -2,6 +2,7 @@ import React, { useEffect } from "react";
 import { useNotification } from "@refinedev/core";
 import {
   Box,
+  Chip,
   Divider,
   Stack,
   Typography,
@@ -184,11 +185,24 @@ export const HomePage: React.FC = () => {
   const { data: dailyAppointments = [], isLoading: dailyLoading, isFetching: dailyFetching, refetch: refetchAppointments } = useQuery<Appointment[]>({
     queryKey: ["appointments", "daily", dailyRange.key],
     queryFn: async () => {
-      const res: any = await apiFetch(
-        `/api/v1/appointments/?ordering=appointmentAt`
-      );
+      const res: any = await apiFetch(`/api/v1/appointments/?ordering=appointmentAt`);
       const items: AggregatedAppointmentRow[] = res?.data?.results ?? res?.results ?? (Array.isArray(res?.data) ? res.data : null) ?? (Array.isArray(res) ? res : []);
-      return (Array.isArray(items) ? items : []).map((row: AggregatedAppointmentRow) => mapAggregatedRowToAppointment(row));
+      const mapped = (Array.isArray(items) ? items : []).map((row: AggregatedAppointmentRow) => mapAggregatedRowToAppointment(row));
+
+      // List API doesn't include services — fetch details in parallel to get performer names
+      await Promise.all(mapped.map(async (appt, idx) => {
+        try {
+          const detail: any = await apiFetch(`/api/v1/appointments/${appt.id}/`);
+          const d = detail?.data ?? detail;
+          if (!d?.services?.length) return;
+          const svc = d.services[0];
+          const pname = svc.performerName ?? svc.performer_name ?? "";
+          const pid = typeof svc.performer === "string" ? svc.performer : (svc.performer?.id ?? "");
+          if (pname) mapped[idx] = { ...appt, doctor_name: pname, doctor_id: pid || appt.doctor_id };
+        } catch { /* ignore */ }
+      }));
+
+      return mapped;
     },
     staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
@@ -370,6 +384,31 @@ export const HomePage: React.FC = () => {
         }
       />
 
+
+      {/* Status filter chips */}
+      <Box sx={(theme) => ({
+        px: theme.appLayout.page.paddingX,
+        pb: 1,
+        overflowX: "auto",
+        "&::-webkit-scrollbar": { display: "none" },
+      })}>
+        <Stack direction="row" spacing={1} sx={{ flexWrap: "nowrap", minWidth: "max-content" }}>
+          {Object.keys(status).map((s) => {
+            const active = status[s] !== false;
+            return (
+              <Chip
+                key={s}
+                label={s}
+                size="small"
+                onClick={() => setStatus(prev => ({ ...prev, [s]: !prev[s] }))}
+                color={active ? "primary" : "default"}
+                variant={active ? "filled" : "outlined"}
+                sx={{ cursor: "pointer", fontWeight: active ? 600 : 400 }}
+              />
+            );
+          })}
+        </Stack>
+      </Box>
 
       {/* Columns */}
       <Box sx={(theme) => ({

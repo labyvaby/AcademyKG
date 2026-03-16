@@ -53,16 +53,18 @@ export const useAppointmentDetails = (appointmentId: string | null) => {
                     photo_url: apptData.patient_photo_url || apptData.patient?.photo_url || null,
                 };
 
-                // 3. Doctors — из services (performer) или legacy fields
+                // 3. Doctors — из services (performer — UUID строка + performerName)
                 const doctorMap = new Map<string, any>();
                 const services: any[] = apptData.services ?? [];
                 services.forEach((s: any) => {
-                    if (s.performer?.id) {
-                        doctorMap.set(s.performer.id, {
-                            id: s.performer.id,
-                            full_name: s.performer.full_name || "Специалист",
-                            phone: s.performer.phone || null,
-                            photo_url: s.performer.photo_url || null,
+                    const pid = typeof s.performer === "string" ? s.performer : s.performer?.id;
+                    const pname = s.performerName ?? s.performer_name ?? (typeof s.performer === "object" ? (s.performer?.fullName ?? s.performer?.full_name ?? "") : null) ?? "Специалист";
+                    if (pid) {
+                        doctorMap.set(pid, {
+                            id: pid,
+                            full_name: pname,
+                            phone: s.performer?.phone ?? null,
+                            photo_url: s.performer?.photoUrl ?? s.performer?.photo_url ?? null,
                         });
                     }
                 });
@@ -76,10 +78,31 @@ export const useAppointmentDetails = (appointmentId: string | null) => {
                 }
                 const doctors = Array.from(doctorMap.values());
 
-                // 4. Services photos map
+                // 4. Load sellable item names if they are plain UUIDs
+                const sellableIds = services
+                    .map((s: any) => typeof s.sellableItem === "string" ? s.sellableItem : null)
+                    .filter(Boolean) as string[];
+                const sellableNameMap = new Map<string, string>();
+                if (sellableIds.length > 0) {
+                    try {
+                        const siRes: any = await apiFetch(`/api/v1/sellable-items/?ids=${sellableIds.join(",")}&page_size=50`);
+                        const siItems: any[] = siRes?.data?.results ?? siRes?.results ?? siRes?.data ?? [];
+                        siItems.forEach((si: any) => {
+                            if (si.id) sellableNameMap.set(String(si.id), si.displayName ?? si.display_name ?? si.name ?? "Услуга");
+                        });
+                    } catch { /* ignore, show UUID fallback */ }
+                }
+                // Patch services with loaded names
+                services.forEach((s: any) => {
+                    if (typeof s.sellableItem === "string" && sellableNameMap.has(s.sellableItem)) {
+                        s.sellableItemName = sellableNameMap.get(s.sellableItem);
+                    }
+                });
+
+                // 5. Services photos map
                 const servicesPhotos = new Map<string, string>();
                 services.forEach((s: any) => {
-                    const id = s.sellable_item?.id ?? s.id;
+                    const id = typeof s.sellableItem === "string" ? s.sellableItem : s.sellable_item?.id ?? s.id;
                     const photo = s.sellable_item?.service?.image_url ?? s.image_url;
                     if (id && photo) servicesPhotos.set(id, photo);
                 });

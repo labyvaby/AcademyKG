@@ -16,385 +16,65 @@ import {
     Skeleton,
 } from "@mui/material";
 import { useNotification } from "@refinedev/core";
-import RefreshIcon from '@mui/icons-material/Refresh';
+import ReportProblemIcon from '@mui/icons-material/ReportProblem';
+import AccessTimeIcon from '@mui/icons-material/AccessTime';
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 
 import { PageHeader, MonthNavigation } from "../../components/ui";
-import { AppointmentsSummaryCards } from "../reports/components/AppointmentsSummaryCards";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { usePermissions } from "../../hooks/usePermissions";
 import { useActiveMonths } from "../../hooks/useActiveMonths";
 import { formatKGS } from "../../utility/format";
-import { apiFetch } from "../../utility/apiClient";
+import { getPayrollReport } from "../../services/reports";
+import { PayrollReportResponse, PayrollGroup } from "../../types/reports";
 import dayjs from "dayjs";
-import SalaryReportRow, { COLUMNS_REGISTRATOR, COLUMNS_DOCTOR, COLUMNS_NURSE, COLUMNS_ADMIN, ColumnConfig } from "./components/SalaryReportRow";
-import { calculateEmployeeSalary } from "../../features/employees/utils";
-
-interface EmployeeSalaryData {
-    id: string;
-    full_name: string;
-    role: string;
-    role_name: string;
-    day_hours: number;
-    night_hours: number;
-    hours_sum: number;
-    day_hours_sum: number;
-    night_hours_sum: number;
-    appointments_count: number;
-    distributed_appointments: number;
-    created_by_count: number;
-    percent_sum: number;
-    expenses_sum: number;
-    total_salary: number;
-    salary_rules: any;
-    total_count: number;
-    waiting_count: number;
-    cancelled_count: number;
-    discounted_count: number;
-    paid_count: number;
-    raw_shifts: any[];
-    raw_appointments: any[];
-    raw_expenses: any[];
-}
+import SalaryReportRow from "./components/SalaryReportRow";
 
 const SalaryReportsPage: React.FC = () => {
     usePageTitle("Отчет по ЗП");
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down("lg"));
     const { open: notify } = useNotification();
-    const { isSuperAdmin, hasRole, employeeId, loading: permissionsLoading } = usePermissions();
+    const { isSuperAdmin, hasRole, loading: permissionsLoading } = usePermissions();
 
     const canSeeAll = useMemo(() => isSuperAdmin() || hasRole(['accountant', 'admin', 'manager']), [isSuperAdmin, hasRole]);
 
     // State
     const [selectedDate, setSelectedDate] = useState<string>(dayjs().format('YYYY-MM-DD'));
     const [loading, setLoading] = useState(true);
-    const [salaryData, setSalaryData] = useState<EmployeeSalaryData[]>([]);
-    const [monthAppointments, setMonthAppointments] = useState<any[]>([]);
-    const [allClinicAppts, setAllClinicAppts] = useState<any[]>([]);
+    const [reportData, setReportData] = useState<PayrollReportResponse | null>(null);
     const activeMonths = useActiveMonths('AppointmentsAggregated', 'appointment_at');
 
-    // Session cache: key = 'YYYY-MM', invalidated on realtime events for the current month
-    const cache = React.useRef(new Map<string, { salaryData: EmployeeSalaryData[]; monthAppointments: any[]; allClinicAppts: any[] }>());
-
-    const fetchData = useCallback(async (forceRefresh = false) => {
+    const fetchData = useCallback(async () => {
         if (permissionsLoading) return;
-        if (!canSeeAll && !employeeId) return;
-
-        const cacheKey = dayjs(selectedDate).format('YYYY-MM');
-
-        if (!forceRefresh && cache.current.has(cacheKey)) {
-            const cached = cache.current.get(cacheKey)!;
-            setSalaryData(cached.salaryData);
-            setMonthAppointments(cached.monthAppointments);
-            setAllClinicAppts(cached.allClinicAppts);
-            setLoading(false);
-            return;
-        }
 
         try {
             setLoading(true);
-
-            // 1. Fetch Employees
-            const empParams = new URLSearchParams({ status: "active" });
-            if (!canSeeAll && employeeId) empParams.set("search", employeeId);
-            const empRes: any = await apiFetch(`/api/v1/employees/?${empParams.toString()}`);
-            const employees: any[] = empRes?.data?.results ?? empRes?.results ?? [];
-
-            // 2. Fetch Work Shifts
-            const shiftsRes: any = await apiFetch(`/api/v1/work-shifts/`);
-            const skudShifts: any[] = shiftsRes?.data?.results ?? shiftsRes?.results ?? [];
-
-            // 3. Fetch Appointments
-            const apptParams = new URLSearchParams({ ordering: "-appointmentAt" });
-            if (!canSeeAll && employeeId) apptParams.set("employee", employeeId);
-            const apptRes: any = await apiFetch(`/api/v1/appointments/?${apptParams.toString()}`);
-            const appointments: any[] = apptRes?.data?.results ?? apptRes?.results ?? [];
-
-            // 3.1 All clinic appointments
-            const allApptRes: any = await apiFetch(`/api/v1/appointments/?ordering=-appointmentAt`);
-            const allClinicAppointments: any[] = allApptRes?.data?.results ?? allApptRes?.results ?? [];
-
-            setMonthAppointments(appointments);
-            setAllClinicAppts(allClinicAppointments);
-
-            // 4. Fetch Expenses
-            const expRes: any = await apiFetch(`/api/v1/expenses/`);
-            const expenses: any[] = expRes?.data?.results ?? expRes?.results ?? [];
-
-            // Role helpers from employee data
-            const rolesMap = new Map<string, string>();
-            const roleNameMap = new Map<string, string>();
-            const doctorEmpIds = new Set<string>();
-            const nurseEmpIds = new Set<string>();
-            employees.forEach((e: any) => {
-                const rn = (e.roleName ?? '').toLowerCase();
-                rolesMap.set(e.id, e.roleName ?? '');
-                roleNameMap.set(e.id, rn);
-                if (rn === 'doctor' || rn === 'врач') doctorEmpIds.add(e.id);
-                if (rn === 'nurse' || rn === 'медсестра') nurseEmpIds.add(e.id);
-            });
-
-            // Grouping data by employeeId for performance
-            const shiftsByEmployee = new Map<string, any[]>();
-            skudShifts.forEach((s: any) => {
-                const eid = s.employee?.id ?? s.employee ?? s.employes_id ?? s.employesId;
-                if (!eid) return;
-                const list = shiftsByEmployee.get(eid) || [];
-                list.push(s);
-                shiftsByEmployee.set(eid, list);
-            });
-
-            const expensesByEmployee = new Map<string, any[]>();
-            expenses.forEach((e: any) => {
-                const eid = e.employee?.id ?? e.employee ?? e.employee_id;
-                if (!eid) return;
-                const list = expensesByEmployee.get(eid) || [];
-                list.push(e);
-                expensesByEmployee.set(eid, list);
-            });
-
-            const appointmentsByEmployee = new Map<string, any[]>();
-            appointments.forEach((a: any) => {
-                const ids = new Set<string>();
-                const services: any[] = a.services ?? [];
-                services.forEach((s: any) => { if (s.performer?.id) ids.add(s.performer.id); });
-                if (a.doctorId ?? a.doctor_id) ids.add(a.doctorId ?? a.doctor_id);
-                ids.forEach(id => {
-                    const list = appointmentsByEmployee.get(id) || [];
-                    list.push(a);
-                    appointmentsByEmployee.set(id, list);
-                });
-            });
-
-            // 5. Calculate everything
-            const filteredEmployees = employees || [];
-
-            const calculatedData: EmployeeSalaryData[] = filteredEmployees.sort((a, b) =>
-                (a.full_name || '').localeCompare(b.full_name || '', 'ru')
-            ).map(emp => {
-                const rules = emp.salary_rules || {};
-                const empId = emp.id;
-
-                const empShifts = shiftsByEmployee.get(empId) || [];
-                const empExps = expensesByEmployee.get(empId) || [];
-                const empAppointments = appointmentsByEmployee.get(empId) || [];
-
-                const result = calculateEmployeeSalary(empShifts, empAppointments, rules, empId, empExps);
-
-                return {
-                    id: emp.id,
-                    full_name: emp.fullName ?? emp.full_name ?? "Без имени",
-                    role: emp.roleName ?? rolesMap.get(emp.role ?? emp.role_id) ?? "Сотрудник",
-                    role_name: (emp.roleName ?? roleNameMap.get(emp.role ?? emp.role_id) ?? "").toLowerCase(),
-                    day_hours: result.dayHours,
-                    night_hours: result.nightHours,
-                    hours_sum: result.hoursSum,
-                    day_hours_sum: result.dayHoursSum,
-                    night_hours_sum: result.nightHoursSum,
-                    appointments_count: result.appointmentsCount,
-                    distributed_appointments: 0,
-                    created_by_count: 0,
-                    percent_sum: result.percentSum,
-                    expenses_sum: result.expensesSum,
-                    total_salary: result.totalSalary,
-                    salary_rules: rules,
-                    total_count: result.totalCount,
-                    waiting_count: result.waitingCount,
-                    cancelled_count: result.cancelledCount,
-                    discounted_count: result.discountedCount,
-                    paid_count: result.paidCount,
-                    raw_shifts: empShifts,
-                    raw_appointments: empAppointments,
-                    raw_expenses: empExps
-                };
-            });
-
-            // Включаем ровно те же статусы, что на странице "Отчеты"
-            const paidStatuses = ['Оплачено', 'Частично оплачено', 'Со скидкой', 'Бесплатно'];
-
-            // На странице "Отчеты" приём — это когда НИ ОДНА МЕДСЕСТРА не участвует в performer_ids.
-            const isActualAppointment = (appt: any): boolean => {
-                let perfIds: string[] = [];
-                if (Array.isArray(appt.performer_ids)) {
-                    perfIds = appt.performer_ids;
-                } else if (typeof appt.performer_ids === 'string' && appt.performer_ids) {
-                    perfIds = appt.performer_ids.replace(/^\{|\}$/g, '').split(',').map((s: string) => s.trim()).filter(Boolean);
-                }
-                const isProcedure = perfIds.some((id: string) => nurseEmpIds.has(id));
-                return !isProcedure;
-            };
-            const registrators = calculatedData.filter(e => e.role_name === 'registrator' || e.role_name === 'receptionist');
-
-            if (registrators.length > 0) {
-                const startOfMonthD = dayjs(selectedDate).startOf('month');
-                const daysInMonth = startOfMonthD.daysInMonth();
-
-                // 2a. Pre-calculate clinic-wide daily paid appointment counts and registrator hours
-                const dailyClinicStats = Array.from({ length: daysInMonth }, (_, i) => {
-                    const currentDay = startOfMonthD.date(i + 1);
-                    const allDayAppts = (allClinicAppointments || []).filter(a => {
-                        if (!dayjs(a.appointment_at).isSame(currentDay, 'day')) return false;
-                        if (!paidStatuses.includes(a.status)) return false;
-                        if (!isActualAppointment(a)) return false;
-                        return true;
-                    });
-
-                    const dayApptCount = allDayAppts.filter(a => !a.is_night).length;
-                    const nightApptCount = allDayAppts.filter(a => a.is_night).length;
-
-                    // Sum of hours for all registrators for this day
-                    let totalRegDayHours = 0;
-                    let totalRegNightHours = 0;
-                    const regHoursMap = new Map<string, { day: number, night: number }>();
-
-                    registrators.forEach(reg => {
-                        const regShifts = (shiftsByEmployee.get(reg.id) || []).filter((s: any) =>
-                            dayjs(s.clock_in).isSame(currentDay, 'day')
-                        );
-                        // We only need hours for distribution, light calculation
-                        const regExps = (expensesByEmployee.get(reg.id) || []).filter((e: any) =>
-                            dayjs(e.created_at).isSame(currentDay, 'day')
-                        );
-                        const regAppts = (appointmentsByEmployee.get(reg.id) || []).filter((a: any) =>
-                            dayjs(a.appointment_at).isSame(currentDay, 'day')
-                        );
-                        const calc = calculateEmployeeSalary(regShifts, regAppts, reg.salary_rules || {}, reg.id, regExps);
-
-                        regHoursMap.set(reg.id, { day: calc.dayHours, night: calc.nightHours });
-                        totalRegDayHours += calc.dayHours;
-                        totalRegNightHours += calc.nightHours;
-                    });
-
-                    return {
-                        dayApptCount,
-                        nightApptCount,
-                        totalRegDayHours,
-                        totalRegNightHours,
-                        regHoursMap
-                    };
-                });
-
-                // 2b. Assign creator counts and distributed shares
-                registrators.forEach(reg => {
-                    reg.created_by_count = (allClinicAppointments || []).filter(a => {
-                        if (a.created_by !== reg.id) return false;
-                        if (!paidStatuses.includes(a.status)) return false;
-                        if (!isActualAppointment(a)) return false;
-                        return true;
-                    }).length;
-
-                    (reg as any).bonuses_sum = (allClinicAppointments || []).reduce((sum, a) =>
-                        a.created_by === reg.id && paidStatuses.includes(a.status)
-                            ? sum + (Number(a.paid_bonuses) || 0)
-                            : sum
-                        , 0);
-                });
-
-                // Distribute appointments per day using largest remainder method so
-                // sum(distributed_appointments) across all registrators == total appointments that day.
-                // Only registrators who actually worked that day participate.
-                dailyClinicStats.forEach(stats => {
-                    const total = stats.dayApptCount + stats.nightApptCount;
-                    if (total === 0) return;
-
-                    // Only include registrators who actually worked this day
-                    const shares = registrators.map(reg => {
-                        const mine = stats.regHoursMap.get(reg.id);
-                        if (!mine || (mine.day === 0 && mine.night === 0)) return { reg, raw: 0, worked: false };
-                        const dayShare = stats.totalRegDayHours > 0 ? stats.dayApptCount * (mine.day / stats.totalRegDayHours) : 0;
-                        const nightShare = stats.totalRegNightHours > 0 ? stats.nightApptCount * (mine.night / stats.totalRegNightHours) : 0;
-                        return { reg, raw: dayShare + nightShare, worked: true };
-                    }).filter(s => s.worked);
-
-                    // If nobody worked this day — skip (don't distribute)
-                    if (shares.length === 0) return;
-
-                    // Floor each share and collect remainders
-                    let allocated = 0;
-                    const floored = shares.map(s => {
-                        const f = Math.floor(s.raw);
-                        allocated += f;
-                        return { reg: s.reg, floor: f, remainder: s.raw - f };
-                    });
-
-                    // Distribute remaining slots to those with largest remainders
-                    let leftover = total - allocated;
-                    floored
-                        .slice()
-                        .sort((a, b) => b.remainder - a.remainder)
-                        .forEach(item => {
-                            if (leftover <= 0) return;
-                            item.floor += 1;
-                            leftover -= 1;
-                        });
-
-                    floored.forEach(item => {
-                        item.reg.distributed_appointments = (item.reg.distributed_appointments || 0) + item.floor;
-                    });
-                });
+            const month = dayjs(selectedDate).format('YYYY-MM');
+            const res = await getPayrollReport(month);
+            if (res?.data) {
+                setReportData(res.data);
             }
-
-            // Third pass: recalculate total_salary for registrators using distributed_appointments
-            registrators.forEach(reg => {
-                const result = calculateEmployeeSalary(
-                    shiftsByEmployee.get(reg.id) || [],
-                    appointmentsByEmployee.get(reg.id) || [],
-                    reg.salary_rules || {},
-                    reg.id,
-                    expensesByEmployee.get(reg.id) || [],
-                    reg.distributed_appointments
-                );
-                reg.hours_sum = result.hoursSum;
-                reg.day_hours_sum = result.dayHoursSum;
-                reg.night_hours_sum = result.nightHoursSum;
-                reg.percent_sum = result.percentSum;
-                reg.total_salary = result.totalSalary;
-            });
-
-            const finalData = canSeeAll
-                ? calculatedData
-                : calculatedData.filter(r => r.id === employeeId);
-
-            cache.current.set(cacheKey, {
-                salaryData: finalData,
-                monthAppointments: appointments || [],
-                allClinicAppts: allClinicAppointments || [],
-            });
-
-            setSalaryData(finalData);
-        } catch (e) {
+        } catch (e: any) {
             console.error(e);
-            notify?.({ type: "error", message: "Ошибка загрузки данных отчета" });
+            notify?.({ type: "error", message: e.message || "Ошибка загрузки данных зарплаты" });
         } finally {
             setLoading(false);
         }
-    }, [selectedDate, notify, canSeeAll, employeeId, permissionsLoading]);
+    }, [selectedDate, notify, permissionsLoading]);
 
     useEffect(() => {
         fetchData();
     }, [fetchData]);
 
-    // Polling every 60s to refresh data
-    useEffect(() => {
-        const timer = setInterval(() => {
-            const cacheKey = dayjs(selectedDate).format('YYYY-MM');
-            cache.current.delete(cacheKey);
-            fetchData(true);
-        }, 60_000);
-        return () => clearInterval(timer);
-    }, [fetchData, selectedDate]);
+    if (permissionsLoading) return (
+        <Box sx={{ display: 'flex', justifyContent: 'center', p: 10 }}><CircularProgress /></Box>
+    );
 
-    const summary = useMemo(() => {
-        return {
-            total_salary: salaryData.reduce((acc, curr) => acc + curr.total_salary, 0),
-            total_hours: salaryData.reduce((acc, curr) => acc + curr.day_hours + curr.night_hours, 0),
-            total_appts: salaryData.reduce((acc, curr) => acc + curr.appointments_count, 0),
-            total_advance: salaryData.reduce((acc, curr) => acc + curr.expenses_sum, 0),
-        };
-    }, [salaryData]);
+    const { groups = [], totals = {} as any, summary = {} as any } = reportData || {};
 
     return (
-        <Box sx={{ height: { xs: "calc(100vh - 56px)", md: "calc(100vh - 64px)" }, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+        <Box sx={{ height: "100%", display: "flex", flexDirection: "column", overflow: "hidden" }}>
             <PageHeader
                 title="Отчет по зарплате"
                 showTitle={false}
@@ -404,7 +84,7 @@ const SalaryReportsPage: React.FC = () => {
 
             <Box sx={(theme) => ({
                 px: theme.appLayout.page.paddingX,
-                pb: { xs: 15, md: theme.appLayout.page.paddingY },
+                pb: theme.appLayout.page.paddingY,
                 pt: 2,
                 flex: 1,
                 display: 'flex',
@@ -412,223 +92,131 @@ const SalaryReportsPage: React.FC = () => {
                 overflowY: 'auto',
                 minHeight: 0
             })}>
-                <Stack spacing={{ xs: 1, md: 3 }} sx={{ display: 'flex', flexDirection: 'column' }}>
+                <Stack spacing={{ xs: 2, md: 3 }} sx={{ display: 'flex', flexDirection: 'column' }}>
 
-                    {/* All summary cards in one row */}
-                    <AppointmentsSummaryCards
-                        dateFrom={dayjs(selectedDate).startOf('month').toISOString()}
-                        dateTo={dayjs(selectedDate).endOf('month').toISOString()}
-                        employeeId={canSeeAll ? undefined : (employeeId || undefined)}
-                        appointments={monthAppointments}
-                        extraCards={[
-                            {
-                                title: 'Аванс',
-                                primaryValue: formatKGS(summary.total_advance),
-                                secondaryText: 'Выплачено авансом',
-                                color: 'primary' as const,
-                            },
-                            {
-                                title: 'К выплате',
-                                primaryValue: formatKGS(summary.total_salary),
-                                secondaryText: 'Итого за месяц',
-                                color: 'info' as const,
-                            },
-                        ]}
-                    />
-
-                    {/* Salary List/Table */}
-                    {loading ? (
-                        <Box sx={{ minHeight: 400 }}>
-                            <Stack spacing={1}>
-                                {Array.from({ length: 5 }).map((_, i) => (
-                                    <Skeleton key={i} variant="rectangular" height={isMobile ? 120 : 60} sx={{ borderRadius: 2 }} />
-                                ))}
+                    {/* Summary Indicators */}
+                    <Paper variant="outlined" sx={{ p: 2, borderRadius: 3, bgcolor: alpha(theme.palette.background.paper, 0.5) }}>
+                        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={3} justifyContent="space-around">
+                            <Stack direction="row" spacing={1.5} alignItems="center">
+                                <Box sx={{ p: 1, borderRadius: 2, bgcolor: alpha(theme.palette.error.main, 0.1), color: 'error.main', display: 'flex' }}>
+                                    <ReportProblemIcon />
+                                </Box>
+                                <Box>
+                                    <Typography variant="h6" fontWeight={800}>{summary.warningsCount || 0}</Typography>
+                                    <Typography variant="caption" color="text.secondary">Предупреждений</Typography>
+                                </Box>
                             </Stack>
-                        </Box>
-                    ) : salaryData.length === 0 ? (
+                            <Stack direction="row" spacing={1.5} alignItems="center">
+                                <Box sx={{ p: 1, borderRadius: 2, bgcolor: alpha(theme.palette.info.main, 0.1), color: 'info.main', display: 'flex' }}>
+                                    <AccessTimeIcon />
+                                </Box>
+                                <Box>
+                                    <Typography variant="h6" fontWeight={800}>{summary.openShiftsCount || 0}</Typography>
+                                    <Typography variant="caption" color="text.secondary">Открытых смен</Typography>
+                                </Box>
+                            </Stack>
+                            <Stack direction="row" spacing={1.5} alignItems="center">
+                                <Box sx={{ p: 1, borderRadius: 2, bgcolor: alpha(theme.palette.success.main, 0.1), color: 'success.main', display: 'flex' }}>
+                                    <CheckCircleOutlineIcon />
+                                </Box>
+                                <Box>
+                                    <Typography variant="h6" fontWeight={800}>{summary.paidOutCount || 0}</Typography>
+                                    <Typography variant="caption" color="text.secondary">Выплачено</Typography>
+                                </Box>
+                            </Stack>
+                            <Stack direction="row" spacing={1.5} alignItems="center">
+                                <Box sx={{ p: 1, borderRadius: 2, bgcolor: alpha(theme.palette.primary.main, 0.1), color: 'primary.main', display: 'flex' }}>
+                                    <Typography fontWeight={800}>KGS</Typography>
+                                </Box>
+                                <Box>
+                                    <Typography variant="h6" fontWeight={800}>{formatKGS(summary.totalNetSalary || 0)}</Typography>
+                                    <Typography variant="caption" color="text.secondary">Итого к выплате</Typography>
+                                </Box>
+                            </Stack>
+                        </Stack>
+                    </Paper>
+
+                    {loading ? (
+                        <Stack spacing={2}>
+                            {Array.from({ length: 3 }).map((_, i) => (
+                                <Skeleton key={i} variant="rectangular" height={200} sx={{ borderRadius: 3 }} />
+                            ))}
+                        </Stack>
+                    ) : groups.length === 0 ? (
                         <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}>
                             <Typography color="text.secondary">Нет данных за выбранный месяц</Typography>
                         </Box>
-                    ) : isMobile ? (
-                        /* Mobile/tablet: grouped card list by role */
-                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-                            {(() => {
-                                const roleGroups: { label: string; roleNames: string[] }[] = [
-                                    { label: 'Специалисты', roleNames: ['doctor', 'specialist'] },
-                                    { label: 'Медсёстры / Процедуры', roleNames: ['nurse', 'procedure'] },
-                                    { label: 'Регистраторы', roleNames: ['registrator', 'receptionist'] },
-                                    { label: 'Кассиры', roleNames: ['cashier'] },
-                                    { label: 'Администраторы', roleNames: ['admin', 'manager', 'accountant', 'superadmin'] },
-                                    { label: 'Техперсонал / Санитарки', roleNames: ['cleaner', 'сleaner'] },
-                                ];
-
-                                const rendered: React.ReactNode[] = [];
-                                const seen = new Set<string>();
-
-                                roleGroups.forEach(group => {
-                                    const rows = salaryData.filter(r => group.roleNames.includes(r.role_name));
-                                    rows.forEach(r => seen.add(r.id));
-                                    if (rows.length === 0) return;
-
-                                    rendered.push(
-                                        <Box key={group.label}>
-                                            <Box sx={{ px: 1, py: 0.75, mb: 0.75, bgcolor: alpha(theme.palette.primary.main, 0.05), borderRadius: 1.5, border: `1px solid ${alpha(theme.palette.primary.main, 0.12)}` }}>
-                                                <Typography variant="caption" fontWeight={800} color="primary.main" sx={{ textTransform: 'uppercase', letterSpacing: 0.5, fontSize: '0.65rem' }}>
-                                                    {group.label}
-                                                </Typography>
-                                            </Box>
-                                            <Stack spacing={0.75}>
-                                                {rows.map((row) => (
-                                                    <SalaryReportRow
-                                                        key={row.id}
-                                                        row={row}
-                                                        selectedDate={selectedDate}
-                                                        salaryRules={row.salary_rules || {}}
-                                                        allAppointments={allClinicAppts}
-                                                        allSalaryData={salaryData}
-                                                        isMobile
-                                                    />
-                                                ))}
-                                            </Stack>
-                                        </Box>
-                                    );
-                                });
-
-                                // Remaining employees not in any group
-                                const rest = salaryData.filter(r => !seen.has(r.id));
-                                if (rest.length > 0) {
-                                    rendered.push(
-                                        <Box key="other">
-                                            <Box sx={{ px: 1, py: 0.75, mb: 0.75, bgcolor: alpha(theme.palette.grey[500], 0.08), borderRadius: 1.5, border: `1px solid ${theme.palette.divider}` }}>
-                                                <Typography variant="caption" fontWeight={800} color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: 0.5, fontSize: '0.65rem' }}>
-                                                    Прочие
-                                                </Typography>
-                                            </Box>
-                                            <Stack spacing={0.75}>
-                                                {rest.map((row) => (
-                                                    <SalaryReportRow
-                                                        key={row.id}
-                                                        row={row}
-                                                        selectedDate={selectedDate}
-                                                        salaryRules={row.salary_rules || {}}
-                                                        allAppointments={allClinicAppts}
-                                                        allSalaryData={salaryData}
-                                                        isMobile
-                                                    />
-                                                ))}
-                                            </Stack>
-                                        </Box>
-                                    );
-                                }
-
-                                return rendered;
-                            })()}
-                        </Box>
                     ) : (
-                        /* Desktop: grouped tables by role */
-                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                            {(() => {
-                                // Define role groups: order, label, column config, matching role_names
-                                const roleGroups: { label: string; roleNames: string[]; cols: ColumnConfig }[] = [
-                                    { label: 'Специалисты', roleNames: ['doctor', 'specialist'], cols: COLUMNS_DOCTOR },
-                                    { label: 'Медсёстры / Процедуры', roleNames: ['nurse', 'procedure'], cols: COLUMNS_NURSE },
-                                    { label: 'Регистраторы', roleNames: ['registrator', 'receptionist'], cols: COLUMNS_REGISTRATOR },
-                                    { label: 'Кассиры', roleNames: ['cashier'], cols: COLUMNS_ADMIN },
-                                    { label: 'Администраторы', roleNames: ['admin', 'manager', 'accountant', 'superadmin'], cols: COLUMNS_ADMIN },
-                                    { label: 'Техперсонал / Санитарки', roleNames: ['cleaner', 'сleaner'], cols: COLUMNS_ADMIN },
-                                ];
+                        groups.map((group: PayrollGroup) => (
+                            <Box key={group.key}>
+                                <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1, px: 1 }}>
+                                    <Typography variant="subtitle2" fontWeight={800} color="primary.main">
+                                        {group.title}
+                                    </Typography>
+                                    <Typography variant="caption" fontWeight={700}>
+                                        Итого по группе: {formatKGS(group.totals.netSalary)}
+                                    </Typography>
+                                </Stack>
+                                {isMobile ? (
+                                    <Stack spacing={1}>
+                                        {group.rows.map((row) => (
+                                            <SalaryReportRow key={row.employeeId} row={row} isMobile />
+                                        ))}
+                                    </Stack>
+                                ) : (
+                                    <Paper variant="outlined" sx={{ borderRadius: 3, overflow: 'hidden' }}>
+                                        <Table size="small">
+                                            <TableHead>
+                                                <TableRow sx={{ bgcolor: alpha(theme.palette.action.hover, 0.5) }}>
+                                                    <TableCell sx={{ fontWeight: 800 }}>Сотрудник</TableCell>
+                                                    <TableCell align="center" sx={{ fontWeight: 800 }}>День (ч)</TableCell>
+                                                    <TableCell align="center" sx={{ fontWeight: 800 }}>Ночь (ч)</TableCell>
+                                                    <TableCell align="center" sx={{ fontWeight: 800 }}>Приемы</TableCell>
+                                                    <TableCell align="center" sx={{ fontWeight: 800, color: 'info.main' }}>Распред.</TableCell>
+                                                    <TableCell align="right" sx={{ fontWeight: 800 }}>ЗП (%)</TableCell>
+                                                    <TableCell align="right" sx={{ fontWeight: 800 }}>Оклад</TableCell>
+                                                    <TableCell align="right" sx={{ fontWeight: 800, color: 'error.main' }}>Аванс</TableCell>
+                                                    <TableCell align="right" sx={{ fontWeight: 800, color: 'primary.main' }}>К выплате</TableCell>
+                                                </TableRow>
+                                            </TableHead>
+                                            <TableBody>
+                                                {group.rows.map((row) => (
+                                                    <SalaryReportRow key={row.employeeId} row={row} />
+                                                ))}
+                                                <TableRow sx={{ bgcolor: alpha(theme.palette.primary.main, 0.02) }}>
+                                                    <TableCell colSpan={7} sx={{ fontWeight: 800 }}>ИТОГО {group.title.toUpperCase()}</TableCell>
+                                                    <TableCell align="right" sx={{ fontWeight: 800, color: 'error.main' }}>{formatKGS(group.totals.expensesSum)}</TableCell>
+                                                    <TableCell align="right" sx={{ fontWeight: 800, color: 'primary.main' }}>{formatKGS(group.totals.netSalary)}</TableCell>
+                                                </TableRow>
+                                            </TableBody>
+                                        </Table>
+                                    </Paper>
+                                )}
+                            </Box>
+                        ))
+                    )}
 
-                                const rendered: React.ReactNode[] = [];
-                                const seen = new Set<string>();
-
-                                roleGroups.forEach(group => {
-                                    const rows = salaryData.filter(r => group.roleNames.includes(r.role_name));
-                                    rows.forEach(r => seen.add(r.id));
-                                    if (rows.length === 0) return;
-
-                                    const cols = group.cols;
-                                    rendered.push(
-                                        <Paper key={group.label} variant="outlined" sx={{ borderRadius: 3, border: `1px solid ${theme.palette.divider}`, boxShadow: '0 2px 8px rgba(0,0,0,0.04)', overflow: 'hidden' }}>
-                                            <Box sx={{ px: 2, py: 1, bgcolor: alpha(theme.palette.primary.main, 0.05), borderBottom: `1px solid ${theme.palette.divider}` }}>
-                                                <Typography variant="subtitle2" fontWeight={800} color="primary.main">{group.label}</Typography>
-                                            </Box>
-                                            <Table size="small" sx={{ fontSize: '0.75rem', '& .MuiTableCell-root': { fontSize: '0.75rem', py: 0.6, px: 1 } }}>
-                                                <TableHead>
-                                                    <TableRow>
-                                                        <TableCell sx={{ fontWeight: 800, bgcolor: 'background.paper' }}>Сотрудник</TableCell>
-                                                        {cols.hours && <TableCell align="center" sx={{ fontWeight: 800, bgcolor: 'background.paper' }}>Дневные</TableCell>}
-                                                        {cols.hours && <TableCell align="center" sx={{ fontWeight: 800, bgcolor: 'background.paper' }}>Ночные</TableCell>}
-                                                        {cols.hours && <TableCell align="right" sx={{ fontWeight: 800, bgcolor: 'background.paper' }}>Часы</TableCell>}
-                                                        {cols.appointments && <TableCell align="center" sx={{ fontWeight: 800, bgcolor: 'background.paper' }}>{cols.appointmentsLabel ?? 'Все приёмы'}</TableCell>}
-                                                        {cols.distributed && <TableCell align="center" sx={{ fontWeight: 800, bgcolor: 'background.paper', color: 'info.main' }}>Распределённые</TableCell>}
-                                                        {cols.createdBy && <TableCell align="center" sx={{ fontWeight: 800, bgcolor: 'background.paper', color: 'success.main' }}>Создал</TableCell>}
-                                                        {cols.statusWaiting && <TableCell align="center" sx={{ fontWeight: 800, bgcolor: 'background.paper' }}>Ожидание</TableCell>}
-                                                        {cols.statusCancelled && <TableCell align="center" sx={{ fontWeight: 800, bgcolor: 'background.paper' }}>Отменены</TableCell>}
-                                                        {cols.statusDiscount && <TableCell align="center" sx={{ fontWeight: 800, bgcolor: 'background.paper' }}>Со скидкой</TableCell>}
-                                                        {cols.bonuses && <TableCell align="right" sx={{ fontWeight: 800, bgcolor: 'background.paper' }}>Бонусы</TableCell>}
-                                                        {cols.percent && <TableCell align="right" sx={{ fontWeight: 800, bgcolor: 'background.paper' }}>Зарплата</TableCell>}
-                                                        <TableCell align="right" sx={{ fontWeight: 800, bgcolor: 'background.paper', color: 'error.main' }}>Аванс</TableCell>
-                                                        <TableCell align="right" sx={{ fontWeight: 800, bgcolor: 'background.paper', color: 'primary.main' }}>К выплате</TableCell>
-                                                    </TableRow>
-                                                </TableHead>
-                                                <TableBody>
-                                                    {rows.map((row) => (
-                                                        <SalaryReportRow
-                                                            key={row.id}
-                                                            row={row}
-                                                            selectedDate={selectedDate}
-                                                            salaryRules={row.salary_rules || {}}
-                                                            allAppointments={allClinicAppts}
-                                                            allSalaryData={salaryData}
-                                                            columns={cols}
-                                                        />
-                                                    ))}
-                                                </TableBody>
-                                            </Table>
-                                        </Paper>
-                                    );
-                                });
-
-                                // Remaining employees not in any group
-                                const rest = salaryData.filter(r => !seen.has(r.id));
-                                if (rest.length > 0) {
-                                    rendered.push(
-                                        <Paper key="other" variant="outlined" sx={{ borderRadius: 3, border: `1px solid ${theme.palette.divider}`, overflow: 'hidden' }}>
-                                            <Box sx={{ px: 2, py: 1, bgcolor: alpha(theme.palette.grey[500], 0.08), borderBottom: `1px solid ${theme.palette.divider}` }}>
-                                                <Typography variant="subtitle2" fontWeight={800} color="text.secondary">Прочие</Typography>
-                                            </Box>
-                                            <Table size="small" sx={{ fontSize: '0.75rem', '& .MuiTableCell-root': { fontSize: '0.75rem', py: 0.6, px: 1 } }}>
-                                                <TableHead>
-                                                    <TableRow>
-                                                        <TableCell sx={{ fontWeight: 800, bgcolor: 'background.paper' }}>Сотрудник</TableCell>
-                                                        <TableCell align="center" sx={{ fontWeight: 800, bgcolor: 'background.paper' }}>Дневные</TableCell>
-                                                        <TableCell align="center" sx={{ fontWeight: 800, bgcolor: 'background.paper' }}>Ночные</TableCell>
-                                                        <TableCell align="right" sx={{ fontWeight: 800, bgcolor: 'background.paper' }}>Часы</TableCell>
-                                                        <TableCell align="right" sx={{ fontWeight: 800, bgcolor: 'background.paper', color: 'error.main' }}>Аванс</TableCell>
-                                                        <TableCell align="right" sx={{ fontWeight: 800, bgcolor: 'background.paper', color: 'primary.main' }}>К выплате</TableCell>
-                                                    </TableRow>
-                                                </TableHead>
-                                                <TableBody>
-                                                    {rest.map((row) => (
-                                                        <SalaryReportRow
-                                                            key={row.id}
-                                                            row={row}
-                                                            selectedDate={selectedDate}
-                                                            salaryRules={row.salary_rules || {}}
-                                                            allAppointments={allClinicAppts}
-                                                            allSalaryData={salaryData}
-                                                            columns={COLUMNS_ADMIN}
-                                                        />
-                                                    ))}
-                                                </TableBody>
-                                            </Table>
-                                        </Paper>
-                                    );
-                                }
-
-                                return rendered;
-                            })()}
-                        </Box>
+                    {/* Overall Totals */}
+                    {!loading && reportData && (
+                        <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 3, bgcolor: alpha(theme.palette.primary.main, 0.05), border: `2px solid ${alpha(theme.palette.primary.main, 0.1)}` }}>
+                            <Stack direction="row" justifyContent="space-between" alignItems="center">
+                                <Typography variant="h6" fontWeight={800}>ОБЩИЙ ИТОГ</Typography>
+                                <Stack direction="row" spacing={4}>
+                                    <Box textAlign="right">
+                                        <Typography variant="caption" color="text.secondary">Грязная ЗП</Typography>
+                                        <Typography variant="h6" fontWeight={700}>{formatKGS(totals.grossEarnings)}</Typography>
+                                    </Box>
+                                    <Box textAlign="right">
+                                        <Typography variant="caption" color="error.main">Авансы</Typography>
+                                        <Typography variant="h6" fontWeight={700} color="error.main">{formatKGS(totals.expensesSum)}</Typography>
+                                    </Box>
+                                    <Box textAlign="right">
+                                        <Typography variant="caption" color="primary.main">К выплате</Typography>
+                                        <Typography variant="h5" fontWeight={900} color="primary.main">{formatKGS(totals.netSalary)}</Typography>
+                                    </Box>
+                                </Stack>
+                            </Stack>
+                        </Paper>
                     )}
                 </Stack>
             </Box>

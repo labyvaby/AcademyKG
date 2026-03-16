@@ -172,11 +172,36 @@ export const mapAggregatedRowToAppointment = (
     ?? servicesArr.map((s: any) => s.sellableItem?.displayName ?? s.sellable_item?.display_name ?? s.name ?? "").filter(Boolean).join(", ")
     ?? "";
 
+  // Normalize services from new REST API format
+  // API returns: {id, sellableItem: "uuid", performer: "uuid", performerName: "...", price: "1234.00", ...}
+  const normalizeServices = (arr: any[]): AppointmentServiceJson[] =>
+    arr.map((s: any) => {
+      // Already normalized (old format has name/performer_name)
+      if (s.performer_name || s.doctor_name) return s;
+      // performer and sellableItem are plain UUIDs (strings), name is in performerName / sellableItemName
+      const performerId = typeof s.performer === "string" ? s.performer : s.performer?.id ?? null;
+      const performerName = s.performerName ?? s.performer_name ?? (typeof s.performer === "object" ? (s.performer?.fullName ?? s.performer?.full_name ?? "") : null);
+      const sellableId = typeof s.sellableItem === "string" ? s.sellableItem : s.sellableItem?.id ?? s.sellable_item?.id ?? s.id ?? null;
+      const sellableName = s.sellableItemName ?? s.serviceName ?? s.service_name ?? (typeof s.sellableItem === "object" ? (s.sellableItem?.displayName ?? s.sellableItem?.name ?? "") : null) ?? "Услуга";
+      return {
+        id: String(s.id ?? sellableId ?? ""),
+        service_id: String(sellableId ?? ""),
+        name: sellableName,
+        price: Number(s.price ?? 0),
+        quantity: Number(s.quantity ?? 1),
+        performer_id: performerId ? String(performerId) : null,
+        performer_name: performerName ?? null,
+        performer_photo: s.performer?.photoUrl ?? s.performer?.photo ?? null,
+      } as AppointmentServiceJson;
+    });
+
   let parsedServices: AppointmentServiceJson[] | null = null;
   try {
     if (servicesRaw) {
-      if (typeof servicesRaw === "string") parsedServices = JSON.parse(servicesRaw);
-      else if (Array.isArray(servicesRaw)) parsedServices = servicesRaw;
+      if (typeof servicesRaw === "string") parsedServices = normalizeServices(JSON.parse(servicesRaw));
+      else if (Array.isArray(servicesRaw)) parsedServices = normalizeServices(servicesRaw);
+    } else if (servicesArr.length > 0) {
+      parsedServices = normalizeServices(servicesArr);
     }
   } catch { /* ignore */ }
 
@@ -195,7 +220,7 @@ export const mapAggregatedRowToAppointment = (
     patient_name: patientName,
     patient_id: patientId,
     service_names: serviceNames,
-    services_json: servicesRaw,
+    services_json: parsedServices ?? servicesRaw,
     parsed_services: parsedServices,
     status: r.status ?? "Ожидаем",
     is_night: Boolean(r.is_night ?? r.isNight),
