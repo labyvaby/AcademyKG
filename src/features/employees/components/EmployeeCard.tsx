@@ -158,6 +158,9 @@ const EmployeeCard: React.FC<EmployeeCardProps> = ({ emp }) => {
     severity: "success" | "error";
   }>({ open: false, message: "", severity: "success" });
 
+  // refreshKey меняется когда emp обновляется после редактирования
+  const refreshKey = emp ? `${emp.id}_${emp.phone ?? ""}_${emp.email ?? ""}_${emp.status ?? ""}` : "";
+
   React.useEffect(() => {
     if (!emp?.id) {
       setDetail(null);
@@ -207,7 +210,8 @@ const EmployeeCard: React.FC<EmployeeCardProps> = ({ emp }) => {
     return () => {
       cancelled = true;
     };
-  }, [emp?.id]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refreshKey]);
 
   if (!emp) return null;
 

@@ -9,7 +9,7 @@ import {
 } from "../api";
 import type { EmployesRow } from "../types";
 import { apiFetch } from "../../../utility/apiClient";
-import { fetchServices } from "../../../services/services";
+import { fetchSellableServices } from "../../../services/services";
 import { useSimplePageCache } from "../../../hooks/useSimplePageCache";
 
 const PAGE_SIZE = 30;
@@ -181,33 +181,18 @@ const ROLE_DISPLAY_NAMES: Record<string, string> = {
   admin: "Администратор",
 };
 
-// Получение уникальных ролей — собираем со всех страниц сотрудников
-// EmployeeList.role = { id: UUID, name: string } (RoleNested)
+// Получение всех ролей из /api/v1/roles/
 export async function fetchRoles(): Promise<{ id: string; name: string; display_name: string }[]> {
   try {
-    const seen = new Map<string, { id: string; name: string; display_name: string }>();
-    let page = 1;
-    while (true) {
-      const res: any = await apiFetch(`/api/v1/employees/?page_size=100&page=${page}`);
-      const data = res?.data ?? res;
-      const results: any[] = data?.results ?? [];
-      for (const emp of results) {
-        const role = emp.role;
-        if (!role || typeof role !== 'object') continue;
-        const roleId: string = role.id ?? '';
-        const roleName: string = role.name ?? '';
-        if (roleId && roleName && !seen.has(roleId)) {
-          seen.set(roleId, {
-            id: roleId,
-            name: roleName,
-            display_name: ROLE_DISPLAY_NAMES[roleName] ?? roleName,
-          });
-        }
-      }
-      if (!data?.next || results.length === 0) break;
-      page++;
-    }
-    return Array.from(seen.values());
+    const res: any = await apiFetch("/api/v1/roles/");
+    const results: any[] = res?.data ?? res?.results ?? [];
+    return Array.isArray(results)
+      ? results.map((r: any) => ({
+          id: r.id ?? "",
+          name: r.name ?? "",
+          display_name: r.displayName ?? ROLE_DISPLAY_NAMES[r.name] ?? r.name ?? "",
+        })).filter(r => r.id && r.name)
+      : [];
   } catch {
     return [];
   }
@@ -225,10 +210,12 @@ export async function createEmployeeApi(payload: Record<string, unknown>): Promi
 
 // Обновить сотрудника через REST API
 export async function updateEmployeeApi(id: string, payload: Record<string, unknown>): Promise<any> {
+  console.log("[updateEmployeeApi] PATCH", id, JSON.stringify(payload, null, 2));
   const res = await apiFetch(`/api/v1/employees/${id}/`, {
     method: "PATCH",
     body: JSON.stringify(payload),
   });
+  console.log("[updateEmployeeApi] response:", res);
   return (res as any)?.data ?? res;
 }
 
@@ -267,7 +254,7 @@ export const employeeFormUtils = {
   isKGLocalValid,
   composeKGPhone,
   parseKGLocalFrom,
-  fetchServices,
+  fetchServices: fetchSellableServices,
   translateAuthError,
   createEmployeeApi,
   updateEmployeeApi,

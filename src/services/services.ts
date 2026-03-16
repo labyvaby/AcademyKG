@@ -68,6 +68,22 @@ const fetchServicesBase = async (page?: number, pageSize?: number): Promise<{ it
   return { items: mapped, total: count };
 };
 
+// Для привязки услуг к сотруднику — грузит из /api/v1/sellable-items/?type=service
+// ID из sellable-items нужны для поля serviceIds в EmployeeWriteRequest
+export const fetchSellableServices = async (): Promise<ServiceRow[]> => {
+  const res: any = await apiFetch("/api/v1/sellable-items/?type=service&page_size=200");
+  const results = res?.data?.results ?? res?.results ?? [];
+  return results
+    .map((item: any): ServiceRow => ({
+      id: item.id,
+      name: item.displayName || item.service?.name || item.name || "",
+      price: item.displayPrice ? parseFloat(item.displayPrice) : (item.service?.price ? parseFloat(item.service.price) : undefined),
+      photoUrl: resolveUrl(item.service?.imageUrl ?? item.service?.image_url),
+      is_active: item.isActive ?? true,
+    }))
+    .filter((s: ServiceRow) => s.id && s.name);
+};
+
 export const fetchServices = async (): Promise<ServiceRow[]> => {
   try {
     const { items } = await fetchServicesBase(0, 1000);

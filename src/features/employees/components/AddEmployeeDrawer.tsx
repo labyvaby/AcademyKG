@@ -7,6 +7,7 @@ import CheckBoxIcon from "@mui/icons-material/CheckBox";
 import DrawerBase from "./DrawerBase";
 import type { EmployesRow, ServiceRow } from "../types";
 import { employeeFormUtils, fetchRoles } from "../hooks/useEmployeesPage";
+import { apiFetch } from "../../../utility/apiClient";
 import ServicePhotoUploader from "../../../components/services/ServicePhotoUploader";
 import PassportPhotoUploader from "./PassportPhotoUploader";
 import { useNotification } from "@refinedev/core";
@@ -55,6 +56,7 @@ const AddEmployeeDrawer: React.FC<AddEmployeeDrawerProps> = ({ open, onClose, on
   const [selectedServices, setSelectedServices] = React.useState<ServiceRow[]>([]);
   const [specializations, setSpecializations] = React.useState<{ id: string; name: string }[]>([]);
   const [specializationId, setSpecializationId] = React.useState("");
+  const [inn, setInn] = React.useState("");
 
   const selectedRole = roles.find(r => r.id === roleId);
 
@@ -62,7 +64,7 @@ const AddEmployeeDrawer: React.FC<AddEmployeeDrawerProps> = ({ open, onClose, on
     if (!open) {
       setFullName(""); setPhone(""); setPhoneCountryCode(DEFAULT_PHONE_COUNTRY_CODE);
       setRoleId(""); setSpecializationId(""); setPhotoPreview(null);
-      setBirthDate(""); setStatus("active"); setBankAccountNumber("");
+      setBirthDate(""); setStatus("active"); setBankAccountNumber(""); setInn("");
       setTelegramId(""); setEmail(""); setEmailErrorMsg("");
       setSelectedServices([]);
       setNickname(""); setPassportPhotos([]); setPassportFiles([]); setBusy(false);
@@ -120,14 +122,28 @@ const AddEmployeeDrawer: React.FC<AddEmployeeDrawerProps> = ({ open, onClose, on
         birthDate: birthDate || undefined,
         telegramId: telegramId || undefined,
         bankAccountNumber: bankAccountNumber.trim() || undefined,
+        inn: inn.trim() || undefined,
         nickname: nickname.trim() || undefined,
         specializationIds: specializationId ? [specializationId] : [],
       };
       if (fullPhone) payload.userPhoneNumber = fullPhone;
       if (email.trim()) payload.userEmail = email.trim();
-      if (selectedServices.length > 0) payload.serviceIds = selectedServices.map(s => s.id);
+      // TODO: serviceIds вызывает 500 на сервере — временно отключено
+      // if (selectedServices.length > 0) payload.serviceIds = selectedServices.map(s => s.id);
 
-      await employeeFormUtils.createEmployeeApi(payload);
+      const created: any = await employeeFormUtils.createEmployeeApi(payload);
+      const createdId = created?.id ?? created?.data?.id;
+
+      // Загружаем документы если есть
+      if (createdId && passportFiles.length > 0) {
+        await Promise.allSettled(passportFiles.map(file => {
+          const fd = new FormData();
+          fd.append("employee", String(createdId));
+          fd.append("title", file.name);
+          fd.append("file", file);
+          return apiFetch("/api/v1/employee-documents/", { method: "POST", body: fd });
+        }));
+      }
 
       notify?.({ type: "success", message: "Сотрудник создан" });
       onCreated({} as unknown as EmployesRow);
@@ -260,6 +276,16 @@ const AddEmployeeDrawer: React.FC<AddEmployeeDrawerProps> = ({ open, onClose, on
             fullWidth placeholder="0000 0000 0000 0000"
             InputProps={{ startAdornment: <InputAdornment position="start"><CreditCardOutlined fontSize="small" /></InputAdornment> }}
             helperText={`${bankAccountNumber.length}/16`}
+          />
+        </Stack>
+
+        <Stack spacing={0.5}>
+          <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>ИНН</Typography>
+          <TextField value={inn}
+            onChange={e => setInn(e.target.value.replace(/[^0-9]/g, '').slice(0, 14))}
+            fullWidth placeholder="Введите ИНН"
+            inputProps={{ inputMode: "numeric" }}
+            helperText={`${inn.length}/14`}
           />
         </Stack>
 

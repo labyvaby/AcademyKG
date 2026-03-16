@@ -52,6 +52,7 @@ const EditEmployeeDrawer: React.FC<EditEmployeeDrawerProps> = ({ record, onClose
   const [email, setEmail] = React.useState("");
   const [emailErrorMsg, setEmailErrorMsg] = React.useState("");
   const [bankAccountNumber, setBankAccountNumber] = React.useState("");
+  const [inn, setInn] = React.useState("");
   const [nickname, setNickname] = React.useState("");
   const [busy, setBusy] = React.useState(false);
   const [photoPreview, setPhotoPreview] = React.useState<string | null>(null);
@@ -83,21 +84,15 @@ const EditEmployeeDrawer: React.FC<EditEmployeeDrawerProps> = ({ record, onClose
     if (!record) {
       setFullName(""); setPhone(""); setPhoneCountryCode(DEFAULT_PHONE_COUNTRY_CODE);
       setPhoneError(false); setRoleId(""); setSpecializationId(""); setBirthDate("");
-      setNickname(""); setEmail(""); setEmailErrorMsg(""); setBusy(false);
+      setNickname(""); setEmail(""); setEmailErrorMsg(""); setBusy(false); setInn("");
       setPhotoPreview(null); setServices([]); setSelectedServices([]);
       setPassportPhotos([]); setPassportFiles([]); setRemovedPassportUrls([]);
       return;
     }
 
     setFullName(record.full_name || "");
-    const parsedPhone = parsePhone(record.phone ?? "");
-    setPhoneCountryCode(parsedPhone.countryCode);
-    setPhone(employeeFormUtils.sanitizeKGLocal(parsedPhone.local));
     setRoleId((record.role_id && typeof record.role_id === 'string') ? record.role_id : "");
     setStatus(record.status || "active");
-    setTelegramId(record.telegram_id ? String(record.telegram_id) : "");
-    setBankAccountNumber(record.bank_account_number || "");
-    setEmail(record.email || "");
     setNickname(record.nickname || "");
     setSalaryRules(record.salary_rules || null);
     setPhotoPreview(record.photo_url ? String(record.photo_url) : null);
@@ -109,36 +104,44 @@ const EditEmployeeDrawer: React.FC<EditEmployeeDrawerProps> = ({ record, onClose
     (async () => {
       try {
         setServicesLoading(true);
-        const [allSrv, specs, apiRoles] = await Promise.all([
+        const [allSrv, specs, apiRoles, empDetailRaw] = await Promise.all([
           employeeFormUtils.fetchServices(),
           employeeFormUtils.fetchSpecializations(),
           fetchRoles(),
+          apiFetch(`/api/v1/employees/${record.id}/`),
         ]);
-        if (!cancelled) {
-          const allSrvUniq = Array.from(new Map((allSrv || []).map(s => [String(s.id), s])).values());
-          setServices(allSrvUniq);
-          setSpecializations(specs);
-          setRoles(apiRoles.length > 0 ? apiRoles : FALLBACK_ROLES);
+        if (cancelled) return;
 
-          const recAny = record as any;
-          const specIds: string[] = Array.isArray(recAny.specializationIds)
-            ? recAny.specializationIds
-            : Array.isArray(recAny.specializations)
-            ? recAny.specializations.map((s: any) => s.id ?? s)
-            : [];
-          if (specIds.length > 0 && !cancelled) setSpecializationId(String(specIds[0]));
+        const d = (empDetailRaw as any)?.data ?? empDetailRaw as any;
 
-              try {
-                const empDetail: any = await apiFetch(`/api/v1/employees/${record.id}/`);
-                const d = empDetail?.data ?? empDetail;
-                const empServices: any[] = Array.isArray(d?.services) ? d.services : [];
-                if (!cancelled && empServices.length > 0) {
-                  const empServiceIds = empServices.map((s: any) => 
-                    typeof s === 'string' ? s : String(s.id ?? s.sellable_item ?? s.sellableItem)
-                  );
-                  setSelectedServices(allSrvUniq.filter(s => empServiceIds.includes(String(s.id))));
-                }
-              } catch { /* тихо */ }
+        // Телефон и email из detail (userPhoneNumber / userEmail)
+        const rawPhone = d?.userPhoneNumber ?? d?.phoneNumber ?? record.phone ?? "";
+        const parsedPhone = parsePhone(rawPhone);
+        setPhoneCountryCode(parsedPhone.countryCode);
+        setPhone(employeeFormUtils.sanitizeKGLocal(parsedPhone.local));
+        setEmail(d?.userEmail ?? d?.email ?? record.email ?? "");
+        setTelegramId(d?.telegramId ?? record.telegram_id ?? "");
+        setBankAccountNumber(d?.bankAccountNumber ?? record.bank_account_number ?? "");
+        setInn(d?.inn ?? (record as any).inn ?? "");
+        if (d?.photoUrl) setPhotoPreview(d.photoUrl);
+        if (d?.birthDate) setBirthDate(normalizeDateInput(d.birthDate));
+
+        const allSrvUniq = Array.from(new Map((allSrv || []).map(s => [String(s.id), s])).values());
+        setServices(allSrvUniq);
+        setSpecializations(specs);
+        setRoles(apiRoles.length > 0 ? apiRoles : FALLBACK_ROLES);
+
+        // Специализации
+        const specList: any[] = Array.isArray(d?.specializations) ? d.specializations : [];
+        if (specList.length > 0) setSpecializationId(String(specList[0]?.id ?? specList[0]));
+
+        // Услуги из detail
+        const empServices: any[] = Array.isArray(d?.services) ? d.services : [];
+        if (empServices.length > 0) {
+          const empServiceIds = empServices.map((s: any) =>
+            typeof s === 'string' ? s : String(s.sellableItem ?? s.sellable_item ?? s.id)
+          );
+          setSelectedServices(allSrvUniq.filter(s => empServiceIds.includes(String(s.id))));
         }
       } catch { /* ignore */ } finally {
         if (!cancelled) setServicesLoading(false);
@@ -176,23 +179,55 @@ const EditEmployeeDrawer: React.FC<EditEmployeeDrawerProps> = ({ record, onClose
         birthDate: birthDate || undefined,
         telegramId: telegramId || undefined,
         bankAccountNumber: bankAccountNumber.trim() || undefined,
+        inn: inn.trim() || undefined,
         userEmail: email.trim() || undefined,
         nickname: nickname.trim() || undefined,
         specializationIds: specializationId ? [specializationId] : [],
       };
 
-      // Привязываем услуги через PATCH /api/v1/employees/{id}/ → serviceIds
-      payload.serviceIds = selectedServices.map(s => s.id);
+      // TODO: serviceIds вызывает 500 на сервере — временно отключено
+      // payload.serviceIds = selectedServices.map(s => s.id);
 
-      const updated = await employeeFormUtils.updateEmployeeApi(String(record.id), payload);
-      if (!updated?.id) throw new Error("Не удалось сохранить изменения");
+      await employeeFormUtils.updateEmployeeApi(String(record.id), payload);
 
-      const mapped = mapAnyToEmployee(updated as Record<string, unknown>);
+      // Загружаем новые документы если есть
+      if (passportFiles.length > 0) {
+        await Promise.allSettled(passportFiles.map(file => {
+          const fd = new FormData();
+          fd.append("employee", String(record.id));
+          fd.append("title", file.name);
+          fd.append("file", file);
+          return apiFetch("/api/v1/employee-documents/", { method: "POST", body: fd });
+        }));
+      }
+
+      // PATCH возвращает 204, грузим актуальные данные отдельным GET
+      let updatedRecord: EmployesRow = record;
+      try {
+        const detailRaw: any = await apiFetch(`/api/v1/employees/${record.id}/`);
+        const d = detailRaw?.data ?? detailRaw;
+        if (d?.id) {
+          updatedRecord = {
+            ...record,
+            full_name: d.fullName ?? record.full_name,
+            phone: d.userPhoneNumber ?? d.phone ?? record.phone,
+            email: d.userEmail ?? d.email ?? record.email,
+            status: d.status ?? record.status,
+            nickname: d.nickname ?? record.nickname,
+            birth_date: d.birthDate ?? record.birth_date,
+            telegram_id: d.telegramId ?? record.telegram_id,
+            bank_account_number: d.bankAccountNumber ?? record.bank_account_number,
+            photo_url: d.photoUrl ?? record.photo_url,
+          } as unknown as EmployesRow;
+        }
+      } catch { /* используем старые данные */ }
+
       notify?.({ type: "success", message: "Изменения сохранены" });
-      onUpdated((mapped || updated) as unknown as EmployesRow);
+      onUpdated(updatedRecord);
       onClose();
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : "Не удалось сохранить изменения";
+      console.error("[EditEmployee] error:", e);
+      const msg = e instanceof Error ? e.message : String(e) || "Не удалось сохранить изменения";
       notify?.({ type: "error", message: msg });
     } finally {
       setBusy(false);
@@ -331,6 +366,16 @@ const EditEmployeeDrawer: React.FC<EditEmployeeDrawerProps> = ({ record, onClose
             fullWidth
             InputProps={{ startAdornment: <InputAdornment position="start"><CreditCardOutlined fontSize="small" /></InputAdornment> }}
             helperText={`${bankAccountNumber.length}/16`}
+          />
+        </Stack>
+
+        <Stack spacing={0.5}>
+          <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>ИНН</Typography>
+          <TextField value={inn}
+            onChange={e => setInn(e.target.value.replace(/[^0-9]/g, '').slice(0, 14))}
+            fullWidth placeholder="Введите ИНН"
+            inputProps={{ inputMode: "numeric" }}
+            helperText={`${inn.length}/14`}
           />
         </Stack>
 
