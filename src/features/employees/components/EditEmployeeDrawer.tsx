@@ -1,7 +1,7 @@
 import React from "react";
 import { Stack, TextField, InputAdornment, Checkbox, Typography, MenuItem, Box, Divider } from "@mui/material";
 import Autocomplete from "@mui/material/Autocomplete";
-import { getServiceIdsForEmployee, setServiceIdsForEmployee } from "../../../services/employeeServices";
+import { apiFetch } from "../../../utility/apiClient";
 import CheckBoxOutlineBlankIcon from "@mui/icons-material/CheckBoxOutlineBlank";
 import CheckBoxIcon from "@mui/icons-material/CheckBox";
 import CreditCardOutlined from "@mui/icons-material/CreditCardOutlined";
@@ -32,14 +32,8 @@ export type EditEmployeeDrawerProps = {
 
 type RoleRow = { id: string; name: string; display_name: string };
 
-const FALLBACK_ROLES: RoleRow[] = [
-  { id: "superadmin", name: "superadmin", display_name: "Супер-Администратор" },
-  { id: "admin", name: "admin", display_name: "Управляющий" },
-  { id: "doctor", name: "doctor", display_name: "Сотрудник" },
-  { id: "nurse", name: "nurse", display_name: "Медсестра" },
-  { id: "receptionist", name: "receptionist", display_name: "Регистратор" },
-  { id: "accountant", name: "accountant", display_name: "Бухгалтер" },
-];
+// Роли загружаются из API — fallback пустой, т.к. id должны быть UUID
+const FALLBACK_ROLES: RoleRow[] = [];
 
 const EditEmployeeDrawer: React.FC<EditEmployeeDrawerProps> = ({ record, onClose, onUpdated }) => {
   const open = Boolean(record);
@@ -134,13 +128,17 @@ const EditEmployeeDrawer: React.FC<EditEmployeeDrawerProps> = ({ record, onClose
             : [];
           if (specIds.length > 0 && !cancelled) setSpecializationId(String(specIds[0]));
 
-          // Загружаем сохранённые услуги сотрудника из settings API
-          if (record?.id) {
-            const savedIds = await getServiceIdsForEmployee(String(record.id));
-            if (!cancelled && savedIds.length > 0) {
-              setSelectedServices(allSrvUniq.filter(s => savedIds.includes(s.id)));
-            }
-          }
+              try {
+                const empDetail: any = await apiFetch(`/api/v1/employees/${record.id}/`);
+                const d = empDetail?.data ?? empDetail;
+                const empServices: any[] = Array.isArray(d?.services) ? d.services : [];
+                if (!cancelled && empServices.length > 0) {
+                  const empServiceIds = empServices.map((s: any) => 
+                    typeof s === 'string' ? s : String(s.id ?? s.sellable_item ?? s.sellableItem)
+                  );
+                  setSelectedServices(allSrvUniq.filter(s => empServiceIds.includes(String(s.id))));
+                }
+              } catch { /* тихо */ }
         }
       } catch { /* ignore */ } finally {
         if (!cancelled) setServicesLoading(false);
@@ -172,19 +170,19 @@ const EditEmployeeDrawer: React.FC<EditEmployeeDrawerProps> = ({ record, onClose
 
       const payload: Record<string, unknown> = {
         fullName: fullName.trim(),
-        phone: fullPhone ?? undefined,
+        userPhoneNumber: fullPhone ?? undefined,
         role: roleId || undefined,
         status,
         birthDate: birthDate || undefined,
         telegramId: telegramId || undefined,
         bankAccountNumber: bankAccountNumber.trim() || undefined,
-        email: email.trim() || undefined,
+        userEmail: email.trim() || undefined,
         nickname: nickname.trim() || undefined,
         specializationIds: specializationId ? [specializationId] : [],
       };
 
-      // Сохраняем привязанные услуги через settings API
-      await setServiceIdsForEmployee(String(record.id), selectedServices.map(s => s.id));
+      // Привязываем услуги через PATCH /api/v1/employees/{id}/ → serviceIds
+      payload.serviceIds = selectedServices.map(s => s.id);
 
       const updated = await employeeFormUtils.updateEmployeeApi(String(record.id), payload);
       if (!updated?.id) throw new Error("Не удалось сохранить изменения");

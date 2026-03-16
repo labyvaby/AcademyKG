@@ -32,7 +32,7 @@ import { usePageTitle } from "../../hooks/usePageTitle";
 import { usePermissions } from "../../hooks/usePermissions";
 import { useActiveMonths } from "../../hooks/useActiveMonths";
 import { formatKGS } from "../../utility/format";
-import { supabase } from "../../utility/supabaseClient";
+import { apiFetch } from "../../utility/apiClient";
 import dayjs from "dayjs";
 import 'dayjs/locale/ru';
 import { fetchNurses } from "../../services/employees";
@@ -63,7 +63,7 @@ const ReportsPage: React.FC = () => {
     const { open: notify } = useNotification();
     const { isSuperAdmin, hasRole } = usePermissions();
 
-    const canSeeFinancial = useMemo(() => isSuperAdmin() || hasRole(['accountant', 'admin']), [isSuperAdmin, hasRole]);
+    const canSeeFinancial = useMemo(() => isSuperAdmin() || hasRole(['accountant', 'admin', 'manager']), [isSuperAdmin, hasRole]);
 
     // Financial State
     const [selectedDate, setSelectedDate] = useState<string>(dayjs().format('YYYY-MM-DD'));
@@ -106,18 +106,11 @@ const ReportsPage: React.FC = () => {
         try {
             setFinancialLoading(true);
 
-            const nurseIds = nurses.map(n => n.id);
+            const nurseIds = nurses.map((n: any) => n.id);
 
-            const { data: appointments, error } = await supabase
-                .from("AppointmentsAggregated")
-                .select("appointment_at, total_amount, paid_cash, paid_card, paid_balance, paid_bonuses, discount, debt, status, performer_ids")
-                .gte("appointment_at", dateFrom)
-                .lte("appointment_at", dateTo)
-                .in("status", ["Оплачено", "Со скидкой", "Частично оплачено", "Бесплатно", "Ожидаем", "Клиент здесь", "Завершено", "В работе"])
-                .order("appointment_at", { ascending: false })
-                .limit(10000);
-
-            if (error) throw error;
+            // Fetch all appointments for the month
+            const res: any = await apiFetch(`/api/v1/appointments/?ordering=-appointmentAt`);
+            const appointments: any[] = res?.data?.results ?? res?.results ?? [];
 
             const groupedMap = new Map<string, DailyFinancialData>();
             let current = dayjs(dateFrom);
@@ -126,143 +119,47 @@ const ReportsPage: React.FC = () => {
                 const dateStr = current.format('YYYY-MM-DD');
                 groupedMap.set(dateStr, {
                     date: dateStr,
-                    services_sum: 0,
-                    products_sum: 0,
-                    cash_sum: 0,
-                    card_sum: 0,
-                    balance_sum: 0,
-                    bonuses_sum: 0,
-                    discount_sum: 0,
-                    debt_sum: 0,
-                    appointments_count: 0,
-                    procedures_count: 0,
-                    waiting_count: 0,
-                    day_count: 0,
-                    night_count: 0,
+                    services_sum: 0, products_sum: 0, cash_sum: 0, card_sum: 0,
+                    balance_sum: 0, bonuses_sum: 0, discount_sum: 0, debt_sum: 0,
+                    appointments_count: 0, procedures_count: 0, waiting_count: 0,
+                    day_count: 0, night_count: 0,
                 });
                 current = current.add(1, 'day');
             }
 
-            const fullyPaidStatuses = new Set(["Оплачено", "Со скидкой", "Частично оплачено", "Бесплатно"]);
-            (appointments || []).forEach(app => {
-                if (!app.appointment_at) return;
-                const day = dayjs(app.appointment_at).format('YYYY-MM-DD');
-                const existing = groupedMap.get(day);
-                if (existing) {
-                    const isFullyPaidStatus = fullyPaidStatuses.has(app.status);
-                    const totalPaid = Number(app.paid_cash || 0) + Number(app.paid_card || 0) + Number(app.paid_balance || 0) + Number(app.paid_bonuses || 0);
-                    // Для "нефинансовых" статусов учитываем только если есть реальная оплата
-                    if (isFullyPaidStatus || totalPaid > 0) {
-                        existing.services_sum += Number(app.total_amount || 0);
-                        existing.cash_sum += Number(app.paid_cash || 0);
-                        existing.card_sum += Number(app.paid_card || 0);
-                        existing.balance_sum += Number(app.paid_balance || 0);
-                        existing.bonuses_sum += Number(app.paid_bonuses || 0);
-                        existing.discount_sum += Number(app.discount || 0);
-                        existing.debt_sum += Number(app.debt || 0);
-                    }
+            const fullyPaidStatuses = new Set(["completed", "Оплачено", "Со скидкой", "Частично оплачено", "Бесплатно"]);
+            const waitingStatuses = new Set(["scheduled", "in_progress", "Ожидаем", "Клиент здесь"]);
 
-                    // Считаем приёмы только для финансовых статусов
-                    if (isFullyPaidStatus) {
-                        const perfIds = app.performer_ids || [];
-                        const isProcedure = perfIds.some((id: string) => nurses.some(n => n.id === id));
-                        if (isProcedure) {
-                            existing.procedures_count += 1;
-                        } else {
-                            existing.appointments_count += 1;
-                            // День / Ночь (порог 18:00)
-                            const hour = dayjs(app.appointment_at).hour();
-                            if (hour >= 18) {
-                                existing.night_count += 1;
-                            } else {
-                                existing.day_count += 1;
-                            }
-                        }
-                    }
-
-                    if (app.status === "Ожидаем" || app.status === "Клиент здесь") {
-                        existing.waiting_count += 1;
-                    }
-                }
-            });
-
-            // Fetch waiting appointments (Ожидаем + Клиент здесь) — full month, including future days
-            const fullMonthEnd = dayjs(selectedDate).endOf('month').toISOString();
-            const { data: waitingAppointments } = await supabase
-                .from("AppointmentsAggregated")
-                .select("appointment_at")
-                .gte("appointment_at", dateFrom)
-                .lte("appointment_at", fullMonthEnd)
-                .in("status", ["Ожидаем", "Клиент здесь"])
-                .limit(10000);
-
-            (waitingAppointments || []).forEach(app => {
-                if (!app.appointment_at) return;
-                const day = dayjs(app.appointment_at).format('YYYY-MM-DD');
-                // Только добавляем будущие дни которых нет в map (они уже учтены в первом запросе)
+            appointments.forEach((app: any) => {
+                const at = app.appointmentAt ?? app.appointment_at;
+                if (!at) return;
+                const day = dayjs(at).format('YYYY-MM-DD');
                 if (!groupedMap.has(day)) {
                     groupedMap.set(day, {
-                        date: day,
-                        services_sum: 0, products_sum: 0, cash_sum: 0, card_sum: 0,
+                        date: day, services_sum: 0, products_sum: 0, cash_sum: 0, card_sum: 0,
                         balance_sum: 0, bonuses_sum: 0, discount_sum: 0, debt_sum: 0,
-                        appointments_count: 0, procedures_count: 0, waiting_count: 1,
-                        day_count: 0, night_count: 0
+                        appointments_count: 0, procedures_count: 0, waiting_count: 0, day_count: 0, night_count: 0,
                     });
                 }
+                const existing = groupedMap.get(day)!;
+                const isFullyPaid = fullyPaidStatuses.has(app.status);
+                const isWaiting = waitingStatuses.has(app.status);
+
+                if (isFullyPaid) {
+                    existing.services_sum += Number(app.total ?? app.total_amount ?? 0);
+                    existing.cash_sum += Number(app.paidCash ?? app.paid_cash ?? 0);
+                    existing.card_sum += Number(app.paidCard ?? app.paid_card ?? 0);
+                    existing.balance_sum += Number(app.paidBalance ?? app.paid_balance ?? 0);
+                    existing.bonuses_sum += Number(app.paidBonuses ?? app.paid_bonuses ?? 0);
+                    existing.discount_sum += Number(app.discount ?? 0);
+                    existing.debt_sum += Number(app.debt ?? 0);
+                    existing.appointments_count += 1;
+                    const hour = dayjs(at).hour();
+                    if (hour >= 18) existing.night_count += 1;
+                    else existing.day_count += 1;
+                }
+                if (isWaiting) existing.waiting_count += 1;
             });
-
-            // Fetch products within appointments
-            // Join with Appointments to ensure we respect the same filters (no cancelled)
-            // Join with Products to ensure we only count actual products (not services with null performer)
-            const { data: allProducts } = await supabase
-                .from("Products")
-                .select("sellable_item_id");
-
-            const productSellableIds = (allProducts || []).map(p => p.sellable_item_id).filter(Boolean);
-
-            // Fetch current prices for all products (fallback for records before Feb 16 when price column didn't exist)
-            const { data: currentPrices } = productSellableIds.length === 0 ? { data: [] } : await supabase
-                .from("Prices")
-                .select("sellable_item_id, price")
-                .in("sellable_item_id", productSellableIds)
-                .eq("is_current", true);
-
-            const priceByItemId = new Map<string, number>();
-            (currentPrices || []).forEach((p: any) => {
-                if (p.sellable_item_id) priceByItemId.set(p.sellable_item_id, Number(p.price || 0));
-            });
-
-            const { data: productSales, error: productsError } = productSellableIds.length === 0 ? { data: [], error: null } : await supabase
-                .from("AppointmentServices")
-                .select(`
-                    performed_at,
-                    price,
-                    quantity,
-                    sellable_item_id,
-                    Appointments!inner(status)
-                `)
-                .in("sellable_item_id", productSellableIds)
-                .in("Appointments.status", ["Оплачено", "Со скидкой", "Частично оплачено", "Бесплатно"])
-                .gte("performed_at", dateFrom)
-                .lte("performed_at", dateTo)
-                .limit(10000);
-
-            if (productsError) {
-                console.error("Error fetching product sales:", productsError);
-            } else {
-                (productSales || []).forEach((sale: any) => {
-                    if (!sale.performed_at) return;
-                    const day = dayjs(sale.performed_at).format('YYYY-MM-DD');
-                    const existing = groupedMap.get(day);
-                    if (existing) {
-                        // price column added Feb 16 — for older records fall back to current Prices table
-                        const unitPrice = sale.price != null
-                            ? Number(sale.price)
-                            : (priceByItemId.get(sale.sellable_item_id) ?? 0);
-                        existing.products_sum += unitPrice * Number(sale.quantity || 1);
-                    }
-                });
-            }
 
             // Сортировка новые к старому
             const sorted = Array.from(groupedMap.values()).sort((a, b) => b.date.localeCompare(a.date));

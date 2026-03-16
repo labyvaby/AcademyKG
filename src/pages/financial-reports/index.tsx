@@ -52,7 +52,7 @@ const FinancialReportsPage: React.FC = () => {
     const { open: notify } = useNotification();
     const { isSuperAdmin, hasRole, loading: permissionsLoading } = usePermissions();
 
-    const canSee = useMemo(() => isSuperAdmin() || hasRole(['accountant', 'admin']), [isSuperAdmin, hasRole]);
+    const canSee = useMemo(() => isSuperAdmin() || hasRole(['accountant', 'admin', 'manager']), [isSuperAdmin, hasRole]);
 
     // State
     const [selectedDate, setSelectedDate] = useState<string>(dayjs().format('YYYY-MM-DD'));

@@ -86,22 +86,13 @@ export const AllAppointmentsList: React.FC = () => {
 
             const params = new URLSearchParams({
                 ordering: "-appointmentAt",
-                page_size: "2000",
             });
 
-            if (selectedMonth) {
-                params.set("dateFrom", dayjs(selectedMonth).startOf('month').format('YYYY-MM-DD') + 'T00:00:00');
-                params.set("dateTo", dayjs(selectedMonth).endOf('month').format('YYYY-MM-DD') + 'T23:59:59');
-            } else if (selectedYear) {
-                params.set("dateFrom", `${selectedYear}-01-01T00:00:00`);
-                params.set("dateTo", `${selectedYear}-12-31T23:59:59`);
-            }
-
             if (!canViewAll && employeeId) {
-                params.set("performer", employeeId);
+                params.set("employee", employeeId);
             }
 
-            const res: any = await apiFetch(`/api/v1/appointments-aggregated/?${params.toString()}`);
+            const res: any = await apiFetch(`/api/v1/appointments/?${params.toString()}`);
             const data: any[] = res?.data?.results ?? res?.results ?? (Array.isArray(res?.data) ? res.data : null) ?? (Array.isArray(res) ? res : []);
 
             const mapped = (data as AggregatedAppointmentRow[]).map(mapAggregatedRowToAppointment);

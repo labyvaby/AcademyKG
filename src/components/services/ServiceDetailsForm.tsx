@@ -55,7 +55,7 @@ const ServiceDetailsForm: React.FC<ServiceDetailsFormProps> = ({
           Название услуги *
         </Typography>
         <TextField
-          placeholder="Например: УЗИ брюшной полости"
+          placeholder="Например: Тренировка с тренером"
           value={name}
           onChange={(e: React.ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
           fullWidth

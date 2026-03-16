@@ -105,12 +105,9 @@ const DoctorWorkPage: React.FC = () => {
 
             const params = new URLSearchParams({
                 ordering: "appointmentAt",
-                dateFrom: selDate,
-                dateTo: selDate,
-                page_size: "200",
             });
             if (!isAdmin() && doctorId) {
-                params.set("performer", doctorId);
+                params.set("employee", doctorId);
             }
 
             const { apiFetch } = await import("../../utility/apiClient");
@@ -171,13 +168,9 @@ const DoctorWorkPage: React.FC = () => {
             const startISO = start.toISOString().split('T')[0] + 'T00:00:00';
             const endISO = end.toISOString().split('T')[0] + 'T23:59:59.999';
 
-            const countParams = new URLSearchParams({
-                dateFrom: startISO.split('T')[0],
-                dateTo: endISO.split('T')[0],
-                page_size: "500",
-            });
+            const countParams = new URLSearchParams({});
             if (!isAdmin() && !isRegistrator() && doctorId) {
-                countParams.set("performer", doctorId);
+                countParams.set("employee", doctorId);
             }
             const { apiFetch: apiFetchCounts } = await import("../../utility/apiClient");
             const countRes: any = await apiFetchCounts(`/api/v1/appointments/?${countParams.toString()}`);

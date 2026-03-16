@@ -3,6 +3,7 @@ import { apiFetch } from "../../utility/apiClient";
 import type { Patient } from "../../types/models";
 
 const PER_PAGE = 30;
+const API_BASE = "https://academy.operator.kg";
 
 function useDebouncedValue<T>(value: T, delay = 100) {
   const [debounced, setDebounced] = React.useState(value);
@@ -20,13 +21,20 @@ interface UsePatientListOptions {
   skipInitialFetch?: boolean;
 }
 
+function resolvePhotoUrl(url: string | null | undefined): string | undefined {
+  if (!url) return undefined;
+  if (url.startsWith("http")) return url;
+  return `${API_BASE}${url}`;
+}
+
 function mapApiPatient(r: Record<string, unknown>): Patient {
+  const photoRaw = (r["photoUrl"] ?? r["photo_url"] ?? r["photo"] ?? r["avatar"] ?? r["image"]) as string | undefined;
   return {
     id: String(r["id"] ?? ""),
     fio: String(r["fullName"] ?? ""),
     phone: (r["phone"] as string) ?? undefined,
     inn: (r["inn"] as string) ?? null,
-    photo: (r["photoUrl"] as string) ?? undefined,
+    photo: resolvePhotoUrl(photoRaw),
     birth_date: (r["birthDate"] as string) ?? undefined,
     is_blacklisted: (r["isBlacklisted"] as boolean) ?? false,
     blacklist_reason: (r["blacklistReason"] as string) ?? null,
@@ -34,7 +42,7 @@ function mapApiPatient(r: Record<string, unknown>): Patient {
 }
 
 /**
- * Управляет списком пациентов: поиск и бесконечная прокрутка через /api/v1/children/
+ * Управляет списком клиентов: поиск и бесконечная прокрутка через /api/v1/clients/
  */
 export function usePatientList(options?: UsePatientListOptions) {
   const [loading, setLoading] = React.useState(false);
@@ -61,10 +69,11 @@ export function usePatientList(options?: UsePatientListOptions) {
       const params = new URLSearchParams({
         page_size: String(PER_PAGE),
         page: String(page + 1),
+        ordering: "-createdAt",
       });
       if (q.trim()) params.set("search", q.trim());
 
-      const res: any = await apiFetch(`/api/v1/children/?${params.toString()}`);
+      const res: any = await apiFetch(`/api/v1/clients/?${params.toString()}`);
       if (ctrl.signal.aborted) return;
 
       const results: Record<string, unknown>[] = res?.data?.results ?? res?.results ?? [];
@@ -73,6 +82,25 @@ export function usePatientList(options?: UsePatientListOptions) {
 
       setPatients((prev) => (page === 0 ? mapped : [...prev, ...mapped]));
       setHasMore((page + 1) * PER_PAGE < count);
+
+      // Фото не возвращается в списке — подгружаем детали всех клиентов страницы в фоне
+      if (mapped.length > 0) {
+        Promise.allSettled(
+          mapped.map((p) =>
+            apiFetch(`/api/v1/clients/${p.id}/`).then((r: any) => {
+              if (ctrl.signal.aborted) return;
+              const d = r?.data ?? r;
+              const photoRaw = d?.photoUrl as string | undefined;
+              if (!photoRaw) return;
+              const photo = resolvePhotoUrl(photoRaw);
+              if (!photo) return;
+              setPatients((prev) =>
+                prev.map((pt) => (pt.id === p.id ? { ...pt, photo } : pt))
+              );
+            }).catch(() => {/* тихо игнорируем ошибки */})
+          )
+        );
+      }
     } catch (e: any) {
       if (ctrl.signal.aborted || e?.name === "AbortError") return;
       console.error(e);
@@ -116,21 +144,11 @@ export function usePatientList(options?: UsePatientListOptions) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedQuery, fetchChunk]);
 
-  // Быстрое добавление пациента через API
-  const addPatient = React.useCallback(
-    async (fioRaw: string, phoneRaw?: string | null) => {
-      const fio = fioRaw.trim();
-      const phone = (phoneRaw ?? "").trim() || null;
-
-      await apiFetch("/api/v1/children/", {
-        method: "POST",
-        body: JSON.stringify({ fullName: fio, phone }),
-      });
-
-      reload();
-    },
-    [reload]
-  );
+  const patchPatient = React.useCallback((id: string, patch: Partial<Patient>) => {
+    setPatients((prev) =>
+      prev.map((p) => (p.id === id ? { ...p, ...patch } : p))
+    );
+  }, []);
 
   return {
     loading,
@@ -140,8 +158,8 @@ export function usePatientList(options?: UsePatientListOptions) {
     setQuery,
     hasMore,
     loadMore,
-    addPatient,
     reload,
+    patchPatient,
     PER_PAGE,
   };
 }

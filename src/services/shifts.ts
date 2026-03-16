@@ -73,15 +73,21 @@ export const fetchShifts = async (params?: { employee?: string, startDate?: stri
   try {
     const queryParams = new URLSearchParams();
     if (params?.employee) queryParams.append("employee", params.employee);
-    if (params?.startDate) queryParams.append("start_date", params.startDate);
-    if (params?.endDate) queryParams.append("end_date", params.endDate);
-    if (params?.shift_date) queryParams.append("shift_date", params.shift_date);
-    queryParams.append("page_size", "1000");
+    // shift_date filter: try as query param even if not in spec
+    if (params?.shift_date) queryParams.append("shiftDate", params.shift_date);
 
     const res: any = await apiFetch(`/api/v1/work-shifts/?${queryParams.toString()}`);
     const results = res?.data?.results ?? res?.results ?? [];
 
-    return results.map((d: any) => toShift(d));
+    // Client-side filter by shift_date if provided (API may not support it)
+    const filtered = params?.shift_date
+      ? results.filter((d: any) => {
+          const sd = d.shiftDate ?? d.shift_date ?? (d.clockIn ?? d.clock_in ? (d.clockIn ?? d.clock_in).slice(0, 10) : null);
+          return sd === params.shift_date;
+        })
+      : results;
+
+    return filtered.map((d: any) => toShift(d));
   } catch (e) {
     console.error("fetchShifts failed", e);
     return [];

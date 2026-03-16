@@ -17,12 +17,12 @@ type DictionariesByType = {
 const fetchAllDictionaries = async (): Promise<DictionariesByType> => {
   const patientsPromise = (async () => {
     try {
-      const res: any = await apiFetch("/api/v1/children/?page_size=1000&ordering=fullName");
+      const res: any = await apiFetch("/api/v1/children/?page_size=1000&ordering=full_name");
       const rawData: any[] = res?.data?.results ?? res?.results ?? [];
       return rawData.map((r: any) => {
         const id = String(r.id ?? "");
-        const fio = r.fullName ?? r.full_name ?? r["ФИО клиента"] ?? "";
-        const phone = r.contactPhone ?? r.phone ?? r["Телефон"] ?? "";
+        const fio = r.full_name ?? r.fullName ?? r["ФИО клиента"] ?? "";
+        const phone = r.contact_phone ?? r.contactPhone ?? r.phone ?? r["Телефон"] ?? "";
         const label = [fio, phone].filter(Boolean).join(" — ") || id;
         return { id, label, fio, phone, "ФИО пациента": fio, "Телефон": phone };
       }).filter((p: PatientOption) => p.id) as PatientOption[];

@@ -11,7 +11,7 @@ import {
     alpha,
     useTheme
 } from '@mui/material';
-import { supabase } from '../../../utility/supabaseClient';
+import { apiFetch } from '../../../utility/apiClient';
 import { formatKGS } from '../../../utility/format';
 
 interface ExtraCard {
@@ -43,21 +43,10 @@ export const AppointmentsSummaryCards: React.FC<AppointmentsSummaryCardsProps> =
         queryKey: ['appointments-summary', dateFrom, dateTo, employeeId],
         queryFn: async () => {
             if (providedAppointments) return providedAppointments;
-            let query = supabase
-                .from('AppointmentsAggregated')
-                .select('status, paid_cash, paid_card, discount, doctor_id, performer_ids')
-                .gte('appointment_at', dateFrom)
-                .lte('appointment_at', dateTo)
-                .limit(10000);
-
-            if (employeeId) {
-                query = query.or(`doctor_id.eq.${employeeId},performer_ids.cs.{${employeeId}}`);
-            }
-
-            const { data, error } = await query;
-
-            if (error) throw error;
-            return data || [];
+            const params = new URLSearchParams();
+            if (employeeId) params.set("employee", employeeId);
+            const res: any = await apiFetch(`/api/v1/appointments/?${params.toString()}`);
+            return res?.data?.results ?? res?.results ?? [];
         },
         enabled: !providedAppointments,
         staleTime: 5 * 60 * 1000,

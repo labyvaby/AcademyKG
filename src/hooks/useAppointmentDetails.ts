@@ -46,14 +46,8 @@ export const useAppointmentDetails = (appointmentId: string | null) => {
             try {
                 // 1. Детали приёма через новый endpoint
                 let apptData: any = null;
-                try {
-                    const res: any = await apiFetch(`/appointment/appointments/${appointmentId}/`);
-                    apptData = res?.data ?? res;
-                } catch {
-                    // fallback to aggregated
-                    const res: any = await apiFetch(`/api/v1/appointments-aggregated/${appointmentId}/`);
-                    apptData = res?.data ?? res;
-                }
+                const res: any = await apiFetch(`/api/v1/appointments/${appointmentId}/`);
+                apptData = res?.data ?? res;
 
                 if (!apptData) return emptyResult;
 

@@ -140,7 +140,8 @@ async function fetchPermissions(opts: { force?: boolean } = {}): Promise<void> {
       }
 
       // 3. Если employee получен без полных деталей — загружаем детали
-      if (!emp.roleName && emp.id) {
+      const hasRoleInfo = emp.roleName || emp.role_name || (typeof emp.role === 'object' && emp.role?.name);
+      if (!hasRoleInfo && emp.id) {
         try {
           const empRes: any = await apiFetch(`/api/v1/employees/${emp.id}/`);
           const fullEmp = empRes?.data ?? empRes;
@@ -151,26 +152,56 @@ async function fetchPermissions(opts: { force?: boolean } = {}): Promise<void> {
       }
 
       // 4. Формируем объект роли из roleName
-      const rawRoleName = (emp.roleName ?? emp.role_name ?? '').toLowerCase().trim();
+      // Новый API: employee.role = { id, name } где name — slug роли
+      // Старый API: employee.roleName = строка с display-именем
+      const roleFromNested = typeof emp.role === 'object' ? emp.role?.name : null;
+      const rawRoleName = (roleFromNested ?? emp.roleName ?? emp.role_name ?? '').toLowerCase().trim();
+      console.log('[usePermissions] employee:', emp.id, 'roleFromNested:', roleFromNested, 'roleName:', emp.roleName, 'rawRoleName:', rawRoleName);
+      // Slug-и ролей из бэкенда: superadmin, accountant, cashier, manager, receptionist, specialist
       const ROLE_ALIAS: Record<string, string> = {
+        // superadmin — slug из бэкенда уже "superadmin", алиасы для надёжности
         'супер-администратор': 'superadmin',
+        'супер администратор': 'superadmin',
         'супер админ': 'superadmin',
         'суперадмин': 'superadmin',
-        'superadministrator': 'superadmin',
         'super admin': 'superadmin',
-        'управляющий': 'admin',
-        'administrator': 'admin',
-        'registrator': 'receptionist',
+        'super_admin': 'superadmin',
+        'superuser': 'superadmin',
+        'super_user': 'superadmin',
+        // manager (управляющий) — slug "manager"
+        'управляющий': 'manager',
+        'administrator': 'manager',
+        'администратор': 'manager',
+        'admin': 'manager',
+        // receptionist (ресепшн) — slug "receptionist"
         'регистратор': 'receptionist',
+        'registrator': 'receptionist',
+        'ресепшн': 'receptionist',
+        // accountant (бухгалтер) — slug "accountant"
         'бухгалтер': 'accountant',
+        // cashier (кассир) — slug "cashier"
+        'кассир': 'cashier',
+        // specialist (специалист/тренер) — slug "specialist"
+        'специалист': 'specialist',
+        'специалист (тренер)': 'specialist',
+        'врач': 'specialist',
+        'doctor': 'specialist',
+        'сотрудник': 'specialist',
+        // nurse — slug "nurse"
         'медсестра': 'nurse',
-        'сотрудник': 'doctor',
+        'процедурный': 'nurse',
       };
-      const roleName = ROLE_ALIAS[rawRoleName] ?? rawRoleName;
+      // Slug из API может совпасть напрямую — ROLE_ALIAS используется только для display-имён
+      let roleName = ROLE_ALIAS[rawRoleName] ?? rawRoleName;
+      // Если slug содержит "super" — принудительно superadmin
+      if (roleName !== 'superadmin' && rawRoleName.includes('super')) {
+        roleName = 'superadmin';
+      }
+      const roleId = typeof emp.role === 'object' ? (emp.role?.id ?? '') : (emp.role ?? '');
       const role: Role = {
-        id: emp.role ?? '',
+        id: roleId,
         name: roleName as RoleName,
-        display_name: emp.roleName ?? roleName,
+        display_name: emp.roleName ?? roleFromNested ?? roleName,
         description: '',
         created_at: '',
         updated_at: '',
@@ -267,13 +298,14 @@ export const usePermissions = (): UserPermissions & PermissionCheck => {
     [state.loading, state.permissions, state.role]
   );
 
+  // Актуальные slug-и: superadmin, manager, receptionist, accountant, cashier, specialist, nurse
   const isSuperAdmin = useCallback(() => state.role?.name === 'superadmin', [state.role]);
-  const isAdmin = useCallback(() => hasRole(['superadmin', 'admin']), [hasRole]);
+  const isAdmin = useCallback(() => hasRole(['superadmin', 'admin', 'manager']), [hasRole]);
   const isRegistrator = useCallback(() => hasRole(['receptionist', 'registrator']), [hasRole]);
-  const isDoctor = useCallback(() => hasRole('doctor'), [hasRole]);
+  const isDoctor = useCallback(() => hasRole(['doctor', 'specialist']), [hasRole]);
   const isNurse = useCallback(() => hasRole('nurse'), [hasRole]);
-  const canManageEmployees = useCallback(() => hasRole(['superadmin', 'admin', 'receptionist', 'registrator']), [hasRole]);
-  const canManageExpenses = useCallback(() => hasRole(['superadmin', 'admin', 'registrator', 'receptionist', 'manager']), [hasRole]);
+  const canManageEmployees = useCallback(() => hasRole(['superadmin', 'admin', 'manager', 'receptionist', 'registrator']), [hasRole]);
+  const canManageExpenses = useCallback(() => hasRole(['superadmin', 'admin', 'manager', 'registrator', 'receptionist', 'accountant', 'cashier']), [hasRole]);
 
   return {
     role: state.role,

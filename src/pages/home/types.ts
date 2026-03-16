@@ -148,9 +148,29 @@ export const mapAggregatedRowToAppointment = (
   // Поддержка обоих форматов: snake_case (старый) и camelCase (новый REST API)
   const r = row as any;
   const appointmentAt = r.appointment_at ?? r.appointmentAt ?? "";
-  const totalCost = r.total_cost ?? r.totalCost ?? 0;
+  const totalCost = r.total_cost ?? r.totalCost ?? r.total ?? 0;
   const totalAmount = r.total_amount ?? r.totalAmount ?? totalCost;
-  const servicesRaw = r.services_json ?? r.servicesJson ?? null;
+  const servicesRaw = r.services_json ?? r.servicesJson ?? r.services ?? null;
+
+  // New API: patient is a nested object
+  const patientNested = r.patient ?? null;
+  const patientName = r.patient_name ?? r.patientName
+    ?? (patientNested ? (patientNested.fullName ?? patientNested.full_name ?? patientNested.name ?? "") : "")
+    ?? "";
+  const patientId = r.patient_id ?? r.patientId ?? patientNested?.id ?? undefined;
+
+  // New API: services array with performer
+  const servicesArr: any[] = Array.isArray(r.services) ? r.services : [];
+  const firstService = servicesArr[0];
+  const doctorName = r.doctor_name ?? r.doctorName
+    ?? firstService?.performer?.fullName ?? firstService?.performer?.full_name ?? "";
+  const doctorId = r.doctor_id ?? r.doctorId
+    ?? firstService?.performer?.id ?? undefined;
+  const doctorPhotoUrl = r.doctor_photo_url ?? r.doctorPhotoUrl
+    ?? firstService?.performer?.photoUrl ?? null;
+  const serviceNames = r.service_names ?? r.serviceNames
+    ?? servicesArr.map((s: any) => s.sellableItem?.displayName ?? s.sellable_item?.display_name ?? s.name ?? "").filter(Boolean).join(", ")
+    ?? "";
 
   let parsedServices: AppointmentServiceJson[] | null = null;
   try {
@@ -169,12 +189,12 @@ export const mapAggregatedRowToAppointment = (
     formatted_date: appointmentAt
       ? dayjs(appointmentAt).format("HH:mm DD.MM.YYYY")
       : (r.formatted_date ?? ""),
-    doctor_name: r.doctor_name ?? r.doctorName ?? "",
-    doctor_id: r.doctor_id ?? r.doctorId ?? undefined,
-    doctor_photo_url: r.doctor_photo_url ?? r.doctorPhotoUrl ?? null,
-    patient_name: r.patient_name ?? r.patientName ?? "",
-    patient_id: r.patient_id ?? r.patientId ?? undefined,
-    service_names: r.service_names ?? r.serviceNames ?? "",
+    doctor_name: doctorName,
+    doctor_id: doctorId,
+    doctor_photo_url: doctorPhotoUrl,
+    patient_name: patientName,
+    patient_id: patientId,
+    service_names: serviceNames,
     services_json: servicesRaw,
     parsed_services: parsedServices,
     status: r.status ?? "Ожидаем",

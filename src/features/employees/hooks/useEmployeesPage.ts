@@ -140,6 +140,11 @@ export function useEmployeesPageState() {
     }
   }, [loadingMore, hasMore, loading, page, fetchEmployees]);
 
+  const reload = React.useCallback(() => {
+    setPage(0);
+    fetchEmployees(0, true);
+  }, [fetchEmployees]);
+
   return {
     items,
     setItems,
@@ -159,21 +164,48 @@ export function useEmployeesPageState() {
     hasMore,
     loadingMore,
     loadMore,
+    reload,
   } as const;
 }
 
-// Получение уникальных ролей из списка сотрудников (API не имеет /roles/)
+// Отображаемые имена ролей (системное имя → человекочитаемое)
+const ROLE_DISPLAY_NAMES: Record<string, string> = {
+  superadmin: "Супер админ",
+  manager: "Управляющий",
+  accountant: "Бухгалтер",
+  cashier: "Кассир",
+  receptionist: "Ресепшн",
+  specialist: "Специалист (тренер)",
+  doctor: "Сотрудник",
+  nurse: "Медсестра",
+  admin: "Администратор",
+};
+
+// Получение уникальных ролей — собираем со всех страниц сотрудников
+// EmployeeList.role = { id: UUID, name: string } (RoleNested)
 export async function fetchRoles(): Promise<{ id: string; name: string; display_name: string }[]> {
   try {
-    const res: any = await apiFetch("/api/v1/employees/?page_size=200&ordering=fullName");
-    const results: any[] = res?.data?.results ?? res?.results ?? [];
     const seen = new Map<string, { id: string; name: string; display_name: string }>();
-    for (const emp of results) {
-      const roleId: string = emp.role ?? '';
-      const roleName: string = (emp.roleName ?? '').toLowerCase().trim();
-      if (roleId && roleName && !seen.has(roleId)) {
-        seen.set(roleId, { id: roleId, name: roleName, display_name: emp.roleName ?? roleName });
+    let page = 1;
+    while (true) {
+      const res: any = await apiFetch(`/api/v1/employees/?page_size=100&page=${page}`);
+      const data = res?.data ?? res;
+      const results: any[] = data?.results ?? [];
+      for (const emp of results) {
+        const role = emp.role;
+        if (!role || typeof role !== 'object') continue;
+        const roleId: string = role.id ?? '';
+        const roleName: string = role.name ?? '';
+        if (roleId && roleName && !seen.has(roleId)) {
+          seen.set(roleId, {
+            id: roleId,
+            name: roleName,
+            display_name: ROLE_DISPLAY_NAMES[roleName] ?? roleName,
+          });
+        }
       }
+      if (!data?.next || results.length === 0) break;
+      page++;
     }
     return Array.from(seen.values());
   } catch {
@@ -183,6 +215,7 @@ export async function fetchRoles(): Promise<{ id: string; name: string; display_
 
 // Создать сотрудника через REST API
 export async function createEmployeeApi(payload: Record<string, unknown>): Promise<any> {
+  console.log("[createEmployeeApi] payload:", JSON.stringify(payload, null, 2));
   const res = await apiFetch("/api/v1/employees/", {
     method: "POST",
     body: JSON.stringify(payload),

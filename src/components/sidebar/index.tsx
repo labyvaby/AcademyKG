@@ -310,7 +310,7 @@ const SidebarSecondary: React.FC = () => {
   const { hasRole, isNurse: isNurseFunc, isAdmin, isRegistrator, isDoctor, isSuperAdmin, loading: permissionsLoading } = usePermissions();
   const isNurse = isNurseFunc();
   const isSuper = isSuperAdmin();
-  const hasAccessToCashbox = isSuper || hasRole(['admin', 'superadmin', 'accountant', 'receptionist']);
+  const hasAccessToCashbox = isSuper || hasRole(['admin', 'manager', 'superadmin', 'accountant', 'cashier', 'receptionist']);
 
   // Во время загрузки прав не показываем элементы меню, которые зависят от роли
   // Это предотвращает "моргание" при переключении вкладок

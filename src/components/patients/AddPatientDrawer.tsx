@@ -12,13 +12,13 @@ import {
   InputAdornment,
   FormControlLabel,
   Switch,
+  Chip,
 } from "@mui/material";
 import CloseOutlined from "@mui/icons-material/CloseOutlined";
-import { supabase } from "../../utility/supabaseClient";
+import AttachFileOutlined from "@mui/icons-material/AttachFileOutlined";
 import { useNotification } from "@refinedev/core";
 import PatientPhotoUploader from "./PatientPhotoUploader";
-import { uploadPatientPhoto } from "../../services/storage";
-import { validateUUID } from "../../utility/validation";
+import { apiFetch } from "../../utility/apiClient";
 import { PhoneCountryCodeSelect, CustomDatePicker } from "../ui";
 import dayjs from "dayjs";
 import {
@@ -30,17 +30,13 @@ import {
 } from "../../utility/phone";
 import { useHasRole } from "../../hooks/usePermissions";
 
-const importMetaEnv =
-  ((import.meta as unknown) as { env?: Record<string, string | undefined> })
-    .env || {};
-// Фиксируем таблицу и названия колонок (кириллица)
-const PATIENT_WRITE_TABLE: string =
-  importMetaEnv.VITE_PATIENTS_WRITE_TABLE || "Patients";
-const PATIENT_FIO_COLUMN = "full_name";
-const PHONE_COLUMN = "phone";
-const BIRTH_COLUMN = "birth_date";
-const BLACKLIST_COLUMN = "is_blacklisted";
-const BLACKLIST_REASON_COLUMN = "blacklist_reason";
+const API_BASE = "https://academy.operator.kg";
+
+function resolvePhotoUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  if (url.startsWith("http")) return url;
+  return `${API_BASE}${url}`;
+}
 
 export type CreatedPatient = {
   id: string;
@@ -60,12 +56,10 @@ type Props = {
   initialPhone?: string;
 };
 
-const fileDateToIso = (v: string) => (v ? String(v).slice(0, 10) : "");
-
 const AddPatientDrawer: React.FC<Props> = ({ open, onClose, onCreated, initialPhone }) => {
   const { open: notify } = useNotification();
   const [fio, setFio] = React.useState("");
-  const [phone, setPhone] = React.useState(""); // локальная часть без кода страны
+  const [phone, setPhone] = React.useState("");
   const [phoneCountryCode, setPhoneCountryCode] = React.useState<PhoneCountryCode>(DEFAULT_PHONE_COUNTRY_CODE);
   const [birth, setBirth] = React.useState("");
   const [inn, setInn] = React.useState("");
@@ -76,6 +70,7 @@ const AddPatientDrawer: React.FC<Props> = ({ open, onClose, onCreated, initialPh
   const [photoPreview, setPhotoPreview] = React.useState<string | null>(null);
 
   const canManageBlacklist = useHasRole(['superadmin', 'admin', 'receptionist']);
+  const [docFiles, setDocFiles] = React.useState<File[]>([]);
 
   React.useEffect(() => {
     if (!open) {
@@ -89,6 +84,7 @@ const AddPatientDrawer: React.FC<Props> = ({ open, onClose, onCreated, initialPh
       setBusy(false);
       setPhotoFile(null);
       setPhotoPreview(null);
+      setDocFiles([]);
     } else if (initialPhone) {
       const parsed = parsePhone(initialPhone);
       setPhone(parsed.local);
@@ -102,7 +98,6 @@ const AddPatientDrawer: React.FC<Props> = ({ open, onClose, onCreated, initialPh
       notify?.({ type: "error", message: "Введите ФИО клиента" });
       return;
     }
-
     if (isBlacklisted && !blacklistReason.trim()) {
       notify?.({ type: "error", message: "Укажите причину добавления в черный список" });
       return;
@@ -110,96 +105,53 @@ const AddPatientDrawer: React.FC<Props> = ({ open, onClose, onCreated, initialPh
 
     try {
       setBusy(true);
-
       const fullPhone = composePhone(phoneCountryCode, phone);
 
-      // Если выбрано фото — загружаем в storage и получаем public URL
-      let photoUrl: string | null = null;
-      if (photoFile) {
-        try {
-          const { publicUrl } = await uploadPatientPhoto(photoFile);
-          photoUrl = publicUrl;
-        } catch (e) {
-          console.error(e);
-          notify?.({ type: "error", message: "Не удалось загрузить фото" });
-          // не прерываем создание клиента — поле фото останется пустым
-        }
+      const fd = new FormData();
+      fd.append("fullName", fioTrim);
+      if (fullPhone) fd.append("phone", fullPhone);
+      if (birth) fd.append("birthDate", birth.slice(0, 10));
+      if (inn.trim()) fd.append("inn", inn.trim());
+      fd.append("isBlacklisted", String(isBlacklisted));
+      if (isBlacklisted && blacklistReason.trim()) {
+        fd.append("blacklistReason", blacklistReason.trim());
       }
+      if (photoFile) fd.append("photoUrl", photoFile);
 
-      // Проверка на дубликат клиента: нечеткий поиск по телефону и имени (порядок слов)
-      if (fullPhone && fioTrim) {
-        const last9 = fullPhone.replace(/\D/g, '').slice(-9);
+      const res: any = await apiFetch("/api/v1/clients/", {
+        method: "POST",
+        body: fd,
+      });
 
-        const { data: existingPatients, error: searchError } = await supabase
-          .from(PATIENT_WRITE_TABLE)
-          .select("id, full_name")
-          .ilike("phone", `%${last9}`);
-
-        if (existingPatients && !searchError) {
-          const normalizeName = (name: string) => name.toLowerCase().trim().split(/\s+/).sort().join(' ');
-          const inputNameNormalized = normalizeName(fioTrim);
-
-          const duplicate = existingPatients.find(p =>
-            p.full_name && normalizeName(p.full_name) === inputNameNormalized
-          );
-
-          if (duplicate) {
-            notify?.({ type: "error", message: "Клиент с таким ФИО и номером телефона уже существует!" });
-            setBusy(false);
-            return;
-          }
-        }
-      }
-
-      // Фиксированная схема: один запрос в фиксированную таблицу
-      const payload: Record<string, unknown> = {
-        [PATIENT_FIO_COLUMN]: fioTrim,
-        [PHONE_COLUMN]: fullPhone,
-        [BIRTH_COLUMN]: birth ? fileDateToIso(birth) : null,
-        ["inn"]: inn ? inn.trim() : null,
-        ["photo_url"]: photoUrl,
-        [BLACKLIST_COLUMN]: isBlacklisted,
-        [BLACKLIST_REASON_COLUMN]: isBlacklisted ? blacklistReason.trim() : null,
-      };
-
-      const { data, error } = await supabase
-        .schema("public")
-        .from(PATIENT_WRITE_TABLE)
-        .insert(payload)
-        .select("*")
-        .single();
-
-      if (error) throw error;
-      if (!data) throw new Error("Не удалось получить данные после вставки.");
-
-      // Извлекаем ID с учетом разных вариантов именования колонок
-      const rawId = data["ID"] ?? data["id"] ?? data["Id"] ?? data["patient_id"] ?? "";
-      const insertedId = String(rawId).trim();
-
-      // Проверяем, что ID - это корректный UUID
-      try {
-        validateUUID(insertedId, "ID клиента");
-      } catch (e) {
-        console.error("UUID validation failed:", e);
-        throw e;
-      }
-
+      const data = res?.data ?? res;
       const created: CreatedPatient = {
-        id: insertedId,
+        id: String(data.id ?? ""),
         fio: fioTrim,
-        phone: fullPhone,
-        birth_date: birth ? fileDateToIso(birth) : null,
-        photo: photoUrl,
-        inn: inn ? inn.trim() : null,
+        phone: fullPhone || null,
+        birth_date: birth ? birth.slice(0, 10) : null,
+        photo: resolvePhotoUrl(data.photoUrl),
+        inn: inn.trim() || null,
         is_blacklisted: isBlacklisted,
         blacklist_reason: isBlacklisted ? blacklistReason.trim() : null,
       };
+
+      // Загружаем документы если есть
+      if (docFiles.length > 0) {
+        await Promise.allSettled(
+          docFiles.map((f) => {
+            const dfd = new FormData();
+            dfd.append("patient", created.id);
+            dfd.append("title", f.name);
+            dfd.append("file", f);
+            return apiFetch("/api/v1/client-documents/", { method: "POST", body: dfd });
+          })
+        );
+      }
 
       onCreated?.(created);
       notify?.({ type: "success", message: "Клиент добавлен" });
       onClose();
     } catch (e) {
-      // eslint-disable-next-line no-console
       console.error(e);
       notify?.({ type: "error", message: "Не удалось добавить клиента" });
     } finally {
@@ -233,12 +185,10 @@ const AddPatientDrawer: React.FC<Props> = ({ open, onClose, onCreated, initialPh
           sx={{
             p: 2,
             flex: 1,
-            overflowY: 'auto',
-            scrollbarWidth: 'none',
-            msOverflowStyle: 'none',
-            '&::-webkit-scrollbar': {
-              display: 'none',
-            },
+            overflowY: "auto",
+            scrollbarWidth: "none",
+            msOverflowStyle: "none",
+            "&::-webkit-scrollbar": { display: "none" },
           }}
         >
           <Stack spacing={3}>
@@ -283,17 +233,19 @@ const AddPatientDrawer: React.FC<Props> = ({ open, onClose, onCreated, initialPh
                 fullWidth
                 InputProps={{
                   startAdornment: (
-                    <InputAdornment position="start" sx={{ mr: 1, ml: '-14px' }}>
+                    <InputAdornment position="start" sx={{ mr: 1, ml: "-14px" }}>
                       <PhoneCountryCodeSelect
                         value={phoneCountryCode}
-                        onChange={(code) => {
-                          setPhoneCountryCode(code);
-                        }}
+                        onChange={(code) => setPhoneCountryCode(code)}
                       />
                     </InputAdornment>
                   ),
                 }}
-                inputProps={{ inputMode: "tel", pattern: "[0-9]*", maxLength: getPhoneLocalMaxLength(phoneCountryCode) }}
+                inputProps={{
+                  inputMode: "tel",
+                  pattern: "[0-9]*",
+                  maxLength: getPhoneLocalMaxLength(phoneCountryCode),
+                }}
                 placeholder={getPhoneLocalMaxLength(phoneCountryCode) === 10 ? "XXX XXX XXXX" : "XXX XXX XXX"}
               />
             </Stack>
@@ -304,13 +256,13 @@ const AddPatientDrawer: React.FC<Props> = ({ open, onClose, onCreated, initialPh
               </Typography>
               <CustomDatePicker
                 value={birth ? dayjs(birth) : null}
-                onChange={(val) => setBirth(val ? val.format('YYYY-MM-DD') : '')}
+                onChange={(val) => setBirth(val ? val.format("YYYY-MM-DD") : "")}
                 slotProps={{
                   textField: {
                     fullWidth: true,
                     InputLabelProps: { shrink: true },
-                    placeholder: "дд.мм.гггг"
-                  }
+                    placeholder: "дд.мм.гггг",
+                  },
                 }}
               />
             </Stack>
@@ -339,7 +291,10 @@ const AddPatientDrawer: React.FC<Props> = ({ open, onClose, onCreated, initialPh
                     />
                   }
                   label={
-                    <Typography variant="body2" sx={{ fontWeight: 600, color: isBlacklisted ? "error.main" : "text.primary" }}>
+                    <Typography
+                      variant="body2"
+                      sx={{ fontWeight: 600, color: isBlacklisted ? "error.main" : "text.primary" }}
+                    >
                       В черном списке
                     </Typography>
                   }
@@ -360,12 +315,47 @@ const AddPatientDrawer: React.FC<Props> = ({ open, onClose, onCreated, initialPh
                 )}
               </Box>
             )}
+
+            {/* Документы */}
+            <Stack spacing={0.5}>
+              <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
+                Документы клиента
+              </Typography>
+              <Button
+                variant="outlined"
+                component="label"
+                startIcon={<AttachFileOutlined />}
+                fullWidth
+              >
+                Прикрепить файлы
+                <input
+                  type="file"
+                  multiple
+                  hidden
+                  onChange={(e) => {
+                    const files = Array.from(e.target.files ?? []);
+                    setDocFiles((prev) => [...prev, ...files]);
+                    e.target.value = "";
+                  }}
+                />
+              </Button>
+              {docFiles.length > 0 && (
+                <Stack direction="row" flexWrap="wrap" gap={0.5} sx={{ mt: 0.5 }}>
+                  {docFiles.map((f, i) => (
+                    <Chip
+                      key={i}
+                      label={f.name}
+                      size="small"
+                      onDelete={() => setDocFiles((prev) => prev.filter((_, idx) => idx !== i))}
+                    />
+                  ))}
+                </Stack>
+              )}
+            </Stack>
           </Stack>
         </Box>
 
-
-
-        <Box sx={{ p: 2, borderTop: 1, borderColor: 'divider', bgcolor: 'background.paper' }}>
+        <Box sx={{ p: 2, borderTop: 1, borderColor: "divider", bgcolor: "background.paper" }}>
           <Stack direction="row" gap={1} justifyContent="flex-end">
             <Button onClick={onClose} disabled={busy}>
               Отмена
@@ -382,8 +372,8 @@ const AddPatientDrawer: React.FC<Props> = ({ open, onClose, onCreated, initialPh
             </Button>
           </Stack>
         </Box>
-      </Box >
-    </Drawer >
+      </Box>
+    </Drawer>
   );
 };
 

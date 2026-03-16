@@ -206,7 +206,7 @@ const EmployeesPage: React.FC = () => {
       <AddEmployeeDrawer
         open={state.addOpen}
         onClose={() => state.setAddOpen(false)}
-        onCreated={(rec) => state.setItems((pr) => [rec, ...pr])}
+        onCreated={() => { state.setAddOpen(false); state.reload(); }}
       />
       <EditEmployeeDrawer
         record={state.editOpen}

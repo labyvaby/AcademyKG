@@ -3,7 +3,7 @@
  */
 
 // Типы ролей в системе
-export type RoleName = 'superadmin' | 'admin' | 'doctor' | 'nurse' | 'receptionist' | 'registrator' | 'accountant' | 'manager' | 'owner';
+export type RoleName = 'superadmin' | 'admin' | 'doctor' | 'nurse' | 'receptionist' | 'registrator' | 'accountant' | 'manager' | 'cashier' | 'specialist' | 'owner';
 
 // Интерфейс роли
 export interface Role {
@@ -19,12 +19,14 @@ export interface Role {
 export const ROLE_HOME_PAGES: Record<RoleName, string> = {
   superadmin: '/home',
   admin: '/home',
+  manager: '/home',
   doctor: '/doctor',
+  specialist: '/doctor',
   nurse: '/nurse',
   receptionist: '/home',
   registrator: '/home',
   accountant: '/home',
-  manager: '/home',
+  cashier: '/home',
   owner: '/home',
 };
 

@@ -26,16 +26,14 @@ export function useActiveMonths(
                 const threeYearsAgo = dayjs().subtract(3, 'year').startOf('month').format('YYYY-MM-DD');
                 const oneYearAhead = dayjs().add(1, 'year').endOf('month').format('YYYY-MM-DD');
 
-                const res: any = await apiFetch(
-                    `/api/v1/appointments-aggregated/?dateFrom=${threeYearsAgo}T00:00:00&dateTo=${oneYearAhead}T23:59:59&page_size=5000`
-                );
+                const res: any = await apiFetch(`/api/v1/appointments/`);
 
                 if (cancelled) return;
 
                 const items: any[] = res?.data?.results ?? res?.results ?? (Array.isArray(res?.data) ? res.data : null) ?? (Array.isArray(res) ? res : []);
                 const months = new Set<string>();
                 items.forEach((row: any) => {
-                    const val = row.appointment_at ?? row.appointmentAt;
+                    const val = row.appointmentAt ?? row.appointment_at;
                     if (val) months.add(dayjs(val).format('YYYY-MM'));
                 });
 

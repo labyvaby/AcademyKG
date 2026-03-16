@@ -22,7 +22,7 @@ type DeleteExpenseDialogProps = {
   open: boolean;
   onClose: () => void;
   record: Expense | null;
-  onDeleted?: (id: number) => void;
+  onDeleted?: (id: string | number) => void;
 };
 
 export const DeleteExpenseDialog: React.FC<DeleteExpenseDialogProps> = ({

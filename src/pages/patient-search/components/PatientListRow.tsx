@@ -65,17 +65,17 @@ const PatientListRow: React.FC<PatientListRowProps> = ({
     >
       {/* Секция: аватар + текст */}
       <Stack direction="row" alignItems="center" spacing={1.25} sx={{ width: 1 }}>
-        <ListItemAvatar>
+        <ListItemAvatar sx={{ minWidth: 44 }}>
           <Avatar
             src={patient.photo || undefined}
             sx={{
-              width: 28,
-              height: 28,
+              width: 36,
+              height: 36,
               bgcolor: (theme) => theme.palette.primary.main,
-              fontSize: 12,
+              fontSize: 13,
             }}
           >
-            {getInitials(patient.fio)}
+            {!patient.photo && getInitials(patient.fio)}
           </Avatar>
         </ListItemAvatar>
         <ListItemText

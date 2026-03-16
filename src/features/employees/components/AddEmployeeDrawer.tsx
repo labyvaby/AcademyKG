@@ -1,7 +1,5 @@
 import React from "react";
-import { Stack, TextField, InputAdornment, Checkbox, Typography, MenuItem, IconButton } from "@mui/material";
-import VisibilityOutlined from "@mui/icons-material/VisibilityOutlined";
-import VisibilityOffOutlined from "@mui/icons-material/VisibilityOffOutlined";
+import { Stack, TextField, InputAdornment, Checkbox, Typography, MenuItem } from "@mui/material";
 import CreditCardOutlined from "@mui/icons-material/CreditCardOutlined";
 import Autocomplete from "@mui/material/Autocomplete";
 import CheckBoxOutlineBlankIcon from "@mui/icons-material/CheckBoxOutlineBlank";
@@ -29,15 +27,8 @@ export type AddEmployeeDrawerProps = {
 
 type RoleRow = { id: string; name: string; display_name: string };
 
-// Стандартные роли — загружаются из API, иначе fallback
-const FALLBACK_ROLES: RoleRow[] = [
-  { id: "superadmin", name: "superadmin", display_name: "Супер-Администратор" },
-  { id: "admin", name: "admin", display_name: "Управляющий" },
-  { id: "doctor", name: "doctor", display_name: "Сотрудник" },
-  { id: "nurse", name: "nurse", display_name: "Медсестра" },
-  { id: "receptionist", name: "receptionist", display_name: "Регистратор" },
-  { id: "accountant", name: "accountant", display_name: "Бухгалтер" },
-];
+// Роли загружаются из API через fetchRoles() — fallback пустой, т.к. id должны быть UUID
+const FALLBACK_ROLES: RoleRow[] = [];
 
 const AddEmployeeDrawer: React.FC<AddEmployeeDrawerProps> = ({ open, onClose, onCreated }) => {
   const { open: notify } = useNotification();
@@ -55,8 +46,6 @@ const AddEmployeeDrawer: React.FC<AddEmployeeDrawerProps> = ({ open, onClose, on
   const [telegramId, setTelegramId] = React.useState("");
   const [email, setEmail] = React.useState("");
   const [emailErrorMsg, setEmailErrorMsg] = React.useState("");
-  const [password, setPassword] = React.useState("");
-  const [showPassword, setShowPassword] = React.useState(false);
   const [bankAccountNumber, setBankAccountNumber] = React.useState("");
   const [nickname, setNickname] = React.useState("");
   const [passportPhotos, setPassportPhotos] = React.useState<string[]>([]);
@@ -75,7 +64,7 @@ const AddEmployeeDrawer: React.FC<AddEmployeeDrawerProps> = ({ open, onClose, on
       setRoleId(""); setSpecializationId(""); setPhotoPreview(null);
       setBirthDate(""); setStatus("active"); setBankAccountNumber("");
       setTelegramId(""); setEmail(""); setEmailErrorMsg("");
-      setPassword(""); setShowPassword(false); setSelectedServices([]);
+      setSelectedServices([]);
       setNickname(""); setPassportPhotos([]); setPassportFiles([]); setBusy(false);
     }
   }, [open]);
@@ -124,41 +113,24 @@ const AddEmployeeDrawer: React.FC<AddEmployeeDrawerProps> = ({ open, onClose, on
       setBusy(true);
       const fullPhone = composePhone(phoneCountryCode, phone);
 
-      // 1. Создать auth-пользователя
-      let authUserId: string | null = null;
-      if (fullPhone || email.trim()) {
-        try {
-          const authData = await employeeFormUtils.adminCreateUser({
-            phoneNumber: fullPhone ?? undefined,
-            password: password.trim() || "AcademyKG123!",
-            fullName: fullName.trim(),
-          });
-          authUserId = (authData as any)?.id ?? (authData as any)?.user_id ?? null;
-        } catch (e) {
-          throw new Error(employeeFormUtils.translateAuthError(e));
-        }
-      }
-
-      // 2. Создать сотрудника через REST API
       const payload: Record<string, unknown> = {
         fullName: fullName.trim(),
-        phone: fullPhone ?? undefined,
         role: roleId || undefined,
         status,
         birthDate: birthDate || undefined,
         telegramId: telegramId || undefined,
         bankAccountNumber: bankAccountNumber.trim() || undefined,
-        email: email.trim() || undefined,
         nickname: nickname.trim() || undefined,
-        authUser: authUserId ?? undefined,
         specializationIds: specializationId ? [specializationId] : [],
       };
+      if (fullPhone) payload.userPhoneNumber = fullPhone;
+      if (email.trim()) payload.userEmail = email.trim();
+      if (selectedServices.length > 0) payload.serviceIds = selectedServices.map(s => s.id);
 
-      const created = await employeeFormUtils.createEmployeeApi(payload);
-      if (!created?.id) throw new Error("Не удалось создать сотрудника");
+      await employeeFormUtils.createEmployeeApi(payload);
 
       notify?.({ type: "success", message: "Сотрудник создан" });
-      onCreated(created as unknown as EmployesRow);
+      onCreated({} as unknown as EmployesRow);
       onClose();
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "Не удалось создать сотрудника";
@@ -279,22 +251,6 @@ const AddEmployeeDrawer: React.FC<AddEmployeeDrawerProps> = ({ open, onClose, on
           <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>Email</Typography>
           <TextField value={email} onChange={e => { setEmail(e.target.value); setEmailErrorMsg(validateEmail(e.target.value)); }}
             fullWidth placeholder="example@mail.com" type="email" error={!!emailErrorMsg} helperText={emailErrorMsg} />
-        </Stack>
-
-        <Stack spacing={0.5}>
-          <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>Пароль для входа</Typography>
-          <TextField value={password} onChange={e => setPassword(e.target.value)} fullWidth placeholder="Минимум 8 символов"
-            type={showPassword ? "text" : "password"}
-            InputProps={{
-              endAdornment: (
-                <InputAdornment position="end">
-                  <IconButton size="small" onClick={() => setShowPassword(!showPassword)} edge="end">
-                    {showPassword ? <VisibilityOffOutlined fontSize="small" /> : <VisibilityOutlined fontSize="small" />}
-                  </IconButton>
-                </InputAdornment>
-              ),
-            }}
-          />
         </Stack>
 
         <Stack spacing={0.5}>

@@ -5,26 +5,18 @@ import {
   Divider,
   Drawer,
   IconButton,
-  InputAdornment,
   Stack,
-  TextField,
   Typography,
   CircularProgress
 } from "@mui/material";
 import ServiceDetailsForm from "./ServiceDetailsForm";
 import { useNotification } from "@refinedev/core";
-
 import CloseOutlined from "@mui/icons-material/CloseOutlined";
-import { supabase } from "../../utility/supabaseClient";
 import { fetchEmployees } from "../../services/employees";
 import type { EmployeesRow } from "../../pages/expenses/types";
 import type { CreatedService } from "./useAddServiceForm";
 import ServicePhotoUploader from "./ServicePhotoUploader";
-import { uploadFile } from "../../utility/storage";
-
-const importMetaEnv =
-  (import.meta as unknown as { env?: Record<string, string | undefined> }).env || {};
-const SERVICES_WRITE: string = importMetaEnv.VITE_SERVICES_WRITE_TABLE || "Services";
+import { updateService } from "../../services/services";
 
 type Props = {
   open: boolean;
@@ -79,11 +71,11 @@ const DrawerBase: React.FC<{
           py={2}
           sx={{
             flex: 1,
-            overflowY: 'auto',
-            scrollbarWidth: 'none',
-            msOverflowStyle: 'none',
-            '&::-webkit-scrollbar': {
-              display: 'none',
+            overflowY: "auto",
+            scrollbarWidth: "none",
+            msOverflowStyle: "none",
+            "&::-webkit-scrollbar": {
+              display: "none",
             },
           }}
         >
@@ -164,26 +156,12 @@ const EditServiceDrawer: React.FC<Props> = ({ open, onClose, record, onUpdated }
     const load = async () => {
       try {
         setLoadingEmps(true);
-        const [emps, { data: links }] = await Promise.all([
-          fetchEmployees(),
-          supabase.from("EmployeeServices").select("employee_id").eq("service_id", String(record.id))
-        ]);
-
+        const emps = await fetchEmployees();
         if (!cancelled) {
           setEmployees(emps);
-
-          if (links && links.length > 0) {
-            const linkedIds = links.map(l => String(l.employee_id));
-            const found = emps.filter(e => linkedIds.includes(String(e.id)));
+          if (record.employee_id) {
+            const found = emps.filter(e => String(e.id) === String(record.employee_id));
             setSelectedEmps(found);
-          } else {
-            // Legacy fallback: try preselect by employee_id if not found in junction table
-            if (record.employee_id) {
-              const found = emps.filter(e => String(e.id) === String(record.employee_id));
-              setSelectedEmps(found);
-            } else {
-              setSelectedEmps([]);
-            }
           }
         }
       } finally {
@@ -219,109 +197,36 @@ const EditServiceDrawer: React.FC<Props> = ({ open, onClose, record, onUpdated }
       return;
     }
 
-
     try {
       setBusy(true);
 
-      const employeeId = selectedEmps[0]?.id ?? null;
-
-      // 1) При необходимости загружаем новое фото и получаем publicUrl
-      let photoUrl: string | null | undefined = undefined;
-      if (photoFile) {
-        try {
-          const publicUrl = await uploadFile(photoFile, "service_photos");
-          photoUrl = publicUrl || null;
-        } catch {
-          photoUrl = null;
-        }
-      }
-
-      // 2) Формируем payload для Services (имя, фото, цена)
-      // Используем правильные названия колонок: name и image_url
-      const primaryPayload: Record<string, unknown> = {
+      const updated = await updateService(record.id, {
         name: name.trim(),
-        price_som: priceNum, // Синхронизируем цену здесь тоже
-        description: description.trim() || null,
-      };
-      if (photoUrl !== undefined) primaryPayload["image_url"] = photoUrl;
-
-
-      // 3) Обновляем Services по sellable_item_id (это PK)
-      const { data: updated, error: updateError } = await supabase
-        .from(SERVICES_WRITE)
-        .update(primaryPayload)
-        .eq("sellable_item_id", record.id)
-        .select("*")
-        .maybeSingle();
-
-      if (updateError) throw updateError;
-
-      // Обновляем статус в SellableItems
-      const { error: sellableError } = await supabase
-        .from("SellableItems")
-        .update({ is_active: isActive })
-        .eq("id", record.id);
-
-      if (sellableError) {
-        console.error("SellableItems update error:", sellableError);
-      }
-
-      const sId = String(record.id);
-
-      // 4) Обновление Цены в Prices
-      if (sId) {
-        // Ищем текущую цену
-        const { data: priceData } = await supabase
-          .from("Prices")
-          .select("id")
-          .eq("sellable_item_id", sId)
-          .eq("is_current", true)
-          .maybeSingle();
-
-        if (priceData && priceData.id) {
-          // Обновляем
-          await supabase.from("Prices").update({ price: priceNum }).eq("id", priceData.id);
-        } else {
-          // Вставляем новую
-          await supabase.from("Prices").insert({
-            sellable_item_id: sId,
-            price: priceNum,
-            is_current: true
-          });
-        }
-      }
-
-      // 5) Обновление связей с сотрудниками (M:N) - REMOVED
+        priceSom: priceNum,
+        description: description.trim(),
+        isActive,
+        imageUrl: photoFile || undefined,
+      });
 
       const out: CreatedService = {
-        id:
-          (updated?.["sellable_item_id"] as string | number | undefined) ??
-          record.id,
-        name:
-          (updated?.["name"] as string) ??
-          name.trim(),
-        price: priceNum,
-        service_name:
-          (updated?.["name"] as string) ??
-          name.trim(),
-        price_som: priceNum,
+        id: updated.id,
+        name: updated.name,
+        price: updated.price || 0,
+        service_name: updated.name,
+        price_som: updated.price || 0,
         employee_id: null,
         employee_name: record.employee_name ?? null,
-        photo_url:
-          (updated?.["image_url"] as string | null) ??
-          (photoUrl !== undefined ? photoUrl : record.photo_url ?? null) ??
-          null,
+        photo_url: updated.photoUrl || null,
       };
 
       onUpdated?.(out);
       onClose();
     } catch (e) {
       console.error("Update service failed:", e);
-      notify?.({ type: "error", message: "Не удалось обновить услугу. Проверьте схему таблицы и права RLS." });
+      notify?.({ type: "error", message: "Не удалось обновить услугу." });
     } finally {
       setBusy(false);
     }
-
   };
 
   return (

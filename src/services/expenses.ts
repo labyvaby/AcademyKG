@@ -1,68 +1,92 @@
-
 import { apiFetch } from "../utility/apiClient";
+import { mapApiExpense } from "../pages/expenses/types";
 import type { Expense } from "../pages/expenses/types";
 
+const API_BASE = "https://academy.operator.kg";
+
+function resolvePhotoUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  if (url.startsWith("http")) return url;
+  return `${API_BASE}${url}`;
+}
+
 export const ExpensesService = {
-  async getAll(employeeId?: string | null) {
-    let url = "/api/v1/expenses/?page_size=1000";
-
+  async getAll(employeeId?: string | null): Promise<Expense[]> {
+    let url = "/api/v1/expenses/?ordering=-createdAt";
     if (employeeId) {
-      url += `&employee_id=${employeeId}`;
+      url += `&employee=${employeeId}`;
     }
-
     const res: any = await apiFetch(url);
-    const data = res?.data?.results ?? res?.results ?? res;
-    return data as Expense[];
+    const data: any[] = res?.data?.results ?? res?.results ?? [];
+    return data.map((r) => {
+      const e = mapApiExpense(r);
+      if (typeof e.photo === "string") e.photo = resolvePhotoUrl(e.photo);
+      return e;
+    });
   },
 
-  async create(expense: any) {
-    const formData = new FormData();
-    Object.entries(expense).forEach(([key, value]) => {
-      if (value !== undefined && value !== null) {
-        // Map snake_case to camelCase for Django if needed, 
-        // though some APIs use snake_case. Based on Swagger: cashAmount, cashlessAmount etc.
-        const apiKey = key.replace(/_([a-z])/g, (g) => g[1].toUpperCase());
-        if (value instanceof File) {
-          formData.append(apiKey, value);
-        } else {
-          formData.append(apiKey, String(value));
-        }
-      }
-    });
+  async create(expense: any): Promise<Expense> {
+    const fd = new FormData();
+
+    // Map snake_case form fields → camelCase API fields
+    const employeeId = expense.employee_id ?? expense.employeeId ?? null;
+    const categoryId = expense.category_id ?? expense.categoryId ?? null;
+
+    if (employeeId) fd.append("employee", String(employeeId));
+    if (categoryId) fd.append("category", String(categoryId));
+    if (expense.name) fd.append("name", expense.name);
+    fd.append("cashAmount", String(Number(expense.cash_amount ?? expense.cashAmount) || 0));
+    fd.append("cashlessAmount", String(Number(expense.cashless_amount ?? expense.cashlessAmount) || 0));
+    if (expense.comment) fd.append("comment", expense.comment);
+    if (expense.photo instanceof File) {
+      fd.append("photo", expense.photo);
+    } else if (expense.photoFile instanceof File) {
+      fd.append("photo", expense.photoFile);
+    }
 
     const res: any = await apiFetch("/api/v1/expenses/", {
       method: "POST",
-      body: formData,
+      body: fd,
     });
-    return (res?.data ?? res) as Expense;
+    const item = res?.data ?? res;
+    const e = mapApiExpense(item);
+    if (typeof e.photo === "string") e.photo = resolvePhotoUrl(e.photo);
+    return e;
   },
 
-  async update(id: number | string, updates: Partial<Expense>) {
-    const formData = new FormData();
-    const { id: _, created_at, updated_at, ...cleanUpdates } = updates as any;
+  async update(id: number | string, updates: any): Promise<Expense> {
+    const fd = new FormData();
 
-    Object.entries(cleanUpdates).forEach(([key, value]) => {
-      if (value !== undefined && value !== null) {
-        const apiKey = key.replace(/_([a-z])/g, (g) => g[1].toUpperCase());
-        if (value instanceof File) {
-          formData.append(apiKey, value);
-        } else {
-          formData.append(apiKey, String(value));
-        }
-      }
-    });
+    const employeeId = updates.employee_id ?? updates.employeeId ?? null;
+    const categoryId = updates.category_id ?? updates.categoryId ?? null;
+
+    // Always send employee/category (can be empty string to clear)
+    fd.append("employee", employeeId ? String(employeeId) : "");
+    fd.append("category", categoryId ? String(categoryId) : "");
+    if (updates.name !== undefined) fd.append("name", updates.name);
+    if (updates.cash_amount !== undefined) fd.append("cashAmount", String(Number(updates.cash_amount) || 0));
+    if (updates.cashless_amount !== undefined) fd.append("cashlessAmount", String(Number(updates.cashless_amount) || 0));
+    if (updates.comment !== undefined) fd.append("comment", updates.comment ?? "");
+    if (updates.photo instanceof File) {
+      fd.append("photo", updates.photo);
+    } else if (updates.photoFile instanceof File) {
+      fd.append("photo", updates.photoFile);
+    }
 
     const res: any = await apiFetch(`/api/v1/expenses/${id}/`, {
       method: "PATCH",
-      body: formData,
+      body: fd,
     });
-    return (res?.data ?? res) as Expense;
+    const item = res?.data ?? res;
+    const e = mapApiExpense(item);
+    if (typeof e.photo === "string") e.photo = resolvePhotoUrl(e.photo);
+    return e;
   },
 
-  async delete(id: number | string) {
+  async delete(id: number | string): Promise<boolean> {
     await apiFetch(`/api/v1/expenses/${id}/`, {
       method: "DELETE",
     });
     return true;
-  }
+  },
 };

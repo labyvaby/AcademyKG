@@ -24,7 +24,7 @@ import { usePageTitle } from "../../hooks/usePageTitle";
 import { usePermissions } from "../../hooks/usePermissions";
 import { useActiveMonths } from "../../hooks/useActiveMonths";
 import { formatKGS } from "../../utility/format";
-import { supabase } from "../../utility/supabaseClient";
+import { apiFetch } from "../../utility/apiClient";
 import dayjs from "dayjs";
 import SalaryReportRow, { COLUMNS_REGISTRATOR, COLUMNS_DOCTOR, COLUMNS_NURSE, COLUMNS_ADMIN, ColumnConfig } from "./components/SalaryReportRow";
 import { calculateEmployeeSalary } from "../../features/employees/utils";
@@ -63,7 +63,7 @@ const SalaryReportsPage: React.FC = () => {
     const { open: notify } = useNotification();
     const { isSuperAdmin, hasRole, employeeId, loading: permissionsLoading } = usePermissions();
 
-    const canSeeAll = useMemo(() => isSuperAdmin() || hasRole(['accountant', 'admin']), [isSuperAdmin, hasRole]);
+    const canSeeAll = useMemo(() => isSuperAdmin() || hasRole(['accountant', 'admin', 'manager']), [isSuperAdmin, hasRole]);
 
     // State
     const [selectedDate, setSelectedDate] = useState<string>(dayjs().format('YYYY-MM-DD'));
@@ -93,153 +93,72 @@ const SalaryReportsPage: React.FC = () => {
 
         try {
             setLoading(true);
-            const startOfMonth = dayjs(selectedDate).startOf('month');
-            const endOfMonth = dayjs(selectedDate).endOf('month');
-
-            // 2. Fetch Roles first to know who are registrators
-            const { data: roles, error: rolesError } = await supabase
-                .from("roles")
-                .select("id, name, display_name");
-
-            if (rolesError) throw rolesError;
-
-            const rolesMap = new Map((roles || []).map(r => [r.id, r.display_name]));
-            const roleNameMap = new Map((roles || []).map(r => [r.id, r.name as string]));
-            const registratorRoleIds = (roles || [])
-                .filter(r => r.name === 'registrator' || r.name === 'receptionist')
-                .map(r => r.id);
-            const nurseRoleIds = new Set((roles || [])
-                .filter(r => r.name === 'nurse' || r.name === 'procedure')
-                .map(r => r.id));
 
             // 1. Fetch Employees
-            let empQuery = supabase
-                .from("Employees")
-                .select("id, full_name, salary_rules, role_id")
-                .eq("status", "active");
+            const empParams = new URLSearchParams({ status: "active" });
+            if (!canSeeAll && employeeId) empParams.set("search", employeeId);
+            const empRes: any = await apiFetch(`/api/v1/employees/?${empParams.toString()}`);
+            const employees: any[] = empRes?.data?.results ?? empRes?.results ?? [];
 
-            if (!canSeeAll) {
-                // We need the current employee AND all registrators for correct distribution
-                empQuery = empQuery.or(`id.eq.${employeeId},role_id.in.(${registratorRoleIds.join(',')})`);
-            }
+            // 2. Fetch Work Shifts
+            const shiftsRes: any = await apiFetch(`/api/v1/work-shifts/`);
+            const skudShifts: any[] = shiftsRes?.data?.results ?? shiftsRes?.results ?? [];
 
-            const { data: employees, error: empError } = await empQuery;
-            if (empError) throw empError;
+            // 3. Fetch Appointments
+            const apptParams = new URLSearchParams({ ordering: "-appointmentAt" });
+            if (!canSeeAll && employeeId) apptParams.set("employee", employeeId);
+            const apptRes: any = await apiFetch(`/api/v1/appointments/?${apptParams.toString()}`);
+            const appointments: any[] = apptRes?.data?.results ?? apptRes?.results ?? [];
 
-            // 2. Fetch Actual Work Shifts (SKUD)
-            let skudQuery = supabase
-                .from("WorkShifts")
-                .select("employee_id, clock_in, clock_out, is_night_shift")
-                .gte("clock_in", startOfMonth.toISOString())
-                .lte("clock_in", endOfMonth.toISOString())
-                .limit(10000);
+            // 3.1 All clinic appointments
+            const allApptRes: any = await apiFetch(`/api/v1/appointments/?ordering=-appointmentAt`);
+            const allClinicAppointments: any[] = allApptRes?.data?.results ?? allApptRes?.results ?? [];
 
-            if (!canSeeAll) {
-                const empIds = (employees || []).map(e => e.id);
-                skudQuery = skudQuery.in("employee_id", empIds);
-            }
-
-            const { data: skudShifts, error: skudError } = await skudQuery;
-
-            if (skudError) throw skudError;
-
-            // 3. Fetch Appointments (Aggregated) — filtered by employee for salary calc
-            let apptQuery = supabase
-                .from("AppointmentsAggregated")
-                .select("id, doctor_id, performer_ids, total_amount, paid_cash, paid_card, discount, services_json, status, appointment_at, is_night")
-                .gte("appointment_at", startOfMonth.toISOString())
-                .lte("appointment_at", endOfMonth.toISOString())
-                .limit(10000);
-
-            if (!canSeeAll) {
-                apptQuery = apptQuery.or(`doctor_id.eq.${employeeId},performer_ids.cs.{${employeeId}}`);
-            }
-
-            const { data: appointments, error: apptError } = await apptQuery;
-
-            if (apptError) throw apptError;
-
-            // 3.1 Fetch ALL clinic appointments for registrator distribution and created_by count
-            const { data: allClinicAppointments } = await supabase
-                .from("AppointmentsAggregated")
-                .select("appointment_at, is_night, created_by, status, services_json, paid_bonuses, performer_ids, doctor_id")
-                .gte("appointment_at", startOfMonth.toISOString())
-                .lte("appointment_at", endOfMonth.toISOString())
-                .limit(10000);
-
-            setMonthAppointments(appointments || []);
-            setAllClinicAppts(allClinicAppointments || []);
-
-            // 3.2 Fetch all employee roles to know who is a doctor
-            const { data: allEmpRoles } = await supabase
-                .from("Employees")
-                .select("id, role_id");
-
-            const doctorRoleIds = new Set(
-                (roles || []).filter(r => r.name === 'doctor').map(r => r.id)
-            );
-
-            const doctorEmpIds = new Set(
-                (allEmpRoles || [])
-                    .filter(e => doctorRoleIds.has(e.role_id))
-                    .map(e => e.id)
-            );
-
-            const nurseEmpIds = new Set(
-                (allEmpRoles || [])
-                    .filter(e => nurseRoleIds.has(e.role_id))
-                    .map(e => e.id)
-            );
+            setMonthAppointments(appointments);
+            setAllClinicAppts(allClinicAppointments);
 
             // 4. Fetch Expenses
-            // Salary categories use affects_month to determine which month they deduct from.
-            // "Заработная плата"/"ЗП" affects previous month; "Аванс" affects same month as created_at.
-            // Old records without affects_month fall back to created_at range for backwards compatibility.
-            const selectedMonth = dayjs(selectedDate).format("YYYY-MM");
+            const expRes: any = await apiFetch(`/api/v1/expenses/`);
+            const expenses: any[] = expRes?.data?.results ?? expRes?.results ?? [];
 
-            let expQuery = supabase
-                .from("Expenses")
-                .select("employee_id, total_amount, created_at, category, affects_month")
-                .or(
-                    `affects_month.eq.${selectedMonth},and(affects_month.is.null,created_at.gte.${startOfMonth.toISOString()},created_at.lte.${endOfMonth.toISOString()})`
-                )
-                .limit(10000);
-
-            if (!canSeeAll) {
-                expQuery = expQuery.eq("employee_id", employeeId);
-            }
-
-            const { data: expenses, error: expensesError } = await expQuery;
-
-            if (expensesError) throw expensesError;
+            // Role helpers from employee data
+            const rolesMap = new Map<string, string>();
+            const roleNameMap = new Map<string, string>();
+            const doctorEmpIds = new Set<string>();
+            const nurseEmpIds = new Set<string>();
+            employees.forEach((e: any) => {
+                const rn = (e.roleName ?? '').toLowerCase();
+                rolesMap.set(e.id, e.roleName ?? '');
+                roleNameMap.set(e.id, rn);
+                if (rn === 'doctor' || rn === 'врач') doctorEmpIds.add(e.id);
+                if (rn === 'nurse' || rn === 'медсестра') nurseEmpIds.add(e.id);
+            });
 
             // Grouping data by employeeId for performance
             const shiftsByEmployee = new Map<string, any[]>();
-            (skudShifts || []).forEach(s => {
-                const list = shiftsByEmployee.get(s.employee_id) || [];
+            skudShifts.forEach((s: any) => {
+                const eid = s.employee?.id ?? s.employee ?? s.employes_id ?? s.employesId;
+                if (!eid) return;
+                const list = shiftsByEmployee.get(eid) || [];
                 list.push(s);
-                shiftsByEmployee.set(s.employee_id, list);
+                shiftsByEmployee.set(eid, list);
             });
 
             const expensesByEmployee = new Map<string, any[]>();
-            (expenses || []).forEach(e => {
-                const list = expensesByEmployee.get(e.employee_id) || [];
+            expenses.forEach((e: any) => {
+                const eid = e.employee?.id ?? e.employee ?? e.employee_id;
+                if (!eid) return;
+                const list = expensesByEmployee.get(eid) || [];
                 list.push(e);
-                expensesByEmployee.set(e.employee_id, list);
+                expensesByEmployee.set(eid, list);
             });
 
             const appointmentsByEmployee = new Map<string, any[]>();
-            (appointments || []).forEach(a => {
+            appointments.forEach((a: any) => {
                 const ids = new Set<string>();
-                if (a.doctor_id) ids.add(a.doctor_id);
-                if (Array.isArray(a.performer_ids)) {
-                    a.performer_ids.forEach((id: string) => ids.add(id));
-                } else if (typeof a.performer_ids === 'string') {
-                    a.performer_ids.replace(/{|}/g, '').split(',').forEach((s: string) => {
-                        const id = s.trim();
-                        if (id) ids.add(id);
-                    });
-                }
+                const services: any[] = a.services ?? [];
+                services.forEach((s: any) => { if (s.performer?.id) ids.add(s.performer.id); });
+                if (a.doctorId ?? a.doctor_id) ids.add(a.doctorId ?? a.doctor_id);
                 ids.forEach(id => {
                     const list = appointmentsByEmployee.get(id) || [];
                     list.push(a);
@@ -264,9 +183,9 @@ const SalaryReportsPage: React.FC = () => {
 
                 return {
                     id: emp.id,
-                    full_name: emp.full_name || "Без имени",
-                    role: rolesMap.get(emp.role_id) || "Сотрудник",
-                    role_name: roleNameMap.get(emp.role_id) || "",
+                    full_name: emp.fullName ?? emp.full_name ?? "Без имени",
+                    role: emp.roleName ?? rolesMap.get(emp.role ?? emp.role_id) ?? "Сотрудник",
+                    role_name: (emp.roleName ?? roleNameMap.get(emp.role ?? emp.role_id) ?? "").toLowerCase(),
                     day_hours: result.dayHours,
                     night_hours: result.nightHours,
                     hours_sum: result.hoursSum,
@@ -455,24 +374,14 @@ const SalaryReportsPage: React.FC = () => {
         fetchData();
     }, [fetchData]);
 
-    // Realtime subscriptions — invalidate cache for current month and refresh
+    // Polling every 60s to refresh data
     useEffect(() => {
-        const invalidateAndRefetch = () => {
+        const timer = setInterval(() => {
             const cacheKey = dayjs(selectedDate).format('YYYY-MM');
             cache.current.delete(cacheKey);
             fetchData(true);
-        };
-
-        const channel = supabase
-            .channel('salary-reports-realtime')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'WorkShifts' }, invalidateAndRefetch)
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'AppointmentsAggregated' }, invalidateAndRefetch)
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'Expenses' }, invalidateAndRefetch)
-            .subscribe();
-
-        return () => {
-            supabase.removeChannel(channel);
-        };
+        }, 60_000);
+        return () => clearInterval(timer);
     }, [fetchData, selectedDate]);
 
     const summary = useMemo(() => {
@@ -545,10 +454,11 @@ const SalaryReportsPage: React.FC = () => {
                         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
                             {(() => {
                                 const roleGroups: { label: string; roleNames: string[] }[] = [
-                                    { label: 'Специалисты', roleNames: ['doctor'] },
+                                    { label: 'Специалисты', roleNames: ['doctor', 'specialist'] },
                                     { label: 'Медсёстры / Процедуры', roleNames: ['nurse', 'procedure'] },
                                     { label: 'Регистраторы', roleNames: ['registrator', 'receptionist'] },
-                                    { label: 'Администраторы', roleNames: ['admin', 'accountant', 'superadmin'] },
+                                    { label: 'Кассиры', roleNames: ['cashier'] },
+                                    { label: 'Администраторы', roleNames: ['admin', 'manager', 'accountant', 'superadmin'] },
                                     { label: 'Техперсонал / Санитарки', roleNames: ['cleaner', 'сleaner'] },
                                 ];
 
@@ -620,10 +530,11 @@ const SalaryReportsPage: React.FC = () => {
                             {(() => {
                                 // Define role groups: order, label, column config, matching role_names
                                 const roleGroups: { label: string; roleNames: string[]; cols: ColumnConfig }[] = [
-                                    { label: 'Специалисты', roleNames: ['doctor'], cols: COLUMNS_DOCTOR },
+                                    { label: 'Специалисты', roleNames: ['doctor', 'specialist'], cols: COLUMNS_DOCTOR },
                                     { label: 'Медсёстры / Процедуры', roleNames: ['nurse', 'procedure'], cols: COLUMNS_NURSE },
                                     { label: 'Регистраторы', roleNames: ['registrator', 'receptionist'], cols: COLUMNS_REGISTRATOR },
-                                    { label: 'Администраторы', roleNames: ['admin', 'accountant', 'superadmin'], cols: COLUMNS_ADMIN },
+                                    { label: 'Кассиры', roleNames: ['cashier'], cols: COLUMNS_ADMIN },
+                                    { label: 'Администраторы', roleNames: ['admin', 'manager', 'accountant', 'superadmin'], cols: COLUMNS_ADMIN },
                                     { label: 'Техперсонал / Санитарки', roleNames: ['cleaner', 'сleaner'], cols: COLUMNS_ADMIN },
                                 ];
 

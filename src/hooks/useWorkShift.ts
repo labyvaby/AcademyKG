@@ -16,7 +16,7 @@ const fetchWorkShift = async (employeeId: string | null): Promise<{ activeShift:
 
     try {
         // Fetch the most recent shift for this employee
-        const res: any = await apiFetch(`/api/v1/work-shifts/?employee=${employeeId}&ordering=-clock_in&page_size=1`);
+        const res: any = await apiFetch(`/api/v1/work-shifts/?employee=${employeeId}&ordering=-shiftDate`);
         const shifts = res?.data?.results ?? res?.results ?? [];
         const latestShift = shifts[0];
 

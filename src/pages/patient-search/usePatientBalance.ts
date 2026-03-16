@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { supabase } from "../../utility/supabaseClient";
-import { DB_TABLES } from "../../utility/constants";
+import { apiFetch } from "../../utility/apiClient";
 
 export type PatientBalance = {
   balance: number;
@@ -13,7 +12,7 @@ export type PaymentMethod = "cash" | "card" | "free";
 export type TopUpPayload = {
   type: TopUpType;
   amount: number;
-  payment_method?: PaymentMethod; // required for balance
+  payment_method?: PaymentMethod;
   note?: string;
 };
 
@@ -41,27 +40,23 @@ export function usePatientBalance(patientId: string | null | undefined) {
 
     setState((s) => ({ ...s, loading: true, errorMsg: null }));
 
-    const { data, error } = await supabase
-      .from(DB_TABLES.PATIENT_BALANCES)
-      .select("balance, bonuses")
-      .eq("patient_id", patientId)
-      .maybeSingle();
-
-    if (error) {
-      setState({ data: null, loading: false, errorMsg: error.message });
-      return;
+    try {
+      const res: any = await apiFetch(`/api/v1/clients/${patientId}/`);
+      const data = res?.data ?? res;
+      const bal = data?.balance;
+      setState({
+        data: bal
+          ? {
+              balance: Number(bal.balance) || 0,
+              bonuses: Number(bal.bonuses) || 0,
+            }
+          : { balance: 0, bonuses: 0 },
+        loading: false,
+        errorMsg: null,
+      });
+    } catch (e: any) {
+      setState({ data: null, loading: false, errorMsg: e?.message ?? String(e) });
     }
-
-    setState({
-      data: data
-        ? {
-            balance: Number(data.balance) || 0,
-            bonuses: Number(data.bonuses) || 0,
-          }
-        : { balance: 0, bonuses: 0 },
-      loading: false,
-      errorMsg: null,
-    });
   }, [patientId]);
 
   useEffect(() => {
@@ -75,42 +70,34 @@ export function usePatientBalance(patientId: string | null | undefined) {
       setSubmitting(true);
       setSubmitError(null);
 
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      try {
+        const body: Record<string, any> = {
+          patient: patientId,
+          txType: payload.type,
+          amount: payload.amount < 0 ? String(payload.amount) : String(payload.amount),
+        };
+        if (payload.payment_method && payload.payment_method !== "free") {
+          body.paymentMethod = payload.payment_method;
+        }
+        if (payload.note) body.note = payload.note;
 
-      const { data, error } = await supabase.rpc("top_up_patient_balance", {
-        p_patient_id: patientId,
-        p_type: payload.type,
-        p_amount: payload.amount,
-        p_payment_method: (payload.payment_method && payload.payment_method !== "free") ? payload.payment_method : null,
-        p_note: payload.note ?? null,
-        p_created_by: user?.id ?? null,
-      });
-
-      setSubmitting(false);
-
-      if (error) {
-        setSubmitError(error.message);
-        return false;
-      }
-
-      // RPC returns an array with one row (columns prefixed with out_)
-      const row = Array.isArray(data) ? data[0] : data;
-      if (row) {
-        setState({
-          data: {
-            balance: Number(row.out_balance) || 0,
-            bonuses: Number(row.out_bonuses) || 0,
-          },
-          loading: false,
-          errorMsg: null,
+        await apiFetch("/api/v1/client-balance-transactions/", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
         });
-      }
 
-      return true;
+        // Reload balance from client detail
+        await load();
+        return true;
+      } catch (e: any) {
+        setSubmitError(e?.message ?? String(e));
+        return false;
+      } finally {
+        setSubmitting(false);
+      }
     },
-    [patientId]
+    [patientId, load]
   );
 
   return {

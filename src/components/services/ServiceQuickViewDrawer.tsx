@@ -22,11 +22,19 @@ import {
 } from "@mui/icons-material";
 import dayjs from "dayjs";
 import "dayjs/locale/ru";
-import { supabase } from "../../utility/supabaseClient";
+import { apiFetch } from "../../utility/apiClient";
 import { formatKGS } from "../../utility/format";
 import { getStatusConfig, getStatusChipSx } from "../../config/appointmentStatuses";
 
 dayjs.locale("ru");
+
+const API_BASE = "https://academy.operator.kg";
+
+function resolveUrl(url: string | null | undefined): string | undefined {
+  if (!url) return undefined;
+  if (url.startsWith("http")) return url;
+  return `${API_BASE}${url}`;
+}
 
 // Интерфейс детальной информации об услуге
 export interface ServiceDetail {
@@ -72,7 +80,6 @@ export const ServiceQuickViewDrawer: React.FC<ServiceQuickViewDrawerProps> = ({
   const [employees, setEmployees] = useState<ServiceEmployee[]>([]);
   const [recentHistory, setRecentHistory] = useState<ServiceHistory[]>([]);
 
-  // Загрузка данных услуги
   useEffect(() => {
     if (!serviceId || !open) {
       setService(null);
@@ -87,129 +94,96 @@ export const ServiceQuickViewDrawer: React.FC<ServiceQuickViewDrawerProps> = ({
       try {
         setLoading(true);
 
-        // Запрос данных услуги из таблицы Services
-        const { data: serviceData, error: serviceError } = await supabase
-          .from("Services")
-          .select("sellable_item_id, name, image_url, price_som, description")
-          .eq("sellable_item_id", serviceId)
-          .maybeSingle();
+        // Загружаем данные услуги из REST API
+        const res: any = await apiFetch(`/api/v1/services/${serviceId}/`);
+        const item = res?.data ?? res;
 
-        if (serviceError) {
-          console.error("Ошибка загрузки услуги:", serviceError);
-          throw serviceError;
-        }
+        if (!active) return;
 
-        // Запрос статуса активности
-        let isActive = true;
-        if (serviceData) {
-          const { data: sItem } = await supabase
-            .from("SellableItems")
-            .select("is_active")
-            .eq("id", serviceId)
-            .maybeSingle();
-          if (sItem) isActive = sItem.is_active;
-        }
+        if (item) {
+          setService({
+            id: String(item.id ?? item.sellableItem ?? serviceId),
+            name: item.name ?? "Не указано",
+            price: item.price ?? item.priceSom ?? null,
+            photoUrl: resolveUrl(item.imageUrl ?? item.image_url) ?? null,
+            employeeIds: item.employeeIds ?? [],
+            description: item.description ?? null,
+            isActive: item.isActive ?? item.is_active ?? true,
+          });
 
-        // Запрос цены из таблицы Prices
-        let currentPrice: number | null = null;
-        if (serviceData) {
-          const { data: priceData } = await supabase
-            .from("Prices")
-            .select("price")
-            .eq("sellable_item_id", serviceId)
-            .eq("is_current", true)
-            .maybeSingle();
-
-          if (priceData) {
-            currentPrice = priceData.price;
+          // Загружаем сотрудников если есть
+          const empIds: string[] = item.employeeIds ?? [];
+          if (empIds.length > 0) {
+            try {
+              const empsRes: any = await apiFetch(`/api/v1/employees/?status=active`);
+              const allEmps: any[] = empsRes?.data?.results ?? empsRes?.results ?? [];
+              const filtered = allEmps.filter((e: any) =>
+                empIds.includes(String(e.id))
+              );
+              if (active) {
+                setEmployees(
+                  filtered.map((e: any) => ({
+                    id: String(e.id),
+                    full_name: e.fullName ?? e.full_name ?? "Не указано",
+                    specialization: e.role?.name ?? e.roleName ?? undefined,
+                  }))
+                );
+              }
+            } catch {
+              // ignore employee load errors
+            }
           }
         }
 
-        // Fallback to price_som from Services table if needed
-        const finalPrice = currentPrice ?? (serviceData?.price_som ? Number(serviceData.price_som) : null);
+        // Загружаем последние приёмы с этой услугой
+        try {
+          const aptsRes: any = await apiFetch(
+            `/api/v1/appointments/?ordering=-appointmentAt`
+          );
+          const apts: any[] = aptsRes?.data?.results ?? aptsRes?.results ?? [];
 
-        // Запрос сотрудников, выполняющих услугу
-        const { data: employeeLinksData } = await supabase
-          .from("EmployeeServices")
-          .select("employee_id")
-          .eq("service_id", serviceId);
+          // Фильтруем по serviceId в массиве services
+          const filtered = apts
+            .filter((apt: any) => {
+              const services: any[] = Array.isArray(apt.services) ? apt.services : [];
+              return services.some(
+                (s: any) =>
+                  String(s.sellableItem ?? s.sellable_item ?? s.id) === String(serviceId)
+              );
+            })
+            .slice(0, 5);
 
-        const employeeIds = employeeLinksData?.map(link => link.employee_id) || [];
-
-        if (active && serviceData) {
-          setService({
-            id: String(serviceData.sellable_item_id),
-            name: serviceData.name || "Не указано",
-            price: finalPrice,
-            photoUrl: serviceData.image_url || null,
-            employeeIds: employeeIds,
-            description: serviceData.description || null,
-            isActive: isActive,
-          });
-        }
-
-        // Запрос данных сотрудников
-        if (employeeIds.length > 0) {
-          const { data: employeesData } = await supabase
-            .from("Employees")
-            .select(`
-              id,
-              full_name,
-              roles (
-                display_name
-              )
-            `)
-            .in("id", employeeIds);
-
-          if (active && employeesData) {
-            setEmployees(
-              employeesData.map((emp: any) => ({
-                id: emp.id,
-                full_name: emp.full_name || "Не указано",
-                specialization: emp.roles?.display_name || undefined,
-              }))
+          if (active) {
+            setRecentHistory(
+              filtered.map((apt: any) => {
+                const patientNested = apt.patient ?? null;
+                const patientName =
+                  apt.patientName ??
+                  apt.patient_name ??
+                  patientNested?.fullName ??
+                  patientNested?.full_name ??
+                  "Не указан";
+                const servicesArr: any[] = Array.isArray(apt.services) ? apt.services : [];
+                const doctorName =
+                  apt.doctorName ??
+                  apt.doctor_name ??
+                  servicesArr[0]?.performer?.fullName ??
+                  "Не указан";
+                return {
+                  id: String(apt.id),
+                  appointment_at: apt.appointmentAt ?? apt.appointment_at ?? "",
+                  formatted_date: apt.appointmentAt
+                    ? dayjs(apt.appointmentAt).format("DD.MM.YYYY HH:mm")
+                    : "",
+                  patient_name: patientName,
+                  doctor_name: doctorName,
+                  status: apt.status ?? "unknown",
+                };
+              })
             );
           }
-        }
-
-        // Запрос последних 5 приемов с этой услугой
-        // Используем services_json для поиска
-        const { data: appointmentsData } = await supabase
-          .from("AppointmentsAggregated")
-          .select("id, appointment_at, formatted_date, patient_name, doctor_name, status, services_json")
-          .order("appointment_at", { ascending: false })
-          .limit(50); // Берем больше, чтобы отфильтровать
-
-        if (active && appointmentsData) {
-          // Фильтруем appointments, которые содержат эту услугу в services_json
-          const filtered = appointmentsData.filter((apt: any) => {
-            if (!apt.services_json) return false;
-
-            try {
-              const services = typeof apt.services_json === 'string'
-                ? JSON.parse(apt.services_json)
-                : apt.services_json;
-
-              if (Array.isArray(services)) {
-                return services.some((s: any) => s.id === serviceId || s.service_id === serviceId);
-              }
-            } catch (e) {
-              return false;
-            }
-
-            return false;
-          }).slice(0, 5); // Берем только первые 5
-
-          setRecentHistory(
-            filtered.map((apt: any) => ({
-              id: String(apt.id),
-              appointment_at: apt.appointment_at || "",
-              formatted_date: apt.formatted_date || "",
-              patient_name: apt.patient_name || "Не указан",
-              doctor_name: apt.doctor_name || "Не указан",
-              status: apt.status || "Неизвестно",
-            }))
-          );
+        } catch {
+          // ignore history load errors
         }
       } catch (error) {
         console.error("Ошибка при загрузке данных услуги:", error);
@@ -265,15 +239,14 @@ export const ServiceQuickViewDrawer: React.FC<ServiceQuickViewDrawerProps> = ({
           p: 2,
           overflowY: "auto",
           flex: 1,
-          scrollbarWidth: 'none',
-          msOverflowStyle: 'none',
-          '&::-webkit-scrollbar': {
-            display: 'none',
+          scrollbarWidth: "none",
+          msOverflowStyle: "none",
+          "&::-webkit-scrollbar": {
+            display: "none",
           },
         }}
       >
         {loading ? (
-          // Скелетон при загрузке
           <Stack spacing={2}>
             <Skeleton variant="rectangular" height={80} />
             <Skeleton variant="text" width="60%" />
@@ -333,7 +306,7 @@ export const ServiceQuickViewDrawer: React.FC<ServiceQuickViewDrawerProps> = ({
                     <Typography variant="subtitle2" fontWeight={600} gutterBottom>
                       Описание
                     </Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: 'pre-wrap' }}>
+                    <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: "pre-wrap" }}>
                       {service.description}
                     </Typography>
                   </Box>
@@ -421,7 +394,8 @@ export const ServiceQuickViewDrawer: React.FC<ServiceQuickViewDrawerProps> = ({
                         primary={
                           <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.5 }}>
                             <Typography variant="body2" fontWeight={500}>
-                              {appointment.formatted_date || dayjs(appointment.appointment_at).format("DD.MM.YYYY HH:mm")}
+                              {appointment.formatted_date ||
+                                dayjs(appointment.appointment_at).format("DD.MM.YYYY HH:mm")}
                             </Typography>
                             <Chip
                               label={getStatusConfig(appointment.status).label}

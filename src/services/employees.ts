@@ -35,20 +35,16 @@ const toRow = (d: ApiEmployee): EmployeesRow => {
 
 const fetchEmployeesBase = async (): Promise<ApiEmployee[]> => {
   try {
-    const res: any = await apiFetch("/staff/employees/?page_size=1000");
-    const results = res?.data?.results ?? res?.results ?? [];
-    if (Array.isArray(results) && results.length > 0) return results;
-    // fallback to old endpoint
-    const res2: any = await apiFetch("/api/v1/staff/?page_size=1000");
-    return res2?.data?.results ?? res2?.results ?? [];
+    const res: any = await apiFetch("/api/v1/employees/?status=active");
+    // Handle nesting if API returns { data: { results: [...] } }
+    let results = res?.data?.results ?? res?.results;
+    if (!results && res?.data && Array.isArray(res.data)) {
+        results = res.data;
+    }
+    return results ?? [];
   } catch (err) {
     console.error("apiFetch fetchEmployeesBase error:", err);
-    try {
-      const res2: any = await apiFetch("/api/v1/staff/?page_size=1000");
-      return res2?.data?.results ?? res2?.results ?? [];
-    } catch {
-      throw err;
-    }
+    throw err;
   }
 };
 

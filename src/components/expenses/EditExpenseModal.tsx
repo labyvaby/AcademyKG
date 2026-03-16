@@ -13,10 +13,10 @@ import {
   CircularProgress,
 } from "@mui/material";
 import Autocomplete from "@mui/material/Autocomplete";
-import { useInvalidate, useNotification, useUpdate } from "@refinedev/core";
-import { deleteExpensePhotoByUrl, uploadExpensePhoto } from "../../services/storage";
-import { supabase } from "../../utility/supabaseClient";
+import { useNotification } from "@refinedev/core";
 import { fetchEmployees } from "../../services/employees";
+import { apiFetch } from "../../utility/apiClient";
+import { ExpensesService } from "../../services/expenses";
 import type { Expense, ExpenseFormValues, EmployeesRow } from "../../pages/expenses/types";
 
 type EditExpenseModalProps = {
@@ -24,6 +24,11 @@ type EditExpenseModalProps = {
   onClose: () => void;
   record: Expense;
   onUpdated?: (record: Expense) => void;
+};
+
+type ExpenseCategory = {
+  id: string;
+  name: string;
 };
 
 export const EditExpenseModal: React.FC<EditExpenseModalProps> = ({
@@ -41,6 +46,7 @@ export const EditExpenseModal: React.FC<EditExpenseModalProps> = ({
       total_amount: record.total_amount,
       comment: record.comment ?? "",
       category: record.category ?? "",
+      category_id: record.category_id ?? null,
       photo: record.photo ?? null,
       photoFile: null,
     }),
@@ -49,15 +55,7 @@ export const EditExpenseModal: React.FC<EditExpenseModalProps> = ({
 
   const [values, setValues] = React.useState<ExpenseFormValues>(initialValues);
   const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
-  const [uploading, setUploading] = React.useState(false);
-  const [updatingBusy, setUpdatingBusy] = React.useState(false);
-
-  type ExpenseCategory = {
-    id: string;
-    name: string;
-  };
-
-
+  const [busy, setBusy] = React.useState(false);
 
   const [employees, setEmployees] = React.useState<EmployeesRow[]>([]);
   const [categories, setCategories] = React.useState<ExpenseCategory[]>([]);
@@ -68,23 +66,12 @@ export const EditExpenseModal: React.FC<EditExpenseModalProps> = ({
       try {
         const [emps, catRes] = await Promise.all([
           fetchEmployees(),
-          supabase.from("expense_category").select("id, name"),
+          apiFetch<any>("/api/v1/expense-categories/?page_size=200"),
         ]);
 
-        const cats: ExpenseCategory[] = [];
-        if (Array.isArray(catRes?.data)) {
-          for (const c of catRes.data as unknown[]) {
-            if (typeof c === "object" && c !== null) {
-              const r = c as { id: string | number; name?: unknown };
-              const idRaw = r.id;
-              const nameRaw = r.name;
-              if (idRaw != null && typeof nameRaw === "string") {
-                const id = typeof idRaw === "string" ? idRaw : String(idRaw);
-                cats.push({ id, name: nameRaw });
-              }
-            }
-          }
-        }
+        const cats: ExpenseCategory[] = (catRes?.data?.results ?? catRes?.results ?? []).map(
+          (c: any) => ({ id: String(c.id), name: c.name ?? "" })
+        );
 
         if (!cancelled) {
           setEmployees(emps);
@@ -95,15 +82,9 @@ export const EditExpenseModal: React.FC<EditExpenseModalProps> = ({
       }
     };
     load();
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, []);
 
-
-
-  const { mutateAsync: updateAsync } = useUpdate<Expense>();
-  const invalidate = useInvalidate();
   const { open: notify } = useNotification();
 
   React.useEffect(() => {
@@ -113,8 +94,7 @@ export const EditExpenseModal: React.FC<EditExpenseModalProps> = ({
         URL.revokeObjectURL(previewUrl);
         setPreviewUrl(null);
       }
-      setUploading(false);
-      setUpdatingBusy(false);
+      setBusy(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, record]);
@@ -139,79 +119,43 @@ export const EditExpenseModal: React.FC<EditExpenseModalProps> = ({
       setPreviewUrl(null);
     }
     if (file) {
-      const url = URL.createObjectURL(file);
-      setPreviewUrl(url);
+      setPreviewUrl(URL.createObjectURL(file));
     }
   };
 
-  const computeTotal = (cash: number, cashless: number, provided: number) => {
-    if (Number.isFinite(provided) && provided > 0) return provided;
-    return (Number.isFinite(cash) ? cash : 0) + (Number.isFinite(cashless) ? cashless : 0);
-  };
+  const computeTotal = (cash: number, cashless: number) =>
+    (Number.isFinite(cash) ? cash : 0) + (Number.isFinite(cashless) ? cashless : 0);
 
   const handleSubmit = async () => {
     try {
-      setUploading(true);
-      setUpdatingBusy(true);
-      let newPublicUrl: string | null = null;
-      const hadOldPhoto = Boolean(record.photo);
+      setBusy(true);
 
-      if (values.photoFile) {
-        const { publicUrl } = await uploadExpensePhoto(values.photoFile);
-        newPublicUrl = publicUrl;
-      }
+      // Find category_id from selected name
+      const selectedCat = categories.find((c) => c.name === values.category);
 
       const payload = {
         employee_id: values.employee_id,
+        category_id: selectedCat?.id ?? values.category_id ?? null,
         name: values.name,
         cash_amount: values.cash_amount ?? 0,
         cashless_amount: values.cashless_amount ?? 0,
-        total_amount: computeTotal(values.cash_amount ?? 0, values.cashless_amount ?? 0, values.total_amount ?? 0),
         comment: values.comment ?? null,
-        category: values.category ?? null,
-        photo: newPublicUrl ?? record.photo ?? null,
+        photoFile: values.photoFile ?? null,
       };
 
-      const updated = await updateAsync({
-        resource: "expenses",
-        id: record.id,
-        values: payload,
-      });
+      const updated = await ExpensesService.update(record.id, payload);
 
-      // After successful DB update, delete old photo if replaced
-      if (values.photoFile && hadOldPhoto) {
-        await deleteExpensePhotoByUrl(record.photo as string | null | undefined);
-      }
-
-      notify?.({
-        type: "success",
-        message: "Расход обновлён",
-        description: values.name,
-      });
-
-      await invalidate({
-        resource: "expenses",
-        invalidates: ["list", "detail"],
-      });
-
-      if (updated?.data && onUpdated) onUpdated(updated.data as Expense);
+      notify?.({ type: "success", message: "Расход обновлён", description: values.name });
+      if (onUpdated) onUpdated(updated);
       onClose();
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : String(e);
-      // eslint-disable-next-line no-console
       console.error("Update expense failed:", e);
-      notify?.({
-        type: "error",
-        message: "Ошибка при обновлении",
-        description: message || "Неизвестная ошибка",
-      });
+      notify?.({ type: "error", message: "Ошибка при обновлении", description: message });
     } finally {
-      setUpdatingBusy(false);
-      setUploading(false);
+      setBusy(false);
     }
   };
-
-  const busy = uploading || updatingBusy;
 
   return (
     <Dialog open={open} onClose={busy ? undefined : onClose} fullWidth maxWidth="sm">
@@ -252,7 +196,7 @@ export const EditExpenseModal: React.FC<EditExpenseModalProps> = ({
               <TextField
                 label="Итого"
                 type="number"
-                value={computeTotal(values.cash_amount ?? 0, values.cashless_amount ?? 0, values.total_amount ?? 0)}
+                value={computeTotal(values.cash_amount ?? 0, values.cashless_amount ?? 0)}
                 disabled
                 helperText="Итого рассчитывается: наличные + безнал"
                 fullWidth
@@ -264,7 +208,10 @@ export const EditExpenseModal: React.FC<EditExpenseModalProps> = ({
                 options={categories.map((c) => c.name)}
                 noOptionsText=""
                 value={values.category && values.category.length > 0 ? values.category : null}
-                onChange={(_e, newValue) => setValues((s) => ({ ...s, category: newValue ?? null }))}
+                onChange={(_e, newValue) => {
+                  const cat = categories.find((c) => c.name === newValue);
+                  setValues((s) => ({ ...s, category: newValue ?? null, category_id: cat?.id ?? null }));
+                }}
                 renderInput={(params) => <TextField {...params} label="Категория" fullWidth />}
               />
             </Grid>

@@ -17,7 +17,6 @@ import {
 } from "@mui/material";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
-import { supabase } from "../../utility/supabaseClient";
 import AddServiceDrawer from "../../components/services/AddServiceDrawer";
 import EditServiceDrawer from "../../components/services/EditServiceDrawer";
 import { PageHeader } from "../../components/ui";
@@ -26,14 +25,13 @@ import { useNotification, useTranslate } from "@refinedev/core";
 import { usePermissions } from "../../hooks/usePermissions";
 import ServiceQuickViewDrawer from "../../components/services/ServiceQuickViewDrawer";
 
-const importMetaEnv =
-  ((import.meta as unknown) as { env?: Record<string, string | undefined> })
-    .env || {};
+const API_BASE = "https://academy.operator.kg";
 
-// Источник услуг по умолчанию — таблица Services
-const SERVICES_TABLE: string = "Services";
-// Таблица записи изменений/вставок (для редактирования/удаления)
-const SERVICES_WRITE: string = importMetaEnv.VITE_SERVICES_WRITE_TABLE || "Services";
+function resolveImageUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  if (url.startsWith("http")) return url;
+  return `${API_BASE}${url}`;
+}
 
 // Нормализация сервисных полей из произвольной схемы
 function mapServiceId(r: Record<string, unknown>): string {
@@ -70,7 +68,8 @@ function mapServicePrice(r: Record<string, unknown>): number {
 }
 
 function mapServicePhoto(r: Record<string, unknown>): string | null {
-  return (r["image_url"] as string | null) ?? (r["photo_url"] as string | null) ?? (r["Картинка"] as string | null) ?? null;
+  const raw = (r["image_url"] as string | null) ?? (r["photo_url"] as string | null) ?? (r["Картинка"] as string | null) ?? null;
+  return resolveImageUrl(raw);
 }
 
 function mapEmployeeName(r: Record<string, unknown>): string | null {
@@ -185,7 +184,7 @@ const ServicesPage: React.FC = () => {
             id: item.sellableItem ?? item.id ?? "",
             name: item.name ?? "",
             price: item.price ?? item.priceSom ?? 0,
-            photo_url: item.imageUrl ?? item.image_url ?? null,
+            photo_url: resolveImageUrl(item.imageUrl ?? item.image_url),
             employees: Array.isArray(item.employeeIds) ? item.employeeIds : [],
             editable: true,
             description: item.description ?? null,

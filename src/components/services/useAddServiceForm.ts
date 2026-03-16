@@ -4,34 +4,23 @@
  * - состояния (name, price, photoFile, photoPreview, busy)
  * - эффекты (сброс состояния при закрытии)
  * - обработчики (handleSubmit, onPickPhoto, fileToDataUrl)
- * Компоненты-«презентеры» получают только данные и колбэки через пропсы.
  */
-
 import React from "react";
-import { supabase } from "../../utility/supabaseClient";
-import { uploadFile } from "../../utility/storage";
 import { useNotification } from "@refinedev/core";
-
-const importMetaEnv =
-  ((import.meta as unknown) as { env?: Record<string, string | undefined> })
-    .env || {};
-const SERVICES_WRITE: string =
-  importMetaEnv.VITE_SERVICES_WRITE_TABLE || "Services";
-
+import { createService } from "../../services/services";
 
 export type CreatedService = {
-  id?: string | number;
-  name: string; // UI поле
-  price: number; // UI поле
-  // Поля из БД
+  id: string;
+  name: string;
+  price: number;
   service_name: string;
   price_som: number;
   employee_id: string | null;
-  employee_name?: string | null;
-  photo_url?: string | null;
+  employee_name: string | null;
+  photo_url: string | null;
 };
 
-export type UseAddServiceFormArgs = {
+type UseAddServiceFormArgs = {
   open: boolean;
   onClose: () => void;
   onCreated?: (rec: CreatedService) => void;
@@ -39,19 +28,16 @@ export type UseAddServiceFormArgs = {
 
 export function useAddServiceForm({ open, onClose, onCreated }: UseAddServiceFormArgs) {
   const { open: notify } = useNotification();
-  // Состояния формы
   const [name, setName] = React.useState("");
-  const [price, setPrice] = React.useState<string>("");
+  const [price, setPrice] = React.useState("");
   const [description, setDescription] = React.useState("");
   const [isActive, setIsActive] = React.useState(true);
   const [photoFile, setPhotoFile] = React.useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = React.useState<string | null>(null);
-
-  // Флаг сабмита
   const [busy, setBusy] = React.useState(false);
   const [touched, setTouched] = React.useState(false);
 
-  // Эффект: сброс при закрытии
+  // Сброс состояния при закрытии
   React.useEffect(() => {
     if (!open) {
       setName("");
@@ -65,7 +51,6 @@ export function useAddServiceForm({ open, onClose, onCreated }: UseAddServiceFor
     }
   }, [open]);
 
-  // Вспомогательное: файл -> data URL (для превью)
   const fileToDataUrl = React.useCallback(
     (f: File) =>
       new Promise<string>((resolve, reject) => {
@@ -77,7 +62,6 @@ export function useAddServiceForm({ open, onClose, onCreated }: UseAddServiceFor
     []
   );
 
-  // Обработчик выбора файла
   const onPickPhoto = React.useCallback(
     async (f: File | null) => {
       setPhotoFile(f);
@@ -107,82 +91,23 @@ export function useAddServiceForm({ open, onClose, onCreated }: UseAddServiceFor
     try {
       setBusy(true);
 
-      // 1) Загрузка фото (если есть)
-      let photoUrl: string | null = null;
-      if (photoFile) {
-        try {
-          const publicUrl = await uploadFile(photoFile, "service_photos");
-          photoUrl = publicUrl || null;
-        } catch (e) {
-          const msg =
-            typeof e === "object" && e !== null && "message" in e
-              ? String((e as { message?: unknown }).message)
-              : String(e);
-          notify?.({ type: "error", message: `Не удалось загрузить фотографию: ${msg}` });
-          throw e;
-        }
-      }
-
-      // 2) Вставка в SellableItems
-      const { data: sellableItem, error: sellableError } = await supabase
-        .from("SellableItems")
-        .insert([{ 
-            type: "service",
-            is_active: isActive 
-        }])
-        .select()
-        .single();
-
-      if (sellableError) throw sellableError;
-      const sellableId = sellableItem.id;
-
-      let insertedService;
-      try {
-        // 3) Вставка услуги в Services
-        const primaryPayload: Record<string, unknown> = {
-          sellable_item_id: sellableId,
-          name: name.trim(),
-          price_som: priceNum, // Сохраняем для быстрой выборки
-          image_url: photoUrl,
-          description: description.trim() || null,
-        };
-
-
-
-        const { data: inserted, error: insertError } = await supabase
-          .from(SERVICES_WRITE)
-          .insert(primaryPayload)
-          .select("*")
-          .single();
-
-        if (insertError) throw insertError;
-        insertedService = inserted;
-      } catch (err) {
-        // Очистка SellableItem, если вставка в Services не удалась
-        await supabase.from("SellableItems").delete().eq("id", sellableId);
-        throw err;
-      }
-
-      // 4) Вставка Цены в Prices
-      const { error: priceError } = await supabase.from("Prices").insert({
-          sellable_item_id: sellableId,
-          price: Number(price),
-          is_current: true
+      const created = await createService({
+        name: name.trim(),
+        priceSom: priceNum,
+        description: description.trim(),
+        isActive,
+        imageUrl: photoFile,
       });
-      if (priceError) {
-          console.error("Price insert error:", priceError);
-          notify?.({ type: "error", message: "Услуга создана, но цену сохранить не удалось" });
-      }
 
       const out: CreatedService = {
-        id: sellableId, // Важно: используем sellableId как основной ID
-        name: name.trim(),
-        price: Number(price),
-        service_name: name.trim(),
-        price_som: Number(price),
+        id: created.id,
+        name: created.name,
+        price: created.price || 0,
+        service_name: created.name,
+        price_som: created.price || 0,
         employee_id: null,
         employee_name: null,
-        photo_url: photoUrl,
+        photo_url: created.photoUrl || null,
       };
 
       onCreated?.(out);
@@ -194,7 +119,7 @@ export function useAddServiceForm({ open, onClose, onCreated }: UseAddServiceFor
     } finally {
       setBusy(false);
     }
-  }, [name, price, photoFile, onClose, onCreated, notify]);
+  }, [name, price, photoFile, description, isActive, onClose, onCreated, notify]);
 
   const submitDisabled = !name.trim() || !price || Number(price) <= 0;
 

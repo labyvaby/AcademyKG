@@ -186,7 +186,7 @@ export const HomePage: React.FC = () => {
     queryKey: ["appointments", "daily", dailyRange.key],
     queryFn: async () => {
       const res: any = await apiFetch(
-        `/api/v1/appointments-aggregated/?dateFrom=${dailyRange.start}&dateTo=${dailyRange.end}&ordering=appointmentAt&page_size=500`
+        `/api/v1/appointments/?ordering=appointmentAt`
       );
       const items: AggregatedAppointmentRow[] = res?.data?.results ?? res?.results ?? (Array.isArray(res?.data) ? res.data : null) ?? (Array.isArray(res) ? res : []);
       return (Array.isArray(items) ? items : []).map((row: AggregatedAppointmentRow) => mapAggregatedRowToAppointment(row));
@@ -219,9 +219,9 @@ export const HomePage: React.FC = () => {
       const startISO = start.toISOString().split('T')[0] + 'T00:00:00';
       const endISO = end.toISOString().split('T')[0] + 'T23:59:59.999';
 
-      let url = `/api/v1/appointments-aggregated/?dateFrom=${startISO}&dateTo=${endISO}&page_size=1000`;
+      let url = `/api/v1/appointments/`;
       if (!isAdmin() && !isRegistrator() && employeeId) {
-        url += `&employee=${employeeId}`;
+        url += `?employee=${employeeId}`;
       }
 
       const res: any = await apiFetch(url);
