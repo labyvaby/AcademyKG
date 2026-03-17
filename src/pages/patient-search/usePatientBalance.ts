@@ -2,12 +2,14 @@ import { useState, useEffect, useCallback } from "react";
 import { apiFetch } from "../../utility/apiClient";
 
 export type PatientBalance = {
-  balance: number;
+  balance: number;      // общий баланс (сумма нал + безнал)
+  cashBalance: number;  // нал
+  cardBalance: number;  // безнал
   bonuses: number;
 };
 
 export type TopUpType = "balance" | "bonuses";
-export type PaymentMethod = "cash" | "card" | "free";
+export type PaymentMethod = "cash" | "card";
 
 export type TopUpPayload = {
   type: TopUpType;
@@ -48,9 +50,11 @@ export function usePatientBalance(patientId: string | null | undefined) {
         data: bal
           ? {
               balance: Number(bal.balance) || 0,
+              cashBalance: Number(bal.cashBalance ?? bal.cash_balance) || 0,
+              cardBalance: Number(bal.cardBalance ?? bal.card_balance) || 0,
               bonuses: Number(bal.bonuses) || 0,
             }
-          : { balance: 0, bonuses: 0 },
+          : { balance: 0, cashBalance: 0, cardBalance: 0, bonuses: 0 },
         loading: false,
         errorMsg: null,
       });
@@ -76,7 +80,7 @@ export function usePatientBalance(patientId: string | null | undefined) {
           txType: payload.type,
           amount: payload.amount < 0 ? String(payload.amount) : String(payload.amount),
         };
-        if (payload.payment_method && payload.payment_method !== "free") {
+        if (payload.payment_method) {
           body.paymentMethod = payload.payment_method;
         }
         if (payload.note) body.note = payload.note;

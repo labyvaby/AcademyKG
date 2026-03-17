@@ -750,7 +750,7 @@ export const AppointmentsList: React.FC<AppointmentsListProps & { onAddSlot?: (d
                             <Stack alignItems="flex-end">
                               <Stack direction="row" alignItems="center" gap={1}>
                                 {a.status !== "Завершено" && a.status !== "Оплачено" && a.status !== "Частично оплачено" && (
-                                  <Chip label={getStatusConfig(a.status).label} icon={getStatusConfig(a.status).icon} size="small" sx={{ ...getStatusChipSx(a.status), display: 'none' }} />
+                                  <Chip label={getStatusConfig(a.status).label} icon={getStatusConfig(a.status).icon} size="small" sx={getStatusChipSx(a.status)} />
                                 )}
                                 {(() => {
                                   const isPaidStatus = a.status === "Оплачено" || a.status === "Частично оплачено";
@@ -760,7 +760,7 @@ export const AppointmentsList: React.FC<AppointmentsListProps & { onAddSlot?: (d
                                       <Chip
                                         label={<Stack direction="row" alignItems="center" gap={0.5}>{cash > 0 && <PaymentsOutlined sx={{ fontSize: 16 }} />}{card > 0 && <CreditCardOutlined sx={{ fontSize: 16 }} />}{balance > 0 && <AccountBalanceWalletOutlined sx={{ fontSize: 16 }} />}{bonuses > 0 && <CardGiftcardOutlined sx={{ fontSize: 16 }} />}{labelText}</Stack>}
                                         size="small"
-                                        sx={{ ...getStatusChipSx(paymentStyleStatus), display: 'none' }}
+                                        sx={getStatusChipSx(paymentStyleStatus)}
                                       />
                                     );
                                   }

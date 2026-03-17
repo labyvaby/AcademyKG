@@ -92,6 +92,12 @@ const EditPatientDrawer: React.FC<Props> = ({
   const [phoneCountryCode, setPhoneCountryCode] = React.useState<PhoneCountryCode>(DEFAULT_PHONE_COUNTRY_CODE);
   const [birth, setBirth] = React.useState("");
   const [inn, setInn] = React.useState("");
+  const [parent1Name, setParent1Name] = React.useState("");
+  const [parent1Phone, setParent1Phone] = React.useState("");
+  const [parent1PhoneCountryCode, setParent1PhoneCountryCode] = React.useState<PhoneCountryCode>(DEFAULT_PHONE_COUNTRY_CODE);
+  const [parent2Name, setParent2Name] = React.useState("");
+  const [parent2Phone, setParent2Phone] = React.useState("");
+  const [parent2PhoneCountryCode, setParent2PhoneCountryCode] = React.useState<PhoneCountryCode>(DEFAULT_PHONE_COUNTRY_CODE);
   const [isBlacklisted, setIsBlacklisted] = React.useState(false);
   const [blacklistReason, setBlacklistReason] = React.useState("");
   const [busy, setBusy] = React.useState(false);
@@ -131,6 +137,10 @@ const EditPatientDrawer: React.FC<Props> = ({
         const birthRaw = String(data?.birthDate ?? "");
         const photoRaw = resolvePhotoUrl(data?.photoUrl) ?? initialPhoto ?? null;
         const innRaw = String(data?.inn ?? "");
+        const parentNameRaw = String(data?.parent1Name ?? data?.parentName ?? "");
+        const parentPhoneRaw = String(data?.parent1Phone ?? data?.parentPhone ?? "");
+        const parent2NameRaw = String(data?.parent2Name ?? "");
+        const parent2PhoneRaw = String(data?.parent2Phone ?? "");
         const blacklistRaw = Boolean(data?.isBlacklisted ?? false);
         const reasonRaw = String(data?.blacklistReason ?? "");
 
@@ -141,6 +151,14 @@ const EditPatientDrawer: React.FC<Props> = ({
         setPhone(parsed.local.replace(/[^\d]/g, "").slice(0, maxLen));
         setBirth(birthRaw ? birthRaw.slice(0, 10) : "");
         setInn(innRaw);
+        setParent1Name(parentNameRaw);
+        const parsedParent1 = parsePhone(parentPhoneRaw);
+        setParent1PhoneCountryCode(parsedParent1.countryCode);
+        setParent1Phone(parsedParent1.local.replace(/[^\d]/g, "").slice(0, getPhoneLocalMaxLength(parsedParent1.countryCode)));
+        setParent2Name(parent2NameRaw);
+        const parsedParent2 = parsePhone(parent2PhoneRaw);
+        setParent2PhoneCountryCode(parsedParent2.countryCode);
+        setParent2Phone(parsedParent2.local.replace(/[^\d]/g, "").slice(0, getPhoneLocalMaxLength(parsedParent2.countryCode)));
         setIsBlacklisted(blacklistRaw);
         setBlacklistReason(reasonRaw);
         setExistingPhoto(photoRaw);
@@ -192,6 +210,12 @@ const EditPatientDrawer: React.FC<Props> = ({
       if (fullPhone) fd.append("phone", fullPhone);
       fd.append("birthDate", birth ? birth.slice(0, 10) : "");
       fd.append("inn", inn.trim());
+      fd.append("parent1Name", parent1Name.trim());
+      const fullParent1Phone = composePhone(parent1PhoneCountryCode, parent1Phone);
+      fd.append("parent1Phone", fullParent1Phone || "");
+      fd.append("parent2Name", parent2Name.trim());
+      const fullParent2Phone = composePhone(parent2PhoneCountryCode, parent2Phone);
+      fd.append("parent2Phone", fullParent2Phone || "");
       fd.append("isBlacklisted", String(isBlacklisted));
       fd.append("blacklistReason", isBlacklisted ? blacklistReason.trim() : "");
 
@@ -404,6 +428,45 @@ const EditPatientDrawer: React.FC<Props> = ({
                   inputProps={{ inputMode: "numeric", pattern: "[0-9]*", maxLength: 14 }}
                 />
               </Stack>
+
+              {/* Родители */}
+              {([
+                { label: "Родитель 1", name: parent1Name, setName: setParent1Name, phone: parent1Phone, setPhone: setParent1Phone, code: parent1PhoneCountryCode, setCode: setParent1PhoneCountryCode },
+                { label: "Родитель 2", name: parent2Name, setName: setParent2Name, phone: parent2Phone, setPhone: setParent2Phone, code: parent2PhoneCountryCode, setCode: setParent2PhoneCountryCode },
+              ] as const).map((p) => (
+                <Box key={p.label} sx={{ border: "1px solid", borderColor: "divider", borderRadius: 1, p: 2 }}>
+                  <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600, mb: 1.5 }}>
+                    {p.label}
+                  </Typography>
+                  <Stack spacing={1.5}>
+                    <TextField
+                      value={p.name}
+                      onChange={(e) => p.setName(e.target.value)}
+                      fullWidth
+                      size="small"
+                      placeholder="ФИО родителя"
+                    />
+                    <TextField
+                      value={p.phone}
+                      onChange={(e) => {
+                        const maxLen = getPhoneLocalMaxLength(p.code);
+                        p.setPhone(e.target.value.replace(/[^\d]/g, "").slice(0, maxLen));
+                      }}
+                      fullWidth
+                      size="small"
+                      InputProps={{
+                        startAdornment: (
+                          <InputAdornment position="start" sx={{ mr: 1, ml: "-14px" }}>
+                            <PhoneCountryCodeSelect value={p.code} onChange={(code) => p.setCode(code)} />
+                          </InputAdornment>
+                        ),
+                      }}
+                      inputProps={{ inputMode: "tel", pattern: "[0-9]*", maxLength: getPhoneLocalMaxLength(p.code) }}
+                      placeholder={getPhoneLocalMaxLength(p.code) === 10 ? "XXX XXX XXXX" : "XXX XXX XXX"}
+                    />
+                  </Stack>
+                </Box>
+              ))}
 
               {/* Чёрный список */}
               {canManageBlacklist && (

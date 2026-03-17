@@ -26,43 +26,30 @@ import {
 } from "@mui/icons-material";
 import dayjs from "dayjs";
 import "dayjs/locale/ru";
-import { supabase } from "../../utility/supabaseClient";
+import { apiFetch } from "../../utility/apiClient";
 import { getStatusConfig, getStatusChipSx } from "../../config/appointmentStatuses";
-import { calculateAgeWithMonths, formatDateRu } from "../../utility/format";
+import { calculateAgeWithMonths } from "../../utility/format";
 
 dayjs.locale("ru");
 
 // Интерфейс детальной информации о клиенте
 export interface PatientDetail {
   id: string;
-  fio: string; // ФИО клиента
-  phone?: string | null; // Телефон
-  birthDate?: string | null; // Дата рождения
-  inn?: string | null; // ИНН
-  photo_url?: string | null; // Фото клиента
-  comment?: string | null; // Комментарий/Особенности
+  fio: string; 
+  phone?: string | null;
+  birthDate?: string | null;
+  inn?: string | null;
+  photo_url?: string | null;
+  comment?: string | null;
   latestWeight?: number | null;
   latestHeight?: number | null;
   latestTemperature?: number | null;
 }
 
-// Тип строки клиента из БД (с поддержкой кириллических и "пробельных" названий колонок)
-// Описываем только реально используемые поля, без использования типа `any`.
-type PatientDbRow = {
-  id: string | number;
-  full_name?: string | null;
-  phone?: string | null;
-  birth_date?: string | null;
-  inn?: string | null;
-  photo_url?: string | null;
-  comment?: string | null;
-};
-
 // Интерфейс для последних приемов клиента
 interface RecentAppointment {
   id: string;
   appointment_at: string;
-  formatted_date: string;
   doctor_name: string;
   service_names: string;
   status: string;
@@ -75,6 +62,13 @@ export interface PatientQuickViewDrawerProps {
   onStartAppointment?: (patientId: string) => void;
 }
 
+const API_BASE = "https://academy.operator.kg";
+function resolveUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  if (url.startsWith("http")) return url;
+  return `${API_BASE}${url}`;
+}
+
 export const PatientQuickViewDrawer: React.FC<PatientQuickViewDrawerProps> = ({
   open,
   onClose,
@@ -85,8 +79,6 @@ export const PatientQuickViewDrawer: React.FC<PatientQuickViewDrawerProps> = ({
   const [patient, setPatient] = useState<PatientDetail | null>(null);
   const [recentAppointments, setRecentAppointments] = useState<RecentAppointment[]>([]);
 
-
-  // Загрузка данных клиента
   useEffect(() => {
     if (!patientId || !open) {
       setPatient(null);
@@ -96,70 +88,44 @@ export const PatientQuickViewDrawer: React.FC<PatientQuickViewDrawerProps> = ({
 
     let active = true;
 
-    const fetchPatientData = async () => {
+    const fetchData = async () => {
       try {
         setLoading(true);
 
-        // Запрос данных клиента из таблицы Patients
-        const { data: rawPatientData, error: patientError } = await supabase
-          .from("Patients")
-          .select('id, full_name, phone, birth_date, inn, photo_url, comment')
-          .eq("id", patientId)
-          .maybeSingle();
+        // 1. Данные клиента
+        const resPatient: any = await apiFetch(`/api/v1/clients/${patientId}/`);
+        const data = resPatient?.data ?? resPatient;
 
-        const patientData = rawPatientData as unknown as PatientDbRow | null;
+        // 2. Приемы (фильтрация по клиенту)
+        const resApts: any = await apiFetch(`/api/v1/appointments/?patient=${patientId}&page_size=5&ordering=-appointment_at`);
+        const aptsData = resApts?.data?.results || resApts?.results || [];
 
-        if (patientError) {
-          console.error("Ошибка загрузки клиента:", patientError);
-          throw patientError;
-        }
-
-        // Запрос последних 5 приемов клиента
-        const { data: appointmentsData, error: appointmentsError } = await supabase
-          .from("AppointmentsAggregated")
-          .select("id, appointment_at, formatted_date, doctor_name, service_names, status")
-          .eq("patient_id", patientId)
-          .order("appointment_at", { ascending: false })
-          .limit(5);
-
-        if (appointmentsError) {
-          console.error("Ошибка загрузки приемов:", appointmentsError);
-        }
-
-        // Fetch latest vitals (separately or from appointments)
-        const { data: vitalsData } = await supabase
-          .from("Appointments")
-          .select("weight, height, temperature")
-          .eq("patient_id", patientId)
-          .or("weight.not.is.null,height.not.is.null,temperature.not.is.null")
-          .order("appointment_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-        if (active && patientData) {
+        if (active && data) {
+          const lastApt = Array.isArray(data.appointments) ? data.appointments[0] : null;
           setPatient({
-            id: String(patientData.id),
-            fio: patientData.full_name || "Не указано",
-            phone: patientData.phone || null,
-            birthDate: patientData.birth_date || null,
-            inn: patientData.inn || null,
-            photo_url: patientData.photo_url || null,
-            comment: patientData.comment || null,
-            latestWeight: vitalsData?.weight || null,
-            latestHeight: vitalsData?.height || null,
-            latestTemperature: vitalsData?.temperature || null,
+            id: String(data.id),
+            fio: data.fullName || data.full_name || "Не указано",
+            phone: data.phone || null,
+            birthDate: data.birthDate || data.birth_date || null,
+            inn: data.inn || null,
+            photo_url: resolveUrl(data.photoUrl || data.photo_url),
+            comment: data.comment || null,
+            latestWeight: lastApt?.weight || null,
+            latestHeight: lastApt?.height || null,
+            latestTemperature: lastApt?.temperature || null,
           });
         }
 
-        if (active && appointmentsData) {
+        if (active && aptsData) {
           setRecentAppointments(
-            appointmentsData.map((apt) => ({
+            aptsData.map((apt: any) => ({
               id: String(apt.id),
-              appointment_at: apt.appointment_at || "",
-              formatted_date: apt.formatted_date || "",
-              doctor_name: apt.doctor_name || "Не указан",
-              service_names: apt.service_names || "Не указаны",
-              status: apt.status || "Неизвестно",
+              appointment_at: apt.appointmentAt || apt.appointment_at || "",
+              doctor_name: apt.doctor?.fullName || apt.doctor_name || "Не указан",
+              service_names: Array.isArray(apt.procedures) 
+                ? apt.procedures.map((p: any) => p.service?.name).filter(Boolean).join(", ")
+                : apt.service_names || "Не указаны",
+              status: apt.status || "planned",
             }))
           );
         }
@@ -172,11 +138,9 @@ export const PatientQuickViewDrawer: React.FC<PatientQuickViewDrawerProps> = ({
       }
     };
 
-    fetchPatientData();
+    fetchData();
 
-    return () => {
-      active = false;
-    };
+    return () => { active = false; };
   }, [patientId, open]);
 
   return (
@@ -184,47 +148,15 @@ export const PatientQuickViewDrawer: React.FC<PatientQuickViewDrawerProps> = ({
       anchor="right"
       open={open}
       onClose={onClose}
-      PaperProps={{
-        sx: {
-          width: { xs: 320, sm: 480, md: 520 },
-          maxWidth: "100vw",
-        },
-      }}
+      PaperProps={{ sx: { width: { xs: 320, sm: 480 }, maxWidth: "100vw" } }}
     >
-      {/* Заголовок */}
-      <Box
-        sx={{
-          p: 2,
-          borderBottom: 1,
-          borderColor: "divider",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-        }}
-      >
-        <Typography variant="h6" fontWeight={600}>
-          Информация о клиенте
-        </Typography>
-        <IconButton onClick={onClose} size="small">
-          <CloseIcon />
-        </IconButton>
+      <Box sx={{ p: 2, borderBottom: 1, borderColor: "divider", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <Typography variant="h6" fontWeight={600}>Информация о клиенте</Typography>
+        <IconButton onClick={onClose} size="small"><CloseIcon /></IconButton>
       </Box>
 
-      {/* Содержимое */}
-      <Box
-        sx={{
-          p: 2,
-          overflowY: "auto",
-          flex: 1,
-          scrollbarWidth: 'none',
-          msOverflowStyle: 'none',
-          '&::-webkit-scrollbar': {
-            display: 'none',
-          },
-        }}
-      >
+      <Box sx={{ p: 2, overflowY: "auto", flex: 1 }}>
         {loading ? (
-          // Скелетон при загрузке
           <Stack spacing={2}>
             <Skeleton variant="rectangular" height={80} />
             <Skeleton variant="text" width="60%" />
@@ -233,133 +165,68 @@ export const PatientQuickViewDrawer: React.FC<PatientQuickViewDrawerProps> = ({
           </Stack>
         ) : patient ? (
           <Stack spacing={3}>
-            {/* Основная информация */}
             <Box>
               <Stack direction="row" spacing={2} alignItems="flex-start" sx={{ mb: 2 }}>
-                <Avatar
-                  src={patient.photo_url || undefined}
-                  sx={{
-                    bgcolor: "primary.main",
-                    width: 56,
-                    height: 56,
-                  }}
-                >
+                <Avatar src={patient.photo_url || undefined} sx={{ bgcolor: "primary.main", width: 56, height: 56 }}>
                   {patient.fio?.charAt(0) || <PersonIcon />}
                 </Avatar>
                 <Box sx={{ flex: 1 }}>
-                  <Typography variant="h6" fontWeight={600} gutterBottom>
-                    {patient.fio}
-                  </Typography>
+                  <Typography variant="h6" fontWeight={600} gutterBottom>{patient.fio}</Typography>
                   <Chip label="Клиент" size="small" color="primary" variant="outlined" />
                 </Box>
               </Stack>
 
               <Divider sx={{ my: 2 }} />
 
-              {/* Контактные данные */}
               <Stack spacing={1.5}>
                 <Stack direction="row" spacing={1.5} alignItems="center">
                   <PhoneIcon fontSize="small" color="action" />
-                  <Typography variant="body2" color="text.secondary">
-                    Телефон:
-                  </Typography>
-                  <Typography variant="body2" fontWeight={500}>
-                    {patient.phone || "Не указано"}
-                  </Typography>
+                  <Typography variant="body2" color="text.secondary">Телефон:</Typography>
+                  <Typography variant="body2" fontWeight={500}>{patient.phone || "Не указано"}</Typography>
                 </Stack>
 
                 {patient.birthDate && (
                   <Stack direction="row" spacing={1.5} alignItems="center">
                     <CalendarIcon fontSize="small" color="action" />
-                    <Typography variant="body2" color="text.secondary">
-                      Дата рождения:
-                    </Typography>
+                    <Typography variant="body2" color="text.secondary">Дата рождения:</Typography>
                     <Typography variant="body2" fontWeight={500}>
                       {dayjs(patient.birthDate).format("DD.MM.YYYY")}
                       <Box component="span" sx={{ ml: 1, color: "text.secondary" }}>
-                        {calculateAgeWithMonths(patient.birthDate)}
+                        ({calculateAgeWithMonths(patient.birthDate)})
                       </Box>
                     </Typography>
                   </Stack>
                 )}
 
-                {patient.inn && (
-                  <Stack direction="row" spacing={1.5} alignItems="center">
-                    <BadgeIcon fontSize="small" color="action" />
-                    <Typography variant="body2" color="text.secondary">
-                      ИНН:
-                    </Typography>
-                    <Typography variant="body2" fontWeight={500}>
-                      {patient.inn}
-                    </Typography>
-                  </Stack>
-                )}
-
-                {/* Latest Vitals */}
                 {(patient.latestWeight || patient.latestHeight || patient.latestTemperature) && (
                   <>
                     <Divider sx={{ my: 1 }} />
                     <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap">
-                      {patient.latestHeight && (
-                        <Chip label={`Рост: ${patient.latestHeight} см`} size="small" variant="outlined" />
-                      )}
-                      {patient.latestWeight && (
-                        <Chip label={`Вес: ${patient.latestWeight} кг`} size="small" variant="outlined" />
-                      )}
-                      {patient.latestTemperature && (
-                        <Chip label={`Темп: ${patient.latestTemperature} °C`} size="small" variant="outlined" color={patient.latestTemperature > 37 ? "warning" : "default"} />
-                      )}
+                      {patient.latestHeight && <Chip label={`Рост: ${patient.latestHeight} см`} size="small" variant="outlined" />}
+                      {patient.latestWeight && <Chip label={`Вес: ${patient.latestWeight} кг`} size="small" variant="outlined" />}
+                      {patient.latestTemperature && <Chip label={`Темп: ${patient.latestTemperature} °C`} size="small" variant="outlined" color={patient.latestTemperature > 37 ? "warning" : "default"} />}
                     </Stack>
                   </>
                 )}
               </Stack>
-
-              {/* Комментарий/Особенности */}
-              {patient.comment && (
-                <>
-                  <Divider sx={{ my: 2 }} />
-                  <Box>
-                    <Typography variant="body2" color="text.secondary" gutterBottom>
-                      Комментарий:
-                    </Typography>
-                    <Typography variant="body2">{patient.comment}</Typography>
-                  </Box>
-                </>
-              )}
             </Box>
 
             <Divider />
 
-            {/* Последние приемы */}
             <Box>
               <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1.5 }}>
                 <MedicalServicesIcon fontSize="small" color="primary" />
-                <Typography variant="subtitle2" fontWeight={600}>
-                  Последние приемы
-                </Typography>
+                <Typography variant="subtitle2" fontWeight={600}>Последние приемы</Typography>
               </Stack>
 
               {recentAppointments.length > 0 ? (
                 <List disablePadding>
                   {recentAppointments.map((appointment) => (
-                    <ListItem
-                      key={appointment.id}
-                      sx={{
-                        px: 0,
-                        py: 1.5,
-                        borderBottom: 1,
-                        borderColor: "divider",
-                        "&:last-child": {
-                          borderBottom: 0,
-                        },
-                      }}
-                    >
+                    <ListItem key={appointment.id} sx={{ px: 0, py: 1.5, borderBottom: 1, borderColor: "divider", "&:last-child": { borderBottom: 0 } }}>
                       <ListItemText
                         primary={
                           <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.5 }}>
-                            <Typography variant="body2" fontWeight={500}>
-                              {appointment.formatted_date || dayjs(appointment.appointment_at).format("DD.MM.YYYY HH:mm")}
-                            </Typography>
+                            <Typography variant="body2" fontWeight={500}>{dayjs(appointment.appointment_at).format("DD.MM.YYYY HH:mm")}</Typography>
                             <Chip
                               label={getStatusConfig(appointment.status).label}
                               icon={getStatusConfig(appointment.status).icon}
@@ -370,12 +237,8 @@ export const PatientQuickViewDrawer: React.FC<PatientQuickViewDrawerProps> = ({
                         }
                         secondary={
                           <>
-                            <Typography variant="caption" display="block" color="text.secondary">
-                              Врач: {appointment.doctor_name}
-                            </Typography>
-                            <Typography variant="caption" display="block" color="text.secondary">
-                              Услуги: {appointment.service_names}
-                            </Typography>
+                            <Typography variant="caption" display="block" color="text.secondary">Врач: {appointment.doctor_name}</Typography>
+                            <Typography variant="caption" display="block" color="text.secondary">Услуги: {appointment.service_names}</Typography>
                           </>
                         }
                       />
@@ -383,29 +246,17 @@ export const PatientQuickViewDrawer: React.FC<PatientQuickViewDrawerProps> = ({
                   ))}
                 </List>
               ) : (
-                <Typography variant="body2" color="text.secondary" sx={{ py: 2, textAlign: "center" }}>
-                  Нет записей о приемах
-                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ py: 2, textAlign: "center" }}>Нет записей о приемах</Typography>
               )}
             </Box>
           </Stack>
         ) : (
-          <Typography variant="body2" color="text.secondary" align="center" sx={{ py: 4 }}>
-            Клиент не найден
-          </Typography>
+          <Typography variant="body2" color="text.secondary" align="center" sx={{ py: 4 }}>Клиент не найден</Typography>
         )}
       </Box>
 
-      {/* Footer с кнопкой "Начать прием" */}
       {onStartAppointment && patient && (
-        <Box
-          sx={{
-            p: 2,
-            borderTop: 1,
-            borderColor: "divider",
-            bgcolor: "background.paper",
-          }}
-        >
+        <Box sx={{ p: 2, borderTop: 1, borderColor: "divider", bgcolor: "background.paper" }}>
           <Button
             variant="contained"
             color="primary"

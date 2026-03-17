@@ -20,6 +20,7 @@ export function CustomTimePicker(props: CustomTimePickerProps) {
 
   return (
     <TimePicker
+      ampm={false}
       minutesStep={minutesStep ?? 15}
       shouldDisableTime={(value, view) => view === "minutes" && value.minute() % (minutesStep ?? 15) !== 0}
       // @ts-ignore

@@ -433,64 +433,74 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
                             <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>
                                 Счёт клиента
                             </Typography>
-                            <Stack spacing={1}>
-                                <Stack direction="row" justifyContent="space-between" alignItems="center">
-                                    <Stack direction="row" alignItems="center" spacing={0.75}>
-                                        <AccountBalanceWalletOutlined sx={{ fontSize: 16, color: 'success.main' }} />
-                                        <Typography variant="body2">
-                                            Баланс: <strong style={{ color: 'var(--mui-palette-success-main)' }}>{patientBalance?.balance?.toLocaleString() || 0} сом</strong>
-                                        </Typography>
+                            <Stack direction="row" spacing={1}>
+                                {/* Нал */}
+                                <Box sx={{
+                                    flex: 1, borderRadius: 1.5, border: '1px solid',
+                                    borderColor: balanceUsed > 0 ? 'success.main' : 'divider',
+                                    bgcolor: balanceUsed > 0 ? (theme) => alpha(theme.palette.success.main, 0.08) : 'background.paper',
+                                    p: 1.25, textAlign: 'center', transition: 'all 0.2s',
+                                }}>
+                                    <Stack direction="row" alignItems="center" justifyContent="center" spacing={0.5} mb={0.25}>
+                                        <AccountBalanceWalletOutlined sx={{ fontSize: 13, color: 'success.main' }} />
+                                        <Typography variant="caption" color="text.secondary">Нал</Typography>
                                     </Stack>
-                                    {((patientBalance?.balance || 0) > 0 || balanceUsed > 0) && (
-                                        <Tooltip title={balanceUsed > 0 ? "Убрать" : "Использовать баланс"}>
-                                            <Button
-                                                size="small"
-                                                variant={balanceUsed > 0 ? "contained" : "outlined"}
-                                                color="success"
-                                                sx={{ minWidth: 'auto', px: 1.5, fontSize: '0.7rem', textTransform: 'none', py: 0.25 }}
-                                                onClick={() => {
-                                                    if (balanceUsed > 0) {
-                                                        setBalanceUsed(0);
-                                                    } else {
-                                                        const canUse = Math.min(patientBalance?.balance || 0, Math.max(0, finalPrice - cardNum - bonusesUsed));
-                                                        setBalanceUsed(canUse);
-                                                    }
-                                                }}
-                                            >
-                                                {balanceUsed > 0 ? `− ${balanceUsed.toLocaleString()} сом` : "Использовать"}
-                                            </Button>
-                                        </Tooltip>
+                                    <Typography variant="body2" fontWeight={700} color="success.main">
+                                        {(patientBalance?.cashBalance ?? 0).toLocaleString()} сом
+                                    </Typography>
+                                    {((patientBalance?.cashBalance ?? 0) > 0 || balanceUsed > 0) && (
+                                        <Button size="small" variant={balanceUsed > 0 ? "contained" : "text"} color="success"
+                                            sx={{ mt: 0.5, minWidth: 'auto', px: 1, py: 0, fontSize: '0.65rem', textTransform: 'none', lineHeight: 1.6 }}
+                                            onClick={() => {
+                                                if (balanceUsed > 0) { setBalanceUsed(0); }
+                                                else { setBalanceUsed(Math.min(patientBalance?.cashBalance ?? 0, Math.max(0, finalPrice - cardNum - bonusesUsed))); }
+                                            }}>
+                                            {balanceUsed > 0 ? "Убрать" : "Применить"}
+                                        </Button>
                                     )}
-                                </Stack>
+                                </Box>
 
-                                <Stack direction="row" justifyContent="space-between" alignItems="center">
-                                    <Stack direction="row" alignItems="center" spacing={0.75}>
-                                        <CardGiftcardOutlined sx={{ fontSize: 16, color: 'warning.main' }} />
-                                        <Typography variant="body2">
-                                            Бонусы: <strong style={{ color: 'var(--mui-palette-warning-main)' }}>{patientBalance?.bonuses?.toLocaleString() || 0} сом</strong>
-                                        </Typography>
+                                {/* Безнал */}
+                                <Box sx={{
+                                    flex: 1, borderRadius: 1.5, border: '1px solid',
+                                    borderColor: 'divider',
+                                    bgcolor: 'background.paper',
+                                    p: 1.25, textAlign: 'center',
+                                }}>
+                                    <Stack direction="row" alignItems="center" justifyContent="center" spacing={0.5} mb={0.25}>
+                                        <CreditCardOutlined sx={{ fontSize: 13, color: 'info.main' }} />
+                                        <Typography variant="caption" color="text.secondary">Безнал</Typography>
                                     </Stack>
-                                    {((patientBalance?.bonuses || 0) > 0 || bonusesUsed > 0) && (
-                                        <Tooltip title={bonusesUsed > 0 ? "Убрать" : "Использовать Бонусы"}>
-                                            <Button
-                                                size="small"
-                                                variant={bonusesUsed > 0 ? "contained" : "outlined"}
-                                                color="warning"
-                                                sx={{ minWidth: 'auto', px: 1.5, fontSize: '0.7rem', textTransform: 'none', py: 0.25 }}
-                                                onClick={() => {
-                                                    if (bonusesUsed > 0) {
-                                                        setBonusesUsed(0);
-                                                    } else {
-                                                        const canUse = Math.min(patientBalance?.bonuses || 0, Math.max(0, finalPrice - cashNum - cardNum - balanceUsed));
-                                                        setBonusesUsed(canUse);
-                                                    }
-                                                }}
-                                            >
-                                                {bonusesUsed > 0 ? `− ${bonusesUsed.toLocaleString()} сом` : "Использовать"}
-                                            </Button>
-                                        </Tooltip>
+                                    <Typography variant="body2" fontWeight={700} color="info.main">
+                                        {(patientBalance?.cardBalance ?? 0).toLocaleString()} сом
+                                    </Typography>
+                                </Box>
+
+                                {/* Бонусы */}
+                                <Box sx={{
+                                    flex: 1, borderRadius: 1.5, border: '1px solid',
+                                    borderColor: bonusesUsed > 0 ? 'warning.main' : 'divider',
+                                    bgcolor: bonusesUsed > 0 ? (theme) => alpha(theme.palette.warning.main, 0.08) : 'background.paper',
+                                    p: 1.25, textAlign: 'center', transition: 'all 0.2s',
+                                }}>
+                                    <Stack direction="row" alignItems="center" justifyContent="center" spacing={0.5} mb={0.25}>
+                                        <CardGiftcardOutlined sx={{ fontSize: 13, color: 'warning.main' }} />
+                                        <Typography variant="caption" color="text.secondary">Бонусы</Typography>
+                                    </Stack>
+                                    <Typography variant="body2" fontWeight={700} color="warning.main">
+                                        {(patientBalance?.bonuses ?? 0).toLocaleString()} сом
+                                    </Typography>
+                                    {((patientBalance?.bonuses ?? 0) > 0 || bonusesUsed > 0) && (
+                                        <Button size="small" variant={bonusesUsed > 0 ? "contained" : "text"} color="warning"
+                                            sx={{ mt: 0.5, minWidth: 'auto', px: 1, py: 0, fontSize: '0.65rem', textTransform: 'none', lineHeight: 1.6 }}
+                                            onClick={() => {
+                                                if (bonusesUsed > 0) { setBonusesUsed(0); }
+                                                else { setBonusesUsed(Math.min(patientBalance?.bonuses ?? 0, Math.max(0, finalPrice - cashNum - cardNum - balanceUsed))); }
+                                            }}>
+                                            {bonusesUsed > 0 ? "Убрать" : "Применить"}
+                                        </Button>
                                     )}
-                                </Stack>
+                                </Box>
                             </Stack>
                         </Box>
 

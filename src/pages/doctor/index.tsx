@@ -16,12 +16,10 @@ import CloseOutlined from "@mui/icons-material/CloseOutlined";
 import MedicalServicesOutlined from "@mui/icons-material/MedicalServicesOutlined";
 import { useNotification } from "@refinedev/core";
 import { usePageTitle } from "../../hooks/usePageTitle";
-import { supabase } from "../../utility/supabaseClient";
 import type { Appointment, AggregatedAppointmentRow } from "../home/types";
 import { mapAggregatedRowToAppointment, compareAppointmentsByStatus } from "../home/types";
 import AppointmentsList from "../home/components/AppointmentsList";
 import { AppointmentDetailsCard } from "../home/components/AppointmentDetailsCard";
-import { DB_TABLES } from "../../utility/constants";
 import { DoctorConclusionPanel } from "./components/DoctorConclusionPanel";
 import { PageHeader, AppBottomSheet, DateNavigation } from "../../components/ui";
 import { useRefresh } from "../../contexts/refresh-context";
@@ -257,24 +255,9 @@ const DoctorWorkPage: React.FC = () => {
             return;
         }
 
-        const checkConclusion = async () => {
-            // First, trust the flag from the aggregated view if it's there
-            if (selectedAppointment?.has_conclusion || selectedAppointment?.conclusion || selectedAppointment?.diagnosis_code) {
-                setHasConclusion(true);
-                return;
-            }
-
-            const { count, error } = await supabase
-                .from(DB_TABLES.MEDICAL_CONCLUSIONS)
-                .select("id", { count: "exact", head: true })
-                .eq("appointment_id", selectedAppointmentId);
-
-            if (!error) {
-                setHasConclusion((count ?? 0) > 0);
-            }
-        };
-
-        checkConclusion();
+        if (selectedAppointment?.has_conclusion || selectedAppointment?.conclusion || selectedAppointment?.diagnosis_code) {
+            setHasConclusion(true);
+        }
     }, [selectedAppointmentId, appointments]);
 
     return (
@@ -314,7 +297,7 @@ const DoctorWorkPage: React.FC = () => {
                     boxSizing: "border-box"
                 }}>
                     {/* Column 1: Appointments List */}
-                    <Grid item xs={12} md={4} sx={{
+                    <Grid item xs={12} md={6} sx={{
                         height: '100%',
                         overflow: 'hidden',
                         pr: { md: 1 }
@@ -337,7 +320,7 @@ const DoctorWorkPage: React.FC = () => {
 
                     {/* Column 2: Appointment Details (Desktop) */}
                     {!isMobile && (
-                        <Grid item xs={12} md={4} sx={{
+                        <Grid item xs={12} md={6} sx={{
                             height: '100%',
                             display: 'flex',
                             flexDirection: 'column',
@@ -370,41 +353,6 @@ const DoctorWorkPage: React.FC = () => {
                         </Grid>
                     )}
 
-                    {/* Column 3: Conclusion Panel (Desktop) */}
-                    {!isMobile && (
-                        <Grid item xs={12} md={4} sx={{
-                            height: '100%',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            pl: { md: 1 }
-                        }}>
-                            {selectedAppointmentId && hasConclusion ? (
-                                <DoctorConclusionPanel
-                                    appointmentId={selectedAppointmentId}
-                                    onClose={() => { }}
-                                    onSaveSuccess={fetchAppointments}
-                                    hideCloseButton={true}
-                                    onEditClick={() => setDoctorWorkOpen(true)}
-                                />
-                            ) : (
-                                <Box
-                                    sx={{
-                                        height: "100%",
-                                        display: "flex",
-                                        alignItems: "center",
-                                        justifyContent: "center",
-                                        border: "1px dashed",
-                                        borderColor: "divider",
-                                        borderRadius: 1,
-                                        color: "text.secondary",
-                                        bgcolor: "background.paper"
-                                    }}
-                                >
-                                    {selectedAppointmentId ? "Заключение отсутствует" : "Выберите прием для просмотра заключения"}
-                                </Box>
-                            )}
-                        </Grid>
-                    )}
                 </Grid>
             </Box>
 
@@ -424,27 +372,15 @@ const DoctorWorkPage: React.FC = () => {
                             scrollButtons="auto"
                         >
                             <Tab label="Прием" />
-                            {hasConclusion && <Tab label="Заключение" />}
                         </Tabs>
                     </Box>
 
                     <Box sx={{ p: 0, height: 'calc(100% - 49px)', overflowY: 'auto' }}>
-                        {activeTab === 0 && (
-                            <AppointmentDetailsCard
-                                appointmentId={selectedAppointmentId}
-                                onClose={() => setSelectedAppointmentId(null)}
-                                onUpdate={fetchAppointments}
-                            />
-                        )}
-                        {activeTab === 1 && (
-                            <DoctorConclusionPanel
-                                appointmentId={selectedAppointmentId}
-                                onClose={() => setActiveTab(0)}
-                                onSaveSuccess={fetchAppointments}
-                                hideCloseButton={true}
-                                onEditClick={() => setDoctorWorkOpen(true)}
-                            />
-                        )}
+                        <AppointmentDetailsCard
+                            appointmentId={selectedAppointmentId}
+                            onClose={() => setSelectedAppointmentId(null)}
+                            onUpdate={fetchAppointments}
+                        />
                     </Box>
                 </AppBottomSheet>
             )}

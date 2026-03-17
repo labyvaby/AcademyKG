@@ -35,7 +35,6 @@ import { formatKGS } from "../../utility/format";
 import { apiFetch } from "../../utility/apiClient";
 import dayjs from "dayjs";
 import 'dayjs/locale/ru';
-import { fetchNurses } from "../../services/employees";
 
 dayjs.locale('ru');
 
@@ -49,7 +48,6 @@ interface DailyFinancialData {
     discount_sum: number;
     debt_sum: number;
     appointments_count: number;
-    procedures_count: number;
     waiting_count: number;
 }
 
@@ -66,8 +64,7 @@ const ReportsPage: React.FC = () => {
     const [selectedDate, setSelectedDate] = useState<string>(dayjs().format('YYYY-MM-DD'));
     const [financialLoading, setFinancialLoading] = useState(false);
     const [dailyData, setDailyData] = useState<DailyFinancialData[]>([]);
-    const [nurses, setNurses] = useState<{ id: string }[]>([]);
-    const activeMonths = useActiveMonths('AppointmentsAggregated', 'appointment_at');
+    const activeMonths = useActiveMonths('', '');
 
     // Session cache: key = 'YYYY-MM', invalidated on month change
     const cache = React.useRef(new Map<string, DailyFinancialData[]>());
@@ -85,10 +82,6 @@ const ReportsPage: React.FC = () => {
         };
     }, [selectedDate]);
 
-    useEffect(() => {
-        fetchNurses().then(setNurses).catch(console.error);
-    }, []);
-
     const fetchFinancialData = useCallback(async (forceRefresh = false) => {
         if (!canSeeFinancial) return;
 
@@ -103,8 +96,6 @@ const ReportsPage: React.FC = () => {
         try {
             setFinancialLoading(true);
 
-            const nurseIds = nurses.map((n: any) => n.id);
-
             // Fetch all appointments for the month
             const res: any = await apiFetch(`/api/v1/appointments/?ordering=-appointmentAt`);
             const appointments: any[] = res?.data?.results ?? res?.results ?? [];
@@ -118,7 +109,7 @@ const ReportsPage: React.FC = () => {
                     date: dateStr,
                     services_sum: 0, cash_sum: 0, card_sum: 0,
                     balance_sum: 0, bonuses_sum: 0, discount_sum: 0, debt_sum: 0,
-                    appointments_count: 0, procedures_count: 0, waiting_count: 0,
+                    appointments_count: 0, waiting_count: 0,
                 });
                 current = current.add(1, 'day');
             }
@@ -134,7 +125,7 @@ const ReportsPage: React.FC = () => {
                     groupedMap.set(day, {
                         date: day, services_sum: 0, cash_sum: 0, card_sum: 0,
                         balance_sum: 0, bonuses_sum: 0, discount_sum: 0, debt_sum: 0,
-                        appointments_count: 0, procedures_count: 0, waiting_count: 0,
+                        appointments_count: 0, waiting_count: 0,
                     });
                 }
                 const existing = groupedMap.get(day)!;
@@ -165,13 +156,11 @@ const ReportsPage: React.FC = () => {
         } finally {
             setFinancialLoading(false);
         }
-    }, [dateFrom, dateTo, canSeeFinancial, nurses, notify]);
+    }, [dateFrom, dateTo, canSeeFinancial, notify]);
 
     useEffect(() => {
-        if (nurses.length > 0 || !canSeeFinancial) {
-            fetchFinancialData();
-        }
-    }, [fetchFinancialData, nurses.length, canSeeFinancial]);
+        fetchFinancialData();
+    }, [fetchFinancialData]);
 
     const financialTotals = useMemo(() => {
         return dailyData.reduce((acc, curr) => {
@@ -183,10 +172,9 @@ const ReportsPage: React.FC = () => {
                 discount: acc.discount + curr.discount_sum,
                 debt: acc.debt + curr.debt_sum,
                 appointmentsCount: acc.appointmentsCount + curr.appointments_count,
-                proceduresCount: acc.proceduresCount + curr.procedures_count,
                 waitingCount: acc.waitingCount + curr.waiting_count,
             };
-        }, { services: 0, cash: 0, card: 0, discount: 0, debt: 0, appointmentsCount: 0, proceduresCount: 0, waitingCount: 0 });
+        }, { services: 0, cash: 0, card: 0, discount: 0, debt: 0, appointmentsCount: 0, waitingCount: 0 });
     }, [dailyData]);
 
     if (!canSeeFinancial) {
@@ -225,8 +213,8 @@ const ReportsPage: React.FC = () => {
                         dateFrom={dateFrom}
                         dateTo={dateTo}
                         extraCards={[
-                            { title: 'Приёмы / Процедуры', primaryValue: `${financialTotals.appointmentsCount} / ${financialTotals.proceduresCount}`, secondaryText: 'Приёмы / Процедуры', color: 'primary' as const },
-                            { title: 'Мед. услуги', primaryValue: formatKGS(financialTotals.services), secondaryText: 'Итого услуги', color: 'primary' as const },
+                            { title: 'Записи', primaryValue: `${financialTotals.appointmentsCount}`, secondaryText: 'Оплаченные записи', color: 'primary' as const },
+                            { title: 'Итого услуги', primaryValue: formatKGS(financialTotals.services), secondaryText: 'Сумма по услугам', color: 'primary' as const },
                             { title: 'Нал + Безнал', primaryValue: formatKGS(financialTotals.cash + financialTotals.card), secondaryText: `Нал: ${formatKGS(financialTotals.cash)} · Безнал: ${formatKGS(financialTotals.card)}`, color: 'success' as const },
                             { title: 'Долги', primaryValue: formatKGS(financialTotals.debt), secondaryText: 'Не оплачено', color: 'warning' as const },
                         ]}
@@ -235,7 +223,7 @@ const ReportsPage: React.FC = () => {
                     {financialLoading ? <Box sx={{ textAlign: 'center', py: 5, flex: 1 }}><CircularProgress /></Box> : (
                         isMobile ? (
                             <Stack spacing={1.5} sx={{ flex: 1 }}>
-                                {dailyData.filter(d => (d.appointments_count + d.procedures_count) > 0).map(day => (
+                                {dailyData.filter(d => d.appointments_count > 0).map(day => (
                                     <Card key={day.date} variant="outlined" sx={{ borderRadius: 3, '&:hover': { borderColor: 'primary.main', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' } }}>
                                         <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
                                             <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 1.5 }}>
@@ -249,7 +237,7 @@ const ReportsPage: React.FC = () => {
                                                 <Box sx={{ flex: 1 }}>
                                                     <Typography variant="subtitle1" fontWeight={800}>{dayjs(day.date).format('DD MMMM')}</Typography>
                                                     <Typography variant="caption" color="text.secondary">
-                                                        {dayjs(day.date).format('dddd')} • Приемы: {day.appointments_count} | Процедуры: {day.procedures_count}
+                                                        {dayjs(day.date).format('dddd')} • Записей: {day.appointments_count}
                                                     </Typography>
                                                 </Box>
                                             </Stack>
@@ -287,7 +275,7 @@ const ReportsPage: React.FC = () => {
                                         </CardContent>
                                     </Card>
                                 ))}
-                                {dailyData.filter(d => (d.appointments_count + d.procedures_count) > 0).length === 0 && (
+                                {dailyData.filter(d => d.appointments_count > 0).length === 0 && (
                                     <Paper variant="outlined" sx={{ p: 4, textAlign: 'center', borderRadius: 3 }}>
                                         <Typography color="text.secondary">Нет данных за этот период</Typography>
                                     </Paper>
@@ -299,15 +287,14 @@ const ReportsPage: React.FC = () => {
                                     <Table stickyHeader size="small">
                                         <TableHead>
                                             <TableRow>
-                                                {['Дата', 'Приемы', 'Процедуры', 'В ожидании', 'Мед. услуги', 'Наличные', 'Безнал', 'Долг'].map(h => <TableCell key={h} align={h === 'Дата' ? 'left' : h === 'Приемы' || h === 'Процедуры' || h === 'В ожидании' ? 'center' : 'right'} sx={{ fontWeight: 800, ...(h === 'В ожидании' ? { color: 'error.main' } : {}) }}>{h}</TableCell>)}
+                                                {['Дата', 'Записи', 'В ожидании', 'Итого', 'Наличные', 'Безнал', 'Долг'].map(h => <TableCell key={h} align={h === 'Дата' ? 'left' : h === 'Записи' || h === 'В ожидании' ? 'center' : 'right'} sx={{ fontWeight: 800, ...(h === 'В ожидании' ? { color: 'error.main' } : {}) }}>{h}</TableCell>)}
                                             </TableRow>
                                         </TableHead>
                                         <TableBody>
                                             {dailyData.map(day => (
-                                                <TableRow key={day.date} hover sx={{ opacity: (day.appointments_count + day.procedures_count) > 0 ? 1 : 0.6 }}>
+                                                <TableRow key={day.date} hover sx={{ opacity: day.appointments_count > 0 ? 1 : 0.6 }}>
                                                     <TableCell sx={{ fontWeight: 600 }}>{dayjs(day.date).format('DD.MM (ddd)')}</TableCell>
                                                     <TableCell align="center">{day.appointments_count > 0 ? day.appointments_count : '-'}</TableCell>
-                                                    <TableCell align="center">{day.procedures_count > 0 ? day.procedures_count : '-'}</TableCell>
                                                     <TableCell align="center" sx={{
                                                         fontWeight: day.waiting_count > 0 ? 700 : 400,
                                                         color: (day.waiting_count > 0 && dayjs(day.date).isBefore(dayjs(), 'day')) ? 'error.main' : 'text.secondary'
@@ -323,7 +310,6 @@ const ReportsPage: React.FC = () => {
                                             <TableRow sx={{ bgcolor: alpha(theme.palette.primary.main, 0.05) }}>
                                                 <TableCell sx={{ fontWeight: 800 }}>ИТОГО</TableCell>
                                                 <TableCell align="center" sx={{ fontWeight: 800 }}>{financialTotals.appointmentsCount}</TableCell>
-                                                <TableCell align="center" sx={{ fontWeight: 800 }}>{financialTotals.proceduresCount}</TableCell>
                                                 <TableCell align="center" sx={{ fontWeight: 800, color: 'error.main' }}>{financialTotals.waitingCount > 0 ? financialTotals.waitingCount : '-'}</TableCell>
                                                 <TableCell align="right" sx={{ fontWeight: 800 }}>{formatKGS(financialTotals.services)}</TableCell>
                                                 <TableCell align="right" sx={{ fontWeight: 800, color: 'success.main' }}>{formatKGS(financialTotals.cash)}</TableCell>

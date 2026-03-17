@@ -141,8 +141,8 @@ export const HomePage: React.FC = () => {
   const { data: shiftsData } = useQuery({
     queryKey: ["shifts", date],
     queryFn: () => Promise.all([fetchShiftsForDate(date), fetchShiftsForDate(prevDate)]),
-    staleTime: 0,
-    refetchOnWindowFocus: true,
+    staleTime: 2 * 60 * 1000,
+    refetchOnWindowFocus: false,
   });
   const dayShifts = React.useMemo(() => {
     if (!shiftsData) return [];
@@ -153,8 +153,8 @@ export const HomePage: React.FC = () => {
   const { data: doctors = [], isLoading: doctorsLoading } = useQuery<EmployeesRow[]>({
     queryKey: ["employees", "medical-staff"],
     queryFn: fetchMedicalStaff,
-    staleTime: 0,
-    refetchOnWindowFocus: true,
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
   });
 
   const [dayCounts, setDayCounts] = React.useState<Record<string, number>>({});
@@ -350,9 +350,8 @@ export const HomePage: React.FC = () => {
                 appointmentId={selectedAppointmentId}
                 onClose={() => setSelectedAppointmentId(null)}
                 onUpdate={() => {
-                  // Optimistic update already applied in AppointmentDetailsCard.
-                  // Defer list refresh so it doesn't overwrite the optimistic status.
-                  setTimeout(() => refetchAppointments(), 3000);
+                  // Optimistic update already applied in AppointmentDetailsCard via setQueryData.
+                  // No need to refetch — it would overwrite the optimistic status.
                 }}
                 onStartAppointment={(patientId) => {
                   setInitialPatientId(patientId);

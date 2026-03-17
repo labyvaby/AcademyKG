@@ -62,7 +62,6 @@ const TYPE_LABELS: Record<TopUpType, string> = {
 const METHOD_LABELS: Record<PaymentMethod, string> = {
   cash: "Наличные",
   card: "Безналичные",
-  free: "Бесплатно",
 };
 
 const TX_TYPE_COLOR: Record<string, "primary" | "warning"> = {

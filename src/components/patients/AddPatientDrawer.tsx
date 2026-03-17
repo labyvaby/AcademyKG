@@ -63,6 +63,12 @@ const AddPatientDrawer: React.FC<Props> = ({ open, onClose, onCreated, initialPh
   const [phoneCountryCode, setPhoneCountryCode] = React.useState<PhoneCountryCode>(DEFAULT_PHONE_COUNTRY_CODE);
   const [birth, setBirth] = React.useState("");
   const [inn, setInn] = React.useState("");
+  const [parent1Name, setParent1Name] = React.useState("");
+  const [parent1Phone, setParent1Phone] = React.useState("");
+  const [parent1PhoneCountryCode, setParent1PhoneCountryCode] = React.useState<PhoneCountryCode>(DEFAULT_PHONE_COUNTRY_CODE);
+  const [parent2Name, setParent2Name] = React.useState("");
+  const [parent2Phone, setParent2Phone] = React.useState("");
+  const [parent2PhoneCountryCode, setParent2PhoneCountryCode] = React.useState<PhoneCountryCode>(DEFAULT_PHONE_COUNTRY_CODE);
   const [isBlacklisted, setIsBlacklisted] = React.useState(false);
   const [blacklistReason, setBlacklistReason] = React.useState("");
   const [busy, setBusy] = React.useState(false);
@@ -79,6 +85,12 @@ const AddPatientDrawer: React.FC<Props> = ({ open, onClose, onCreated, initialPh
       setPhoneCountryCode(DEFAULT_PHONE_COUNTRY_CODE);
       setBirth("");
       setInn("");
+      setParent1Name("");
+      setParent1Phone("");
+      setParent1PhoneCountryCode(DEFAULT_PHONE_COUNTRY_CODE);
+      setParent2Name("");
+      setParent2Phone("");
+      setParent2PhoneCountryCode(DEFAULT_PHONE_COUNTRY_CODE);
       setIsBlacklisted(false);
       setBlacklistReason("");
       setBusy(false);
@@ -112,6 +124,12 @@ const AddPatientDrawer: React.FC<Props> = ({ open, onClose, onCreated, initialPh
       if (fullPhone) fd.append("phone", fullPhone);
       if (birth) fd.append("birthDate", birth.slice(0, 10));
       if (inn.trim()) fd.append("inn", inn.trim());
+      if (parent1Name.trim()) fd.append("parent1Name", parent1Name.trim());
+      const fullParent1Phone = composePhone(parent1PhoneCountryCode, parent1Phone);
+      if (fullParent1Phone) fd.append("parent1Phone", fullParent1Phone);
+      if (parent2Name.trim()) fd.append("parent2Name", parent2Name.trim());
+      const fullParent2Phone = composePhone(parent2PhoneCountryCode, parent2Phone);
+      if (fullParent2Phone) fd.append("parent2Phone", fullParent2Phone);
       fd.append("isBlacklisted", String(isBlacklisted));
       if (isBlacklisted && blacklistReason.trim()) {
         fd.append("blacklistReason", blacklistReason.trim());
@@ -279,6 +297,45 @@ const AddPatientDrawer: React.FC<Props> = ({ open, onClose, onCreated, initialPh
                 inputProps={{ inputMode: "numeric", pattern: "[0-9]*", maxLength: 14 }}
               />
             </Stack>
+
+            {/* Родители */}
+            {([
+              { label: "Родитель 1", name: parent1Name, setName: setParent1Name, phone: parent1Phone, setPhone: setParent1Phone, code: parent1PhoneCountryCode, setCode: setParent1PhoneCountryCode },
+              { label: "Родитель 2", name: parent2Name, setName: setParent2Name, phone: parent2Phone, setPhone: setParent2Phone, code: parent2PhoneCountryCode, setCode: setParent2PhoneCountryCode },
+            ] as const).map((p) => (
+              <Box key={p.label} sx={{ border: "1px solid", borderColor: "divider", borderRadius: 1, p: 2 }}>
+                <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600, mb: 1.5 }}>
+                  {p.label}
+                </Typography>
+                <Stack spacing={1.5}>
+                  <TextField
+                    value={p.name}
+                    onChange={(e) => p.setName(e.target.value)}
+                    fullWidth
+                    size="small"
+                    placeholder="ФИО родителя"
+                  />
+                  <TextField
+                    value={p.phone}
+                    onChange={(e) => {
+                      const maxLen = getPhoneLocalMaxLength(p.code);
+                      p.setPhone(e.target.value.replace(/[^\d]/g, "").slice(0, maxLen));
+                    }}
+                    fullWidth
+                    size="small"
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start" sx={{ mr: 1, ml: "-14px" }}>
+                          <PhoneCountryCodeSelect value={p.code} onChange={(code) => p.setCode(code)} />
+                        </InputAdornment>
+                      ),
+                    }}
+                    inputProps={{ inputMode: "tel", pattern: "[0-9]*", maxLength: getPhoneLocalMaxLength(p.code) }}
+                    placeholder={getPhoneLocalMaxLength(p.code) === 10 ? "XXX XXX XXXX" : "XXX XXX XXX"}
+                  />
+                </Stack>
+              </Box>
+            ))}
 
             {canManageBlacklist && (
               <Box sx={{ border: "1px solid", borderColor: "divider", borderRadius: 1, p: 2 }}>
