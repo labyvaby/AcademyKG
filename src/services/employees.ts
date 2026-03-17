@@ -73,13 +73,7 @@ export const fetchDoctors = async (): Promise<EmployeesRow[]> => {
 export const fetchMedicalStaff = async (): Promise<EmployeesRow[]> => {
   try {
     const data = await fetchEmployeesBase();
-    return data
-      .filter((emp) => {
-        const roleRaw = emp.role;
-        const role = (typeof roleRaw === "string" ? roleRaw : (roleRaw as any)?.name ?? "").toLowerCase();
-        return role === "doctor" || role === "nurse";
-      })
-      .map(toRow);
+    return data.map(toRow);
   } catch (e) {
     console.error("fetchMedicalStaff failed", e);
     return [];

@@ -27,6 +27,7 @@ import { useActiveMonths } from "../../hooks/useActiveMonths";
 import { PageHeader, AppBottomSheet } from "../../components/ui";
 import { formatDateRu } from "../../utility/format";
 import { apiFetch } from "../../utility/apiClient";
+import { getCachedDetail, setCachedDetail } from "../../utility/appointmentCache";
 import AppointmentsList from "../home/components/AppointmentsList";
 import AppointmentDetailsCard from "../home/components/AppointmentDetailsCard";
 import { DoctorConclusionPanel } from "../doctor/components/DoctorConclusionPanel";
@@ -96,7 +97,49 @@ export const AllAppointmentsList: React.FC = () => {
             const data: any[] = res?.data?.results ?? res?.results ?? (Array.isArray(res?.data) ? res.data : null) ?? (Array.isArray(res) ? res : []);
 
             const mapped = (data as AggregatedAppointmentRow[]).map(mapAggregatedRowToAppointment);
-            setHistory(mapped);
+
+            // Apply cache immediately
+            mapped.forEach((appt, idx) => {
+                const cached = getCachedDetail(appt.id);
+                if (cached) {
+                    mapped[idx] = {
+                        ...appt,
+                        status: cached.status || appt.status,
+                        doctor_name: cached.doctor_name || appt.doctor_name,
+                        doctor_id: cached.doctor_id || appt.doctor_id,
+                        parsed_services: cached.parsed_services?.length ? cached.parsed_services : appt.parsed_services,
+                    };
+                }
+            });
+            setHistory([...mapped]); // show cached version immediately
+
+            // Fetch details in parallel and update cache
+            await Promise.all(mapped.map(async (appt, idx) => {
+                try {
+                    const detail: any = await apiFetch(`/api/v1/appointments/${appt.id}/`);
+                    const d = detail?.data ?? detail;
+                    if (!d) return;
+                    const fullMapped = mapAggregatedRowToAppointment(d as AggregatedAppointmentRow);
+                    const svc = d.services?.[0];
+                    const pname = svc?.performerName ?? svc?.performer_name ?? fullMapped.doctor_name ?? appt.doctor_name;
+                    const pid = svc ? (typeof svc.performer === "string" ? svc.performer : (svc.performer?.id ?? "")) : appt.doctor_id;
+                    mapped[idx] = {
+                        ...appt,
+                        status: fullMapped.status,
+                        doctor_name: pname || appt.doctor_name,
+                        doctor_id: pid || appt.doctor_id,
+                        parsed_services: fullMapped.parsed_services ?? appt.parsed_services,
+                    };
+                    setCachedDetail(appt.id, {
+                        status: fullMapped.status,
+                        doctor_name: pname || appt.doctor_name,
+                        doctor_id: pid || appt.doctor_id,
+                        parsed_services: fullMapped.parsed_services ?? [],
+                    });
+                } catch { /* ignore */ }
+            }));
+
+            setHistory([...mapped]);
         } catch (error) {
             console.error("Error fetching all appointments:", error);
         } finally {
@@ -179,15 +222,9 @@ export const AllAppointmentsList: React.FC = () => {
             if (s.performer_name) docNames.add(s.performer_name);
             else if (s.doctor_name) docNames.add(s.doctor_name);
         });
-
-        if (doctors.length > 0) {
-            const validNames = new Set(doctors.map(d => d.full_name));
-            return Array.from(docNames).filter(n => validNames.has(n));
-        }
-
         if (docNames.size === 0) docNames.add("Неизвестно");
         return Array.from(docNames);
-    }, [doctors]);
+    }, []);
 
     // 4. Group by Employee -> Day (for hierarchy in Left Panel)
     const groupedByEmployee = React.useMemo(() => {

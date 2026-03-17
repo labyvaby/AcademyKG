@@ -285,14 +285,12 @@ export const AppointmentsList: React.FC<AppointmentsListProps & { onAddSlot?: (d
     currentDayShifts.forEach(shift => {
       if (shift.employes_id && !doctorMap.has(shift.employes_id)) {
         const fullInfo = doctors?.find(d => d.id === shift.employes_id);
-        if (fullInfo) {
-          doctorMap.set(shift.employes_id, {
-            id: shift.employes_id,
-            name: fullInfo.full_name || "Специалист",
-            photoUrl: fullInfo.avatar_url || null,
-            nickname: fullInfo.nickname
-          });
-        }
+        doctorMap.set(shift.employes_id, {
+          id: shift.employes_id,
+          name: fullInfo?.full_name || shift.employee?.full_name || "Специалист",
+          photoUrl: fullInfo?.avatar_url || null,
+          nickname: fullInfo?.nickname
+        });
       }
     });
 
@@ -388,7 +386,8 @@ export const AppointmentsList: React.FC<AppointmentsListProps & { onAddSlot?: (d
     // Then, add appointments to groups
     filteredItems.forEach((item) => {
       // Ignore items from keepPreviousData that don't match the selected titleDate
-      if (item.appointment_at && dayjs(item.appointment_at).format("DD.MM.YYYY") !== titleDate) return;
+      // Skip filter if titleDate is not a real date (e.g. "Выбранный период")
+      if (titleDate && /^\d{2}\.\d{2}\.\d{4}$/.test(titleDate) && item.appointment_at && dayjs(item.appointment_at).format("DD.MM.YYYY") !== titleDate) return;
 
       const services = item.parsed_services || [];
 
@@ -751,7 +750,7 @@ export const AppointmentsList: React.FC<AppointmentsListProps & { onAddSlot?: (d
                             <Stack alignItems="flex-end">
                               <Stack direction="row" alignItems="center" gap={1}>
                                 {a.status !== "Завершено" && a.status !== "Оплачено" && a.status !== "Частично оплачено" && (
-                                  <Chip label={getStatusConfig(a.status).label} icon={getStatusConfig(a.status).icon} size="small" sx={getStatusChipSx(a.status)} />
+                                  <Chip label={getStatusConfig(a.status).label} icon={getStatusConfig(a.status).icon} size="small" sx={{ ...getStatusChipSx(a.status), display: 'none' }} />
                                 )}
                                 {(() => {
                                   const isPaidStatus = a.status === "Оплачено" || a.status === "Частично оплачено";
@@ -761,7 +760,7 @@ export const AppointmentsList: React.FC<AppointmentsListProps & { onAddSlot?: (d
                                       <Chip
                                         label={<Stack direction="row" alignItems="center" gap={0.5}>{cash > 0 && <PaymentsOutlined sx={{ fontSize: 16 }} />}{card > 0 && <CreditCardOutlined sx={{ fontSize: 16 }} />}{balance > 0 && <AccountBalanceWalletOutlined sx={{ fontSize: 16 }} />}{bonuses > 0 && <CardGiftcardOutlined sx={{ fontSize: 16 }} />}{labelText}</Stack>}
                                         size="small"
-                                        sx={getStatusChipSx(paymentStyleStatus)}
+                                        sx={{ ...getStatusChipSx(paymentStyleStatus), display: 'none' }}
                                       />
                                     );
                                   }

@@ -139,15 +139,18 @@ async function fetchPermissions(opts: { force?: boolean } = {}): Promise<void> {
         return;
       }
 
-      // 3. Если employee получен без полных деталей — загружаем детали
-      const hasRoleInfo = emp.roleName || emp.role_name || (typeof emp.role === 'object' && emp.role?.name);
-      if (!hasRoleInfo && emp.id) {
+      // 4. Если получаем employee, нужно убедиться, что у нас есть все поля профиля.
+      // /api/v1/users/me/ может возвращать неполный объект сотрудника.
+      const hasFullInfo = !!(emp.phone || emp.email || emp.telegram_id || emp.telegramId);
+
+      if (emp.id && !hasFullInfo) {
         try {
           const empRes: any = await apiFetch(`/api/v1/employees/${emp.id}/`);
           const fullEmp = empRes?.data ?? empRes;
           if (fullEmp?.id) emp = fullEmp;
-        } catch {
-          // use partial emp
+        } catch (error) {
+          console.warn('[usePermissions] Не удалось загрузить полные данные сотрудника:', error);
+          // Продолжаем с тем, что есть
         }
       }
 

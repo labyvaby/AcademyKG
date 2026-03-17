@@ -16,6 +16,21 @@ paths:
           type: string
           format: uuid
       - in: query
+        name: date
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: dateFrom
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: dateTo
+        schema:
+          type: string
+          format: date
+      - in: query
         name: isNight
         schema:
           type: boolean
@@ -47,6 +62,16 @@ paths:
         description: A search term.
         schema:
           type: string
+      - in: query
+        name: service
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: specialist
+        schema:
+          type: string
+          format: uuid
       - in: query
         name: status
         schema:
@@ -306,6 +331,118 @@ paths:
                   meta:
                     type: object
           description: ''
+  /api/v1/appointments-aggregated/:
+    get:
+      operationId: v1AppointmentsAggregatedRetrieve
+      description: Возвращает агрегированные данные по приёмам для фронтовых сценариев.
+        Включает paid_cash, paid_card, paid_balance, paid_bonuses и debt.
+      summary: Агрегированный список приёмов (RPC)
+      parameters:
+      - in: query
+        name: branch
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: month
+        schema:
+          type: string
+        description: Фильтр по месяцу YYYY-MM
+      - in: query
+        name: organization
+        schema:
+          type: string
+          format: uuid
+      tags:
+      - Приёмы / RPC
+      security:
+      - jwtAuth: []
+      responses:
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/V1AppointmentsAggregatedRetrieveErrorResponse400'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse401'
+              examples:
+                AuthenticationFailed:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: authentication_failed
+                      detail: Некорректные учетные данные.
+                      attr: null
+                NotAuthenticated:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: not_authenticated
+                      detail: Учетные данные не были предоставлены.
+                      attr: null
+          description: ''
+        '405':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse405'
+              examples:
+                MethodNotAllowed:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: method_not_allowed
+                      detail: Метод "get" не разрешен.
+                      attr: null
+          description: ''
+        '406':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse406'
+              examples:
+                NotAcceptable:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: not_acceptable
+                      detail: Невозможно удовлетворить "Accept" заголовок запроса.
+                      attr: null
+          description: ''
+        '415':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse415'
+              examples:
+                UnsupportedMediaType:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: unsupported_media_type
+                      detail: Неподдерживаемый тип данных "application/json" в запросе.
+                      attr: null
+          description: ''
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse500'
+              examples:
+                APIException:
+                  value:
+                    type: server_error
+                    errors:
+                    - code: error
+                      detail: Ошибка сервера.
+                      attr: null
+          description: ''
+        '200':
+          description: Данные успешно получены
   /api/v1/appointments/{id}/:
     get:
       operationId: v1AppointmentsRetrieve
@@ -821,6 +958,131 @@ paths:
           description: ''
         '204':
           description: No response body
+  /api/v1/appointments/employees-by-date/:
+    get:
+      operationId: v1AppointmentsEmployeesByDateRetrieve
+      description: Возвращает уникальный список сотрудников по указанной дате.
+      summary: Сотрудники по дате
+      parameters:
+      - in: query
+        name: date
+        schema:
+          type: string
+          format: date
+        required: true
+      tags:
+      - Приёмы
+      security:
+      - jwtAuth: []
+      responses:
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/V1AppointmentsEmployeesByDateRetrieveErrorResponse400'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse401'
+              examples:
+                AuthenticationFailed:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: authentication_failed
+                      detail: Некорректные учетные данные.
+                      attr: null
+                NotAuthenticated:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: not_authenticated
+                      detail: Учетные данные не были предоставлены.
+                      attr: null
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse404'
+              examples:
+                NotFound:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: not_found
+                      detail: Страница не найдена.
+                      attr: null
+          description: ''
+        '405':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse405'
+              examples:
+                MethodNotAllowed:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: method_not_allowed
+                      detail: Метод "get" не разрешен.
+                      attr: null
+          description: ''
+        '406':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse406'
+              examples:
+                NotAcceptable:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: not_acceptable
+                      detail: Невозможно удовлетворить "Accept" заголовок запроса.
+                      attr: null
+          description: ''
+        '415':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse415'
+              examples:
+                UnsupportedMediaType:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: unsupported_media_type
+                      detail: Неподдерживаемый тип данных "application/json" в запросе.
+                      attr: null
+          description: ''
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse500'
+              examples:
+                APIException:
+                  value:
+                    type: server_error
+                    errors:
+                    - code: error
+                      detail: Ошибка сервера.
+                      attr: null
+          description: ''
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/AppointmentEmployeesByDate'
+                  meta:
+                    type: object
+          description: ''
   /api/v1/auth/login/:
     post:
       operationId: v1AuthLoginCreate
@@ -2408,6 +2670,140 @@ paths:
           description: ''
         '204':
           description: No response body
+  /api/v1/cashbox/summary/:
+    get:
+      operationId: v1CashboxSummaryRetrieve
+      description: Возвращает полные суммы по денежному потоку приёмов и расходам,
+        а также net-итоги по cash/card.
+      summary: Сводка кассы (приёмы + расходы)
+      parameters:
+      - in: query
+        name: branch
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: dateFrom
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: dateTo
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: method
+        schema:
+          type: string
+          enum:
+          - card
+          - cash
+        description: Опционально ограничивает расчёт методом оплаты.
+      - in: query
+        name: organization
+        schema:
+          type: string
+          format: uuid
+      tags:
+      - Финансы / Касса
+      security:
+      - jwtAuth: []
+      responses:
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/V1CashboxSummaryRetrieveErrorResponse400'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse401'
+              examples:
+                AuthenticationFailed:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: authentication_failed
+                      detail: Некорректные учетные данные.
+                      attr: null
+                NotAuthenticated:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: not_authenticated
+                      detail: Учетные данные не были предоставлены.
+                      attr: null
+          description: ''
+        '405':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse405'
+              examples:
+                MethodNotAllowed:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: method_not_allowed
+                      detail: Метод "get" не разрешен.
+                      attr: null
+          description: ''
+        '406':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse406'
+              examples:
+                NotAcceptable:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: not_acceptable
+                      detail: Невозможно удовлетворить "Accept" заголовок запроса.
+                      attr: null
+          description: ''
+        '415':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse415'
+              examples:
+                UnsupportedMediaType:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: unsupported_media_type
+                      detail: Неподдерживаемый тип данных "application/json" в запросе.
+                      attr: null
+          description: ''
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse500'
+              examples:
+                APIException:
+                  value:
+                    type: server_error
+                    errors:
+                    - code: error
+                      detail: Ошибка сервера.
+                      attr: null
+          description: ''
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/CashboxSummary'
+                  meta:
+                    type: object
+          description: ''
   /api/v1/client-balance-transactions/:
     get:
       operationId: v1ClientBalanceTransactionsList
@@ -9519,6 +9915,355 @@ paths:
           description: ''
         '204':
           description: No response body
+  /api/v1/reports/financial-monthly/:
+    get:
+      operationId: v1ReportsFinancialMonthlyRetrieve
+      description: Возвращает по дням месяца финансовые метрики и итоги.
+      summary: Финансовый отчет по месяцам
+      parameters:
+      - in: query
+        name: branch
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: month
+        schema:
+          type: string
+        description: Месяц в формате YYYY-MM
+        required: true
+      - in: query
+        name: organization
+        schema:
+          type: string
+          format: uuid
+      tags:
+      - Отчеты
+      security:
+      - jwtAuth: []
+      responses:
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/V1ReportsFinancialMonthlyRetrieveErrorResponse400'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse401'
+              examples:
+                AuthenticationFailed:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: authentication_failed
+                      detail: Некорректные учетные данные.
+                      attr: null
+                NotAuthenticated:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: not_authenticated
+                      detail: Учетные данные не были предоставлены.
+                      attr: null
+          description: ''
+        '405':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse405'
+              examples:
+                MethodNotAllowed:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: method_not_allowed
+                      detail: Метод "get" не разрешен.
+                      attr: null
+          description: ''
+        '406':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse406'
+              examples:
+                NotAcceptable:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: not_acceptable
+                      detail: Невозможно удовлетворить "Accept" заголовок запроса.
+                      attr: null
+          description: ''
+        '415':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse415'
+              examples:
+                UnsupportedMediaType:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: unsupported_media_type
+                      detail: Неподдерживаемый тип данных "application/json" в запросе.
+                      attr: null
+          description: ''
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse500'
+              examples:
+                APIException:
+                  value:
+                    type: server_error
+                    errors:
+                    - code: error
+                      detail: Ошибка сервера.
+                      attr: null
+          description: ''
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/FinancialMonthlyReport'
+                  meta:
+                    type: object
+          description: ''
+  /api/v1/reports/payroll-monthly/:
+    get:
+      operationId: v1ReportsPayrollMonthlyRetrieve
+      description: Возвращает расчет зарплат сотрудников за месяц с группировкой по
+        ролям.
+      summary: Зарплатный отчет по месяцам
+      parameters:
+      - in: query
+        name: branch
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: month
+        schema:
+          type: string
+        description: Месяц в формате YYYY-MM
+        required: true
+      - in: query
+        name: organization
+        schema:
+          type: string
+          format: uuid
+      tags:
+      - Отчеты
+      security:
+      - jwtAuth: []
+      responses:
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/V1ReportsPayrollMonthlyRetrieveErrorResponse400'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse401'
+              examples:
+                AuthenticationFailed:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: authentication_failed
+                      detail: Некорректные учетные данные.
+                      attr: null
+                NotAuthenticated:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: not_authenticated
+                      detail: Учетные данные не были предоставлены.
+                      attr: null
+          description: ''
+        '405':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse405'
+              examples:
+                MethodNotAllowed:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: method_not_allowed
+                      detail: Метод "get" не разрешен.
+                      attr: null
+          description: ''
+        '406':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse406'
+              examples:
+                NotAcceptable:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: not_acceptable
+                      detail: Невозможно удовлетворить "Accept" заголовок запроса.
+                      attr: null
+          description: ''
+        '415':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse415'
+              examples:
+                UnsupportedMediaType:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: unsupported_media_type
+                      detail: Неподдерживаемый тип данных "application/json" в запросе.
+                      attr: null
+          description: ''
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse500'
+              examples:
+                APIException:
+                  value:
+                    type: server_error
+                    errors:
+                    - code: error
+                      detail: Ошибка сервера.
+                      attr: null
+          description: ''
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/PayrollMonthlyReport'
+                  meta:
+                    type: object
+          description: ''
+  /api/v1/roles/:
+    get:
+      operationId: v1RolesList
+      description: Возвращает список ролей системы.
+      summary: Список ролей
+      tags:
+      - Роли
+      security:
+      - jwtAuth: []
+      responses:
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/V1RolesListErrorResponse400'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse401'
+              examples:
+                AuthenticationFailed:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: authentication_failed
+                      detail: Некорректные учетные данные.
+                      attr: null
+                NotAuthenticated:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: not_authenticated
+                      detail: Учетные данные не были предоставлены.
+                      attr: null
+          description: ''
+        '405':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse405'
+              examples:
+                MethodNotAllowed:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: method_not_allowed
+                      detail: Метод "get" не разрешен.
+                      attr: null
+          description: ''
+        '406':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse406'
+              examples:
+                NotAcceptable:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: not_acceptable
+                      detail: Невозможно удовлетворить "Accept" заголовок запроса.
+                      attr: null
+          description: ''
+        '415':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse415'
+              examples:
+                UnsupportedMediaType:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: unsupported_media_type
+                      detail: Неподдерживаемый тип данных "application/json" в запросе.
+                      attr: null
+          description: ''
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse500'
+              examples:
+                APIException:
+                  value:
+                    type: server_error
+                    errors:
+                    - code: error
+                      detail: Ошибка сервера.
+                      attr: null
+          description: ''
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Role'
+                  meta:
+                    type: object
+          description: ''
   /api/v1/salary-rules/:
     post:
       operationId: v1SalaryRulesCreate
@@ -11638,6 +12383,12 @@ paths:
       description: Возвращает список продаваемых позиций (услуги/товары).
       summary: Список номенклатуры
       parameters:
+      - in: query
+        name: employee
+        schema:
+          type: string
+          format: uuid
+        description: Фильтр по сотруднику (вернёт только услуги, привязанные к сотруднику).
       - in: query
         name: isActive
         schema:
@@ -15904,17 +16655,8 @@ components:
           type: string
           format: date-time
           title: Дата и время приёма
-        isNight:
-          type: boolean
-          title: Ночной
         adminComment:
           type: string
-        complaints:
-          type: string
-          title: Жалобы ребёнка
-        doctorComplaints:
-          type: string
-          title: Жалобы (врач)
         services:
           type: array
           items:
@@ -15934,18 +16676,9 @@ components:
           type: string
           format: date-time
           title: Дата и время приёма
-        isNight:
-          type: boolean
-          title: Ночной
         adminComment:
           type: string
           minLength: 1
-        complaints:
-          type: string
-          title: Жалобы ребёнка
-        doctorComplaints:
-          type: string
-          title: Жалобы (врач)
         services:
           type: array
           items:
@@ -16125,9 +16858,6 @@ components:
         services:
           type: string
           readOnly: true
-        products:
-          type: string
-          readOnly: true
       required:
       - adminComment
       - anamnesis
@@ -16154,7 +16884,6 @@ components:
       - paidCard
       - paidCash
       - patient
-      - products
       - review
       - services
       - status
@@ -16164,6 +16893,36 @@ components:
       - totalCost
       - updatedAt
       - weight
+    AppointmentEmployeeByDateItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        photoUrl:
+          type: string
+        nickname:
+          type: string
+        fullName:
+          type: string
+      required:
+      - fullName
+      - id
+      - nickname
+      - photoUrl
+    AppointmentEmployeesByDate:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+        employees:
+          type: array
+          items:
+            $ref: '#/components/schemas/AppointmentEmployeeByDateItem'
+      required:
+      - date
+      - employees
     AppointmentList:
       type: object
       properties:
@@ -16293,17 +17052,8 @@ components:
           type: string
           format: date-time
           title: Дата и время приёма
-        isNight:
-          type: boolean
-          title: Ночной
         adminComment:
           type: string
-        complaints:
-          type: string
-          title: Жалобы ребёнка
-        doctorComplaints:
-          type: string
-          title: Жалобы (врач)
         services:
           type: array
           items:
@@ -16322,18 +17072,9 @@ components:
           type: string
           format: date-time
           title: Дата и время приёма
-        isNight:
-          type: boolean
-          title: Ночной
         adminComment:
           type: string
           minLength: 1
-        complaints:
-          type: string
-          title: Жалобы ребёнка
-        doctorComplaints:
-          type: string
-          title: Жалобы (врач)
         services:
           type: array
           items:
@@ -16444,11 +17185,184 @@ components:
       required:
       - name
       - organization
+    CashboxAppointmentsSummary:
+      type: object
+      properties:
+        cashSum:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+        cardSum:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+        balanceSum:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+        bonusesSum:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+        totalSum:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+      required:
+      - balanceSum
+      - bonusesSum
+      - cardSum
+      - cashSum
+      - totalSum
+    CashboxCounts:
+      type: object
+      properties:
+        appointmentsCount:
+          type: integer
+        expensesCount:
+          type: integer
+      required:
+      - appointmentsCount
+      - expensesCount
+    CashboxExpensesSummary:
+      type: object
+      properties:
+        cashSum:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+        cashlessSum:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+        totalSum:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+      required:
+      - cashSum
+      - cashlessSum
+      - totalSum
+    CashboxNetSummary:
+      type: object
+      properties:
+        cashSum:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+        cardSum:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+        totalSum:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+      required:
+      - cardSum
+      - cashSum
+      - totalSum
+    CashboxSummary:
+      type: object
+      properties:
+        method:
+          type: string
+          nullable: true
+        dateFrom:
+          type: string
+          format: date
+          nullable: true
+        dateTo:
+          type: string
+          format: date
+          nullable: true
+        appointments:
+          $ref: '#/components/schemas/CashboxAppointmentsSummary'
+        expenses:
+          $ref: '#/components/schemas/CashboxExpensesSummary'
+        net:
+          $ref: '#/components/schemas/CashboxNetSummary'
+        counts:
+          $ref: '#/components/schemas/CashboxCounts'
+      required:
+      - appointments
+      - counts
+      - dateFrom
+      - dateTo
+      - expenses
+      - method
+      - net
     ClientErrorEnum:
       enum:
       - client_error
       type: string
       description: '* `client_error` - Client Error'
+    DailyFinancialData:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+        servicesSum:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+        productsSum:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+        cashSum:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+        cardSum:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+        balanceSum:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+        bonusesSum:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+        discountSum:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+        debtSum:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+        appointmentsCount:
+          type: integer
+        proceduresCount:
+          type: integer
+        dayCount:
+          type: integer
+        nightCount:
+          type: integer
+        waitingCount:
+          type: integer
+        hasActivity:
+          type: boolean
+      required:
+      - appointmentsCount
+      - balanceSum
+      - bonusesSum
+      - cardSum
+      - cashSum
+      - date
+      - dayCount
+      - debtSum
+      - discountSum
+      - hasActivity
+      - nightCount
+      - proceduresCount
+      - productsSum
+      - servicesSum
+      - waitingCount
     EmployeeDetail:
       type: object
       properties:
@@ -16483,8 +17397,10 @@ components:
           title: Дата рождения
         photoUrl:
           type: string
+          format: uri
           readOnly: true
-          title: URL фото
+          nullable: true
+          title: Фото
         telegramId:
           type: string
           readOnly: true
@@ -16708,8 +17624,10 @@ components:
           readOnly: true
         photoUrl:
           type: string
+          format: uri
           readOnly: true
-          title: URL фото
+          nullable: true
+          title: Фото
         createdAt:
           type: string
           format: date-time
@@ -16970,7 +17888,9 @@ components:
           title: Дата рождения
         photoUrl:
           type: string
-          title: URL фото
+          format: uri
+          nullable: true
+          title: Фото
         telegramId:
           type: string
           maxLength: 100
@@ -17028,7 +17948,9 @@ components:
           title: Дата рождения
         photoUrl:
           type: string
-          title: URL фото
+          format: binary
+          nullable: true
+          title: Фото
         telegramId:
           type: string
           maxLength: 100
@@ -17559,6 +18481,91 @@ components:
           format: binary
           nullable: true
           title: Фото
+    FinancialMonthlyReport:
+      type: object
+      properties:
+        canView:
+          type: boolean
+        month:
+          type: string
+        days:
+          type: array
+          items:
+            $ref: '#/components/schemas/DailyFinancialData'
+        displayDays:
+          type: array
+          items:
+            $ref: '#/components/schemas/DailyFinancialData'
+        totals:
+          $ref: '#/components/schemas/FinancialTotals'
+        summaryCards:
+          $ref: '#/components/schemas/SummaryCards'
+      required:
+      - canView
+      - days
+      - displayDays
+      - month
+      - summaryCards
+      - totals
+    FinancialTotals:
+      type: object
+      properties:
+        servicesSum:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+        productsSum:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+        cashSum:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+        cardSum:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+        balanceSum:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+        bonusesSum:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+        discountSum:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+        debtSum:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+        appointmentsCount:
+          type: integer
+        proceduresCount:
+          type: integer
+        dayCount:
+          type: integer
+        nightCount:
+          type: integer
+        waitingCount:
+          type: integer
+      required:
+      - appointmentsCount
+      - balanceSum
+      - bonusesSum
+      - cardSum
+      - cashSum
+      - dayCount
+      - debtSum
+      - discountSum
+      - nightCount
+      - proceduresCount
+      - productsSum
+      - servicesSum
+      - waitingCount
     LoginRequest:
       type: object
       properties:
@@ -18119,18 +19126,9 @@ components:
           type: string
           format: date-time
           title: Дата и время приёма
-        isNight:
-          type: boolean
-          title: Ночной
         adminComment:
           type: string
           minLength: 1
-        complaints:
-          type: string
-          title: Жалобы ребёнка
-        doctorComplaints:
-          type: string
-          title: Жалобы (врач)
         services:
           type: array
           items:
@@ -18223,7 +19221,9 @@ components:
           title: Дата рождения
         photoUrl:
           type: string
-          title: URL фото
+          format: binary
+          nullable: true
+          title: Фото
         telegramId:
           type: string
           maxLength: 100
@@ -19174,6 +20174,186 @@ components:
       - amount
       - method
       - sale
+    PayrollGroup:
+      type: object
+      properties:
+        key:
+          type: string
+        title:
+          type: string
+        rows:
+          type: array
+          items:
+            $ref: '#/components/schemas/PayrollRow'
+        totals:
+          $ref: '#/components/schemas/PayrollGroupTotals'
+      required:
+      - key
+      - rows
+      - title
+      - totals
+    PayrollGroupTotals:
+      type: object
+      properties:
+        grossEarnings:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+        netSalary:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+        expensesSum:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+        employeesCount:
+          type: integer
+      required:
+      - employeesCount
+      - expensesSum
+      - grossEarnings
+      - netSalary
+    PayrollMonthlyReport:
+      type: object
+      properties:
+        canSeeAll:
+          type: boolean
+        month:
+          type: string
+        groups:
+          type: array
+          items:
+            $ref: '#/components/schemas/PayrollGroup'
+        totals:
+          $ref: '#/components/schemas/PayrollTotals'
+        summary:
+          $ref: '#/components/schemas/PayrollSummary'
+      required:
+      - canSeeAll
+      - groups
+      - month
+      - summary
+      - totals
+    PayrollRow:
+      type: object
+      properties:
+        employeeId:
+          type: string
+          format: uuid
+        fullName:
+          type: string
+        roleName:
+          type: string
+        dayHours:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+        nightHours:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+        paidAppointmentsCount:
+          type: integer
+        distributedAppointmentsCount:
+          type: integer
+        expensesSum:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+        grossEarnings:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+        netSalary:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+        percentSum:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+        fixedSum:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+        status:
+          $ref: '#/components/schemas/PayrollStatus'
+        paidOut:
+          type: boolean
+      required:
+      - dayHours
+      - distributedAppointmentsCount
+      - employeeId
+      - expensesSum
+      - fixedSum
+      - fullName
+      - grossEarnings
+      - netSalary
+      - nightHours
+      - paidAppointmentsCount
+      - paidOut
+      - percentSum
+      - roleName
+      - status
+    PayrollStatus:
+      type: object
+      properties:
+        code:
+          $ref: '#/components/schemas/PayrollStatusCodeEnum'
+        hasWarning:
+          type: boolean
+        hasOpenShift:
+          type: boolean
+      required:
+      - code
+      - hasOpenShift
+      - hasWarning
+    PayrollStatusCodeEnum:
+      enum:
+      - green
+      - red
+      - blue
+      type: string
+      description: |-
+        * `green` - green
+        * `red` - red
+        * `blue` - blue
+    PayrollSummary:
+      type: object
+      properties:
+        warningsCount:
+          type: integer
+        openShiftsCount:
+          type: integer
+        paidOutCount:
+          type: integer
+      required:
+      - openShiftsCount
+      - paidOutCount
+      - warningsCount
+    PayrollTotals:
+      type: object
+      properties:
+        grossEarnings:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+        netSalary:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+        expensesSum:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+        employeesCount:
+          type: integer
+      required:
+      - employeesCount
+      - expensesSum
+      - grossEarnings
+      - netSalary
     PurposeEnum:
       enum:
       - register
@@ -19206,6 +20386,38 @@ components:
       - password
       - passwordConfirm
       - phoneNumber
+    Role:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          title: Системное имя
+          maxLength: 50
+        displayName:
+          type: string
+          title: Отображаемое имя
+          maxLength: 100
+        description:
+          type: string
+          title: Описание
+        createdAt:
+          type: string
+          format: date-time
+          readOnly: true
+        updatedAt:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - createdAt
+      - displayName
+      - id
+      - name
+      - updatedAt
     RoleNested:
       type: object
       properties:
@@ -19998,6 +21210,42 @@ components:
         * `partial` - Частично оплачена
         * `paid` - Оплачена
         * `canceled` - Отменена
+    SummaryCards:
+      type: object
+      properties:
+        appointments:
+          type: integer
+        procedures:
+          type: integer
+        day:
+          type: integer
+        night:
+          type: integer
+        servicesSum:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+        productsSum:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+        cashAndCardSum:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+        debtSum:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+      required:
+      - appointments
+      - cashAndCardSum
+      - day
+      - debtSum
+      - night
+      - procedures
+      - productsSum
+      - servicesSum
     TokenPair:
       type: object
       properties:
@@ -20086,8 +21334,19 @@ components:
           nullable: true
           title: Адрес электронной почты
           maxLength: 254
+        phoneNumber:
+          type: string
+          readOnly: true
       required:
       - id
+      - phoneNumber
+    V1AppointmentsAggregatedRetrieveErrorResponse400:
+      oneOf:
+      - $ref: '#/components/schemas/ParseErrorResponse'
+      discriminator:
+        propertyName: type
+        mapping:
+          client_error: '#/components/schemas/ParseErrorResponse'
     V1AppointmentsCreateAdminCommentErrorComponent:
       type: object
       properties:
@@ -20148,67 +21407,12 @@ components:
       - attr
       - code
       - detail
-    V1AppointmentsCreateComplaintsErrorComponent:
-      type: object
-      properties:
-        attr:
-          enum:
-          - complaints
-          type: string
-          description: '* `complaints` - complaints'
-        code:
-          enum:
-          - invalid
-          - 'null'
-          - null_characters_not_allowed
-          - surrogate_characters_not_allowed
-          type: string
-          description: |-
-            * `invalid` - invalid
-            * `null` - null
-            * `null_characters_not_allowed` - null_characters_not_allowed
-            * `surrogate_characters_not_allowed` - surrogate_characters_not_allowed
-        detail:
-          type: string
-      required:
-      - attr
-      - code
-      - detail
-    V1AppointmentsCreateDoctorComplaintsErrorComponent:
-      type: object
-      properties:
-        attr:
-          enum:
-          - doctor_complaints
-          type: string
-          description: '* `doctor_complaints` - doctor_complaints'
-        code:
-          enum:
-          - invalid
-          - 'null'
-          - null_characters_not_allowed
-          - surrogate_characters_not_allowed
-          type: string
-          description: |-
-            * `invalid` - invalid
-            * `null` - null
-            * `null_characters_not_allowed` - null_characters_not_allowed
-            * `surrogate_characters_not_allowed` - surrogate_characters_not_allowed
-        detail:
-          type: string
-      required:
-      - attr
-      - code
-      - detail
     V1AppointmentsCreateError:
       oneOf:
       - $ref: '#/components/schemas/V1AppointmentsCreateNonFieldErrorsErrorComponent'
       - $ref: '#/components/schemas/V1AppointmentsCreatePatientErrorComponent'
       - $ref: '#/components/schemas/V1AppointmentsCreateAppointmentAtErrorComponent'
-      - $ref: '#/components/schemas/V1AppointmentsCreateIsNightErrorComponent'
       - $ref: '#/components/schemas/V1AppointmentsCreateAdminCommentErrorComponent'
-      - $ref: '#/components/schemas/V1AppointmentsCreateComplaintsErrorComponent'
-      - $ref: '#/components/schemas/V1AppointmentsCreateDoctorComplaintsErrorComponent'
       - $ref: '#/components/schemas/V1AppointmentsCreateServicesNonFieldErrorsErrorComponent'
       - $ref: '#/components/schemas/V1AppointmentsCreateServicesINDEXNonFieldErrorsErrorComponent'
       - $ref: '#/components/schemas/V1AppointmentsCreateServicesINDEXSellableItemErrorComponent'
@@ -20220,10 +21424,7 @@ components:
           non_field_errors: '#/components/schemas/V1AppointmentsCreateNonFieldErrorsErrorComponent'
           patient: '#/components/schemas/V1AppointmentsCreatePatientErrorComponent'
           appointment_at: '#/components/schemas/V1AppointmentsCreateAppointmentAtErrorComponent'
-          is_night: '#/components/schemas/V1AppointmentsCreateIsNightErrorComponent'
           admin_comment: '#/components/schemas/V1AppointmentsCreateAdminCommentErrorComponent'
-          complaints: '#/components/schemas/V1AppointmentsCreateComplaintsErrorComponent'
-          doctor_complaints: '#/components/schemas/V1AppointmentsCreateDoctorComplaintsErrorComponent'
           services.non_field_errors: '#/components/schemas/V1AppointmentsCreateServicesNonFieldErrorsErrorComponent'
           services.INDEX.non_field_errors: '#/components/schemas/V1AppointmentsCreateServicesINDEXNonFieldErrorsErrorComponent'
           services.INDEX.sellable_item: '#/components/schemas/V1AppointmentsCreateServicesINDEXSellableItemErrorComponent'
@@ -20238,28 +21439,6 @@ components:
         mapping:
           validation_error: '#/components/schemas/V1AppointmentsCreateValidationError'
           client_error: '#/components/schemas/ParseErrorResponse'
-    V1AppointmentsCreateIsNightErrorComponent:
-      type: object
-      properties:
-        attr:
-          enum:
-          - is_night
-          type: string
-          description: '* `is_night` - is_night'
-        code:
-          enum:
-          - invalid
-          - 'null'
-          type: string
-          description: |-
-            * `invalid` - invalid
-            * `null` - null
-        detail:
-          type: string
-      required:
-      - attr
-      - code
-      - detail
     V1AppointmentsCreateNonFieldErrorsErrorComponent:
       type: object
       properties:
@@ -20445,6 +21624,13 @@ components:
         propertyName: type
         mapping:
           client_error: '#/components/schemas/ParseErrorResponse'
+    V1AppointmentsEmployeesByDateRetrieveErrorResponse400:
+      oneOf:
+      - $ref: '#/components/schemas/ParseErrorResponse'
+      discriminator:
+        propertyName: type
+        mapping:
+          client_error: '#/components/schemas/ParseErrorResponse'
     V1AppointmentsListBranchErrorComponent:
       type: object
       properties:
@@ -20464,12 +21650,74 @@ components:
       - attr
       - code
       - detail
+    V1AppointmentsListDateErrorComponent:
+      type: object
+      properties:
+        attr:
+          enum:
+          - date
+          type: string
+          description: '* `date` - date'
+        code:
+          enum:
+          - invalid
+          type: string
+          description: '* `invalid` - invalid'
+        detail:
+          type: string
+      required:
+      - attr
+      - code
+      - detail
+    V1AppointmentsListDateFromErrorComponent:
+      type: object
+      properties:
+        attr:
+          enum:
+          - date_from
+          type: string
+          description: '* `date_from` - date_from'
+        code:
+          enum:
+          - invalid
+          type: string
+          description: '* `invalid` - invalid'
+        detail:
+          type: string
+      required:
+      - attr
+      - code
+      - detail
+    V1AppointmentsListDateToErrorComponent:
+      type: object
+      properties:
+        attr:
+          enum:
+          - date_to
+          type: string
+          description: '* `date_to` - date_to'
+        code:
+          enum:
+          - invalid
+          type: string
+          description: '* `invalid` - invalid'
+        detail:
+          type: string
+      required:
+      - attr
+      - code
+      - detail
     V1AppointmentsListError:
       oneOf:
       - $ref: '#/components/schemas/V1AppointmentsListStatusErrorComponent'
       - $ref: '#/components/schemas/V1AppointmentsListBranchErrorComponent'
       - $ref: '#/components/schemas/V1AppointmentsListOrganizationErrorComponent'
       - $ref: '#/components/schemas/V1AppointmentsListPatientErrorComponent'
+      - $ref: '#/components/schemas/V1AppointmentsListDateErrorComponent'
+      - $ref: '#/components/schemas/V1AppointmentsListDateFromErrorComponent'
+      - $ref: '#/components/schemas/V1AppointmentsListDateToErrorComponent'
+      - $ref: '#/components/schemas/V1AppointmentsListSpecialistErrorComponent'
+      - $ref: '#/components/schemas/V1AppointmentsListServiceErrorComponent'
       discriminator:
         propertyName: attr
         mapping:
@@ -20477,6 +21725,11 @@ components:
           branch: '#/components/schemas/V1AppointmentsListBranchErrorComponent'
           organization: '#/components/schemas/V1AppointmentsListOrganizationErrorComponent'
           patient: '#/components/schemas/V1AppointmentsListPatientErrorComponent'
+          date: '#/components/schemas/V1AppointmentsListDateErrorComponent'
+          date_from: '#/components/schemas/V1AppointmentsListDateFromErrorComponent'
+          date_to: '#/components/schemas/V1AppointmentsListDateToErrorComponent'
+          specialist: '#/components/schemas/V1AppointmentsListSpecialistErrorComponent'
+          service: '#/components/schemas/V1AppointmentsListServiceErrorComponent'
     V1AppointmentsListErrorResponse400:
       oneOf:
       - $ref: '#/components/schemas/V1AppointmentsListValidationError'
@@ -20518,6 +21771,50 @@ components:
           - invalid_choice
           type: string
           description: '* `invalid_choice` - invalid_choice'
+        detail:
+          type: string
+      required:
+      - attr
+      - code
+      - detail
+    V1AppointmentsListServiceErrorComponent:
+      type: object
+      properties:
+        attr:
+          enum:
+          - service
+          type: string
+          description: '* `service` - service'
+        code:
+          enum:
+          - invalid
+          - null_characters_not_allowed
+          type: string
+          description: |-
+            * `invalid` - invalid
+            * `null_characters_not_allowed` - null_characters_not_allowed
+        detail:
+          type: string
+      required:
+      - attr
+      - code
+      - detail
+    V1AppointmentsListSpecialistErrorComponent:
+      type: object
+      properties:
+        attr:
+          enum:
+          - specialist
+          type: string
+          description: '* `specialist` - specialist'
+        code:
+          enum:
+          - invalid
+          - null_characters_not_allowed
+          type: string
+          description: |-
+            * `invalid` - invalid
+            * `null_characters_not_allowed` - null_characters_not_allowed
         detail:
           type: string
       required:
@@ -20613,67 +21910,12 @@ components:
       - attr
       - code
       - detail
-    V1AppointmentsPartialUpdateComplaintsErrorComponent:
-      type: object
-      properties:
-        attr:
-          enum:
-          - complaints
-          type: string
-          description: '* `complaints` - complaints'
-        code:
-          enum:
-          - invalid
-          - 'null'
-          - null_characters_not_allowed
-          - surrogate_characters_not_allowed
-          type: string
-          description: |-
-            * `invalid` - invalid
-            * `null` - null
-            * `null_characters_not_allowed` - null_characters_not_allowed
-            * `surrogate_characters_not_allowed` - surrogate_characters_not_allowed
-        detail:
-          type: string
-      required:
-      - attr
-      - code
-      - detail
-    V1AppointmentsPartialUpdateDoctorComplaintsErrorComponent:
-      type: object
-      properties:
-        attr:
-          enum:
-          - doctor_complaints
-          type: string
-          description: '* `doctor_complaints` - doctor_complaints'
-        code:
-          enum:
-          - invalid
-          - 'null'
-          - null_characters_not_allowed
-          - surrogate_characters_not_allowed
-          type: string
-          description: |-
-            * `invalid` - invalid
-            * `null` - null
-            * `null_characters_not_allowed` - null_characters_not_allowed
-            * `surrogate_characters_not_allowed` - surrogate_characters_not_allowed
-        detail:
-          type: string
-      required:
-      - attr
-      - code
-      - detail
     V1AppointmentsPartialUpdateError:
       oneOf:
       - $ref: '#/components/schemas/V1AppointmentsPartialUpdateNonFieldErrorsErrorComponent'
       - $ref: '#/components/schemas/V1AppointmentsPartialUpdatePatientErrorComponent'
       - $ref: '#/components/schemas/V1AppointmentsPartialUpdateAppointmentAtErrorComponent'
-      - $ref: '#/components/schemas/V1AppointmentsPartialUpdateIsNightErrorComponent'
       - $ref: '#/components/schemas/V1AppointmentsPartialUpdateAdminCommentErrorComponent'
-      - $ref: '#/components/schemas/V1AppointmentsPartialUpdateComplaintsErrorComponent'
-      - $ref: '#/components/schemas/V1AppointmentsPartialUpdateDoctorComplaintsErrorComponent'
       - $ref: '#/components/schemas/V1AppointmentsPartialUpdateServicesNonFieldErrorsErrorComponent'
       - $ref: '#/components/schemas/V1AppointmentsPartialUpdateServicesINDEXNonFieldErrorsErrorComponent'
       - $ref: '#/components/schemas/V1AppointmentsPartialUpdateServicesINDEXSellableItemErrorComponent'
@@ -20685,10 +21927,7 @@ components:
           non_field_errors: '#/components/schemas/V1AppointmentsPartialUpdateNonFieldErrorsErrorComponent'
           patient: '#/components/schemas/V1AppointmentsPartialUpdatePatientErrorComponent'
           appointment_at: '#/components/schemas/V1AppointmentsPartialUpdateAppointmentAtErrorComponent'
-          is_night: '#/components/schemas/V1AppointmentsPartialUpdateIsNightErrorComponent'
           admin_comment: '#/components/schemas/V1AppointmentsPartialUpdateAdminCommentErrorComponent'
-          complaints: '#/components/schemas/V1AppointmentsPartialUpdateComplaintsErrorComponent'
-          doctor_complaints: '#/components/schemas/V1AppointmentsPartialUpdateDoctorComplaintsErrorComponent'
           services.non_field_errors: '#/components/schemas/V1AppointmentsPartialUpdateServicesNonFieldErrorsErrorComponent'
           services.INDEX.non_field_errors: '#/components/schemas/V1AppointmentsPartialUpdateServicesINDEXNonFieldErrorsErrorComponent'
           services.INDEX.sellable_item: '#/components/schemas/V1AppointmentsPartialUpdateServicesINDEXSellableItemErrorComponent'
@@ -20703,28 +21942,6 @@ components:
         mapping:
           validation_error: '#/components/schemas/V1AppointmentsPartialUpdateValidationError'
           client_error: '#/components/schemas/ParseErrorResponse'
-    V1AppointmentsPartialUpdateIsNightErrorComponent:
-      type: object
-      properties:
-        attr:
-          enum:
-          - is_night
-          type: string
-          description: '* `is_night` - is_night'
-        code:
-          enum:
-          - invalid
-          - 'null'
-          type: string
-          description: |-
-            * `invalid` - invalid
-            * `null` - null
-        detail:
-          type: string
-      required:
-      - attr
-      - code
-      - detail
     V1AppointmentsPartialUpdateNonFieldErrorsErrorComponent:
       type: object
       properties:
@@ -20968,67 +22185,12 @@ components:
       - attr
       - code
       - detail
-    V1AppointmentsUpdateComplaintsErrorComponent:
-      type: object
-      properties:
-        attr:
-          enum:
-          - complaints
-          type: string
-          description: '* `complaints` - complaints'
-        code:
-          enum:
-          - invalid
-          - 'null'
-          - null_characters_not_allowed
-          - surrogate_characters_not_allowed
-          type: string
-          description: |-
-            * `invalid` - invalid
-            * `null` - null
-            * `null_characters_not_allowed` - null_characters_not_allowed
-            * `surrogate_characters_not_allowed` - surrogate_characters_not_allowed
-        detail:
-          type: string
-      required:
-      - attr
-      - code
-      - detail
-    V1AppointmentsUpdateDoctorComplaintsErrorComponent:
-      type: object
-      properties:
-        attr:
-          enum:
-          - doctor_complaints
-          type: string
-          description: '* `doctor_complaints` - doctor_complaints'
-        code:
-          enum:
-          - invalid
-          - 'null'
-          - null_characters_not_allowed
-          - surrogate_characters_not_allowed
-          type: string
-          description: |-
-            * `invalid` - invalid
-            * `null` - null
-            * `null_characters_not_allowed` - null_characters_not_allowed
-            * `surrogate_characters_not_allowed` - surrogate_characters_not_allowed
-        detail:
-          type: string
-      required:
-      - attr
-      - code
-      - detail
     V1AppointmentsUpdateError:
       oneOf:
       - $ref: '#/components/schemas/V1AppointmentsUpdateNonFieldErrorsErrorComponent'
       - $ref: '#/components/schemas/V1AppointmentsUpdatePatientErrorComponent'
       - $ref: '#/components/schemas/V1AppointmentsUpdateAppointmentAtErrorComponent'
-      - $ref: '#/components/schemas/V1AppointmentsUpdateIsNightErrorComponent'
       - $ref: '#/components/schemas/V1AppointmentsUpdateAdminCommentErrorComponent'
-      - $ref: '#/components/schemas/V1AppointmentsUpdateComplaintsErrorComponent'
-      - $ref: '#/components/schemas/V1AppointmentsUpdateDoctorComplaintsErrorComponent'
       - $ref: '#/components/schemas/V1AppointmentsUpdateServicesNonFieldErrorsErrorComponent'
       - $ref: '#/components/schemas/V1AppointmentsUpdateServicesINDEXNonFieldErrorsErrorComponent'
       - $ref: '#/components/schemas/V1AppointmentsUpdateServicesINDEXSellableItemErrorComponent'
@@ -21040,10 +22202,7 @@ components:
           non_field_errors: '#/components/schemas/V1AppointmentsUpdateNonFieldErrorsErrorComponent'
           patient: '#/components/schemas/V1AppointmentsUpdatePatientErrorComponent'
           appointment_at: '#/components/schemas/V1AppointmentsUpdateAppointmentAtErrorComponent'
-          is_night: '#/components/schemas/V1AppointmentsUpdateIsNightErrorComponent'
           admin_comment: '#/components/schemas/V1AppointmentsUpdateAdminCommentErrorComponent'
-          complaints: '#/components/schemas/V1AppointmentsUpdateComplaintsErrorComponent'
-          doctor_complaints: '#/components/schemas/V1AppointmentsUpdateDoctorComplaintsErrorComponent'
           services.non_field_errors: '#/components/schemas/V1AppointmentsUpdateServicesNonFieldErrorsErrorComponent'
           services.INDEX.non_field_errors: '#/components/schemas/V1AppointmentsUpdateServicesINDEXNonFieldErrorsErrorComponent'
           services.INDEX.sellable_item: '#/components/schemas/V1AppointmentsUpdateServicesINDEXSellableItemErrorComponent'
@@ -21058,28 +22217,6 @@ components:
         mapping:
           validation_error: '#/components/schemas/V1AppointmentsUpdateValidationError'
           client_error: '#/components/schemas/ParseErrorResponse'
-    V1AppointmentsUpdateIsNightErrorComponent:
-      type: object
-      properties:
-        attr:
-          enum:
-          - is_night
-          type: string
-          description: '* `is_night` - is_night'
-        code:
-          enum:
-          - invalid
-          - 'null'
-          type: string
-          description: |-
-            * `invalid` - invalid
-            * `null` - null
-        detail:
-          type: string
-      required:
-      - attr
-      - code
-      - detail
     V1AppointmentsUpdateNonFieldErrorsErrorComponent:
       type: object
       properties:
@@ -22459,6 +23596,13 @@ components:
       required:
       - errors
       - type
+    V1CashboxSummaryRetrieveErrorResponse400:
+      oneOf:
+      - $ref: '#/components/schemas/ParseErrorResponse'
+      discriminator:
+        propertyName: type
+        mapping:
+          client_error: '#/components/schemas/ParseErrorResponse'
     V1ClientBalanceTransactionsCreateAmountErrorComponent:
       type: object
       properties:
@@ -26026,16 +27170,18 @@ components:
           description: '* `photo_url` - photo_url'
         code:
           enum:
+          - empty
           - invalid
-          - 'null'
-          - null_characters_not_allowed
-          - surrogate_characters_not_allowed
+          - invalid_image
+          - max_length
+          - no_name
           type: string
           description: |-
+            * `empty` - empty
             * `invalid` - invalid
-            * `null` - null
-            * `null_characters_not_allowed` - null_characters_not_allowed
-            * `surrogate_characters_not_allowed` - surrogate_characters_not_allowed
+            * `invalid_image` - invalid_image
+            * `max_length` - max_length
+            * `no_name` - no_name
         detail:
           type: string
       required:
@@ -26635,16 +27781,18 @@ components:
           description: '* `photo_url` - photo_url'
         code:
           enum:
+          - empty
           - invalid
-          - 'null'
-          - null_characters_not_allowed
-          - surrogate_characters_not_allowed
+          - invalid_image
+          - max_length
+          - no_name
           type: string
           description: |-
+            * `empty` - empty
             * `invalid` - invalid
-            * `null` - null
-            * `null_characters_not_allowed` - null_characters_not_allowed
-            * `surrogate_characters_not_allowed` - surrogate_characters_not_allowed
+            * `invalid_image` - invalid_image
+            * `max_length` - max_length
+            * `no_name` - no_name
         detail:
           type: string
       required:
@@ -27134,16 +28282,18 @@ components:
           description: '* `photo_url` - photo_url'
         code:
           enum:
+          - empty
           - invalid
-          - 'null'
-          - null_characters_not_allowed
-          - surrogate_characters_not_allowed
+          - invalid_image
+          - max_length
+          - no_name
           type: string
           description: |-
+            * `empty` - empty
             * `invalid` - invalid
-            * `null` - null
-            * `null_characters_not_allowed` - null_characters_not_allowed
-            * `surrogate_characters_not_allowed` - surrogate_characters_not_allowed
+            * `invalid_image` - invalid_image
+            * `max_length` - max_length
+            * `no_name` - no_name
         detail:
           type: string
       required:
@@ -29395,6 +30545,27 @@ components:
       required:
       - errors
       - type
+    V1ReportsFinancialMonthlyRetrieveErrorResponse400:
+      oneOf:
+      - $ref: '#/components/schemas/ParseErrorResponse'
+      discriminator:
+        propertyName: type
+        mapping:
+          client_error: '#/components/schemas/ParseErrorResponse'
+    V1ReportsPayrollMonthlyRetrieveErrorResponse400:
+      oneOf:
+      - $ref: '#/components/schemas/ParseErrorResponse'
+      discriminator:
+        propertyName: type
+        mapping:
+          client_error: '#/components/schemas/ParseErrorResponse'
+    V1RolesListErrorResponse400:
+      oneOf:
+      - $ref: '#/components/schemas/ParseErrorResponse'
+      discriminator:
+        propertyName: type
+        mapping:
+          client_error: '#/components/schemas/ParseErrorResponse'
     V1SalaryRulesCreateEmployeeErrorComponent:
       type: object
       properties:
@@ -31555,13 +32726,37 @@ components:
       required:
       - errors
       - type
+    V1SellableItemsListEmployeeErrorComponent:
+      type: object
+      properties:
+        attr:
+          enum:
+          - employee
+          type: string
+          description: '* `employee` - employee'
+        code:
+          enum:
+          - invalid
+          - null_characters_not_allowed
+          type: string
+          description: |-
+            * `invalid` - invalid
+            * `null_characters_not_allowed` - null_characters_not_allowed
+        detail:
+          type: string
+      required:
+      - attr
+      - code
+      - detail
     V1SellableItemsListError:
       oneOf:
       - $ref: '#/components/schemas/V1SellableItemsListTypeErrorComponent'
+      - $ref: '#/components/schemas/V1SellableItemsListEmployeeErrorComponent'
       discriminator:
         propertyName: attr
         mapping:
           type: '#/components/schemas/V1SellableItemsListTypeErrorComponent'
+          employee: '#/components/schemas/V1SellableItemsListEmployeeErrorComponent'
     V1SellableItemsListErrorResponse400:
       oneOf:
       - $ref: '#/components/schemas/V1SellableItemsListValidationError'

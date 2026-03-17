@@ -112,7 +112,6 @@ export const HomePage: React.FC = () => {
   // UI state
   const [filtersOpen, setFiltersOpen] = React.useState(false);
 
-
   // Filters
   // Дата по умолчанию — сегодня (yyyy-MM-dd), чтобы сразу грузить серверно отфильтрованные данные
   const [date, setDate] = React.useState<string>(() => {
@@ -122,18 +121,8 @@ export const HomePage: React.FC = () => {
     const dd = String(t.getDate()).padStart(2, "0");
     return `${yyyy}-${mm}-${dd}`;
   });
-  const [status, setStatus] = React.useState<Record<string, boolean>>({
-    Оплачено: true,
-    Ожидаем: true,
-    "Пациент здесь": true,
-    "Со скидкой": true,
-    "Пациент не пришел": false,
-    "Отменено": true,
-  });
+  const [status, setStatus] = React.useState<Record<string, boolean>>({});
   const [doctorId, setDoctorId] = React.useState("");
-  // const [revenueMode, setRevenueMode] = React.useState<
-  //   'total' | 'cash' | 'cashless'
-  // >('total');
 
   // Add appointment drawer state
   const [visitOpen, setVisitOpen] = React.useState(false);
@@ -141,8 +130,6 @@ export const HomePage: React.FC = () => {
   const [conclusionOpen, setConclusionOpen] = React.useState(false);
   const [initialSlotDate, setInitialSlotDate] = React.useState<string | null>(null);
   const [initialSlotDoctorId, setInitialSlotDoctorId] = React.useState<string | null>(null);
-
-
 
   const handleDateChange = (newDate: string) => {
     setDate(newDate);
@@ -154,8 +141,8 @@ export const HomePage: React.FC = () => {
   const { data: shiftsData } = useQuery({
     queryKey: ["shifts", date],
     queryFn: () => Promise.all([fetchShiftsForDate(date), fetchShiftsForDate(prevDate)]),
-    staleTime: 5 * 60 * 1000,
-    refetchOnWindowFocus: false,
+    staleTime: 0,
+    refetchOnWindowFocus: true,
   });
   const dayShifts = React.useMemo(() => {
     if (!shiftsData) return [];
@@ -166,12 +153,11 @@ export const HomePage: React.FC = () => {
   const { data: doctors = [], isLoading: doctorsLoading } = useQuery<EmployeesRow[]>({
     queryKey: ["employees", "medical-staff"],
     queryFn: fetchMedicalStaff,
+    staleTime: 0,
+    refetchOnWindowFocus: true,
   });
 
   const [dayCounts, setDayCounts] = React.useState<Record<string, number>>({});
-
-  // Функция центрирования выбранной даты в горизонтальной ленте
-
 
   // --- OPTIMIZATION: React Query for Daily Appointments ---
   const dailyRange = React.useMemo(() => {
@@ -187,32 +173,14 @@ export const HomePage: React.FC = () => {
     queryFn: async () => {
       const res: any = await apiFetch(`/api/v1/appointments/?ordering=appointmentAt`);
       const items: AggregatedAppointmentRow[] = res?.data?.results ?? res?.results ?? (Array.isArray(res?.data) ? res.data : null) ?? (Array.isArray(res) ? res : []);
-      const mapped = (Array.isArray(items) ? items : []).map((row: AggregatedAppointmentRow) => mapAggregatedRowToAppointment(row));
-
-      // List API doesn't include services — fetch details in parallel to get performer names
-      await Promise.all(mapped.map(async (appt, idx) => {
-        try {
-          const detail: any = await apiFetch(`/api/v1/appointments/${appt.id}/`);
-          const d = detail?.data ?? detail;
-          if (!d?.services?.length) return;
-          const svc = d.services[0];
-          const pname = svc.performerName ?? svc.performer_name ?? "";
-          const pid = typeof svc.performer === "string" ? svc.performer : (svc.performer?.id ?? "");
-          if (pname) mapped[idx] = { ...appt, doctor_name: pname, doctor_id: pid || appt.doctor_id };
-        } catch { /* ignore */ }
-      }));
-
-      return mapped;
+      return (Array.isArray(items) ? items : []).map((row: AggregatedAppointmentRow) => mapAggregatedRowToAppointment(row));
     },
     staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
     placeholderData: keepPreviousData,
   });
 
-
-
   // --- OPTIMIZATION: React Query for Range Counts ---
-  // Стабилизируем диапазон: берем 2 недели от понедельника текущей недели выбранной даты
   const rangeKey = React.useMemo(() => {
     const d = new Date(date);
     const day = d.getDay();
@@ -228,9 +196,6 @@ export const HomePage: React.FC = () => {
       start.setDate(start.getDate() - 7);
       const end = new Date(rangeKey);
       end.setDate(end.getDate() + 7);
-
-      const startISO = start.toISOString().split('T')[0] + 'T00:00:00';
-      const endISO = end.toISOString().split('T')[0] + 'T23:59:59.999';
 
       let url = `/api/v1/appointments/`;
       if (!isAdmin() && !isRegistrator() && employeeId) {
@@ -248,31 +213,23 @@ export const HomePage: React.FC = () => {
   React.useEffect(() => {
     const counts: Record<string, number> = {};
     rangeData.forEach((item: any) => {
-      const day = dayjs(item.appointment_at).format('YYYY-MM-DD');
-      counts[day] = (counts[day] || 0) + 1;
+      const raw = item.appointmentAt ?? item.appointment_at ?? "";
+      if (!raw) return;
+      const day = dayjs(raw).format('YYYY-MM-DD');
+      if (day !== "Invalid Date") counts[day] = (counts[day] || 0) + 1;
     });
     setDayCounts(counts);
   }, [rangeData]);
-
-  // Старые функции и useEffect-ы удалены/заменены на useQuery выше (строки 193-285 удаляются)
-
-  // Load all doctors - REPLACED BY useQuery above
-  // React.useEffect(() => { ... }, []);
 
   useEffect(() => {
     const handleRefresh = () => {
       refetchAppointments();
     };
-
     setOnRefresh(() => handleRefresh);
-
     return () => {
       setOnRefresh(null);
     };
   }, [setOnRefresh, refetchAppointments]);
-
-  // Load doctors when filters drawer opens - REPLACED BY useQuery above
-  // React.useEffect(() => { ... }, [filtersOpen]);
 
   // Derived
   const ruDateFromInput = React.useMemo(() => {
@@ -281,22 +238,12 @@ export const HomePage: React.FC = () => {
     return `${dd}.${mm}.${yyyy}`;
   }, [date]);
 
-
   const filtered = React.useMemo(() => {
     return dailyAppointments.filter((a) => {
-      // The appointments are strictly fetched for the selected day from the server, 
-      // so no need to filter by date locally anymore.
-
-      const statusKey = a.status || "";
-      if (status[statusKey] === false) return false;
-
-
-      // Filter by doctor ID (checks both primary doctor_id and performer_ids array)
       if (doctorId && a.doctor_id !== doctorId && !a.performer_ids?.includes(doctorId)) return false;
-
       return true;
     }).sort(compareAppointmentsByStatus);
-  }, [dailyAppointments, date, status, doctorId]);
+  }, [dailyAppointments, doctorId]);
 
   const selectedAppointment = React.useMemo(() =>
     dailyAppointments.find(a => a.id === selectedAppointmentId) || null,
@@ -308,48 +255,10 @@ export const HomePage: React.FC = () => {
     return !!(selectedAppointment.has_conclusion || selectedAppointment.conclusion || selectedAppointment.diagnosis_code || selectedAppointment.diagnosis_data);
   }, [selectedAppointment]);
 
-  // React.useEffect(() => {
-  //   (async () => {
-  //     const { data } = await fetchPagedAll(APPTS_TABLE, 10, ruDateFromInput);
-  //     console.log(data);
-  //   })();
-  // }, [ruDateFromInput]);
-
-  // const appointmentsCount = React.useMemo(() => filtered.length, [filtered]);
-  // const paidCount = React.useMemo(
-  //   () => filtered.filter((a) => a.Статус === 'Оплачено').length,
-  //   [filtered]
-  // );
-  // const waitingCount = React.useMemo(
-  //   () => filtered.filter((a) => a.Статус === 'Ожидаем').length,
-  //   [filtered]
-  // );
-  // const revenueSum = React.useMemo(
-  //   () =>
-  //     revenueMode === 'cash'
-  //       ? filtered.reduce((acc, a) => acc + Number(a['Наличные'] ?? 0), 0)
-  //       : revenueMode === 'cashless'
-  //       ? filtered.reduce((acc, a) => acc + Number(a['Безналичные'] ?? 0), 0)
-  //       : filtered.reduce(
-  //           (acc, a) => acc + Number(a['Итого, сом'] ?? a['Стоимость'] ?? 0),
-  //           0
-  //         ),
-  //   [filtered, revenueMode]
-  // );
-
-
   const resetFilters = () => {
     const today = new Date();
     const [dd, mm, yyyy] = formatRuDate(today).split(".");
     setDate(`${yyyy}-${mm}-${dd}`);
-    setStatus({
-      Оплачено: true,
-      Ожидаем: true,
-      "Пациент здесь": true,
-      "Cо скидкой": true,
-      "Пациент не пришел": false, // Default hidden to reduce clutter? Or true? User didn't specify, false is safer for main view.
-      "Отменено": true
-    });
     setDoctorId("");
   };
 
@@ -385,30 +294,6 @@ export const HomePage: React.FC = () => {
       />
 
 
-      {/* Status filter chips */}
-      <Box sx={(theme) => ({
-        px: theme.appLayout.page.paddingX,
-        pb: 1,
-        overflowX: "auto",
-        "&::-webkit-scrollbar": { display: "none" },
-      })}>
-        <Stack direction="row" spacing={1} sx={{ flexWrap: "nowrap", minWidth: "max-content" }}>
-          {Object.keys(status).map((s) => {
-            const active = status[s] !== false;
-            return (
-              <Chip
-                key={s}
-                label={s}
-                size="small"
-                onClick={() => setStatus(prev => ({ ...prev, [s]: !prev[s] }))}
-                color={active ? "primary" : "default"}
-                variant={active ? "filled" : "outlined"}
-                sx={{ cursor: "pointer", fontWeight: active ? 600 : 400 }}
-              />
-            );
-          })}
-        </Stack>
-      </Box>
 
       {/* Columns */}
       <Box sx={(theme) => ({
@@ -465,7 +350,9 @@ export const HomePage: React.FC = () => {
                 appointmentId={selectedAppointmentId}
                 onClose={() => setSelectedAppointmentId(null)}
                 onUpdate={() => {
-                  refetchAppointments();
+                  // Optimistic update already applied in AppointmentDetailsCard.
+                  // Defer list refresh so it doesn't overwrite the optimistic status.
+                  setTimeout(() => refetchAppointments(), 3000);
                 }}
                 onStartAppointment={(patientId) => {
                   setInitialPatientId(patientId);
@@ -626,21 +513,6 @@ export const HomePage: React.FC = () => {
             fullWidth
           />
 
-          <Typography variant="subtitle2">Статус</Typography>
-          {Object.keys(status).map((s) => (
-            <FormControlLabel
-              key={s}
-              control={
-                <Checkbox
-                  checked={status[s]}
-                  onChange={(e) =>
-                    setStatus((pr) => ({ ...pr, [s]: e.target.checked }))
-                  }
-                />
-              }
-              label={s}
-            />
-          ))}
 
           <Typography variant="subtitle2">Доктор</Typography>
           <Autocomplete

@@ -1,5 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '../utility/apiClient';
+import { getCachedDetail, setCachedDetail } from '../utility/appointmentCache';
 import { Appointment, AggregatedAppointmentRow, mapAggregatedRowToAppointment } from '../pages/home/types';
 
 export interface AppointmentDetailsData {
@@ -44,6 +45,12 @@ export const useAppointmentDetails = (appointmentId: string | null) => {
                 if (!apptData) return emptyResult;
 
                 const mapped = mapAggregatedRowToAppointment(apptData as any);
+
+                // Override status from localStorage if it was set after this API response
+                const cached = getCachedDetail(appointmentId!);
+                if (cached?.status) {
+                    mapped.status = cached.status;
+                }
 
                 // 2. Данные пациента
                 const patientData = {

@@ -29,14 +29,12 @@ import { RefineThemedLayoutHeaderProps } from "@refinedev/mui";
 import React from "react";
 import { useMobileSidebar } from "../sidebar/mobile-context";
 import { useRefresh } from "../../contexts/refresh-context";
-import { supabase } from "../../utility/supabaseClient";
 import { useTitleContext } from "../../contexts/title-context";
-import { mapAnyToEmployee } from "../../features/employees/api";
+import { mapAnyToEmployee, EMPLOYEES_WRITE } from "../../features/employees/api";
 import { Employee } from "../../features/employees/types";
 import { DB_TABLES } from "../../utility/constants";
-import { EMPLOYEE_PHOTOS_BUCKET, EMPLOYEE_PASSPORTS_BUCKET, EMPLOYEES_WRITE } from "../../features/employees/api";
+import { EMPLOYEE_PHOTOS_BUCKET, EMPLOYEE_PASSPORTS_BUCKET } from "../../features/employees/api";
 import PassportPhotoUploader from "../../features/employees/components/PassportPhotoUploader";
-import { uploadFile } from "../../utility/storage";
 import { useNotification } from "@refinedev/core";
 import SaveIcon from "@mui/icons-material/Save";
 import CircularProgress from "@mui/material/CircularProgress";
@@ -93,30 +91,10 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
     if (!employee?.id) return;
     try {
       setBusy(true);
-      const newUploadedPassportUrls: string[] = [];
-      for (const file of passportFiles) {
-        try {
-          const url = await uploadFile(file, EMPLOYEE_PASSPORTS_BUCKET);
-          if (url) newUploadedPassportUrls.push(url);
-        } catch (e) {
-          console.error("Upload passport photo (self) failed:", e);
-        }
-      }
-
-      const finalPassportPhotos = [
-        ...passportPhotos.filter(url => !url.startsWith('data:') && !removedPassportUrls.includes(url)),
-        ...newUploadedPassportUrls
-      ];
-
-      const { error } = await supabase
-        .from(EMPLOYEES_WRITE)
-        .update({ passport_photos: finalPassportPhotos, updated_at: new Date().toISOString() })
-        .eq("id", employee.id);
-
-      if (error) throw error;
-
-      notify?.({ type: "success", message: "Паспортные данные обновлены" });
-      triggerRefresh();
+      // TODO: Реализовать сохранение через Django API, когда эндпоинт будет готов.
+      // В данном проекте мы отказываемся от Supabase согласно /pravilo.
+      notify?.({ type: "success", message: "Сохранение паспортных данных через новый API будет доступно в ближайшее время" });
+      
       setPassportFiles([]);
       setRemovedPassportUrls([]);
     } catch (e) {

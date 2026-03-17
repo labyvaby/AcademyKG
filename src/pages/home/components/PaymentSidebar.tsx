@@ -211,8 +211,12 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
             await apiFetch(`/api/v1/appointments/${appointment.id}/`, {
                 method: "PATCH",
                 body: JSON.stringify({
-                    ...updates,
-                    updated_at: new Date().toISOString()
+                    status: "free",
+                    paidCash: 0,
+                    paidCard: 0,
+                    discount: basePrice,
+                    debt: 0,
+                    adminComment: adminComment,
                 })
             });
 
@@ -283,18 +287,30 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
 
         // Optimistic Updates
         const prevDetails = queryClient.getQueryData<any>(['appointment-details', appointment.id]);
-        const updates = {
-            status: (() => {
-                if (debt <= 0) {
-                    if (totalPaid <= 0 && discountAmount > 0) return APPOINTMENT_STATUSES.DISCOUNTED;
-                    return APPOINTMENT_STATUSES.PAID;
-                }
-                if (totalPaid > 0) return APPOINTMENT_STATUSES.PARTIALLY_PAID;
+        const STATUS_REVERSE: Record<string, string> = {
+            "Ожидаем": "scheduled",
+            "Клиент здесь": "arrived",
+            "В работе": "in_progress",
+            "Завершено": "completed",
+            "Оплачено": "paid",
+            "Частично оплачено": "partially_paid",
+            "Со скидкой": "discounted",
+            "Отменено": "cancelled",
+            "Клиент не пришел": "not_came",
+            "Бесплатно": "free",
+        };
+        const newStatusRu = (() => {
+            if (debt <= 0) {
+                if (totalPaid <= 0 && discountAmount > 0) return APPOINTMENT_STATUSES.DISCOUNTED;
+                return APPOINTMENT_STATUSES.PAID;
+            }
+            if (totalPaid > 0) return APPOINTMENT_STATUSES.PARTIALLY_PAID;
+            return appointment.status;
+        })();
+        const newStatusApi = STATUS_REVERSE[newStatusRu] ?? newStatusRu;
 
-                // Если оплаты не было (или она нулевая для закрытия долга),
-                // сохраняем текущий статус (Завершено, В работе и т.д.)
-                return appointment.status;
-            })(),
+        const updates = {
+            status: newStatusRu, // для локального cache (русский)
             paid_cash: cashNum,
             paid_card: cardNum,
             paid_balance: balanceUsed,
@@ -324,12 +340,19 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
             await apiFetch(`/api/v1/appointments/${appointment.id}/`, {
                 method: "PATCH",
                 body: JSON.stringify({
-                    ...updates,
-                    updated_at: new Date().toISOString()
+                    status: newStatusApi,
+                    paidCash: cashNum,
+                    paidCard: cardNum,
+                    paidBalance: balanceUsed,
+                    paidBonuses: bonusesUsed,
+                    discount: discountAmount,
+                    debt: debt,
+                    adminComment: adminComment,
                 })
             });
 
             await adjustPatientBalanceIfNeeded();
+
 
             notify?.({
                 type: "success",

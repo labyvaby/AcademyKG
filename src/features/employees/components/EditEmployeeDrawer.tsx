@@ -172,21 +172,28 @@ const EditEmployeeDrawer: React.FC<EditEmployeeDrawerProps> = ({ record, onClose
       const fullPhone = composePhone(phoneCountryCode, phone);
 
       const payload: Record<string, unknown> = {
-        fullName: fullName.trim(),
-        userPhoneNumber: fullPhone ?? undefined,
-        role: roleId || undefined,
+        fullName: fullName.trim() || undefined,
         status,
-        birthDate: birthDate || undefined,
-        telegramId: telegramId || undefined,
-        bankAccountNumber: bankAccountNumber.trim() || undefined,
-        inn: inn.trim() || undefined,
-        userEmail: email.trim() || undefined,
-        nickname: nickname.trim() || undefined,
-        specializationIds: specializationId ? [specializationId] : [],
+        role: roleId || undefined,
       };
 
-      // TODO: serviceIds вызывает 500 на сервере — временно отключено
-      // payload.serviceIds = selectedServices.map(s => s.id);
+      if (fullPhone) payload.userPhoneNumber = fullPhone;
+      if (email.trim()) payload.userEmail = email.trim();
+      if (birthDate) payload.birthDate = birthDate;
+      if (telegramId.trim()) payload.telegramId = telegramId.trim();
+      if (bankAccountNumber.trim()) payload.bankAccountNumber = bankAccountNumber.trim();
+      if (inn.trim()) payload.inn = inn.trim();
+      if (nickname.trim()) payload.nickname = nickname.trim();
+
+      // Отправляем специализации только если выбран врач
+      if (selectedRole?.name === 'doctor' && specializationId) {
+        payload.specialization_ids = [specializationId];
+      }
+
+      // Услуги отправляем только если они выбраны
+      if (selectedServices.length > 0) {
+        payload.service_ids = selectedServices.map(s => s.id);
+      }
 
       await employeeFormUtils.updateEmployeeApi(String(record.id), payload);
 

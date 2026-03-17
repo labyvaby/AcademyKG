@@ -119,17 +119,23 @@ const AddEmployeeDrawer: React.FC<AddEmployeeDrawerProps> = ({ open, onClose, on
         fullName: fullName.trim(),
         role: roleId || undefined,
         status,
-        birthDate: birthDate || undefined,
-        telegramId: telegramId || undefined,
-        bankAccountNumber: bankAccountNumber.trim() || undefined,
-        inn: inn.trim() || undefined,
-        nickname: nickname.trim() || undefined,
-        specializationIds: specializationId ? [specializationId] : [],
       };
+
       if (fullPhone) payload.userPhoneNumber = fullPhone;
       if (email.trim()) payload.userEmail = email.trim();
-      // TODO: serviceIds вызывает 500 на сервере — временно отключено
-      // if (selectedServices.length > 0) payload.serviceIds = selectedServices.map(s => s.id);
+      if (birthDate) payload.birthDate = birthDate;
+      if (telegramId.trim()) payload.telegramId = telegramId.trim();
+      if (bankAccountNumber.trim()) payload.bankAccountNumber = bankAccountNumber.trim();
+      if (inn.trim()) payload.inn = inn.trim();
+      if (nickname.trim()) payload.nickname = nickname.trim();
+
+      if (selectedRole?.name === 'doctor' && specializationId) {
+        payload.specialization_ids = [specializationId];
+      }
+
+      if (selectedServices.length > 0) {
+        payload.service_ids = selectedServices.map(s => s.id);
+      }
 
       const created: any = await employeeFormUtils.createEmployeeApi(payload);
       const createdId = created?.id ?? created?.data?.id;

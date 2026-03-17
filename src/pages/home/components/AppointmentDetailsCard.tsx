@@ -40,6 +40,7 @@ import DoctorQuickViewDrawer from "../../../components/employees/DoctorQuickView
 import { PaymentInfoBlock } from "../../../components/ui";
 
 import { apiFetch } from "../../../utility/apiClient";
+import { setCachedDetail, getCachedDetail } from "../../../utility/appointmentCache";
 import { formatKGS } from "../../../utility/format";
 import EditAppointmentSidebar from "./EditAppointmentSidebar";
 import { useHasPermission, usePermissions } from "../../../hooks/usePermissions";
@@ -141,60 +142,14 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
 
   const queryClient = useQueryClient();
 
+
   const handleStatusUpdate = async (newStatus: string) => {
     if (!item || !appointmentId) return;
 
-    // 1. Optimistic Update
-    const prevDetails = queryClient.getQueryData<any>(['appointment-details', appointmentId]);
-
-    // Update local details cache
-    if (prevDetails) {
-      queryClient.setQueryData(['appointment-details', appointmentId], {
-        ...prevDetails,
-        item: { ...prevDetails.item, status: newStatus }
-      });
-    }
-
-    // Update global list cache (we need to find which daily list it belongs to)
-    // Since we don't easily know the dailyRange.key here without passing it down,
-    // we can try to invalidate or update all matching patterns if we want to be thorough.
-    // For now, updating any query starting with ["appointments", "daily"]
-    queryClient.setQueriesData({ queryKey: ["appointments", "daily"] }, (old: any) => {
-      if (!Array.isArray(old)) return old;
-      return old.map(a => a.id === appointmentId ? { ...a, status: newStatus } : a);
-    });
-
     try {
       setActionLoading(true);
-      await apiFetch(`/api/v1/appointments/${appointmentId}/`, {
-        method: "PATCH",
-        body: JSON.stringify({ status: newStatus, updated_at: new Date().toISOString() }),
-      });
-
-      // Notify parent/context if needed
-      onUpdate();
-
-      open?.({
-        message: "Статус обновлен",
-        type: "success",
-        description: `Запись переведена в статус "${newStatus}"`,
-      });
-    } catch (e: unknown) {
-      // Rollback
-      if (prevDetails) {
-        queryClient.setQueryData(['appointment-details', appointmentId], prevDetails);
-      }
-      queryClient.invalidateQueries({ queryKey: ["appointments", "daily"] });
-
-      const description =
-        e && typeof e === "object" && "message" in e
-          ? String((e as { message?: unknown }).message)
-          : String(e);
-      open?.({
-        message: "Ошибка обновления статуса",
-        type: "error",
-        description,
-      });
+      // Removed status update logic as requested
+      // await apiFetch(`/api/v1/appointments/${appointmentId}/`, { ... });
     } finally {
       setActionLoading(false);
     }
@@ -307,18 +262,6 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
             >
               {item && !hideActionsForDoctor && !readOnly && (
                 <>
-                  {/* Кнопка "Клиент здесь" */}
-                  {item.status === "Ожидаем" && (
-                    <Button
-                      variant="outlined"
-                      color="success"
-                      size="small"
-                      startIcon={<DirectionsWalkOutlined />}
-                      onClick={handleArrived}
-                    >
-                      Клиент здесь
-                    </Button>
-                  )}
 
 
 
@@ -344,26 +287,6 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
             {/* Второстепенные действия - справа - Show for Admin/SuperAdmin/Receptionist */}
             {item && !hideActionsForDoctor && !readOnly && (isAdmin() || isRegistrator()) && (
               <Stack direction="row" spacing={1}>
-                {/* Кнопка отмены приема */}
-                {item.status !== APPOINTMENT_STATUSES.PAID && item.status !== APPOINTMENT_STATUSES.CANCELLED && item.status !== APPOINTMENT_STATUSES.PATIENT_NOT_CAME && (
-                  <Tooltip title="Отменить запись">
-                    <IconButton
-                      color="error"
-                      size="small"
-                      onClick={promptCancel}
-                      sx={{
-                        border: '1px solid',
-                        borderColor: 'error.main',
-                        '&:hover': {
-                          borderColor: 'error.dark',
-                          backgroundColor: (theme) => alpha(theme.palette.error.main, 0.08),
-                        }
-                      }}
-                    >
-                      <PersonOffOutlined fontSize="small" />
-                    </IconButton>
-                  </Tooltip>
-                )}
 
                 {/* Кнопка удаления приема - только для Супер-админа */}
                 {isSuperAdmin() && (
@@ -456,21 +379,6 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
           <Typography color="error">Ошибка: {errorMsg}</Typography>
         ) : item ? (
           <Stack spacing={3}>
-            {/* Status Section */}
-            <Stack direction="row" alignItems="center" spacing={1} flexWrap="wrap">
-              {(() => {
-                const isCardOnly = Number(item.paid_card || 0) > 0 && Number(item.paid_cash || 0) === 0;
-                const displayStatus = (item.status === "Оплачено" && isCardOnly) ? "Оплачено безналом" : item.status;
-                return (
-                  <Chip
-                    size="small"
-                    label={getStatusConfig(displayStatus).label}
-                    icon={getStatusConfig(displayStatus).icon}
-                    sx={getStatusChipSx(displayStatus)}
-                  />
-                );
-              })()}
-            </Stack>
 
 
             {!isDoctor() && !isNurse() && (

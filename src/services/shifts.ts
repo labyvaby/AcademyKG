@@ -36,21 +36,18 @@ type ApiShift = {
   is_night_shift?: boolean;
 };
 
-const toShift = (d: ApiShift): Shift => {
-  let employeeData: { full_name: string } | undefined = undefined;
+const toShift = (d: any): Shift => {
   let employeeId = "";
+  let employeeData: { full_name: string } | undefined = undefined;
 
   if (typeof d.employee === 'object' && d.employee !== null) {
-      employeeId = d.employee.id || "";
-      employeeData = { full_name: d.employee.fullName || d.employee.full_name || d.employeeName || "" };
-  } else if (typeof d.employe === 'object' && d.employe !== null) {
-      employeeId = d.employe.id || "";
-      employeeData = { full_name: d.employe.fullName || d.employe.full_name || d.employeeName || "" };
+    employeeId = d.employee.id || "";
+    employeeData = { full_name: d.employee.fullName || d.employee.full_name || "" };
+  } else if (typeof d.employee === 'string') {
+    employeeId = d.employee;
   } else {
-      employeeId = (d.employee || d.employe || d.employes_id || d.employesId || "") as string;
-      if (d.employeeName) {
-          employeeData = { full_name: d.employeeName };
-      }
+    employeeId = d.employes_id || d.employesId || "";
+    if (d.employeeName) employeeData = { full_name: d.employeeName };
   }
 
   const clockIn = d.clockIn || d.clock_in;
@@ -59,13 +56,13 @@ const toShift = (d: ApiShift): Shift => {
   return {
     id: String(d.id),
     employes_id: employeeId,
-    shift_date: d.shiftDate || d.shift_date || (clockIn ? dayjs(clockIn).format('YYYY-MM-DD') : ""),
+    shift_date: d.date || d.shiftDate || d.shift_date || (clockIn ? dayjs(clockIn).format('YYYY-MM-DD') : ""),
     start_time: (d.startTime || d.start_time || (clockIn ? dayjs(clockIn).format('HH:mm') : "")).slice(0, 5),
     end_time: (d.endTime || d.end_time || (clockOut ? dayjs(clockOut).format('HH:mm') : "")).slice(0, 5),
     is_night_shift: d.isNightShift ?? d.is_night_shift ?? false,
     clock_in: clockIn,
     clock_out: clockOut,
-    employee: employeeData
+    employee: employeeData,
   };
 };
 
@@ -73,21 +70,13 @@ export const fetchShifts = async (params?: { employee?: string, startDate?: stri
   try {
     const queryParams = new URLSearchParams();
     if (params?.employee) queryParams.append("employee", params.employee);
-    // shift_date filter: try as query param even if not in spec
-    if (params?.shift_date) queryParams.append("shiftDate", params.shift_date);
+    if (params?.shift_date) queryParams.append("date", params.shift_date);
+    queryParams.append("page_size", "200");
 
-    const res: any = await apiFetch(`/api/v1/work-shifts/?${queryParams.toString()}`);
+    const res: any = await apiFetch(`/api/v1/employee-schedules/?${queryParams.toString()}`);
     const results = res?.data?.results ?? res?.results ?? [];
 
-    // Client-side filter by shift_date if provided (API may not support it)
-    const filtered = params?.shift_date
-      ? results.filter((d: any) => {
-          const sd = d.shiftDate ?? d.shift_date ?? (d.clockIn ?? d.clock_in ? (d.clockIn ?? d.clock_in).slice(0, 10) : null);
-          return sd === params.shift_date;
-        })
-      : results;
-
-    return filtered.map((d: any) => toShift(d));
+    return results.map((d: any) => toShift(d));
   } catch (e) {
     console.error("fetchShifts failed", e);
     return [];

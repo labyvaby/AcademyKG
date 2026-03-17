@@ -55,6 +55,26 @@ export interface StatusConfig {
 /**
  * Базовая конфигурация статуса (без цветов, т.к. они зависят от темы)
  */
+const EN_TO_RU: Record<string, string> = {
+  scheduled: "Ожидаем",
+  waiting: "Ожидаем",
+  arrived: "Клиент здесь",
+  client_here: "Клиент здесь",
+  in_progress: "В работе",
+  completed: "Завершено",
+  paid: "Оплачено",
+  partially_paid: "Частично оплачено",
+  discounted: "Со скидкой",
+  cancelled: "Отменено",
+  canceled: "Отменено",
+  not_came: "Клиент не пришел",
+  patient_not_came: "Клиент не пришел",
+  free: "Бесплатно",
+};
+
+export const normalizeStatus = (status: string): string =>
+  EN_TO_RU[status?.trim?.().toLowerCase?.()] ?? status;
+
 export const getStatusConfig = (status: any): StatusConfig => {
   if (typeof status !== 'string') {
     return {
@@ -63,14 +83,15 @@ export const getStatusConfig = (status: any): StatusConfig => {
       label: status ? String(status) : "Ожидаем",
     };
   }
-  const statusLower = status.trim().toLowerCase();
+  const normalized = normalizeStatus(status);
+  const statusLower = normalized.trim().toLowerCase();
 
   // Отменено - красный
   if (statusLower === APPOINTMENT_STATUSES.CANCELLED.toLowerCase() || statusLower === "отменен") {
     return {
       color: "error",
       icon: <CancelIcon fontSize="small" />,
-      label: status,
+      label: normalized,
     };
   }
 
@@ -83,7 +104,7 @@ export const getStatusConfig = (status: any): StatusConfig => {
     return {
       color: "success",
       icon: <CheckCircleIcon fontSize="small" />,
-      label: status,
+      label: normalized,
     };
   }
 
@@ -92,7 +113,7 @@ export const getStatusConfig = (status: any): StatusConfig => {
     return {
       color: "success",
       icon: <DoneIcon fontSize="small" />, // Заменяем значок доллара на галочку
-      label: status,
+      label: normalized,
     };
   }
 
@@ -101,7 +122,7 @@ export const getStatusConfig = (status: any): StatusConfig => {
     return {
       color: "secondary",
       icon: <DoneIcon fontSize="small" />,
-      label: status,
+      label: normalized,
     };
   }
 
@@ -110,7 +131,7 @@ export const getStatusConfig = (status: any): StatusConfig => {
     return {
       color: "warning",
       icon: <BuildIcon fontSize="small" />,
-      label: status,
+      label: normalized,
     };
   }
 
@@ -119,7 +140,7 @@ export const getStatusConfig = (status: any): StatusConfig => {
     return {
       color: "default",
       icon: <DoneIcon fontSize="small" />,
-      label: status,
+      label: normalized,
     };
   }
 
@@ -128,7 +149,7 @@ export const getStatusConfig = (status: any): StatusConfig => {
     return {
       color: "info",
       icon: <PieChartIcon fontSize="small" />,
-      label: status,
+      label: normalized,
     };
   }
 
@@ -146,7 +167,7 @@ export const getStatusConfig = (status: any): StatusConfig => {
     return {
       color: "success",
       icon: <CardGiftcardIcon fontSize="small" />,
-      label: status,
+      label: normalized,
     };
   }
 

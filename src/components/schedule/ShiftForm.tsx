@@ -289,7 +289,7 @@ const ShiftForm: React.FC<Props> = ({ initialDate, shiftToEdit, allEmployees, on
           <>
             {/* Дата и режим смены */}
             <Grid container spacing={1.5} alignItems="flex-end">
-              <Grid item xs={12} sm={7.5}>
+              <Grid item xs={12}>
                 <Stack spacing={0.5}>
                   <Typography variant="body2" color="text.secondary">
                     Дата *
@@ -320,78 +320,6 @@ const ShiftForm: React.FC<Props> = ({ initialDate, shiftToEdit, allEmployees, on
                     }}
                   />
                 </Stack>
-              </Grid>
-              <Grid
-                item
-                xs={12}
-                sm={4.5}
-              >
-                <Box sx={{ width: 1 }}>
-                  <ToggleButtonGroup
-                    exclusive
-                    value={workMode}
-                    onChange={(_, v) => {
-                      if (v) {
-                        setIsNightShift(v === 'night');
-                        setManuallySetNightShift(true);
-                      }
-                    }}
-                    size="small"
-                    sx={{
-                      width: 1,
-                      bgcolor: "grey.100",
-                      borderRadius: 1.5,
-                      p: "3px",
-                      border: "none",
-                      "& .MuiToggleButton-root": {
-                        flex: 1,
-                        border: "none",
-                        borderRadius: 1,
-                        py: 0.75,
-                        transition: "all 0.2s ease-in-out",
-                        bgcolor: "transparent",
-                        color: "text.disabled",
-                        boxShadow: "none",
-                        "&:hover": {
-                          bgcolor: "rgba(0,0,0,0.04)",
-                        },
-                        "&.Mui-selected": {
-                          bgcolor: "primary.main",
-                          color: "primary.contrastText",
-                          boxShadow:
-                            "inset 0 1px 3px rgba(0,0,0,0.2), 0 1px 2px rgba(0,0,0,0.05)",
-                          fontWeight: 600,
-                          "&:hover": {
-                            bgcolor: "primary.dark",
-                          },
-                        },
-                      },
-                    }}
-                  >
-                    <ToggleButton value="day" aria-label="Дневной">
-                      <WbSunnyOutlined
-                        sx={{
-                          fontSize: 20,
-                          color:
-                            workMode === "day"
-                              ? "primary.contrastText"
-                              : "text.disabled",
-                        }}
-                      />
-                    </ToggleButton>
-                    <ToggleButton value="night" aria-label="Ночной">
-                      <NightlightOutlined
-                        sx={{
-                          fontSize: 20,
-                          color:
-                            workMode === "night"
-                              ? "primary.contrastText"
-                              : "text.disabled",
-                        }}
-                      />
-                    </ToggleButton>
-                  </ToggleButtonGroup>
-                </Box>
               </Grid>
             </Grid>
 

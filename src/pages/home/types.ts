@@ -205,6 +205,26 @@ export const mapAggregatedRowToAppointment = (
     }
   } catch { /* ignore */ }
 
+  // Normalize API status codes (English) to Russian display names
+  const STATUS_MAP: Record<string, string> = {
+    scheduled: "Ожидаем",
+    waiting: "Ожидаем",
+    arrived: "Клиент здесь",
+    client_here: "Клиент здесь",
+    in_progress: "В работе",
+    completed: "Завершено",
+    paid: "Оплачено",
+    partially_paid: "Частично оплачено",
+    discounted: "Со скидкой",
+    cancelled: "Отменено",
+    canceled: "Отменено",
+    not_came: "Клиент не пришел",
+    patient_not_came: "Клиент не пришел",
+    free: "Бесплатно",
+  };
+  const rawStatus = r.status ?? "";
+  const normalizedStatus = STATUS_MAP[rawStatus?.toLowerCase?.()] ?? rawStatus ?? "Ожидаем";
+
   const n = (v: unknown) => (Number.isFinite(Number(v)) ? Number(v) : 0);
 
   return {
@@ -222,7 +242,7 @@ export const mapAggregatedRowToAppointment = (
     service_names: serviceNames,
     services_json: parsedServices ?? servicesRaw,
     parsed_services: parsedServices,
-    status: r.status ?? "Ожидаем",
+    status: normalizedStatus,
     is_night: Boolean(r.is_night ?? r.isNight),
     total_cost: n(totalCost),
     total_amount: n(totalAmount),
