@@ -16,9 +16,11 @@ import PersonAddOutlined from "@mui/icons-material/PersonAddOutlined";
 import ExpandMoreOutlined from "@mui/icons-material/ExpandMoreOutlined";
 import ExpandLessOutlined from "@mui/icons-material/ExpandLessOutlined";
 import dayjs from "dayjs";
-import type { AppointmentGroup, GroupAppointmentStatus } from "../model/types";
+import type { AppointmentGroup, GroupAppointmentStatus, GroupParticipant } from "../model/types";
 import { updateParticipantStatus, payParticipant } from "../api/group-appointments.api";
 import ParticipantRow from "./ParticipantRow";
+import type { Appointment } from "../../../pages/home/types";
+import { PaymentSidebar } from "../../../pages/home/components/PaymentSidebar";
 
 type Props = {
   group: AppointmentGroup;
@@ -26,8 +28,33 @@ type Props = {
   onAddParticipant?: (groupId: string) => void;
 };
 
+function participantToAppointment(p: GroupParticipant, group: AppointmentGroup): Appointment {
+  return {
+    id: p.id,
+    appointment_at: group.appointmentAt,
+    formatted_date: dayjs(group.appointmentAt).format("HH:mm DD.MM.YYYY"),
+    doctor_name: group.performerName,
+    doctor_id: group.performerId,
+    patient_name: p.patientName,
+    patient_id: p.patientId,
+    service_names: group.sellableItemName,
+    status: p.status,
+    is_night: false,
+    total_cost: group.price,
+    total_amount: group.price,
+    paid_cash: p.paidCash,
+    paid_card: p.paidCard,
+    paid_balance: p.paidBalance,
+    paid_bonuses: 0,
+    discount: 0,
+    debt: p.debt,
+    performer_ids: [group.performerId],
+  };
+}
+
 const GroupAppointmentCard: React.FC<Props> = ({ group, onGroupUpdated, onAddParticipant }) => {
   const [expanded, setExpanded] = useState(false);
+  const [paymentParticipant, setPaymentParticipant] = useState<GroupParticipant | null>(null);
 
   const paidCount = group.participants.filter((p) => p.status === "paid" || p.debt === 0).length;
   const totalDebt = group.participants.reduce((sum, p) => sum + p.debt, 0);
@@ -49,9 +76,11 @@ const GroupAppointmentCard: React.FC<Props> = ({ group, onGroupUpdated, onAddPar
       ...group,
       participants: group.participants.map((p) => (p.id === participantId ? updated : p)),
     });
+    setPaymentParticipant(null);
   };
 
   return (
+  <>
     <Paper variant="outlined" sx={{ borderRadius: 2, overflow: "hidden" }}>
       {/* Card header */}
       <Box
@@ -122,7 +151,7 @@ const GroupAppointmentCard: React.FC<Props> = ({ group, onGroupUpdated, onAddPar
                 key={participant.id}
                 participant={participant}
                 onStatusChange={(status) => handleStatusChange(participant.id, status)}
-                onPay={(payment) => handlePay(participant.id, payment)}
+                onPayClick={() => setPaymentParticipant(participant)}
               />
             ))}
           </Stack>
@@ -146,6 +175,17 @@ const GroupAppointmentCard: React.FC<Props> = ({ group, onGroupUpdated, onAddPar
         </Box>
       </Collapse>
     </Paper>
+
+    {/* Payment sidebar for participant */}
+    <PaymentSidebar
+      open={!!paymentParticipant}
+      onClose={() => setPaymentParticipant(null)}
+      appointment={paymentParticipant ? participantToAppointment(paymentParticipant, group) : null}
+      onSaved={() => {
+        if (paymentParticipant) handlePay(paymentParticipant.id, {});
+      }}
+    />
+  </>
   );
 };
 

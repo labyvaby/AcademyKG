@@ -95,12 +95,22 @@ const GroupAppointmentsPage: React.FC = () => {
       setAddToGroupId(null);
       setAddPatientInput(null);
       setAddPatientSearch("");
+    } catch (e: any) {
+      const code = e?.code ?? e?.detail?.code ?? "";
+      if (code === "participant_limit_reached") {
+        // обновим группу чтобы показать актуальный лимит и закроем диалог
+        load();
+        setAddToGroupId(null);
+      }
     } finally {
       setAddBusy(false);
     }
   };
 
   const addingGroup = groups.find(g => g.id === addToGroupId);
+  const addingGroupIsFull = addingGroup
+    ? addingGroup.maxParticipants != null && addingGroup.participants.length >= addingGroup.maxParticipants
+    : false;
 
   return (
     <Box
@@ -176,50 +186,60 @@ const GroupAppointmentsPage: React.FC = () => {
           )}
         </DialogTitle>
         <DialogContent sx={{ pt: 1 }}>
-          <Autocomplete
-            options={addPatientResults}
-            value={addPatientInput}
-            onChange={(_, v) => setAddPatientInput(v)}
-            onInputChange={(_, val) => setAddPatientSearch(val)}
-            getOptionLabel={(o: PatientOption) => {
-              const fio = o["ФИО клиента"] ?? o.fio ?? "";
-              const phone = o["Телефон"] ?? o.phone ?? "";
-              return `${fio} — ${phone}`;
-            }}
-            filterOptions={(x) => x}
-            isOptionEqualToValue={(a, b) => a.id === b.id}
-            loading={addPatientLoading}
-            noOptionsText="Введите имя клиента"
-            renderOption={(props, option) => {
-              const fio = option["ФИО клиента"] ?? option.fio ?? "";
-              const phone = option["Телефон"] ?? option.phone ?? "";
-              return <li {...props} key={option.id}>{fio} — {phone}</li>;
-            }}
-            renderInput={(params) => (
-              <TextField
-                {...params}
-                autoFocus
-                label="Поиск клиента"
-                size="small"
-                fullWidth
-                InputProps={{
-                  ...params.InputProps,
-                  endAdornment: <>{addPatientLoading && <CP size={14} />}{params.InputProps.endAdornment}</>,
-                }}
-              />
-            )}
-          />
+          {addingGroupIsFull ? (
+            <Typography variant="body2" color="text.secondary">
+              Достигнут максимум участников ({addingGroup?.maxParticipants}) для этой услуги. Добавление новых клиентов недоступно.
+            </Typography>
+          ) : (
+            <Autocomplete
+              options={addPatientResults}
+              value={addPatientInput}
+              onChange={(_, v) => setAddPatientInput(v)}
+              onInputChange={(_, val) => setAddPatientSearch(val)}
+              getOptionLabel={(o: PatientOption) => {
+                const fio = o["ФИО клиента"] ?? o.fio ?? "";
+                const phone = o["Телефон"] ?? o.phone ?? "";
+                return `${fio} — ${phone}`;
+              }}
+              filterOptions={(x) => x}
+              isOptionEqualToValue={(a, b) => a.id === b.id}
+              loading={addPatientLoading}
+              noOptionsText="Введите имя клиента"
+              renderOption={(props, option) => {
+                const fio = option["ФИО клиента"] ?? option.fio ?? "";
+                const phone = option["Телефон"] ?? option.phone ?? "";
+                return <li {...props} key={option.id}>{fio} — {phone}</li>;
+              }}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  autoFocus
+                  label="Поиск клиента"
+                  size="small"
+                  fullWidth
+                  InputProps={{
+                    ...params.InputProps,
+                    endAdornment: <>{addPatientLoading && <CP size={14} />}{params.InputProps.endAdornment}</>,
+                  }}
+                />
+              )}
+            />
+          )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setAddToGroupId(null)} disabled={addBusy}>Отмена</Button>
-          <Button
-            variant="contained"
-            disabled={!addPatientInput || addBusy}
-            onClick={handleConfirmAddParticipant}
-            startIcon={addBusy ? <CP size={16} color="inherit" /> : undefined}
-          >
-            {addBusy ? "Добавление..." : "Добавить"}
+          <Button onClick={() => setAddToGroupId(null)} disabled={addBusy}>
+            {addingGroupIsFull ? "Закрыть" : "Отмена"}
           </Button>
+          {!addingGroupIsFull && (
+            <Button
+              variant="contained"
+              disabled={!addPatientInput || addBusy}
+              onClick={handleConfirmAddParticipant}
+              startIcon={addBusy ? <CP size={16} color="inherit" /> : undefined}
+            >
+              {addBusy ? "Добавление..." : "Добавить"}
+            </Button>
+          )}
         </DialogActions>
       </Dialog>
     </Box>

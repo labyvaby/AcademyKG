@@ -4,12 +4,9 @@ import {
   Box,
   Button,
   Chip,
-  Collapse,
-  Divider,
   MenuItem,
   Select,
   Stack,
-  TextField,
   Typography,
 } from "@mui/material";
 import PaymentsOutlined from "@mui/icons-material/PaymentsOutlined";
@@ -19,16 +16,12 @@ import { GROUP_STATUS_LABELS, GROUP_STATUS_COLOR } from "../model/types";
 type Props = {
   participant: GroupParticipant;
   onStatusChange: (status: GroupAppointmentStatus) => Promise<void>;
-  onPay: (payment: { paidCash?: number; paidCard?: number; paidBalance?: number }) => Promise<void>;
+  onPayClick: () => void;
+  onClientClick?: () => void;
 };
 
-const ParticipantRow: React.FC<Props> = ({ participant: p, onStatusChange, onPay }) => {
+const ParticipantRow: React.FC<Props> = ({ participant: p, onStatusChange, onPayClick, onClientClick }) => {
   const [statusLoading, setStatusLoading] = useState(false);
-  const [payOpen, setPayOpen] = useState(false);
-  const [cashInput, setCashInput] = useState("");
-  const [cardInput, setCardInput] = useState("");
-  const [balanceInput, setBalanceInput] = useState("");
-  const [payLoading, setPayLoading] = useState(false);
 
   const handleStatusChange = async (status: GroupAppointmentStatus) => {
     setStatusLoading(true);
@@ -36,39 +29,37 @@ const ParticipantRow: React.FC<Props> = ({ participant: p, onStatusChange, onPay
     finally { setStatusLoading(false); }
   };
 
-  const handlePay = async () => {
-    const cash = Number(cashInput) || 0;
-    const card = Number(cardInput) || 0;
-    const balance = Number(balanceInput) || 0;
-    if (cash + card + balance <= 0) return;
-    setPayLoading(true);
-    try {
-      await onPay({ paidCash: cash, paidCard: card, paidBalance: balance });
-      setCashInput(""); setCardInput(""); setBalanceInput("");
-      setPayOpen(false);
-    } finally { setPayLoading(false); }
-  };
-
   const initials = p.patientName.split(" ").slice(0, 2).map((w) => w[0]).join("").toUpperCase();
 
   return (
     <Box sx={{ border: "1px solid", borderColor: "divider", borderRadius: 1.5, overflow: "hidden" }}>
-      {/* Main row: avatar + name + status + pay button */}
       <Stack direction="row" alignItems="center" spacing={1.5} sx={{ px: 1.5, py: 1 }}>
-        <Avatar sx={{ width: 32, height: 32, fontSize: 12, bgcolor: "primary.light", flexShrink: 0 }} src={p.patientPhoto ?? undefined}>
+        <Avatar
+          sx={{ width: 32, height: 32, fontSize: 12, bgcolor: "primary.light", flexShrink: 0, cursor: onClientClick ? "pointer" : "default" }}
+          src={p.patientPhoto ?? undefined}
+          onClick={onClientClick}
+        >
           {initials}
         </Avatar>
 
         {/* Name + debt */}
         <Box sx={{ flex: 1, minWidth: 0 }}>
-          <Typography variant="body2" fontWeight={600} noWrap>{p.patientName}</Typography>
+          <Typography
+            variant="body2"
+            fontWeight={600}
+            noWrap
+            sx={{ cursor: onClientClick ? "pointer" : "default", "&:hover": onClientClick ? { color: "primary.main" } : {} }}
+            onClick={onClientClick}
+          >
+            {p.patientName}
+          </Typography>
           {p.debt > 0
             ? <Typography variant="caption" color="error.main">Долг: {p.debt.toLocaleString()} с</Typography>
             : <Typography variant="caption" color="success.main">Оплачено</Typography>
           }
         </Box>
 
-        {/* Status chip-select — рядом с именем */}
+        {/* Status chip-select */}
         <Select
           size="small"
           value={p.status}
@@ -95,33 +86,18 @@ const ParticipantRow: React.FC<Props> = ({ participant: p, onStatusChange, onPay
           ))}
         </Select>
 
-        {/* Pay toggle */}
+        {/* Pay button */}
         <Button
           size="small"
-          variant={payOpen ? "contained" : "outlined"}
+          variant={p.debt <= 0 ? "text" : "outlined"}
+          color={p.debt <= 0 ? "success" : "primary"}
           startIcon={<PaymentsOutlined fontSize="small" />}
-          onClick={() => setPayOpen((v) => !v)}
-          disabled={p.debt <= 0 && !payOpen}
+          onClick={onPayClick}
           sx={{ whiteSpace: "nowrap", minWidth: 0, px: 1 }}
         >
-          {p.debt > 0 ? `${p.debt.toLocaleString()} с` : "✓"}
+          {p.debt > 0 ? `${p.debt.toLocaleString()} с` : "Оплата"}
         </Button>
       </Stack>
-
-      {/* Payment form */}
-      <Collapse in={payOpen}>
-        <Divider />
-        <Box sx={{ px: 1.5, py: 1.25, bgcolor: "action.hover" }}>
-          <Stack direction="row" spacing={1} alignItems="flex-end" flexWrap="wrap">
-            <TextField label="Нал" size="small" value={cashInput} onChange={(e) => setCashInput(e.target.value.replace(/[^\d]/g, ""))} inputProps={{ inputMode: "numeric" }} sx={{ flex: 1, minWidth: 70 }} />
-            <TextField label="Безнал" size="small" value={cardInput} onChange={(e) => setCardInput(e.target.value.replace(/[^\d]/g, ""))} inputProps={{ inputMode: "numeric" }} sx={{ flex: 1, minWidth: 70 }} />
-            <TextField label="Баланс" size="small" value={balanceInput} onChange={(e) => setBalanceInput(e.target.value.replace(/[^\d]/g, ""))} inputProps={{ inputMode: "numeric" }} sx={{ flex: 1, minWidth: 70 }} />
-            <Button variant="contained" size="small" disabled={payLoading || (Number(cashInput) + Number(cardInput) + Number(balanceInput)) <= 0} onClick={handlePay} sx={{ whiteSpace: "nowrap" }}>
-              {payLoading ? "…" : "Принять"}
-            </Button>
-          </Stack>
-        </Box>
-      </Collapse>
     </Box>
   );
 };

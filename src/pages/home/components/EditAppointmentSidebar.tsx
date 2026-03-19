@@ -300,10 +300,6 @@ const EditAppointmentSidebar: React.FC<EditAppointmentSidebarProps> = ({
       return;
     }
 
-    if (isBooking && (!adminComment || !adminComment.trim())) {
-      return;
-    }
-
     // Валидация строк услуг (игнорируем полностью пустые строки, если есть хотя бы одна заполненная)
     const validServiceRows = serviceRows.filter((r) => r.serviceId && r.doctorId);
     if (validServiceRows.length === 0) {
@@ -324,12 +320,15 @@ const EditAppointmentSidebar: React.FC<EditAppointmentSidebarProps> = ({
           quantity: row.quantity || 1,
         });
       }
-      const payload: Record<string, unknown> = {
+      const payload: any = {
         appointmentAt: dt,
-        adminComment: adminComment || "",
         patient: selectedPatient?.id || null,
         services: allServicesPayload,
       };
+
+      if (adminComment.trim()) {
+        payload.adminComment = adminComment.trim();
+      }
 
       await apiFetch(`/api/v1/appointments/${item.id}/`, {
         method: "PATCH",
@@ -755,14 +754,14 @@ const EditAppointmentSidebar: React.FC<EditAppointmentSidebarProps> = ({
                 </AppCard>
 
                 <TextField
-                  placeholder={isBooking ? "Комментарий администратора (обязательно)" : "Комментарий администратора"}
+                  placeholder="Комментарий администратора"
                   value={adminComment}
                   onChange={(e) => setAdminComment(e.target.value)}
                   fullWidth
                   multiline
                   minRows={2}
-                  error={touched && isBooking && !adminComment.trim()}
-                  helperText={touched && isBooking && !adminComment.trim() ? "Обязательное поле для бронирования" : ""}
+                  error={false}
+                  helperText=""
                 />
               </>
             )}
@@ -792,7 +791,6 @@ const EditAppointmentSidebar: React.FC<EditAppointmentSidebarProps> = ({
               busy ||
               !dateTime ||
               (!isBooking && !selectedPatient) ||
-              (isBooking && !adminComment.trim()) ||
               !serviceRows.some((r) => r.serviceId && r.doctorId)
             }
             onMouseEnter={() => {

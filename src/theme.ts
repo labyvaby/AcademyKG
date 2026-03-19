@@ -338,10 +338,21 @@ export function getAppTheme(mode: PaletteMode | string): Theme {
         },
       },
       MuiDrawer: {
+        defaultProps: {
+          transitionDuration: { enter: 280, exit: 220 },
+        },
         styleOverrides: {
           paper: {
             borderLeft: `1px solid ${alpha(primary, m === "dark" ? 0.18 : 0.1)}`,
             backgroundImage: "none",
+            transition: "transform 280ms cubic-bezier(0.4, 0, 0.2, 1) !important",
+          },
+        },
+      },
+      MuiBackdrop: {
+        styleOverrides: {
+          root: {
+            transition: "opacity 280ms cubic-bezier(0.4, 0, 0.2, 1) !important",
           },
         },
       },

@@ -14,6 +14,7 @@ import {
 } from "@mui/material";
 import { useTheme, alpha } from "@mui/material/styles";
 import FilterListOutlined from "@mui/icons-material/FilterListOutlined";
+import GroupsOutlined from "@mui/icons-material/GroupsOutlined";
 import PaymentsOutlined from "@mui/icons-material/PaymentsOutlined";
 import CreditCardOutlined from "@mui/icons-material/CreditCardOutlined";
 import AccountBalanceWalletOutlined from "@mui/icons-material/AccountBalanceWalletOutlined";
@@ -725,6 +726,49 @@ export const AppointmentsList: React.FC<AppointmentsListProps & { onAddSlot?: (d
                         );
                       }
                       const a = item as Appointment;
+
+                      // ── Групповой приём ──────────────────────────────────
+                      if (a.is_group && a.group_data) {
+                        const g = a.group_data;
+                        const debt = g.participants.reduce((s, p) => s + p.debt, 0);
+                        const paidCount = g.participants.filter((p) => p.debt === 0).length;
+                        const allPaid = g.participants.length > 0 && debt === 0;
+                        return (
+                          <Box
+                            key={a.id}
+                            onClick={() => onItemClick?.(a.id)}
+                            sx={{ px: 2, py: 1.25, cursor: "pointer", borderBottom: "1px solid", borderColor: "divider", "&:last-child": { borderBottom: "none" }, "&:hover": { bgcolor: (t) => t.palette.action.hover }, borderLeft: "3px solid", borderLeftColor: "secondary.main" }}
+                          >
+                            <Stack direction="row" justifyContent="space-between" alignItems="flex-start" gap={2}>
+                              <Stack spacing={0.25}>
+                                <Stack direction="row" alignItems="center" gap={0.75}>
+                                  <GroupsOutlined sx={{ fontSize: 14, color: "secondary.main" }} />
+                                  <Typography variant="subtitle2">{dayjs(a.appointment_at).format("HH:mm")}</Typography>
+                                </Stack>
+                                <Typography variant="body2" color="text.secondary" noWrap>{g.sellableItemName}</Typography>
+                                <Typography variant="caption" color="text.disabled">
+                                  {g.participants.map((p) => p.patientName).join(", ") || "Нет участников"}
+                                </Typography>
+                              </Stack>
+                              <Stack alignItems="flex-end" spacing={0.25}>
+                                <Chip
+                                  label={`${paidCount}/${g.participants.length} уч.`}
+                                  size="small"
+                                  color={allPaid ? "success" : "warning"}
+                                  sx={{ height: 20, fontSize: 11 }}
+                                />
+                                {debt > 0 && (
+                                  <Typography variant="caption" color="error.main" fontWeight={600}>
+                                    Долг: {debt.toLocaleString()} с
+                                  </Typography>
+                                )}
+                              </Stack>
+                            </Stack>
+                          </Box>
+                        );
+                      }
+
+                      // ── Обычный приём ─────────────────────────────────────
                       const cash = Number(a.paid_cash || 0);
                       const card = Number(a.paid_card || 0);
                       const balance = Number(a.paid_balance || 0);

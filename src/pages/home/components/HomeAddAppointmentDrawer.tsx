@@ -187,7 +187,6 @@ export const HomeAddAppointmentDrawer: React.FC<
 
   // Поиск для группового режима
   const fetchGroupPatients = React.useCallback(async (query: string) => {
-    if (query.length < 1) return;
     setGroupPatientLoading(true);
     try {
       const url = query
@@ -206,7 +205,7 @@ export const HomeAddAppointmentDrawer: React.FC<
 
   React.useEffect(() => {
     if (appointmentMode !== "group") return;
-    const t = setTimeout(() => fetchGroupPatients(groupPatientSearch), 350);
+    const t = setTimeout(() => fetchGroupPatients(groupPatientSearch), groupPatientSearch ? 350 : 0);
     return () => clearTimeout(t);
   }, [groupPatientSearch, appointmentMode, fetchGroupPatients]);
 
@@ -471,12 +470,6 @@ export const HomeAddAppointmentDrawer: React.FC<
         return;
       }
 
-      if (isBooking && !adminComment.trim()) {
-        setIsSaving(false);
-        isSavingRef.current = false;
-        return;
-      }
-
       // Валидация строк услуг (игнорируем полностью пустые строки, если есть хотя бы одна заполненная)
       const validServiceRows = serviceRows.filter(
         (r) => r.serviceId && r.doctorId
@@ -499,12 +492,15 @@ export const HomeAddAppointmentDrawer: React.FC<
         });
       }
 
-      const requestPayload: Record<string, unknown> = {
+      const requestPayload: any = {
         patient: patientId,
         appointmentAt: dayjs(visitDateTime).toISOString(),
-        adminComment: adminComment || "",
         services: allServicesPayload,
       };
+
+      if (adminComment.trim()) {
+        requestPayload.adminComment = adminComment.trim();
+      }
 
       try {
         await apiFetch("/api/v1/appointments/", {
@@ -820,18 +816,18 @@ export const HomeAddAppointmentDrawer: React.FC<
                 {(selectedPatient || isBooking) && (
                   <Stack spacing={0.5} sx={{ mt: 1 }}>
                     <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
-                      Комментарий администратора {isBooking && "*"}
+                      Комментарий администратора
                     </Typography>
                     <TextField
-                      placeholder={isBooking ? "Обязательное поле для бронирования" : "Комментарий (необязательно)"}
+                      placeholder="Комментарий (необязательно)"
                       value={adminComment}
                       onChange={(e) => setAdminComment(e.target.value)}
                       fullWidth
                       multiline
                       minRows={2}
                       size="small"
-                      error={touched && isBooking && !adminComment.trim()}
-                      helperText={touched && isBooking && !adminComment.trim() ? "Обязательное поле" : ""}
+                      error={false}
+                      helperText=""
                     />
                   </Stack>
                 )}
@@ -971,7 +967,6 @@ export const HomeAddAppointmentDrawer: React.FC<
                 isSaving ||
                 !serviceRows.some((r) => r.serviceId && r.doctorId) ||
                 (appointmentMode === "single" && !isBooking && !selectedPatient) ||
-                (appointmentMode === "single" && isBooking && !adminComment.trim()) ||
                 (appointmentMode === "group" && groupParticipants.length === 0)
               }
               onMouseEnter={() => {

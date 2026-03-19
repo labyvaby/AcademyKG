@@ -27,12 +27,15 @@ import dayjs from "dayjs";
 import AppointmentsList from "./components/AppointmentsList";
 import { fetchDoctors, fetchMedicalStaff } from "../../services/employees";
 import type { Appointment, AggregatedAppointmentRow } from "./types";
-import { mapAggregatedRowToAppointment, compareAppointmentsByStatus } from "./types";
+import { mapAggregatedRowToAppointment, mapGroupToAppointment, compareAppointmentsByStatus } from "./types";
+import { fetchGroups } from "../../features/group-appointments/api/group-appointments.api";
+import type { AppointmentGroup } from "../../features/group-appointments/model/types";
 import type { EmployeesRow } from "../expenses/types";
 import { fetchShiftsForDate, Shift } from "../../services/shifts";
 import { AppBottomSheet, PageHeader, DateNavigation } from "../../components/ui";
 import { useRefresh } from "../../contexts/refresh-context";
 import AppointmentDetailsCard from "./components/AppointmentDetailsCard";
+import GroupAppointmentDetailsCard from "./components/GroupAppointmentDetailsCard";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import HomeAddAppointmentDrawer from "./components/HomeAddAppointmentDrawer";
 import { DoctorConclusionPanel } from "../doctor/components/DoctorConclusionPanel";
@@ -171,9 +174,20 @@ export const HomePage: React.FC = () => {
   const { data: dailyAppointments = [], isLoading: dailyLoading, isFetching: dailyFetching, refetch: refetchAppointments } = useQuery<Appointment[]>({
     queryKey: ["appointments", "daily", dailyRange.key],
     queryFn: async () => {
-      const res: any = await apiFetch(`/api/v1/appointments/?ordering=appointmentAt`);
+      const [res, groups]: [any, AppointmentGroup[]] = await Promise.all([
+        apiFetch(`/api/v1/appointments/?ordering=appointmentAt`),
+        fetchGroups(dailyRange.key),
+      ]);
       const items: AggregatedAppointmentRow[] = res?.data?.results ?? res?.results ?? (Array.isArray(res?.data) ? res.data : null) ?? (Array.isArray(res) ? res : []);
-      return (Array.isArray(items) ? items : []).map((row: AggregatedAppointmentRow) => mapAggregatedRowToAppointment(row));
+      // Collect all participant appointment IDs from groups to exclude them from regular list
+      const groupParticipantIds = new Set<string>(
+        groups.flatMap(g => g.participants.map(p => p.id))
+      );
+      const regular = (Array.isArray(items) ? items : [])
+        .filter((row: AggregatedAppointmentRow) => !groupParticipantIds.has(String(row.id ?? "")))
+        .map((row: AggregatedAppointmentRow) => mapAggregatedRowToAppointment(row));
+      const grouped = groups.map(mapGroupToAppointment);
+      return [...regular, ...grouped];
     },
     staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
@@ -346,19 +360,34 @@ export const HomePage: React.FC = () => {
               pr: { md: 1 },
               transition: 'all 0.3s ease'
             }}>
-              <AppointmentDetailsCard
-                appointmentId={selectedAppointmentId}
-                onClose={() => setSelectedAppointmentId(null)}
-                onUpdate={() => {
-                  // Optimistic update already applied in AppointmentDetailsCard via setQueryData.
-                  // No need to refetch — it would overwrite the optimistic status.
-                }}
-                onStartAppointment={(patientId) => {
-                  setInitialPatientId(patientId);
-                  setVisitOpen(true);
-                }}
-                showPaymentAction={true} // Только на странице администратора разрешена оплата
-              />
+              {selectedAppointment?.is_group && selectedAppointment.group_data ? (
+                <GroupAppointmentDetailsCard
+                  group={selectedAppointment.group_data}
+                  onClose={() => setSelectedAppointmentId(null)}
+                  onGroupUpdated={(updated) => {
+                    queryClient.setQueryData(
+                      ["appointments", "daily", dailyRange.key],
+                      (prev: Appointment[] | undefined) =>
+                        (prev ?? []).map((a) =>
+                          a.id === selectedAppointmentId ? mapGroupToAppointment(updated) : a
+                        )
+                    );
+                  }}
+                />
+              ) : (
+                <AppointmentDetailsCard
+                  appointmentId={selectedAppointment?.is_group ? null : selectedAppointmentId}
+                  onClose={() => setSelectedAppointmentId(null)}
+                  onUpdate={() => {
+                    refetchAppointments();
+                  }}
+                  onStartAppointment={(patientId) => {
+                    setInitialPatientId(patientId);
+                    setVisitOpen(true);
+                  }}
+                  showPaymentAction={true}
+                />
+              )}
             </Grid>
           )}
 
@@ -421,9 +450,23 @@ export const HomePage: React.FC = () => {
           }
         >
           <Box sx={{ p: 0 }}>
-            {activeTab === 0 && (
+            {activeTab === 0 && selectedAppointment?.is_group && selectedAppointment.group_data ? (
+              <GroupAppointmentDetailsCard
+                group={selectedAppointment.group_data}
+                onClose={() => setSelectedAppointmentId(null)}
+                onGroupUpdated={(updated) => {
+                  queryClient.setQueryData(
+                    ["appointments", "daily", dailyRange.key],
+                    (prev: Appointment[] | undefined) =>
+                      (prev ?? []).map((a) =>
+                        a.id === selectedAppointmentId ? mapGroupToAppointment(updated) : a
+                      )
+                  );
+                }}
+              />
+            ) : activeTab === 0 ? (
               <AppointmentDetailsCard
-                appointmentId={selectedAppointmentId}
+                appointmentId={selectedAppointment?.is_group ? null : selectedAppointmentId}
                 onClose={() => setSelectedAppointmentId(null)}
                 onUpdate={() => {
                   refetchAppointments();
@@ -434,7 +477,7 @@ export const HomePage: React.FC = () => {
                 }}
                 showPaymentAction={true}
               />
-            )}
+            ) : null}
             {activeTab === 1 && selectedAppointmentId && (
               <DoctorConclusionPanel
                 appointmentId={selectedAppointmentId}

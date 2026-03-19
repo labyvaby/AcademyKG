@@ -4,6 +4,415 @@ info:
   version: 1.0.0
   description: Аутизм•СДВГ•ЗПРР•ЗРР•РАС•Алалия|Бишкек|Кыргызстан
 paths:
+  /api/v1/appointment-groups/:
+    get:
+      operationId: v1AppointmentGroupsList
+      description: Возвращает список групповых приёмов на выбранную дату.
+      summary: Список групповых приёмов
+      parameters:
+      - in: query
+        name: date
+        schema:
+          type: string
+          format: date
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - Групповые приёмы
+      security:
+      - jwtAuth: []
+      responses:
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/V1AppointmentGroupsListErrorResponse400'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse401'
+              examples:
+                AuthenticationFailed:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: authentication_failed
+                      detail: Некорректные учетные данные.
+                      attr: null
+                NotAuthenticated:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: not_authenticated
+                      detail: Учетные данные не были предоставлены.
+                      attr: null
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse404'
+              examples:
+                NotFound:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: not_found
+                      detail: Страница не найдена.
+                      attr: null
+          description: ''
+        '405':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse405'
+              examples:
+                MethodNotAllowed:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: method_not_allowed
+                      detail: Метод "get" не разрешен.
+                      attr: null
+          description: ''
+        '406':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse406'
+              examples:
+                NotAcceptable:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: not_acceptable
+                      detail: Невозможно удовлетворить "Accept" заголовок запроса.
+                      attr: null
+          description: ''
+        '415':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse415'
+              examples:
+                UnsupportedMediaType:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: unsupported_media_type
+                      detail: Неподдерживаемый тип данных "application/json" в запросе.
+                      attr: null
+          description: ''
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse500'
+              examples:
+                APIException:
+                  value:
+                    type: server_error
+                    errors:
+                    - code: error
+                      detail: Ошибка сервера.
+                      attr: null
+          description: ''
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/PaginatedAppointmentGroupListList'
+                  meta:
+                    type: object
+          description: ''
+    post:
+      operationId: v1AppointmentGroupsCreate
+      description: Создаёт групповое занятие и, опционально, сразу добавляет участников.
+      summary: Создать групповой приём
+      tags:
+      - Групповые приёмы
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AppointmentGroupCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AppointmentGroupCreateRequest'
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppointmentGroupCreateRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/V1AppointmentGroupsCreateErrorResponse400'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse401'
+              examples:
+                AuthenticationFailed:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: authentication_failed
+                      detail: Некорректные учетные данные.
+                      attr: null
+                NotAuthenticated:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: not_authenticated
+                      detail: Учетные данные не были предоставлены.
+                      attr: null
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse404'
+              examples:
+                NotFound:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: not_found
+                      detail: Страница не найдена.
+                      attr: null
+          description: ''
+        '405':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse405'
+              examples:
+                MethodNotAllowed:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: method_not_allowed
+                      detail: Метод "get" не разрешен.
+                      attr: null
+          description: ''
+        '406':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse406'
+              examples:
+                NotAcceptable:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: not_acceptable
+                      detail: Невозможно удовлетворить "Accept" заголовок запроса.
+                      attr: null
+          description: ''
+        '415':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse415'
+              examples:
+                UnsupportedMediaType:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: unsupported_media_type
+                      detail: Неподдерживаемый тип данных "application/json" в запросе.
+                      attr: null
+          description: ''
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse500'
+              examples:
+                APIException:
+                  value:
+                    type: server_error
+                    errors:
+                    - code: error
+                      detail: Ошибка сервера.
+                      attr: null
+          description: ''
+        '201':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/AppointmentGroupCreate'
+                  meta:
+                    type: object
+          description: ''
+  /api/v1/appointment-groups/{id}/add-participant/:
+    post:
+      operationId: v1AppointmentGroupsAddParticipantCreate
+      description: Добавляет клиента в существующий групповой приём.
+      summary: Добавить участника в группу
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this Групповой приём.
+        required: true
+      tags:
+      - Групповые приёмы
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AddParticipantRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AddParticipantRequest'
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddParticipantRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/V1AppointmentGroupsAddParticipantCreateErrorResponse400'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse401'
+              examples:
+                AuthenticationFailed:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: authentication_failed
+                      detail: Некорректные учетные данные.
+                      attr: null
+                NotAuthenticated:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: not_authenticated
+                      detail: Учетные данные не были предоставлены.
+                      attr: null
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse404'
+              examples:
+                NotFound:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: not_found
+                      detail: Страница не найдена.
+                      attr: null
+          description: ''
+        '405':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse405'
+              examples:
+                MethodNotAllowed:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: method_not_allowed
+                      detail: Метод "get" не разрешен.
+                      attr: null
+          description: ''
+        '406':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse406'
+              examples:
+                NotAcceptable:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: not_acceptable
+                      detail: Невозможно удовлетворить "Accept" заголовок запроса.
+                      attr: null
+          description: ''
+        '415':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse415'
+              examples:
+                UnsupportedMediaType:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: unsupported_media_type
+                      detail: Неподдерживаемый тип данных "application/json" в запросе.
+                      attr: null
+          description: ''
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse500'
+              examples:
+                APIException:
+                  value:
+                    type: server_error
+                    errors:
+                    - code: error
+                      detail: Ошибка сервера.
+                      attr: null
+          description: ''
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/AddParticipant'
+                  meta:
+                    type: object
+          description: ''
   /api/v1/appointments/:
     get:
       operationId: v1AppointmentsList
@@ -78,17 +487,25 @@ paths:
           type: string
           title: Статус
           enum:
+          - arrived
           - cancelled
           - completed
           - in_progress
           - no_show
+          - not_came
+          - paid
+          - partially_paid
           - scheduled
         description: |-
           * `scheduled` - Запланирован
+          * `arrived` - Клиент здесь
           * `in_progress` - В процессе
           * `completed` - Завершён
+          * `paid` - Оплачен
+          * `partially_paid` - Частично оплачен
           * `cancelled` - Отменён
           * `no_show` - Не пришёл
+          * `not_came` - Не пришёл
       tags:
       - Приёмы
       security:
@@ -3742,6 +4159,913 @@ paths:
           description: ''
         '204':
           description: No response body
+  /api/v1/client-schedules/:
+    get:
+      operationId: v1ClientSchedulesList
+      summary: Список клиентских смен
+      parameters:
+      - in: query
+        name: endDate
+        schema:
+          type: string
+          format: date
+        required: true
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - in: query
+        name: patientId
+        schema:
+          type: string
+          format: uuid
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      - in: query
+        name: startDate
+        schema:
+          type: string
+          format: date
+        required: true
+      tags:
+      - Клиентское расписание
+      security:
+      - jwtAuth: []
+      responses:
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/V1ClientSchedulesListErrorResponse400'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse401'
+              examples:
+                AuthenticationFailed:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: authentication_failed
+                      detail: Некорректные учетные данные.
+                      attr: null
+                NotAuthenticated:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: not_authenticated
+                      detail: Учетные данные не были предоставлены.
+                      attr: null
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse404'
+              examples:
+                NotFound:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: not_found
+                      detail: Страница не найдена.
+                      attr: null
+          description: ''
+        '405':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse405'
+              examples:
+                MethodNotAllowed:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: method_not_allowed
+                      detail: Метод "get" не разрешен.
+                      attr: null
+          description: ''
+        '406':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse406'
+              examples:
+                NotAcceptable:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: not_acceptable
+                      detail: Невозможно удовлетворить "Accept" заголовок запроса.
+                      attr: null
+          description: ''
+        '415':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse415'
+              examples:
+                UnsupportedMediaType:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: unsupported_media_type
+                      detail: Неподдерживаемый тип данных "application/json" в запросе.
+                      attr: null
+          description: ''
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse500'
+              examples:
+                APIException:
+                  value:
+                    type: server_error
+                    errors:
+                    - code: error
+                      detail: Ошибка сервера.
+                      attr: null
+          description: ''
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/PaginatedClientScheduleReadList'
+                  meta:
+                    type: object
+          description: ''
+    post:
+      operationId: v1ClientSchedulesCreate
+      summary: Создать запись клиентского расписания
+      tags:
+      - Клиентское расписание
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ClientScheduleWriteRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ClientScheduleWriteRequest'
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClientScheduleWriteRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/V1ClientSchedulesCreateErrorResponse400'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse401'
+              examples:
+                AuthenticationFailed:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: authentication_failed
+                      detail: Некорректные учетные данные.
+                      attr: null
+                NotAuthenticated:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: not_authenticated
+                      detail: Учетные данные не были предоставлены.
+                      attr: null
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse404'
+              examples:
+                NotFound:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: not_found
+                      detail: Страница не найдена.
+                      attr: null
+          description: ''
+        '405':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse405'
+              examples:
+                MethodNotAllowed:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: method_not_allowed
+                      detail: Метод "get" не разрешен.
+                      attr: null
+          description: ''
+        '406':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse406'
+              examples:
+                NotAcceptable:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: not_acceptable
+                      detail: Невозможно удовлетворить "Accept" заголовок запроса.
+                      attr: null
+          description: ''
+        '415':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse415'
+              examples:
+                UnsupportedMediaType:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: unsupported_media_type
+                      detail: Неподдерживаемый тип данных "application/json" в запросе.
+                      attr: null
+          description: ''
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse500'
+              examples:
+                APIException:
+                  value:
+                    type: server_error
+                    errors:
+                    - code: error
+                      detail: Ошибка сервера.
+                      attr: null
+          description: ''
+        '201':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ClientScheduleWrite'
+                  meta:
+                    type: object
+          description: ''
+  /api/v1/client-schedules/{id}/:
+    get:
+      operationId: v1ClientSchedulesRetrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this Клиентское расписание.
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/V1ClientSchedulesRetrieveErrorResponse400'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse401'
+              examples:
+                AuthenticationFailed:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: authentication_failed
+                      detail: Некорректные учетные данные.
+                      attr: null
+                NotAuthenticated:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: not_authenticated
+                      detail: Учетные данные не были предоставлены.
+                      attr: null
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse404'
+              examples:
+                NotFound:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: not_found
+                      detail: Страница не найдена.
+                      attr: null
+          description: ''
+        '405':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse405'
+              examples:
+                MethodNotAllowed:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: method_not_allowed
+                      detail: Метод "get" не разрешен.
+                      attr: null
+          description: ''
+        '406':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse406'
+              examples:
+                NotAcceptable:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: not_acceptable
+                      detail: Невозможно удовлетворить "Accept" заголовок запроса.
+                      attr: null
+          description: ''
+        '415':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse415'
+              examples:
+                UnsupportedMediaType:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: unsupported_media_type
+                      detail: Неподдерживаемый тип данных "application/json" в запросе.
+                      attr: null
+          description: ''
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse500'
+              examples:
+                APIException:
+                  value:
+                    type: server_error
+                    errors:
+                    - code: error
+                      detail: Ошибка сервера.
+                      attr: null
+          description: ''
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ClientScheduleRead'
+                  meta:
+                    type: object
+          description: ''
+    put:
+      operationId: v1ClientSchedulesUpdate
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this Клиентское расписание.
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ClientScheduleWriteRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ClientScheduleWriteRequest'
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClientScheduleWriteRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/V1ClientSchedulesUpdateErrorResponse400'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse401'
+              examples:
+                AuthenticationFailed:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: authentication_failed
+                      detail: Некорректные учетные данные.
+                      attr: null
+                NotAuthenticated:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: not_authenticated
+                      detail: Учетные данные не были предоставлены.
+                      attr: null
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse404'
+              examples:
+                NotFound:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: not_found
+                      detail: Страница не найдена.
+                      attr: null
+          description: ''
+        '405':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse405'
+              examples:
+                MethodNotAllowed:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: method_not_allowed
+                      detail: Метод "get" не разрешен.
+                      attr: null
+          description: ''
+        '406':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse406'
+              examples:
+                NotAcceptable:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: not_acceptable
+                      detail: Невозможно удовлетворить "Accept" заголовок запроса.
+                      attr: null
+          description: ''
+        '415':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse415'
+              examples:
+                UnsupportedMediaType:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: unsupported_media_type
+                      detail: Неподдерживаемый тип данных "application/json" в запросе.
+                      attr: null
+          description: ''
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse500'
+              examples:
+                APIException:
+                  value:
+                    type: server_error
+                    errors:
+                    - code: error
+                      detail: Ошибка сервера.
+                      attr: null
+          description: ''
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ClientScheduleWrite'
+                  meta:
+                    type: object
+          description: ''
+    patch:
+      operationId: v1ClientSchedulesPartialUpdate
+      summary: Обновить запись клиентского расписания
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this Клиентское расписание.
+        required: true
+      tags:
+      - Клиентское расписание
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedClientScheduleWriteRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedClientScheduleWriteRequest'
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedClientScheduleWriteRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/V1ClientSchedulesPartialUpdateErrorResponse400'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse401'
+              examples:
+                AuthenticationFailed:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: authentication_failed
+                      detail: Некорректные учетные данные.
+                      attr: null
+                NotAuthenticated:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: not_authenticated
+                      detail: Учетные данные не были предоставлены.
+                      attr: null
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse404'
+              examples:
+                NotFound:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: not_found
+                      detail: Страница не найдена.
+                      attr: null
+          description: ''
+        '405':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse405'
+              examples:
+                MethodNotAllowed:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: method_not_allowed
+                      detail: Метод "get" не разрешен.
+                      attr: null
+          description: ''
+        '406':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse406'
+              examples:
+                NotAcceptable:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: not_acceptable
+                      detail: Невозможно удовлетворить "Accept" заголовок запроса.
+                      attr: null
+          description: ''
+        '415':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse415'
+              examples:
+                UnsupportedMediaType:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: unsupported_media_type
+                      detail: Неподдерживаемый тип данных "application/json" в запросе.
+                      attr: null
+          description: ''
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse500'
+              examples:
+                APIException:
+                  value:
+                    type: server_error
+                    errors:
+                    - code: error
+                      detail: Ошибка сервера.
+                      attr: null
+          description: ''
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ClientScheduleWrite'
+                  meta:
+                    type: object
+          description: ''
+    delete:
+      operationId: v1ClientSchedulesDestroy
+      summary: Удалить запись клиентского расписания
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this Клиентское расписание.
+        required: true
+      tags:
+      - Клиентское расписание
+      security:
+      - jwtAuth: []
+      responses:
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/V1ClientSchedulesDestroyErrorResponse400'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse401'
+              examples:
+                AuthenticationFailed:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: authentication_failed
+                      detail: Некорректные учетные данные.
+                      attr: null
+                NotAuthenticated:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: not_authenticated
+                      detail: Учетные данные не были предоставлены.
+                      attr: null
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse404'
+              examples:
+                NotFound:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: not_found
+                      detail: Страница не найдена.
+                      attr: null
+          description: ''
+        '405':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse405'
+              examples:
+                MethodNotAllowed:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: method_not_allowed
+                      detail: Метод "get" не разрешен.
+                      attr: null
+          description: ''
+        '406':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse406'
+              examples:
+                NotAcceptable:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: not_acceptable
+                      detail: Невозможно удовлетворить "Accept" заголовок запроса.
+                      attr: null
+          description: ''
+        '415':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse415'
+              examples:
+                UnsupportedMediaType:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: unsupported_media_type
+                      detail: Неподдерживаемый тип данных "application/json" в запросе.
+                      attr: null
+          description: ''
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse500'
+              examples:
+                APIException:
+                  value:
+                    type: server_error
+                    errors:
+                    - code: error
+                      detail: Ошибка сервера.
+                      attr: null
+          description: ''
+        '204':
+          description: No response body
+  /api/v1/client-schedules/bulk/:
+    post:
+      operationId: v1ClientSchedulesBulkCreate
+      summary: Массовое создание клиентских смен
+      tags:
+      - Клиентское расписание
+      security:
+      - jwtAuth: []
+      responses:
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/V1ClientSchedulesBulkCreateErrorResponse400'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse401'
+              examples:
+                AuthenticationFailed:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: authentication_failed
+                      detail: Некорректные учетные данные.
+                      attr: null
+                NotAuthenticated:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: not_authenticated
+                      detail: Учетные данные не были предоставлены.
+                      attr: null
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse404'
+              examples:
+                NotFound:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: not_found
+                      detail: Страница не найдена.
+                      attr: null
+          description: ''
+        '405':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse405'
+              examples:
+                MethodNotAllowed:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: method_not_allowed
+                      detail: Метод "get" не разрешен.
+                      attr: null
+          description: ''
+        '406':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse406'
+              examples:
+                NotAcceptable:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: not_acceptable
+                      detail: Невозможно удовлетворить "Accept" заголовок запроса.
+                      attr: null
+          description: ''
+        '415':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse415'
+              examples:
+                UnsupportedMediaType:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: unsupported_media_type
+                      detail: Неподдерживаемый тип данных "application/json" в запросе.
+                      attr: null
+          description: ''
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse500'
+              examples:
+                APIException:
+                  value:
+                    type: server_error
+                    errors:
+                    - code: error
+                      detail: Ошибка сервера.
+                      attr: null
+          description: ''
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ClientScheduleRead'
+                  meta:
+                    type: object
+          description: ''
   /api/v1/clients/:
     get:
       operationId: v1ClientsList
@@ -12394,6 +13718,11 @@ paths:
         schema:
           type: boolean
         description: Фильтр по активности номенклатуры.
+      - in: query
+        name: isGroup
+        schema:
+          type: boolean
+        description: Фильтр только для групповых или индивидуальных услуг.
       - name: ordering
         required: false
         in: query
@@ -16604,6 +17933,22 @@ paths:
           description: No response body
 components:
   schemas:
+    AddParticipant:
+      type: object
+      properties:
+        patient:
+          type: string
+          format: uuid
+      required:
+      - patient
+    AddParticipantRequest:
+      type: object
+      properties:
+        patient:
+          type: string
+          format: uuid
+      required:
+      - patient
     AppSettings:
       type: object
       properties:
@@ -16646,6 +17991,11 @@ components:
     AppointmentCreate:
       type: object
       properties:
+        group:
+          type: string
+          format: uuid
+          nullable: true
+          title: Групповой приём
         patient:
           type: string
           format: uuid
@@ -16655,6 +18005,35 @@ components:
           type: string
           format: date-time
           title: Дата и время приёма
+        status:
+          allOf:
+          - $ref: '#/components/schemas/StatusFceEnum'
+          title: Статус
+        duration:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+          title: Длительность (мин)
+        paidCash:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          title: Оплачено наличными
+        paidCard:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          title: Оплачено картой
+        paidBalance:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          title: Оплачено с баланса
+        paidBonuses:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          title: Оплачено бонусами
         adminComment:
           type: string
         services:
@@ -16667,6 +18046,11 @@ components:
     AppointmentCreateRequest:
       type: object
       properties:
+        group:
+          type: string
+          format: uuid
+          nullable: true
+          title: Групповой приём
         patient:
           type: string
           format: uuid
@@ -16676,6 +18060,35 @@ components:
           type: string
           format: date-time
           title: Дата и время приёма
+        status:
+          allOf:
+          - $ref: '#/components/schemas/StatusFceEnum'
+          title: Статус
+        duration:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+          title: Длительность (мин)
+        paidCash:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          title: Оплачено наличными
+        paidCard:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          title: Оплачено картой
+        paidBalance:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          title: Оплачено с баланса
+        paidBonuses:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          title: Оплачено бонусами
         adminComment:
           type: string
           minLength: 1
@@ -16700,13 +18113,17 @@ components:
           title: Дата и время приёма
         status:
           allOf:
-          - $ref: '#/components/schemas/StatusA9eEnum'
+          - $ref: '#/components/schemas/StatusFceEnum'
           readOnly: true
           title: Статус
         isNight:
           type: boolean
           readOnly: true
           title: Ночной
+        duration:
+          type: integer
+          readOnly: true
+          title: Длительность (мин)
         adminComment:
           type: string
           readOnly: true
@@ -16856,7 +18273,9 @@ components:
           - $ref: '#/components/schemas/OrganizationNested'
           readOnly: true
         services:
-          type: string
+          type: array
+          items:
+            $ref: '#/components/schemas/AppointmentService'
           readOnly: true
       required:
       - adminComment
@@ -16873,6 +18292,7 @@ components:
       - diagnosisData
       - discount
       - doctorComplaints
+      - duration
       - estimatedTotal
       - height
       - id
@@ -16923,6 +18343,106 @@ components:
       required:
       - date
       - employees
+    AppointmentGroupCreate:
+      type: object
+      properties:
+        appointmentAt:
+          type: string
+          format: date-time
+        performer:
+          type: string
+          format: uuid
+        sellableItem:
+          type: string
+          format: uuid
+        patients:
+          type: array
+          items:
+            type: string
+            format: uuid
+        adminComment:
+          type: string
+          default: ''
+      required:
+      - appointmentAt
+      - performer
+      - sellableItem
+    AppointmentGroupCreateRequest:
+      type: object
+      properties:
+        appointmentAt:
+          type: string
+          format: date-time
+        performer:
+          type: string
+          format: uuid
+        sellableItem:
+          type: string
+          format: uuid
+        patients:
+          type: array
+          items:
+            type: string
+            format: uuid
+        adminComment:
+          type: string
+          default: ''
+      required:
+      - appointmentAt
+      - performer
+      - sellableItem
+    AppointmentGroupList:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        appointmentAt:
+          type: string
+          format: date-time
+          readOnly: true
+          title: Дата и время занятия
+        performerId:
+          type: string
+          format: uuid
+          readOnly: true
+        performerName:
+          type: string
+          readOnly: true
+        sellableItemId:
+          type: string
+          format: uuid
+          readOnly: true
+        sellableItemName:
+          type: string
+          readOnly: true
+        price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          readOnly: true
+          title: Цена за участника
+        maxParticipants:
+          type: integer
+          readOnly: true
+          nullable: true
+          title: Лимит участников
+        participants:
+          type: array
+          items:
+            $ref: '#/components/schemas/GroupParticipant'
+          readOnly: true
+      required:
+      - appointmentAt
+      - id
+      - maxParticipants
+      - participants
+      - performerId
+      - performerName
+      - price
+      - sellableItemId
+      - sellableItemName
     AppointmentList:
       type: object
       properties:
@@ -16937,13 +18457,17 @@ components:
           title: Дата и время приёма
         status:
           allOf:
-          - $ref: '#/components/schemas/StatusA9eEnum'
+          - $ref: '#/components/schemas/StatusFceEnum'
           readOnly: true
           title: Статус
         isNight:
           type: boolean
           readOnly: true
           title: Ночной
+        duration:
+          type: integer
+          readOnly: true
+          title: Длительность (мин)
         total:
           type: string
           format: decimal
@@ -16993,6 +18517,7 @@ components:
       - branch
       - createdAt
       - debt
+      - duration
       - id
       - isNight
       - organization
@@ -17002,6 +18527,109 @@ components:
       - servicesCount
       - status
       - total
+    AppointmentService:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        sellableItem:
+          type: string
+          format: uuid
+          title: Услуга/товар
+        performer:
+          type: string
+          format: uuid
+          nullable: true
+          title: Исполнитель
+        performerName:
+          type: string
+          readOnly: true
+        performedAt:
+          type: string
+          format: date-time
+          readOnly: true
+          title: Выполнено
+        comment:
+          type: string
+          title: Комментарий
+        status:
+          allOf:
+          - $ref: '#/components/schemas/AppointmentServiceStatusEnum'
+          title: Статус
+        quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          title: Количество
+        price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          nullable: true
+          title: Цена
+        cost:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          nullable: true
+          title: Себестоимость
+        discount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          nullable: true
+          title: Скидка
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AppointmentServiceItem'
+          readOnly: true
+      required:
+      - id
+      - items
+      - performedAt
+      - performerName
+      - sellableItem
+    AppointmentServiceItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        product:
+          type: string
+          format: uuid
+          title: Товар
+        productName:
+          type: string
+          readOnly: true
+        quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          title: Количество
+        unit:
+          type: string
+          title: Единица
+          maxLength: 20
+      required:
+      - id
+      - product
+      - productName
+      - quantity
+    AppointmentServiceStatusEnum:
+      enum:
+      - performed
+      - cancelled
+      - planned
+      type: string
+      description: |-
+        * `performed` - Выполнена
+        * `cancelled` - Отменена
+        * `planned` - Запланирована
     AppointmentServiceWrite:
       type: object
       properties:
@@ -17043,6 +18671,11 @@ components:
     AppointmentUpdate:
       type: object
       properties:
+        group:
+          type: string
+          format: uuid
+          nullable: true
+          title: Групповой приём
         patient:
           type: string
           format: uuid
@@ -17052,6 +18685,35 @@ components:
           type: string
           format: date-time
           title: Дата и время приёма
+        status:
+          allOf:
+          - $ref: '#/components/schemas/StatusFceEnum'
+          title: Статус
+        duration:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+          title: Длительность (мин)
+        paidCash:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          title: Оплачено наличными
+        paidCard:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          title: Оплачено картой
+        paidBalance:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          title: Оплачено с баланса
+        paidBonuses:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          title: Оплачено бонусами
         adminComment:
           type: string
         services:
@@ -17063,6 +18725,11 @@ components:
     AppointmentUpdateRequest:
       type: object
       properties:
+        group:
+          type: string
+          format: uuid
+          nullable: true
+          title: Групповой приём
         patient:
           type: string
           format: uuid
@@ -17072,6 +18739,35 @@ components:
           type: string
           format: date-time
           title: Дата и время приёма
+        status:
+          allOf:
+          - $ref: '#/components/schemas/StatusFceEnum'
+          title: Статус
+        duration:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+          title: Длительность (мин)
+        paidCash:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          title: Оплачено наличными
+        paidCard:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          title: Оплачено картой
+        paidBalance:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          title: Оплачено с баланса
+        paidBonuses:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          title: Оплачено бонусами
         adminComment:
           type: string
           minLength: 1
@@ -17297,6 +18993,115 @@ components:
       - client_error
       type: string
       description: '* `client_error` - Client Error'
+    ClientSchedulePatientNested:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        fullName:
+          type: string
+          title: ФИО
+          maxLength: 255
+        photo:
+          type: string
+          format: uri
+          readOnly: true
+      required:
+      - fullName
+      - id
+      - photo
+    ClientSchedulePatientNestedRequest:
+      type: object
+      properties:
+        fullName:
+          type: string
+          minLength: 1
+          title: ФИО
+          maxLength: 255
+      required:
+      - fullName
+    ClientScheduleRead:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        patient:
+          allOf:
+          - $ref: '#/components/schemas/ClientSchedulePatientNested'
+          readOnly: true
+        date:
+          type: string
+          format: date
+          readOnly: true
+          title: Дата
+        startTime:
+          type: string
+          format: time
+          readOnly: true
+          title: Начало
+        endTime:
+          type: string
+          format: time
+          readOnly: true
+          title: Окончание
+      required:
+      - date
+      - endTime
+      - id
+      - patient
+      - startTime
+    ClientScheduleWrite:
+      type: object
+      properties:
+        patient:
+          type: string
+          format: uuid
+          title: Клиент
+        date:
+          type: string
+          format: date
+          title: Дата
+        startTime:
+          type: string
+          format: time
+          title: Начало
+        endTime:
+          type: string
+          format: time
+          title: Окончание
+      required:
+      - date
+      - endTime
+      - patient
+      - startTime
+    ClientScheduleWriteRequest:
+      type: object
+      properties:
+        patient:
+          type: string
+          format: uuid
+          title: Клиент
+        date:
+          type: string
+          format: date
+          title: Дата
+        startTime:
+          type: string
+          format: time
+          title: Начало
+        endTime:
+          type: string
+          format: time
+          title: Окончание
+      required:
+      - date
+      - endTime
+      - patient
+      - startTime
     DailyFinancialData:
       type: object
       properties:
@@ -18566,6 +20371,70 @@ components:
       - productsSum
       - servicesSum
       - waitingCount
+    GroupParticipant:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        patientId:
+          type: string
+          format: uuid
+          readOnly: true
+        patientName:
+          type: string
+          readOnly: true
+        patientPhoto:
+          type: string
+          format: uri
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/StatusFceEnum'
+          readOnly: true
+          title: Статус
+        total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          readOnly: true
+          title: Итого
+        paidCash:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          readOnly: true
+          title: Оплачено наличными
+        paidCard:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          readOnly: true
+          title: Оплачено картой
+        paidBalance:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          readOnly: true
+          title: Оплачено с баланса
+        debt:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          readOnly: true
+          title: Долг
+      required:
+      - debt
+      - id
+      - paidBalance
+      - paidCard
+      - paidCash
+      - patientId
+      - patientName
+      - patientPhoto
+      - status
+      - total
     LoginRequest:
       type: object
       properties:
@@ -18654,6 +20523,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/AppSettings'
+    PaginatedAppointmentGroupListList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/AppointmentGroupList'
     PaginatedAppointmentListList:
       type: object
       required:
@@ -18700,6 +20592,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/BranchRead'
+    PaginatedClientScheduleReadList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/ClientScheduleRead'
     PaginatedEmployeeListList:
       type: object
       required:
@@ -19117,6 +21032,11 @@ components:
     PatchedAppointmentUpdateRequest:
       type: object
       properties:
+        group:
+          type: string
+          format: uuid
+          nullable: true
+          title: Групповой приём
         patient:
           type: string
           format: uuid
@@ -19126,6 +21046,35 @@ components:
           type: string
           format: date-time
           title: Дата и время приёма
+        status:
+          allOf:
+          - $ref: '#/components/schemas/StatusFceEnum'
+          title: Статус
+        duration:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+          title: Длительность (мин)
+        paidCash:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          title: Оплачено наличными
+        paidCard:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          title: Оплачено картой
+        paidBalance:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          title: Оплачено с баланса
+        paidBonuses:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          title: Оплачено бонусами
         adminComment:
           type: string
           minLength: 1
@@ -19148,6 +21097,25 @@ components:
         address:
           type: string
           title: Адрес
+    PatchedClientScheduleWriteRequest:
+      type: object
+      properties:
+        patient:
+          type: string
+          format: uuid
+          title: Клиент
+        date:
+          type: string
+          format: date
+          title: Дата
+        startTime:
+          type: string
+          format: time
+          title: Начало
+        endTime:
+          type: string
+          format: time
+          title: Окончание
     PatchedEmployeeDocumentWriteRequest:
       type: object
       properties:
@@ -19529,12 +21497,9 @@ components:
           format: binary
           nullable: true
           title: Изображение
-        duration:
+        durationMinutes:
           type: integer
-          maximum: 32767
-          minimum: 0
           nullable: true
-          title: Длительность (мин)
         priceSom:
           type: string
           format: decimal
@@ -19543,6 +21508,15 @@ components:
         isActive:
           type: boolean
           title: Активна
+        isGroup:
+          type: boolean
+          title: Групповая услуга
+        maxParticipants:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+          nullable: true
+          title: Макс. участников
     PatchedServiceSalaryRuleRequest:
       type: object
       properties:
@@ -20838,7 +22812,16 @@ components:
           type: string
           readOnly: true
         displayPrice:
-          type: string
+          type: number
+          readOnly: true
+        isGroup:
+          type: boolean
+          readOnly: true
+        maxParticipants:
+          type: integer
+          readOnly: true
+        durationMinutes:
+          type: integer
           readOnly: true
         service:
           allOf:
@@ -20862,7 +22845,10 @@ components:
       - createdAt
       - displayName
       - displayPrice
+      - durationMinutes
       - id
+      - isGroup
+      - maxParticipants
       - product
       - service
       - type
@@ -20912,12 +22898,10 @@ components:
           type: string
           title: Название
           maxLength: 255
-        duration:
+        durationMinutes:
           type: integer
-          maximum: 32767
-          minimum: 0
+          readOnly: true
           nullable: true
-          title: Длительность (мин)
         price:
           type: string
           format: decimal
@@ -20926,7 +22910,17 @@ components:
         isActive:
           type: boolean
           title: Активна
+        isGroup:
+          type: boolean
+          title: Групповая услуга
+        maxParticipants:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+          nullable: true
+          title: Макс. участников
       required:
+      - durationMinutes
       - id
       - name
       - price
@@ -20954,12 +22948,9 @@ components:
           format: uri
           nullable: true
           title: Изображение
-        duration:
+        durationMinutes:
           type: integer
-          maximum: 32767
-          minimum: 0
           nullable: true
-          title: Длительность (мин)
         priceSom:
           type: string
           format: decimal
@@ -20968,6 +22959,15 @@ components:
         isActive:
           type: boolean
           title: Активна
+        isGroup:
+          type: boolean
+          title: Групповая услуга
+        maxParticipants:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+          nullable: true
+          title: Макс. участников
         createdAt:
           type: string
           format: date-time
@@ -20997,12 +22997,9 @@ components:
           format: binary
           nullable: true
           title: Изображение
-        duration:
+        durationMinutes:
           type: integer
-          maximum: 32767
-          minimum: 0
           nullable: true
-          title: Длительность (мин)
         priceSom:
           type: string
           format: decimal
@@ -21011,6 +23008,15 @@ components:
         isActive:
           type: boolean
           title: Активна
+        isGroup:
+          type: boolean
+          title: Групповая услуга
+        maxParticipants:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+          nullable: true
+          title: Макс. участников
       required:
       - name
     ServiceSalaryRule:
@@ -21184,20 +23190,6 @@ components:
         * `active` - Активный
         * `inactive` - Неактивный
         * `fired` - Уволен
-    StatusA9eEnum:
-      enum:
-      - scheduled
-      - in_progress
-      - completed
-      - cancelled
-      - no_show
-      type: string
-      description: |-
-        * `scheduled` - Запланирован
-        * `in_progress` - В процессе
-        * `completed` - Завершён
-        * `cancelled` - Отменён
-        * `no_show` - Не пришёл
     StatusC00Enum:
       enum:
       - open
@@ -21210,6 +23202,28 @@ components:
         * `partial` - Частично оплачена
         * `paid` - Оплачена
         * `canceled` - Отменена
+    StatusFceEnum:
+      enum:
+      - scheduled
+      - arrived
+      - in_progress
+      - completed
+      - paid
+      - partially_paid
+      - cancelled
+      - no_show
+      - not_came
+      type: string
+      description: |-
+        * `scheduled` - Запланирован
+        * `arrived` - Клиент здесь
+        * `in_progress` - В процессе
+        * `completed` - Завершён
+        * `paid` - Оплачен
+        * `partially_paid` - Частично оплачен
+        * `cancelled` - Отменён
+        * `no_show` - Не пришёл
+        * `not_came` - Не пришёл
     SummaryCards:
       type: object
       properties:
@@ -21340,6 +23354,343 @@ components:
       required:
       - id
       - phoneNumber
+    V1AppointmentGroupsAddParticipantCreateError:
+      oneOf:
+      - $ref: '#/components/schemas/V1AppointmentGroupsAddParticipantCreateNonFieldErrorsErrorComponent'
+      - $ref: '#/components/schemas/V1AppointmentGroupsAddParticipantCreatePatientErrorComponent'
+      discriminator:
+        propertyName: attr
+        mapping:
+          non_field_errors: '#/components/schemas/V1AppointmentGroupsAddParticipantCreateNonFieldErrorsErrorComponent'
+          patient: '#/components/schemas/V1AppointmentGroupsAddParticipantCreatePatientErrorComponent'
+    V1AppointmentGroupsAddParticipantCreateErrorResponse400:
+      oneOf:
+      - $ref: '#/components/schemas/V1AppointmentGroupsAddParticipantCreateValidationError'
+      - $ref: '#/components/schemas/ParseErrorResponse'
+      discriminator:
+        propertyName: type
+        mapping:
+          validation_error: '#/components/schemas/V1AppointmentGroupsAddParticipantCreateValidationError'
+          client_error: '#/components/schemas/ParseErrorResponse'
+    V1AppointmentGroupsAddParticipantCreateNonFieldErrorsErrorComponent:
+      type: object
+      properties:
+        attr:
+          enum:
+          - non_field_errors
+          type: string
+          description: '* `non_field_errors` - non_field_errors'
+        code:
+          enum:
+          - invalid
+          - 'null'
+          type: string
+          description: |-
+            * `invalid` - invalid
+            * `null` - null
+        detail:
+          type: string
+      required:
+      - attr
+      - code
+      - detail
+    V1AppointmentGroupsAddParticipantCreatePatientErrorComponent:
+      type: object
+      properties:
+        attr:
+          enum:
+          - patient
+          type: string
+          description: '* `patient` - patient'
+        code:
+          enum:
+          - does_not_exist
+          - incorrect_type
+          - 'null'
+          - required
+          type: string
+          description: |-
+            * `does_not_exist` - does_not_exist
+            * `incorrect_type` - incorrect_type
+            * `null` - null
+            * `required` - required
+        detail:
+          type: string
+      required:
+      - attr
+      - code
+      - detail
+    V1AppointmentGroupsAddParticipantCreateValidationError:
+      type: object
+      properties:
+        type:
+          $ref: '#/components/schemas/ValidationErrorEnum'
+        errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/V1AppointmentGroupsAddParticipantCreateError'
+      required:
+      - errors
+      - type
+    V1AppointmentGroupsCreateAdminCommentErrorComponent:
+      type: object
+      properties:
+        attr:
+          enum:
+          - admin_comment
+          type: string
+          description: '* `admin_comment` - admin_comment'
+        code:
+          enum:
+          - invalid
+          - 'null'
+          - null_characters_not_allowed
+          - surrogate_characters_not_allowed
+          type: string
+          description: |-
+            * `invalid` - invalid
+            * `null` - null
+            * `null_characters_not_allowed` - null_characters_not_allowed
+            * `surrogate_characters_not_allowed` - surrogate_characters_not_allowed
+        detail:
+          type: string
+      required:
+      - attr
+      - code
+      - detail
+    V1AppointmentGroupsCreateAppointmentAtErrorComponent:
+      type: object
+      properties:
+        attr:
+          enum:
+          - appointment_at
+          type: string
+          description: '* `appointment_at` - appointment_at'
+        code:
+          enum:
+          - date
+          - invalid
+          - make_aware
+          - 'null'
+          - overflow
+          - required
+          type: string
+          description: |-
+            * `date` - date
+            * `invalid` - invalid
+            * `make_aware` - make_aware
+            * `null` - null
+            * `overflow` - overflow
+            * `required` - required
+        detail:
+          type: string
+      required:
+      - attr
+      - code
+      - detail
+    V1AppointmentGroupsCreateError:
+      oneOf:
+      - $ref: '#/components/schemas/V1AppointmentGroupsCreateNonFieldErrorsErrorComponent'
+      - $ref: '#/components/schemas/V1AppointmentGroupsCreateAppointmentAtErrorComponent'
+      - $ref: '#/components/schemas/V1AppointmentGroupsCreatePerformerErrorComponent'
+      - $ref: '#/components/schemas/V1AppointmentGroupsCreateSellableItemErrorComponent'
+      - $ref: '#/components/schemas/V1AppointmentGroupsCreatePatientsErrorComponent'
+      - $ref: '#/components/schemas/V1AppointmentGroupsCreatePatientsINDEXErrorComponent'
+      - $ref: '#/components/schemas/V1AppointmentGroupsCreateAdminCommentErrorComponent'
+      discriminator:
+        propertyName: attr
+        mapping:
+          non_field_errors: '#/components/schemas/V1AppointmentGroupsCreateNonFieldErrorsErrorComponent'
+          appointment_at: '#/components/schemas/V1AppointmentGroupsCreateAppointmentAtErrorComponent'
+          performer: '#/components/schemas/V1AppointmentGroupsCreatePerformerErrorComponent'
+          sellable_item: '#/components/schemas/V1AppointmentGroupsCreateSellableItemErrorComponent'
+          patients: '#/components/schemas/V1AppointmentGroupsCreatePatientsErrorComponent'
+          patients.INDEX: '#/components/schemas/V1AppointmentGroupsCreatePatientsINDEXErrorComponent'
+          admin_comment: '#/components/schemas/V1AppointmentGroupsCreateAdminCommentErrorComponent'
+    V1AppointmentGroupsCreateErrorResponse400:
+      oneOf:
+      - $ref: '#/components/schemas/V1AppointmentGroupsCreateValidationError'
+      - $ref: '#/components/schemas/ParseErrorResponse'
+      discriminator:
+        propertyName: type
+        mapping:
+          validation_error: '#/components/schemas/V1AppointmentGroupsCreateValidationError'
+          client_error: '#/components/schemas/ParseErrorResponse'
+    V1AppointmentGroupsCreateNonFieldErrorsErrorComponent:
+      type: object
+      properties:
+        attr:
+          enum:
+          - non_field_errors
+          type: string
+          description: '* `non_field_errors` - non_field_errors'
+        code:
+          enum:
+          - invalid
+          - 'null'
+          type: string
+          description: |-
+            * `invalid` - invalid
+            * `null` - null
+        detail:
+          type: string
+      required:
+      - attr
+      - code
+      - detail
+    V1AppointmentGroupsCreatePatientsErrorComponent:
+      type: object
+      properties:
+        attr:
+          enum:
+          - patients
+          type: string
+          description: '* `patients` - patients'
+        code:
+          enum:
+          - not_a_list
+          - 'null'
+          type: string
+          description: |-
+            * `not_a_list` - not_a_list
+            * `null` - null
+        detail:
+          type: string
+      required:
+      - attr
+      - code
+      - detail
+    V1AppointmentGroupsCreatePatientsINDEXErrorComponent:
+      type: object
+      properties:
+        attr:
+          enum:
+          - patients.INDEX
+          type: string
+          description: '* `patients.INDEX` - patients.INDEX'
+        code:
+          enum:
+          - invalid
+          - 'null'
+          - required
+          type: string
+          description: |-
+            * `invalid` - invalid
+            * `null` - null
+            * `required` - required
+        detail:
+          type: string
+      required:
+      - attr
+      - code
+      - detail
+    V1AppointmentGroupsCreatePerformerErrorComponent:
+      type: object
+      properties:
+        attr:
+          enum:
+          - performer
+          type: string
+          description: '* `performer` - performer'
+        code:
+          enum:
+          - invalid
+          - 'null'
+          - required
+          type: string
+          description: |-
+            * `invalid` - invalid
+            * `null` - null
+            * `required` - required
+        detail:
+          type: string
+      required:
+      - attr
+      - code
+      - detail
+    V1AppointmentGroupsCreateSellableItemErrorComponent:
+      type: object
+      properties:
+        attr:
+          enum:
+          - sellable_item
+          type: string
+          description: '* `sellable_item` - sellable_item'
+        code:
+          enum:
+          - invalid
+          - 'null'
+          - required
+          type: string
+          description: |-
+            * `invalid` - invalid
+            * `null` - null
+            * `required` - required
+        detail:
+          type: string
+      required:
+      - attr
+      - code
+      - detail
+    V1AppointmentGroupsCreateValidationError:
+      type: object
+      properties:
+        type:
+          $ref: '#/components/schemas/ValidationErrorEnum'
+        errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/V1AppointmentGroupsCreateError'
+      required:
+      - errors
+      - type
+    V1AppointmentGroupsListDateErrorComponent:
+      type: object
+      properties:
+        attr:
+          enum:
+          - date
+          type: string
+          description: '* `date` - date'
+        code:
+          enum:
+          - invalid
+          type: string
+          description: '* `invalid` - invalid'
+        detail:
+          type: string
+      required:
+      - attr
+      - code
+      - detail
+    V1AppointmentGroupsListError:
+      oneOf:
+      - $ref: '#/components/schemas/V1AppointmentGroupsListDateErrorComponent'
+      discriminator:
+        propertyName: attr
+        mapping:
+          date: '#/components/schemas/V1AppointmentGroupsListDateErrorComponent'
+    V1AppointmentGroupsListErrorResponse400:
+      oneOf:
+      - $ref: '#/components/schemas/V1AppointmentGroupsListValidationError'
+      - $ref: '#/components/schemas/ParseErrorResponse'
+      discriminator:
+        propertyName: type
+        mapping:
+          validation_error: '#/components/schemas/V1AppointmentGroupsListValidationError'
+          client_error: '#/components/schemas/ParseErrorResponse'
+    V1AppointmentGroupsListValidationError:
+      type: object
+      properties:
+        type:
+          $ref: '#/components/schemas/ValidationErrorEnum'
+        errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/V1AppointmentGroupsListError'
+      required:
+      - errors
+      - type
     V1AppointmentsAggregatedRetrieveErrorResponse400:
       oneOf:
       - $ref: '#/components/schemas/ParseErrorResponse'
@@ -21407,11 +23758,46 @@ components:
       - attr
       - code
       - detail
+    V1AppointmentsCreateDurationErrorComponent:
+      type: object
+      properties:
+        attr:
+          enum:
+          - duration
+          type: string
+          description: '* `duration` - duration'
+        code:
+          enum:
+          - invalid
+          - max_string_length
+          - max_value
+          - min_value
+          - 'null'
+          type: string
+          description: |-
+            * `invalid` - invalid
+            * `max_string_length` - max_string_length
+            * `max_value` - max_value
+            * `min_value` - min_value
+            * `null` - null
+        detail:
+          type: string
+      required:
+      - attr
+      - code
+      - detail
     V1AppointmentsCreateError:
       oneOf:
       - $ref: '#/components/schemas/V1AppointmentsCreateNonFieldErrorsErrorComponent'
+      - $ref: '#/components/schemas/V1AppointmentsCreateGroupErrorComponent'
       - $ref: '#/components/schemas/V1AppointmentsCreatePatientErrorComponent'
       - $ref: '#/components/schemas/V1AppointmentsCreateAppointmentAtErrorComponent'
+      - $ref: '#/components/schemas/V1AppointmentsCreateStatusErrorComponent'
+      - $ref: '#/components/schemas/V1AppointmentsCreateDurationErrorComponent'
+      - $ref: '#/components/schemas/V1AppointmentsCreatePaidCashErrorComponent'
+      - $ref: '#/components/schemas/V1AppointmentsCreatePaidCardErrorComponent'
+      - $ref: '#/components/schemas/V1AppointmentsCreatePaidBalanceErrorComponent'
+      - $ref: '#/components/schemas/V1AppointmentsCreatePaidBonusesErrorComponent'
       - $ref: '#/components/schemas/V1AppointmentsCreateAdminCommentErrorComponent'
       - $ref: '#/components/schemas/V1AppointmentsCreateServicesNonFieldErrorsErrorComponent'
       - $ref: '#/components/schemas/V1AppointmentsCreateServicesINDEXNonFieldErrorsErrorComponent'
@@ -21422,8 +23808,15 @@ components:
         propertyName: attr
         mapping:
           non_field_errors: '#/components/schemas/V1AppointmentsCreateNonFieldErrorsErrorComponent'
+          group: '#/components/schemas/V1AppointmentsCreateGroupErrorComponent'
           patient: '#/components/schemas/V1AppointmentsCreatePatientErrorComponent'
           appointment_at: '#/components/schemas/V1AppointmentsCreateAppointmentAtErrorComponent'
+          status: '#/components/schemas/V1AppointmentsCreateStatusErrorComponent'
+          duration: '#/components/schemas/V1AppointmentsCreateDurationErrorComponent'
+          paid_cash: '#/components/schemas/V1AppointmentsCreatePaidCashErrorComponent'
+          paid_card: '#/components/schemas/V1AppointmentsCreatePaidCardErrorComponent'
+          paid_balance: '#/components/schemas/V1AppointmentsCreatePaidBalanceErrorComponent'
+          paid_bonuses: '#/components/schemas/V1AppointmentsCreatePaidBonusesErrorComponent'
           admin_comment: '#/components/schemas/V1AppointmentsCreateAdminCommentErrorComponent'
           services.non_field_errors: '#/components/schemas/V1AppointmentsCreateServicesNonFieldErrorsErrorComponent'
           services.INDEX.non_field_errors: '#/components/schemas/V1AppointmentsCreateServicesINDEXNonFieldErrorsErrorComponent'
@@ -21439,6 +23832,30 @@ components:
         mapping:
           validation_error: '#/components/schemas/V1AppointmentsCreateValidationError'
           client_error: '#/components/schemas/ParseErrorResponse'
+    V1AppointmentsCreateGroupErrorComponent:
+      type: object
+      properties:
+        attr:
+          enum:
+          - group
+          type: string
+          description: '* `group` - group'
+        code:
+          enum:
+          - does_not_exist
+          - incorrect_type
+          - required
+          type: string
+          description: |-
+            * `does_not_exist` - does_not_exist
+            * `incorrect_type` - incorrect_type
+            * `required` - required
+        detail:
+          type: string
+      required:
+      - attr
+      - code
+      - detail
     V1AppointmentsCreateNonFieldErrorsErrorComponent:
       type: object
       properties:
@@ -21451,9 +23868,131 @@ components:
           enum:
           - invalid
           - 'null'
+          - unique
           type: string
           description: |-
             * `invalid` - invalid
+            * `null` - null
+            * `unique` - unique
+        detail:
+          type: string
+      required:
+      - attr
+      - code
+      - detail
+    V1AppointmentsCreatePaidBalanceErrorComponent:
+      type: object
+      properties:
+        attr:
+          enum:
+          - paid_balance
+          type: string
+          description: '* `paid_balance` - paid_balance'
+        code:
+          enum:
+          - invalid
+          - max_decimal_places
+          - max_digits
+          - max_string_length
+          - max_whole_digits
+          - 'null'
+          type: string
+          description: |-
+            * `invalid` - invalid
+            * `max_decimal_places` - max_decimal_places
+            * `max_digits` - max_digits
+            * `max_string_length` - max_string_length
+            * `max_whole_digits` - max_whole_digits
+            * `null` - null
+        detail:
+          type: string
+      required:
+      - attr
+      - code
+      - detail
+    V1AppointmentsCreatePaidBonusesErrorComponent:
+      type: object
+      properties:
+        attr:
+          enum:
+          - paid_bonuses
+          type: string
+          description: '* `paid_bonuses` - paid_bonuses'
+        code:
+          enum:
+          - invalid
+          - max_decimal_places
+          - max_digits
+          - max_string_length
+          - max_whole_digits
+          - 'null'
+          type: string
+          description: |-
+            * `invalid` - invalid
+            * `max_decimal_places` - max_decimal_places
+            * `max_digits` - max_digits
+            * `max_string_length` - max_string_length
+            * `max_whole_digits` - max_whole_digits
+            * `null` - null
+        detail:
+          type: string
+      required:
+      - attr
+      - code
+      - detail
+    V1AppointmentsCreatePaidCardErrorComponent:
+      type: object
+      properties:
+        attr:
+          enum:
+          - paid_card
+          type: string
+          description: '* `paid_card` - paid_card'
+        code:
+          enum:
+          - invalid
+          - max_decimal_places
+          - max_digits
+          - max_string_length
+          - max_whole_digits
+          - 'null'
+          type: string
+          description: |-
+            * `invalid` - invalid
+            * `max_decimal_places` - max_decimal_places
+            * `max_digits` - max_digits
+            * `max_string_length` - max_string_length
+            * `max_whole_digits` - max_whole_digits
+            * `null` - null
+        detail:
+          type: string
+      required:
+      - attr
+      - code
+      - detail
+    V1AppointmentsCreatePaidCashErrorComponent:
+      type: object
+      properties:
+        attr:
+          enum:
+          - paid_cash
+          type: string
+          description: '* `paid_cash` - paid_cash'
+        code:
+          enum:
+          - invalid
+          - max_decimal_places
+          - max_digits
+          - max_string_length
+          - max_whole_digits
+          - 'null'
+          type: string
+          description: |-
+            * `invalid` - invalid
+            * `max_decimal_places` - max_decimal_places
+            * `max_digits` - max_digits
+            * `max_string_length` - max_string_length
+            * `max_whole_digits` - max_whole_digits
             * `null` - null
         detail:
           type: string
@@ -21473,10 +24012,12 @@ components:
           enum:
           - does_not_exist
           - incorrect_type
+          - required
           type: string
           description: |-
             * `does_not_exist` - does_not_exist
             * `incorrect_type` - incorrect_type
+            * `required` - required
         detail:
           type: string
       required:
@@ -21598,6 +24139,28 @@ components:
           type: string
           description: |-
             * `not_a_list` - not_a_list
+            * `null` - null
+        detail:
+          type: string
+      required:
+      - attr
+      - code
+      - detail
+    V1AppointmentsCreateStatusErrorComponent:
+      type: object
+      properties:
+        attr:
+          enum:
+          - status
+          type: string
+          description: '* `status` - status'
+        code:
+          enum:
+          - invalid_choice
+          - 'null'
+          type: string
+          description: |-
+            * `invalid_choice` - invalid_choice
             * `null` - null
         detail:
           type: string
@@ -21910,11 +24473,46 @@ components:
       - attr
       - code
       - detail
+    V1AppointmentsPartialUpdateDurationErrorComponent:
+      type: object
+      properties:
+        attr:
+          enum:
+          - duration
+          type: string
+          description: '* `duration` - duration'
+        code:
+          enum:
+          - invalid
+          - max_string_length
+          - max_value
+          - min_value
+          - 'null'
+          type: string
+          description: |-
+            * `invalid` - invalid
+            * `max_string_length` - max_string_length
+            * `max_value` - max_value
+            * `min_value` - min_value
+            * `null` - null
+        detail:
+          type: string
+      required:
+      - attr
+      - code
+      - detail
     V1AppointmentsPartialUpdateError:
       oneOf:
       - $ref: '#/components/schemas/V1AppointmentsPartialUpdateNonFieldErrorsErrorComponent'
+      - $ref: '#/components/schemas/V1AppointmentsPartialUpdateGroupErrorComponent'
       - $ref: '#/components/schemas/V1AppointmentsPartialUpdatePatientErrorComponent'
       - $ref: '#/components/schemas/V1AppointmentsPartialUpdateAppointmentAtErrorComponent'
+      - $ref: '#/components/schemas/V1AppointmentsPartialUpdateStatusErrorComponent'
+      - $ref: '#/components/schemas/V1AppointmentsPartialUpdateDurationErrorComponent'
+      - $ref: '#/components/schemas/V1AppointmentsPartialUpdatePaidCashErrorComponent'
+      - $ref: '#/components/schemas/V1AppointmentsPartialUpdatePaidCardErrorComponent'
+      - $ref: '#/components/schemas/V1AppointmentsPartialUpdatePaidBalanceErrorComponent'
+      - $ref: '#/components/schemas/V1AppointmentsPartialUpdatePaidBonusesErrorComponent'
       - $ref: '#/components/schemas/V1AppointmentsPartialUpdateAdminCommentErrorComponent'
       - $ref: '#/components/schemas/V1AppointmentsPartialUpdateServicesNonFieldErrorsErrorComponent'
       - $ref: '#/components/schemas/V1AppointmentsPartialUpdateServicesINDEXNonFieldErrorsErrorComponent'
@@ -21925,8 +24523,15 @@ components:
         propertyName: attr
         mapping:
           non_field_errors: '#/components/schemas/V1AppointmentsPartialUpdateNonFieldErrorsErrorComponent'
+          group: '#/components/schemas/V1AppointmentsPartialUpdateGroupErrorComponent'
           patient: '#/components/schemas/V1AppointmentsPartialUpdatePatientErrorComponent'
           appointment_at: '#/components/schemas/V1AppointmentsPartialUpdateAppointmentAtErrorComponent'
+          status: '#/components/schemas/V1AppointmentsPartialUpdateStatusErrorComponent'
+          duration: '#/components/schemas/V1AppointmentsPartialUpdateDurationErrorComponent'
+          paid_cash: '#/components/schemas/V1AppointmentsPartialUpdatePaidCashErrorComponent'
+          paid_card: '#/components/schemas/V1AppointmentsPartialUpdatePaidCardErrorComponent'
+          paid_balance: '#/components/schemas/V1AppointmentsPartialUpdatePaidBalanceErrorComponent'
+          paid_bonuses: '#/components/schemas/V1AppointmentsPartialUpdatePaidBonusesErrorComponent'
           admin_comment: '#/components/schemas/V1AppointmentsPartialUpdateAdminCommentErrorComponent'
           services.non_field_errors: '#/components/schemas/V1AppointmentsPartialUpdateServicesNonFieldErrorsErrorComponent'
           services.INDEX.non_field_errors: '#/components/schemas/V1AppointmentsPartialUpdateServicesINDEXNonFieldErrorsErrorComponent'
@@ -21942,6 +24547,30 @@ components:
         mapping:
           validation_error: '#/components/schemas/V1AppointmentsPartialUpdateValidationError'
           client_error: '#/components/schemas/ParseErrorResponse'
+    V1AppointmentsPartialUpdateGroupErrorComponent:
+      type: object
+      properties:
+        attr:
+          enum:
+          - group
+          type: string
+          description: '* `group` - group'
+        code:
+          enum:
+          - does_not_exist
+          - incorrect_type
+          - required
+          type: string
+          description: |-
+            * `does_not_exist` - does_not_exist
+            * `incorrect_type` - incorrect_type
+            * `required` - required
+        detail:
+          type: string
+      required:
+      - attr
+      - code
+      - detail
     V1AppointmentsPartialUpdateNonFieldErrorsErrorComponent:
       type: object
       properties:
@@ -21954,9 +24583,131 @@ components:
           enum:
           - invalid
           - 'null'
+          - unique
           type: string
           description: |-
             * `invalid` - invalid
+            * `null` - null
+            * `unique` - unique
+        detail:
+          type: string
+      required:
+      - attr
+      - code
+      - detail
+    V1AppointmentsPartialUpdatePaidBalanceErrorComponent:
+      type: object
+      properties:
+        attr:
+          enum:
+          - paid_balance
+          type: string
+          description: '* `paid_balance` - paid_balance'
+        code:
+          enum:
+          - invalid
+          - max_decimal_places
+          - max_digits
+          - max_string_length
+          - max_whole_digits
+          - 'null'
+          type: string
+          description: |-
+            * `invalid` - invalid
+            * `max_decimal_places` - max_decimal_places
+            * `max_digits` - max_digits
+            * `max_string_length` - max_string_length
+            * `max_whole_digits` - max_whole_digits
+            * `null` - null
+        detail:
+          type: string
+      required:
+      - attr
+      - code
+      - detail
+    V1AppointmentsPartialUpdatePaidBonusesErrorComponent:
+      type: object
+      properties:
+        attr:
+          enum:
+          - paid_bonuses
+          type: string
+          description: '* `paid_bonuses` - paid_bonuses'
+        code:
+          enum:
+          - invalid
+          - max_decimal_places
+          - max_digits
+          - max_string_length
+          - max_whole_digits
+          - 'null'
+          type: string
+          description: |-
+            * `invalid` - invalid
+            * `max_decimal_places` - max_decimal_places
+            * `max_digits` - max_digits
+            * `max_string_length` - max_string_length
+            * `max_whole_digits` - max_whole_digits
+            * `null` - null
+        detail:
+          type: string
+      required:
+      - attr
+      - code
+      - detail
+    V1AppointmentsPartialUpdatePaidCardErrorComponent:
+      type: object
+      properties:
+        attr:
+          enum:
+          - paid_card
+          type: string
+          description: '* `paid_card` - paid_card'
+        code:
+          enum:
+          - invalid
+          - max_decimal_places
+          - max_digits
+          - max_string_length
+          - max_whole_digits
+          - 'null'
+          type: string
+          description: |-
+            * `invalid` - invalid
+            * `max_decimal_places` - max_decimal_places
+            * `max_digits` - max_digits
+            * `max_string_length` - max_string_length
+            * `max_whole_digits` - max_whole_digits
+            * `null` - null
+        detail:
+          type: string
+      required:
+      - attr
+      - code
+      - detail
+    V1AppointmentsPartialUpdatePaidCashErrorComponent:
+      type: object
+      properties:
+        attr:
+          enum:
+          - paid_cash
+          type: string
+          description: '* `paid_cash` - paid_cash'
+        code:
+          enum:
+          - invalid
+          - max_decimal_places
+          - max_digits
+          - max_string_length
+          - max_whole_digits
+          - 'null'
+          type: string
+          description: |-
+            * `invalid` - invalid
+            * `max_decimal_places` - max_decimal_places
+            * `max_digits` - max_digits
+            * `max_string_length` - max_string_length
+            * `max_whole_digits` - max_whole_digits
             * `null` - null
         detail:
           type: string
@@ -21976,10 +24727,12 @@ components:
           enum:
           - does_not_exist
           - incorrect_type
+          - required
           type: string
           description: |-
             * `does_not_exist` - does_not_exist
             * `incorrect_type` - incorrect_type
+            * `required` - required
         detail:
           type: string
       required:
@@ -22108,6 +24861,28 @@ components:
       - attr
       - code
       - detail
+    V1AppointmentsPartialUpdateStatusErrorComponent:
+      type: object
+      properties:
+        attr:
+          enum:
+          - status
+          type: string
+          description: '* `status` - status'
+        code:
+          enum:
+          - invalid_choice
+          - 'null'
+          type: string
+          description: |-
+            * `invalid_choice` - invalid_choice
+            * `null` - null
+        detail:
+          type: string
+      required:
+      - attr
+      - code
+      - detail
     V1AppointmentsPartialUpdateValidationError:
       type: object
       properties:
@@ -22185,11 +24960,46 @@ components:
       - attr
       - code
       - detail
+    V1AppointmentsUpdateDurationErrorComponent:
+      type: object
+      properties:
+        attr:
+          enum:
+          - duration
+          type: string
+          description: '* `duration` - duration'
+        code:
+          enum:
+          - invalid
+          - max_string_length
+          - max_value
+          - min_value
+          - 'null'
+          type: string
+          description: |-
+            * `invalid` - invalid
+            * `max_string_length` - max_string_length
+            * `max_value` - max_value
+            * `min_value` - min_value
+            * `null` - null
+        detail:
+          type: string
+      required:
+      - attr
+      - code
+      - detail
     V1AppointmentsUpdateError:
       oneOf:
       - $ref: '#/components/schemas/V1AppointmentsUpdateNonFieldErrorsErrorComponent'
+      - $ref: '#/components/schemas/V1AppointmentsUpdateGroupErrorComponent'
       - $ref: '#/components/schemas/V1AppointmentsUpdatePatientErrorComponent'
       - $ref: '#/components/schemas/V1AppointmentsUpdateAppointmentAtErrorComponent'
+      - $ref: '#/components/schemas/V1AppointmentsUpdateStatusErrorComponent'
+      - $ref: '#/components/schemas/V1AppointmentsUpdateDurationErrorComponent'
+      - $ref: '#/components/schemas/V1AppointmentsUpdatePaidCashErrorComponent'
+      - $ref: '#/components/schemas/V1AppointmentsUpdatePaidCardErrorComponent'
+      - $ref: '#/components/schemas/V1AppointmentsUpdatePaidBalanceErrorComponent'
+      - $ref: '#/components/schemas/V1AppointmentsUpdatePaidBonusesErrorComponent'
       - $ref: '#/components/schemas/V1AppointmentsUpdateAdminCommentErrorComponent'
       - $ref: '#/components/schemas/V1AppointmentsUpdateServicesNonFieldErrorsErrorComponent'
       - $ref: '#/components/schemas/V1AppointmentsUpdateServicesINDEXNonFieldErrorsErrorComponent'
@@ -22200,8 +25010,15 @@ components:
         propertyName: attr
         mapping:
           non_field_errors: '#/components/schemas/V1AppointmentsUpdateNonFieldErrorsErrorComponent'
+          group: '#/components/schemas/V1AppointmentsUpdateGroupErrorComponent'
           patient: '#/components/schemas/V1AppointmentsUpdatePatientErrorComponent'
           appointment_at: '#/components/schemas/V1AppointmentsUpdateAppointmentAtErrorComponent'
+          status: '#/components/schemas/V1AppointmentsUpdateStatusErrorComponent'
+          duration: '#/components/schemas/V1AppointmentsUpdateDurationErrorComponent'
+          paid_cash: '#/components/schemas/V1AppointmentsUpdatePaidCashErrorComponent'
+          paid_card: '#/components/schemas/V1AppointmentsUpdatePaidCardErrorComponent'
+          paid_balance: '#/components/schemas/V1AppointmentsUpdatePaidBalanceErrorComponent'
+          paid_bonuses: '#/components/schemas/V1AppointmentsUpdatePaidBonusesErrorComponent'
           admin_comment: '#/components/schemas/V1AppointmentsUpdateAdminCommentErrorComponent'
           services.non_field_errors: '#/components/schemas/V1AppointmentsUpdateServicesNonFieldErrorsErrorComponent'
           services.INDEX.non_field_errors: '#/components/schemas/V1AppointmentsUpdateServicesINDEXNonFieldErrorsErrorComponent'
@@ -22217,6 +25034,30 @@ components:
         mapping:
           validation_error: '#/components/schemas/V1AppointmentsUpdateValidationError'
           client_error: '#/components/schemas/ParseErrorResponse'
+    V1AppointmentsUpdateGroupErrorComponent:
+      type: object
+      properties:
+        attr:
+          enum:
+          - group
+          type: string
+          description: '* `group` - group'
+        code:
+          enum:
+          - does_not_exist
+          - incorrect_type
+          - required
+          type: string
+          description: |-
+            * `does_not_exist` - does_not_exist
+            * `incorrect_type` - incorrect_type
+            * `required` - required
+        detail:
+          type: string
+      required:
+      - attr
+      - code
+      - detail
     V1AppointmentsUpdateNonFieldErrorsErrorComponent:
       type: object
       properties:
@@ -22229,9 +25070,131 @@ components:
           enum:
           - invalid
           - 'null'
+          - unique
           type: string
           description: |-
             * `invalid` - invalid
+            * `null` - null
+            * `unique` - unique
+        detail:
+          type: string
+      required:
+      - attr
+      - code
+      - detail
+    V1AppointmentsUpdatePaidBalanceErrorComponent:
+      type: object
+      properties:
+        attr:
+          enum:
+          - paid_balance
+          type: string
+          description: '* `paid_balance` - paid_balance'
+        code:
+          enum:
+          - invalid
+          - max_decimal_places
+          - max_digits
+          - max_string_length
+          - max_whole_digits
+          - 'null'
+          type: string
+          description: |-
+            * `invalid` - invalid
+            * `max_decimal_places` - max_decimal_places
+            * `max_digits` - max_digits
+            * `max_string_length` - max_string_length
+            * `max_whole_digits` - max_whole_digits
+            * `null` - null
+        detail:
+          type: string
+      required:
+      - attr
+      - code
+      - detail
+    V1AppointmentsUpdatePaidBonusesErrorComponent:
+      type: object
+      properties:
+        attr:
+          enum:
+          - paid_bonuses
+          type: string
+          description: '* `paid_bonuses` - paid_bonuses'
+        code:
+          enum:
+          - invalid
+          - max_decimal_places
+          - max_digits
+          - max_string_length
+          - max_whole_digits
+          - 'null'
+          type: string
+          description: |-
+            * `invalid` - invalid
+            * `max_decimal_places` - max_decimal_places
+            * `max_digits` - max_digits
+            * `max_string_length` - max_string_length
+            * `max_whole_digits` - max_whole_digits
+            * `null` - null
+        detail:
+          type: string
+      required:
+      - attr
+      - code
+      - detail
+    V1AppointmentsUpdatePaidCardErrorComponent:
+      type: object
+      properties:
+        attr:
+          enum:
+          - paid_card
+          type: string
+          description: '* `paid_card` - paid_card'
+        code:
+          enum:
+          - invalid
+          - max_decimal_places
+          - max_digits
+          - max_string_length
+          - max_whole_digits
+          - 'null'
+          type: string
+          description: |-
+            * `invalid` - invalid
+            * `max_decimal_places` - max_decimal_places
+            * `max_digits` - max_digits
+            * `max_string_length` - max_string_length
+            * `max_whole_digits` - max_whole_digits
+            * `null` - null
+        detail:
+          type: string
+      required:
+      - attr
+      - code
+      - detail
+    V1AppointmentsUpdatePaidCashErrorComponent:
+      type: object
+      properties:
+        attr:
+          enum:
+          - paid_cash
+          type: string
+          description: '* `paid_cash` - paid_cash'
+        code:
+          enum:
+          - invalid
+          - max_decimal_places
+          - max_digits
+          - max_string_length
+          - max_whole_digits
+          - 'null'
+          type: string
+          description: |-
+            * `invalid` - invalid
+            * `max_decimal_places` - max_decimal_places
+            * `max_digits` - max_digits
+            * `max_string_length` - max_string_length
+            * `max_whole_digits` - max_whole_digits
             * `null` - null
         detail:
           type: string
@@ -22251,10 +25214,12 @@ components:
           enum:
           - does_not_exist
           - incorrect_type
+          - required
           type: string
           description: |-
             * `does_not_exist` - does_not_exist
             * `incorrect_type` - incorrect_type
+            * `required` - required
         detail:
           type: string
       required:
@@ -22376,6 +25341,28 @@ components:
           type: string
           description: |-
             * `not_a_list` - not_a_list
+            * `null` - null
+        detail:
+          type: string
+      required:
+      - attr
+      - code
+      - detail
+    V1AppointmentsUpdateStatusErrorComponent:
+      type: object
+      properties:
+        attr:
+          enum:
+          - status
+          type: string
+          description: '* `status` - status'
+        code:
+          enum:
+          - invalid_choice
+          - 'null'
+          type: string
+          description: |-
+            * `invalid_choice` - invalid_choice
             * `null` - null
         detail:
           type: string
@@ -24322,6 +27309,642 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/V1ClientDocumentsUpdateError'
+      required:
+      - errors
+      - type
+    V1ClientSchedulesBulkCreateError:
+      oneOf:
+      - $ref: '#/components/schemas/V1ClientSchedulesBulkCreateNonFieldErrorsErrorComponent'
+      discriminator:
+        propertyName: attr
+        mapping:
+          non_field_errors: '#/components/schemas/V1ClientSchedulesBulkCreateNonFieldErrorsErrorComponent'
+    V1ClientSchedulesBulkCreateErrorResponse400:
+      oneOf:
+      - $ref: '#/components/schemas/V1ClientSchedulesBulkCreateValidationError'
+      - $ref: '#/components/schemas/ParseErrorResponse'
+      discriminator:
+        propertyName: type
+        mapping:
+          validation_error: '#/components/schemas/V1ClientSchedulesBulkCreateValidationError'
+          client_error: '#/components/schemas/ParseErrorResponse'
+    V1ClientSchedulesBulkCreateNonFieldErrorsErrorComponent:
+      type: object
+      properties:
+        attr:
+          enum:
+          - non_field_errors
+          type: string
+          description: '* `non_field_errors` - non_field_errors'
+        code:
+          enum:
+          - invalid
+          - 'null'
+          type: string
+          description: |-
+            * `invalid` - invalid
+            * `null` - null
+        detail:
+          type: string
+      required:
+      - attr
+      - code
+      - detail
+    V1ClientSchedulesBulkCreateValidationError:
+      type: object
+      properties:
+        type:
+          $ref: '#/components/schemas/ValidationErrorEnum'
+        errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/V1ClientSchedulesBulkCreateError'
+      required:
+      - errors
+      - type
+    V1ClientSchedulesCreateDateErrorComponent:
+      type: object
+      properties:
+        attr:
+          enum:
+          - date
+          type: string
+          description: '* `date` - date'
+        code:
+          enum:
+          - datetime
+          - invalid
+          - 'null'
+          - required
+          type: string
+          description: |-
+            * `datetime` - datetime
+            * `invalid` - invalid
+            * `null` - null
+            * `required` - required
+        detail:
+          type: string
+      required:
+      - attr
+      - code
+      - detail
+    V1ClientSchedulesCreateEndTimeErrorComponent:
+      type: object
+      properties:
+        attr:
+          enum:
+          - end_time
+          type: string
+          description: '* `end_time` - end_time'
+        code:
+          enum:
+          - invalid
+          - 'null'
+          - required
+          type: string
+          description: |-
+            * `invalid` - invalid
+            * `null` - null
+            * `required` - required
+        detail:
+          type: string
+      required:
+      - attr
+      - code
+      - detail
+    V1ClientSchedulesCreateError:
+      oneOf:
+      - $ref: '#/components/schemas/V1ClientSchedulesCreateNonFieldErrorsErrorComponent'
+      - $ref: '#/components/schemas/V1ClientSchedulesCreatePatientErrorComponent'
+      - $ref: '#/components/schemas/V1ClientSchedulesCreateDateErrorComponent'
+      - $ref: '#/components/schemas/V1ClientSchedulesCreateStartTimeErrorComponent'
+      - $ref: '#/components/schemas/V1ClientSchedulesCreateEndTimeErrorComponent'
+      discriminator:
+        propertyName: attr
+        mapping:
+          non_field_errors: '#/components/schemas/V1ClientSchedulesCreateNonFieldErrorsErrorComponent'
+          patient: '#/components/schemas/V1ClientSchedulesCreatePatientErrorComponent'
+          date: '#/components/schemas/V1ClientSchedulesCreateDateErrorComponent'
+          start_time: '#/components/schemas/V1ClientSchedulesCreateStartTimeErrorComponent'
+          end_time: '#/components/schemas/V1ClientSchedulesCreateEndTimeErrorComponent'
+    V1ClientSchedulesCreateErrorResponse400:
+      oneOf:
+      - $ref: '#/components/schemas/V1ClientSchedulesCreateValidationError'
+      - $ref: '#/components/schemas/ParseErrorResponse'
+      discriminator:
+        propertyName: type
+        mapping:
+          validation_error: '#/components/schemas/V1ClientSchedulesCreateValidationError'
+          client_error: '#/components/schemas/ParseErrorResponse'
+    V1ClientSchedulesCreateNonFieldErrorsErrorComponent:
+      type: object
+      properties:
+        attr:
+          enum:
+          - non_field_errors
+          type: string
+          description: '* `non_field_errors` - non_field_errors'
+        code:
+          enum:
+          - invalid
+          - 'null'
+          - unique
+          type: string
+          description: |-
+            * `invalid` - invalid
+            * `null` - null
+            * `unique` - unique
+        detail:
+          type: string
+      required:
+      - attr
+      - code
+      - detail
+    V1ClientSchedulesCreatePatientErrorComponent:
+      type: object
+      properties:
+        attr:
+          enum:
+          - patient
+          type: string
+          description: '* `patient` - patient'
+        code:
+          enum:
+          - does_not_exist
+          - incorrect_type
+          - 'null'
+          - required
+          type: string
+          description: |-
+            * `does_not_exist` - does_not_exist
+            * `incorrect_type` - incorrect_type
+            * `null` - null
+            * `required` - required
+        detail:
+          type: string
+      required:
+      - attr
+      - code
+      - detail
+    V1ClientSchedulesCreateStartTimeErrorComponent:
+      type: object
+      properties:
+        attr:
+          enum:
+          - start_time
+          type: string
+          description: '* `start_time` - start_time'
+        code:
+          enum:
+          - invalid
+          - 'null'
+          - required
+          type: string
+          description: |-
+            * `invalid` - invalid
+            * `null` - null
+            * `required` - required
+        detail:
+          type: string
+      required:
+      - attr
+      - code
+      - detail
+    V1ClientSchedulesCreateValidationError:
+      type: object
+      properties:
+        type:
+          $ref: '#/components/schemas/ValidationErrorEnum'
+        errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/V1ClientSchedulesCreateError'
+      required:
+      - errors
+      - type
+    V1ClientSchedulesDestroyErrorResponse400:
+      oneOf:
+      - $ref: '#/components/schemas/ParseErrorResponse'
+      discriminator:
+        propertyName: type
+        mapping:
+          client_error: '#/components/schemas/ParseErrorResponse'
+    V1ClientSchedulesListEndDateErrorComponent:
+      type: object
+      properties:
+        attr:
+          enum:
+          - end_date
+          type: string
+          description: '* `end_date` - end_date'
+        code:
+          enum:
+          - invalid
+          type: string
+          description: '* `invalid` - invalid'
+        detail:
+          type: string
+      required:
+      - attr
+      - code
+      - detail
+    V1ClientSchedulesListError:
+      oneOf:
+      - $ref: '#/components/schemas/V1ClientSchedulesListStartDateErrorComponent'
+      - $ref: '#/components/schemas/V1ClientSchedulesListEndDateErrorComponent'
+      - $ref: '#/components/schemas/V1ClientSchedulesListPatientIdErrorComponent'
+      discriminator:
+        propertyName: attr
+        mapping:
+          start_date: '#/components/schemas/V1ClientSchedulesListStartDateErrorComponent'
+          end_date: '#/components/schemas/V1ClientSchedulesListEndDateErrorComponent'
+          patient_id: '#/components/schemas/V1ClientSchedulesListPatientIdErrorComponent'
+    V1ClientSchedulesListErrorResponse400:
+      oneOf:
+      - $ref: '#/components/schemas/V1ClientSchedulesListValidationError'
+      - $ref: '#/components/schemas/ParseErrorResponse'
+      discriminator:
+        propertyName: type
+        mapping:
+          validation_error: '#/components/schemas/V1ClientSchedulesListValidationError'
+          client_error: '#/components/schemas/ParseErrorResponse'
+    V1ClientSchedulesListPatientIdErrorComponent:
+      type: object
+      properties:
+        attr:
+          enum:
+          - patient_id
+          type: string
+          description: '* `patient_id` - patient_id'
+        code:
+          enum:
+          - invalid
+          - null_characters_not_allowed
+          type: string
+          description: |-
+            * `invalid` - invalid
+            * `null_characters_not_allowed` - null_characters_not_allowed
+        detail:
+          type: string
+      required:
+      - attr
+      - code
+      - detail
+    V1ClientSchedulesListStartDateErrorComponent:
+      type: object
+      properties:
+        attr:
+          enum:
+          - start_date
+          type: string
+          description: '* `start_date` - start_date'
+        code:
+          enum:
+          - invalid
+          type: string
+          description: '* `invalid` - invalid'
+        detail:
+          type: string
+      required:
+      - attr
+      - code
+      - detail
+    V1ClientSchedulesListValidationError:
+      type: object
+      properties:
+        type:
+          $ref: '#/components/schemas/ValidationErrorEnum'
+        errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/V1ClientSchedulesListError'
+      required:
+      - errors
+      - type
+    V1ClientSchedulesPartialUpdateDateErrorComponent:
+      type: object
+      properties:
+        attr:
+          enum:
+          - date
+          type: string
+          description: '* `date` - date'
+        code:
+          enum:
+          - datetime
+          - invalid
+          - 'null'
+          - required
+          type: string
+          description: |-
+            * `datetime` - datetime
+            * `invalid` - invalid
+            * `null` - null
+            * `required` - required
+        detail:
+          type: string
+      required:
+      - attr
+      - code
+      - detail
+    V1ClientSchedulesPartialUpdateEndTimeErrorComponent:
+      type: object
+      properties:
+        attr:
+          enum:
+          - end_time
+          type: string
+          description: '* `end_time` - end_time'
+        code:
+          enum:
+          - invalid
+          - 'null'
+          - required
+          type: string
+          description: |-
+            * `invalid` - invalid
+            * `null` - null
+            * `required` - required
+        detail:
+          type: string
+      required:
+      - attr
+      - code
+      - detail
+    V1ClientSchedulesPartialUpdateError:
+      oneOf:
+      - $ref: '#/components/schemas/V1ClientSchedulesPartialUpdateNonFieldErrorsErrorComponent'
+      - $ref: '#/components/schemas/V1ClientSchedulesPartialUpdatePatientErrorComponent'
+      - $ref: '#/components/schemas/V1ClientSchedulesPartialUpdateDateErrorComponent'
+      - $ref: '#/components/schemas/V1ClientSchedulesPartialUpdateStartTimeErrorComponent'
+      - $ref: '#/components/schemas/V1ClientSchedulesPartialUpdateEndTimeErrorComponent'
+      discriminator:
+        propertyName: attr
+        mapping:
+          non_field_errors: '#/components/schemas/V1ClientSchedulesPartialUpdateNonFieldErrorsErrorComponent'
+          patient: '#/components/schemas/V1ClientSchedulesPartialUpdatePatientErrorComponent'
+          date: '#/components/schemas/V1ClientSchedulesPartialUpdateDateErrorComponent'
+          start_time: '#/components/schemas/V1ClientSchedulesPartialUpdateStartTimeErrorComponent'
+          end_time: '#/components/schemas/V1ClientSchedulesPartialUpdateEndTimeErrorComponent'
+    V1ClientSchedulesPartialUpdateErrorResponse400:
+      oneOf:
+      - $ref: '#/components/schemas/V1ClientSchedulesPartialUpdateValidationError'
+      - $ref: '#/components/schemas/ParseErrorResponse'
+      discriminator:
+        propertyName: type
+        mapping:
+          validation_error: '#/components/schemas/V1ClientSchedulesPartialUpdateValidationError'
+          client_error: '#/components/schemas/ParseErrorResponse'
+    V1ClientSchedulesPartialUpdateNonFieldErrorsErrorComponent:
+      type: object
+      properties:
+        attr:
+          enum:
+          - non_field_errors
+          type: string
+          description: '* `non_field_errors` - non_field_errors'
+        code:
+          enum:
+          - invalid
+          - 'null'
+          - unique
+          type: string
+          description: |-
+            * `invalid` - invalid
+            * `null` - null
+            * `unique` - unique
+        detail:
+          type: string
+      required:
+      - attr
+      - code
+      - detail
+    V1ClientSchedulesPartialUpdatePatientErrorComponent:
+      type: object
+      properties:
+        attr:
+          enum:
+          - patient
+          type: string
+          description: '* `patient` - patient'
+        code:
+          enum:
+          - does_not_exist
+          - incorrect_type
+          - 'null'
+          - required
+          type: string
+          description: |-
+            * `does_not_exist` - does_not_exist
+            * `incorrect_type` - incorrect_type
+            * `null` - null
+            * `required` - required
+        detail:
+          type: string
+      required:
+      - attr
+      - code
+      - detail
+    V1ClientSchedulesPartialUpdateStartTimeErrorComponent:
+      type: object
+      properties:
+        attr:
+          enum:
+          - start_time
+          type: string
+          description: '* `start_time` - start_time'
+        code:
+          enum:
+          - invalid
+          - 'null'
+          - required
+          type: string
+          description: |-
+            * `invalid` - invalid
+            * `null` - null
+            * `required` - required
+        detail:
+          type: string
+      required:
+      - attr
+      - code
+      - detail
+    V1ClientSchedulesPartialUpdateValidationError:
+      type: object
+      properties:
+        type:
+          $ref: '#/components/schemas/ValidationErrorEnum'
+        errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/V1ClientSchedulesPartialUpdateError'
+      required:
+      - errors
+      - type
+    V1ClientSchedulesRetrieveErrorResponse400:
+      oneOf:
+      - $ref: '#/components/schemas/ParseErrorResponse'
+      discriminator:
+        propertyName: type
+        mapping:
+          client_error: '#/components/schemas/ParseErrorResponse'
+    V1ClientSchedulesUpdateDateErrorComponent:
+      type: object
+      properties:
+        attr:
+          enum:
+          - date
+          type: string
+          description: '* `date` - date'
+        code:
+          enum:
+          - datetime
+          - invalid
+          - 'null'
+          - required
+          type: string
+          description: |-
+            * `datetime` - datetime
+            * `invalid` - invalid
+            * `null` - null
+            * `required` - required
+        detail:
+          type: string
+      required:
+      - attr
+      - code
+      - detail
+    V1ClientSchedulesUpdateEndTimeErrorComponent:
+      type: object
+      properties:
+        attr:
+          enum:
+          - end_time
+          type: string
+          description: '* `end_time` - end_time'
+        code:
+          enum:
+          - invalid
+          - 'null'
+          - required
+          type: string
+          description: |-
+            * `invalid` - invalid
+            * `null` - null
+            * `required` - required
+        detail:
+          type: string
+      required:
+      - attr
+      - code
+      - detail
+    V1ClientSchedulesUpdateError:
+      oneOf:
+      - $ref: '#/components/schemas/V1ClientSchedulesUpdateNonFieldErrorsErrorComponent'
+      - $ref: '#/components/schemas/V1ClientSchedulesUpdatePatientErrorComponent'
+      - $ref: '#/components/schemas/V1ClientSchedulesUpdateDateErrorComponent'
+      - $ref: '#/components/schemas/V1ClientSchedulesUpdateStartTimeErrorComponent'
+      - $ref: '#/components/schemas/V1ClientSchedulesUpdateEndTimeErrorComponent'
+      discriminator:
+        propertyName: attr
+        mapping:
+          non_field_errors: '#/components/schemas/V1ClientSchedulesUpdateNonFieldErrorsErrorComponent'
+          patient: '#/components/schemas/V1ClientSchedulesUpdatePatientErrorComponent'
+          date: '#/components/schemas/V1ClientSchedulesUpdateDateErrorComponent'
+          start_time: '#/components/schemas/V1ClientSchedulesUpdateStartTimeErrorComponent'
+          end_time: '#/components/schemas/V1ClientSchedulesUpdateEndTimeErrorComponent'
+    V1ClientSchedulesUpdateErrorResponse400:
+      oneOf:
+      - $ref: '#/components/schemas/V1ClientSchedulesUpdateValidationError'
+      - $ref: '#/components/schemas/ParseErrorResponse'
+      discriminator:
+        propertyName: type
+        mapping:
+          validation_error: '#/components/schemas/V1ClientSchedulesUpdateValidationError'
+          client_error: '#/components/schemas/ParseErrorResponse'
+    V1ClientSchedulesUpdateNonFieldErrorsErrorComponent:
+      type: object
+      properties:
+        attr:
+          enum:
+          - non_field_errors
+          type: string
+          description: '* `non_field_errors` - non_field_errors'
+        code:
+          enum:
+          - invalid
+          - 'null'
+          - unique
+          type: string
+          description: |-
+            * `invalid` - invalid
+            * `null` - null
+            * `unique` - unique
+        detail:
+          type: string
+      required:
+      - attr
+      - code
+      - detail
+    V1ClientSchedulesUpdatePatientErrorComponent:
+      type: object
+      properties:
+        attr:
+          enum:
+          - patient
+          type: string
+          description: '* `patient` - patient'
+        code:
+          enum:
+          - does_not_exist
+          - incorrect_type
+          - 'null'
+          - required
+          type: string
+          description: |-
+            * `does_not_exist` - does_not_exist
+            * `incorrect_type` - incorrect_type
+            * `null` - null
+            * `required` - required
+        detail:
+          type: string
+      required:
+      - attr
+      - code
+      - detail
+    V1ClientSchedulesUpdateStartTimeErrorComponent:
+      type: object
+      properties:
+        attr:
+          enum:
+          - start_time
+          type: string
+          description: '* `start_time` - start_time'
+        code:
+          enum:
+          - invalid
+          - 'null'
+          - required
+          type: string
+          description: |-
+            * `invalid` - invalid
+            * `null` - null
+            * `required` - required
+        detail:
+          type: string
+      required:
+      - attr
+      - code
+      - detail
+    V1ClientSchedulesUpdateValidationError:
+      type: object
+      properties:
+        type:
+          $ref: '#/components/schemas/ValidationErrorEnum'
+        errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/V1ClientSchedulesUpdateError'
       required:
       - errors
       - type
@@ -33509,26 +37132,22 @@ components:
       - attr
       - code
       - detail
-    V1ServicesCreateDurationErrorComponent:
+    V1ServicesCreateDurationMinutesErrorComponent:
       type: object
       properties:
         attr:
           enum:
-          - duration
+          - duration_minutes
           type: string
-          description: '* `duration` - duration'
+          description: '* `duration_minutes` - duration_minutes'
         code:
           enum:
           - invalid
           - max_string_length
-          - max_value
-          - min_value
           type: string
           description: |-
             * `invalid` - invalid
             * `max_string_length` - max_string_length
-            * `max_value` - max_value
-            * `min_value` - min_value
         detail:
           type: string
       required:
@@ -33541,9 +37160,11 @@ components:
       - $ref: '#/components/schemas/V1ServicesCreateNameErrorComponent'
       - $ref: '#/components/schemas/V1ServicesCreateDescriptionErrorComponent'
       - $ref: '#/components/schemas/V1ServicesCreateImageUrlErrorComponent'
-      - $ref: '#/components/schemas/V1ServicesCreateDurationErrorComponent'
+      - $ref: '#/components/schemas/V1ServicesCreateDurationMinutesErrorComponent'
       - $ref: '#/components/schemas/V1ServicesCreatePriceSomErrorComponent'
       - $ref: '#/components/schemas/V1ServicesCreateIsActiveErrorComponent'
+      - $ref: '#/components/schemas/V1ServicesCreateIsGroupErrorComponent'
+      - $ref: '#/components/schemas/V1ServicesCreateMaxParticipantsErrorComponent'
       discriminator:
         propertyName: attr
         mapping:
@@ -33551,9 +37172,11 @@ components:
           name: '#/components/schemas/V1ServicesCreateNameErrorComponent'
           description: '#/components/schemas/V1ServicesCreateDescriptionErrorComponent'
           image_url: '#/components/schemas/V1ServicesCreateImageUrlErrorComponent'
-          duration: '#/components/schemas/V1ServicesCreateDurationErrorComponent'
+          duration_minutes: '#/components/schemas/V1ServicesCreateDurationMinutesErrorComponent'
           price_som: '#/components/schemas/V1ServicesCreatePriceSomErrorComponent'
           is_active: '#/components/schemas/V1ServicesCreateIsActiveErrorComponent'
+          is_group: '#/components/schemas/V1ServicesCreateIsGroupErrorComponent'
+          max_participants: '#/components/schemas/V1ServicesCreateMaxParticipantsErrorComponent'
     V1ServicesCreateErrorResponse400:
       oneOf:
       - $ref: '#/components/schemas/V1ServicesCreateValidationError'
@@ -33607,6 +37230,54 @@ components:
           description: |-
             * `invalid` - invalid
             * `null` - null
+        detail:
+          type: string
+      required:
+      - attr
+      - code
+      - detail
+    V1ServicesCreateIsGroupErrorComponent:
+      type: object
+      properties:
+        attr:
+          enum:
+          - is_group
+          type: string
+          description: '* `is_group` - is_group'
+        code:
+          enum:
+          - invalid
+          - 'null'
+          type: string
+          description: |-
+            * `invalid` - invalid
+            * `null` - null
+        detail:
+          type: string
+      required:
+      - attr
+      - code
+      - detail
+    V1ServicesCreateMaxParticipantsErrorComponent:
+      type: object
+      properties:
+        attr:
+          enum:
+          - max_participants
+          type: string
+          description: '* `max_participants` - max_participants'
+        code:
+          enum:
+          - invalid
+          - max_string_length
+          - max_value
+          - min_value
+          type: string
+          description: |-
+            * `invalid` - invalid
+            * `max_string_length` - max_string_length
+            * `max_value` - max_value
+            * `min_value` - min_value
         detail:
           type: string
       required:
@@ -33768,26 +37439,22 @@ components:
       - attr
       - code
       - detail
-    V1ServicesPartialUpdateDurationErrorComponent:
+    V1ServicesPartialUpdateDurationMinutesErrorComponent:
       type: object
       properties:
         attr:
           enum:
-          - duration
+          - duration_minutes
           type: string
-          description: '* `duration` - duration'
+          description: '* `duration_minutes` - duration_minutes'
         code:
           enum:
           - invalid
           - max_string_length
-          - max_value
-          - min_value
           type: string
           description: |-
             * `invalid` - invalid
             * `max_string_length` - max_string_length
-            * `max_value` - max_value
-            * `min_value` - min_value
         detail:
           type: string
       required:
@@ -33800,9 +37467,11 @@ components:
       - $ref: '#/components/schemas/V1ServicesPartialUpdateNameErrorComponent'
       - $ref: '#/components/schemas/V1ServicesPartialUpdateDescriptionErrorComponent'
       - $ref: '#/components/schemas/V1ServicesPartialUpdateImageUrlErrorComponent'
-      - $ref: '#/components/schemas/V1ServicesPartialUpdateDurationErrorComponent'
+      - $ref: '#/components/schemas/V1ServicesPartialUpdateDurationMinutesErrorComponent'
       - $ref: '#/components/schemas/V1ServicesPartialUpdatePriceSomErrorComponent'
       - $ref: '#/components/schemas/V1ServicesPartialUpdateIsActiveErrorComponent'
+      - $ref: '#/components/schemas/V1ServicesPartialUpdateIsGroupErrorComponent'
+      - $ref: '#/components/schemas/V1ServicesPartialUpdateMaxParticipantsErrorComponent'
       discriminator:
         propertyName: attr
         mapping:
@@ -33810,9 +37479,11 @@ components:
           name: '#/components/schemas/V1ServicesPartialUpdateNameErrorComponent'
           description: '#/components/schemas/V1ServicesPartialUpdateDescriptionErrorComponent'
           image_url: '#/components/schemas/V1ServicesPartialUpdateImageUrlErrorComponent'
-          duration: '#/components/schemas/V1ServicesPartialUpdateDurationErrorComponent'
+          duration_minutes: '#/components/schemas/V1ServicesPartialUpdateDurationMinutesErrorComponent'
           price_som: '#/components/schemas/V1ServicesPartialUpdatePriceSomErrorComponent'
           is_active: '#/components/schemas/V1ServicesPartialUpdateIsActiveErrorComponent'
+          is_group: '#/components/schemas/V1ServicesPartialUpdateIsGroupErrorComponent'
+          max_participants: '#/components/schemas/V1ServicesPartialUpdateMaxParticipantsErrorComponent'
     V1ServicesPartialUpdateErrorResponse400:
       oneOf:
       - $ref: '#/components/schemas/V1ServicesPartialUpdateValidationError'
@@ -33866,6 +37537,54 @@ components:
           description: |-
             * `invalid` - invalid
             * `null` - null
+        detail:
+          type: string
+      required:
+      - attr
+      - code
+      - detail
+    V1ServicesPartialUpdateIsGroupErrorComponent:
+      type: object
+      properties:
+        attr:
+          enum:
+          - is_group
+          type: string
+          description: '* `is_group` - is_group'
+        code:
+          enum:
+          - invalid
+          - 'null'
+          type: string
+          description: |-
+            * `invalid` - invalid
+            * `null` - null
+        detail:
+          type: string
+      required:
+      - attr
+      - code
+      - detail
+    V1ServicesPartialUpdateMaxParticipantsErrorComponent:
+      type: object
+      properties:
+        attr:
+          enum:
+          - max_participants
+          type: string
+          description: '* `max_participants` - max_participants'
+        code:
+          enum:
+          - invalid
+          - max_string_length
+          - max_value
+          - min_value
+          type: string
+          description: |-
+            * `invalid` - invalid
+            * `max_string_length` - max_string_length
+            * `max_value` - max_value
+            * `min_value` - min_value
         detail:
           type: string
       required:
@@ -34001,26 +37720,22 @@ components:
       - attr
       - code
       - detail
-    V1ServicesUpdateDurationErrorComponent:
+    V1ServicesUpdateDurationMinutesErrorComponent:
       type: object
       properties:
         attr:
           enum:
-          - duration
+          - duration_minutes
           type: string
-          description: '* `duration` - duration'
+          description: '* `duration_minutes` - duration_minutes'
         code:
           enum:
           - invalid
           - max_string_length
-          - max_value
-          - min_value
           type: string
           description: |-
             * `invalid` - invalid
             * `max_string_length` - max_string_length
-            * `max_value` - max_value
-            * `min_value` - min_value
         detail:
           type: string
       required:
@@ -34033,9 +37748,11 @@ components:
       - $ref: '#/components/schemas/V1ServicesUpdateNameErrorComponent'
       - $ref: '#/components/schemas/V1ServicesUpdateDescriptionErrorComponent'
       - $ref: '#/components/schemas/V1ServicesUpdateImageUrlErrorComponent'
-      - $ref: '#/components/schemas/V1ServicesUpdateDurationErrorComponent'
+      - $ref: '#/components/schemas/V1ServicesUpdateDurationMinutesErrorComponent'
       - $ref: '#/components/schemas/V1ServicesUpdatePriceSomErrorComponent'
       - $ref: '#/components/schemas/V1ServicesUpdateIsActiveErrorComponent'
+      - $ref: '#/components/schemas/V1ServicesUpdateIsGroupErrorComponent'
+      - $ref: '#/components/schemas/V1ServicesUpdateMaxParticipantsErrorComponent'
       discriminator:
         propertyName: attr
         mapping:
@@ -34043,9 +37760,11 @@ components:
           name: '#/components/schemas/V1ServicesUpdateNameErrorComponent'
           description: '#/components/schemas/V1ServicesUpdateDescriptionErrorComponent'
           image_url: '#/components/schemas/V1ServicesUpdateImageUrlErrorComponent'
-          duration: '#/components/schemas/V1ServicesUpdateDurationErrorComponent'
+          duration_minutes: '#/components/schemas/V1ServicesUpdateDurationMinutesErrorComponent'
           price_som: '#/components/schemas/V1ServicesUpdatePriceSomErrorComponent'
           is_active: '#/components/schemas/V1ServicesUpdateIsActiveErrorComponent'
+          is_group: '#/components/schemas/V1ServicesUpdateIsGroupErrorComponent'
+          max_participants: '#/components/schemas/V1ServicesUpdateMaxParticipantsErrorComponent'
     V1ServicesUpdateErrorResponse400:
       oneOf:
       - $ref: '#/components/schemas/V1ServicesUpdateValidationError'
@@ -34099,6 +37818,54 @@ components:
           description: |-
             * `invalid` - invalid
             * `null` - null
+        detail:
+          type: string
+      required:
+      - attr
+      - code
+      - detail
+    V1ServicesUpdateIsGroupErrorComponent:
+      type: object
+      properties:
+        attr:
+          enum:
+          - is_group
+          type: string
+          description: '* `is_group` - is_group'
+        code:
+          enum:
+          - invalid
+          - 'null'
+          type: string
+          description: |-
+            * `invalid` - invalid
+            * `null` - null
+        detail:
+          type: string
+      required:
+      - attr
+      - code
+      - detail
+    V1ServicesUpdateMaxParticipantsErrorComponent:
+      type: object
+      properties:
+        attr:
+          enum:
+          - max_participants
+          type: string
+          description: '* `max_participants` - max_participants'
+        code:
+          enum:
+          - invalid
+          - max_string_length
+          - max_value
+          - min_value
+          type: string
+          description: |-
+            * `invalid` - invalid
+            * `max_string_length` - max_string_length
+            * `max_value` - max_value
+            * `min_value` - min_value
         detail:
           type: string
       required:

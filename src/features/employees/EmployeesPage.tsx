@@ -19,7 +19,7 @@ import EmployeeCard from "./components/EmployeeCard";
 import AddEmployeeDrawer from "./components/AddEmployeeDrawer";
 import EditEmployeeDrawer from "./components/EditEmployeeDrawer";
 import DeleteEmployeeDialog from "./components/DeleteEmployeeDialog";
-import { useEmployeesPageState } from "./hooks/useEmployeesPage";
+import { useEmployeesPageState, fetchRoles } from "./hooks/useEmployeesPage";
 import { fetchServices, type ServiceRow as ServiceDto } from "../../services/services";
 import { AppBottomSheet, PageHeader } from "../../components/ui";
 import { usePermissions } from "../../hooks/usePermissions";
@@ -35,18 +35,19 @@ const EmployeesPage: React.FC = () => {
 
   // Загружаем услуги для отображения в карточке
   const [allServices, setAllServices] = React.useState<ServiceDto[]>([]);
-
-  // Роли загружаются внутри AddEmployeeDrawer/EditEmployeeDrawer через fetchRoles()
-  const roles: any[] = [];
+  const [roles, setRoles] = React.useState<any[]>([]);
 
   React.useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const items = await fetchServices();
-        if (!cancelled) setAllServices(items);
+        const [items, roleItems] = await Promise.all([fetchServices(), fetchRoles()]);
+        if (!cancelled) {
+          setAllServices(items);
+          setRoles(roleItems);
+        }
       } catch (e) {
-        console.error("Fetch services error:", e);
+        console.error("Fetch error:", e);
       }
     })();
     return () => { cancelled = true; };

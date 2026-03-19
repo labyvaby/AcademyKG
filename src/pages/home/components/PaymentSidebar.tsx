@@ -122,7 +122,9 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
 
     useEffect(() => {
         if (open && appointment) {
-            if (lastInitializedId.current !== appointment.id) {
+            // Re-initialize every time the sidebar opens (even for the same appointment id)
+            // so re-opened payments reflect the latest saved values
+            if (lastInitializedId.current !== appointment.id || lastInitializedId.current === null) {
                 setCash(appointment.paid_cash || "");
                 setCard(appointment.paid_card || "");
                 setBalanceUsed(appointment.paid_balance || 0);
@@ -387,8 +389,15 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
             anchor="right"
             open={open}
             onClose={onClose}
+            transitionDuration={{ enter: 280, exit: 220 }}
             PaperProps={{
-                sx: { width: { xs: 320, sm: 400 }, zIndex: (theme) => theme.zIndex.drawer + 20, display: "flex", flexDirection: "column" },
+                sx: {
+                    width: { xs: 320, sm: 400 },
+                    zIndex: (theme) => theme.zIndex.drawer + 20,
+                    display: "flex",
+                    flexDirection: "column",
+                    transition: "transform 280ms cubic-bezier(0.4, 0, 0.2, 1) !important",
+                },
             }}
         >
             <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", px: 2, py: 1.5 }}>

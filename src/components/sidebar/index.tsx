@@ -43,7 +43,6 @@ import MenuOutlined from "@mui/icons-material/MenuOutlined";
 import AccessTimeOutlined from "@mui/icons-material/AccessTimeOutlined";
 import LogoutOutlined from "@mui/icons-material/LogoutOutlined";
 import HistoryOutlined from "@mui/icons-material/HistoryOutlined";
-import GroupsOutlined from "@mui/icons-material/GroupsOutlined";
 import NotificationsOutlined from "@mui/icons-material/NotificationsOutlined";
 
 import { useThemedLayoutContext } from "@refinedev/mui";
@@ -334,7 +333,6 @@ const SidebarSecondary: React.FC = () => {
         )}
         {(isSuper || (!isNurse && !isAdmin() && !isRegistrator())) && <SidebarMenuItem to="/doctor" icon={<LocalHospitalOutlined />} label="Кабинет специалиста" collapsed={siderCollapsed} />}
         <SidebarMenuItem to="/all-appointments" icon={<HistoryOutlined />} label="Все приемы" collapsed={siderCollapsed} />
-        <SidebarMenuItem to="/group-appointments" icon={<GroupsOutlined />} label="Групповые приёмы" collapsed={siderCollapsed} />
         <SidebarMenuItem to="/schedule" icon={<CalendarMonthOutlined />} label="Расписание" collapsed={siderCollapsed} />
         <SidebarMenuItem to="/client-schedule" icon={<CalendarMonthOutlined />} label="Клиентское расписание" collapsed={siderCollapsed} />
         {(isSuper || !isNurse) && <SidebarMenuItem to="/employees" icon={<BadgeOutlined />} label="Сотрудники" collapsed={siderCollapsed} />}

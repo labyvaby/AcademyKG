@@ -1,4 +1,5 @@
 import dayjs from "dayjs";
+import type { AppointmentGroup } from "../../features/group-appointments/model/types";
 
 export type AppointmentServiceJson = {
   id?: string;
@@ -62,6 +63,9 @@ export type Appointment = {
   conclusion_history?: any[] | null;
   performer_ids?: string[] | null;
   has_conclusion?: boolean;
+  // Групповой приём
+  is_group?: boolean;
+  group_data?: AppointmentGroup | null;
   created_at?: string;
   updated_at?: string;
   created_by_name?: string | null;
@@ -273,6 +277,40 @@ export const mapAggregatedRowToAppointment = (
     updated_by_name: r.updated_by_name ?? r.updatedByName ?? null,
     diagnosis_data: r.diagnosis_data ?? r.diagnosisData ?? null,
     conclusion_history: r.conclusion_history ?? r.conclusionHistory ?? null,
+  };
+};
+
+/** Конвертирует AppointmentGroup в Appointment для отображения в общем списке */
+export const mapGroupToAppointment = (group: AppointmentGroup): Appointment => {
+  const totalDebt = group.participants.reduce((s, p) => s + p.debt, 0);
+  const totalPaid = group.participants.reduce((s, p) => s + p.paidCash + p.paidCard + p.paidBalance, 0);
+  const totalAmount = group.participants.length * group.price;
+  const allPaid = group.participants.length > 0 && totalDebt === 0;
+  const anyPaid = totalPaid > 0;
+  const status = allPaid ? "Оплачено" : anyPaid ? "Частично оплачено" : "Ожидаем";
+
+  return {
+    id: `group_${group.id}`,
+    appointment_at: group.appointmentAt,
+    formatted_date: dayjs(group.appointmentAt).format("HH:mm DD.MM.YYYY"),
+    doctor_name: group.performerName,
+    doctor_id: group.performerId,
+    patient_name: `Группа: ${group.participants.length} уч.`,
+    patient_id: undefined,
+    service_names: group.sellableItemName,
+    status,
+    is_night: false,
+    total_cost: totalAmount,
+    total_amount: totalAmount,
+    paid_cash: group.participants.reduce((s, p) => s + p.paidCash, 0),
+    paid_card: group.participants.reduce((s, p) => s + p.paidCard, 0),
+    paid_balance: group.participants.reduce((s, p) => s + p.paidBalance, 0),
+    paid_bonuses: 0,
+    discount: 0,
+    debt: totalDebt,
+    is_group: true,
+    group_data: group,
+    performer_ids: [group.performerId],
   };
 };
 
