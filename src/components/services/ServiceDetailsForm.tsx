@@ -5,7 +5,7 @@
  * Данные и колбэки приходят сверху.
  */
 import React from "react";
-import { Stack, TextField, InputAdornment, Typography, Paper, Tabs, Tab } from "@mui/material";
+import { Stack, TextField, InputAdornment, Typography, Paper, Tabs, Tab, Collapse } from "@mui/material";
 
 // Стили для вкладок-переключателей (копируем логику из товаров для единообразия)
 const toggleTabStyles = (theme: any, color: string) => ({
@@ -31,6 +31,12 @@ export type ServiceDetailsFormProps = {
   setDescription: (v: string) => void;
   isActive: boolean;
   setIsActive: (v: boolean) => void;
+  isGroup: boolean;
+  setIsGroup: (v: boolean) => void;
+  maxParticipants: string;
+  setMaxParticipants: (v: string) => void;
+  durationMinutes: string;
+  setDurationMinutes: (v: string) => void;
   touched?: boolean;
 };
 
@@ -43,6 +49,12 @@ const ServiceDetailsForm: React.FC<ServiceDetailsFormProps> = ({
   setDescription,
   isActive,
   setIsActive,
+  isGroup,
+  setIsGroup,
+  maxParticipants,
+  setMaxParticipants,
+  durationMinutes,
+  setDurationMinutes,
   touched = false,
 }) => {
   const nameError = touched && !name.trim();
@@ -97,6 +109,83 @@ const ServiceDetailsForm: React.FC<ServiceDetailsFormProps> = ({
           fullWidth
           multiline
           rows={3}
+        />
+      </Stack>
+
+      {/* Тип услуги */}
+      <Paper
+        elevation={0}
+        variant="outlined"
+        sx={{ p: 1, display: "flex", alignItems: "center", justifyContent: "space-between" }}
+      >
+        <Typography variant="body2">Тип услуги</Typography>
+        <Tabs
+          value={isGroup ? 1 : 0}
+          onChange={(_, v) => setIsGroup(v === 1)}
+          sx={{ minHeight: 32 }}
+          TabIndicatorProps={{ style: { display: "none" } }}
+        >
+          <Tab
+            label="Индивидуальная"
+            sx={(theme) => ({
+              ...toggleTabStyles(theme, theme.palette.primary.main),
+              minHeight: 32, py: 0, px: 2,
+            })}
+          />
+          <Tab
+            label="Групповая"
+            sx={(theme) => ({
+              ...toggleTabStyles(theme, theme.palette.secondary.main),
+              minHeight: 32, py: 0, px: 2,
+            })}
+          />
+        </Tabs>
+      </Paper>
+
+      {/* Максимум участников — только для групповой */}
+      <Collapse in={isGroup}>
+        <Stack spacing={0.5}>
+          <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
+            Максимум участников *
+          </Typography>
+          <TextField
+            type="text"
+            inputMode="numeric"
+            placeholder="Например: 10"
+            value={maxParticipants}
+            onChange={(e) => {
+              const v = e.target.value.replace(/[^\d]/g, "");
+              setMaxParticipants(v);
+            }}
+            InputProps={{
+              endAdornment: <InputAdornment position="end">чел.</InputAdornment>,
+            }}
+            fullWidth
+            error={touched && isGroup && (!maxParticipants || Number(maxParticipants) <= 0)}
+            helperText={touched && isGroup && (!maxParticipants || Number(maxParticipants) <= 0) ? "Укажите максимальное кол-во участников" : ""}
+          />
+        </Stack>
+      </Collapse>
+
+      {/* Длительность */}
+      <Stack spacing={0.5}>
+        <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
+          Длительность
+        </Typography>
+        <TextField
+          type="text"
+          inputMode="numeric"
+          placeholder="Например: 60"
+          value={durationMinutes}
+          onChange={(e) => {
+            const v = e.target.value.replace(/[^\d]/g, "");
+            setDurationMinutes(v);
+          }}
+          InputProps={{
+            endAdornment: <InputAdornment position="end">мин.</InputAdornment>,
+          }}
+          fullWidth
+          helperText="Влияет на отображение окон в расписании регистратуры"
         />
       </Stack>
 

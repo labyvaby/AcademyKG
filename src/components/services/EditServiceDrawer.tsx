@@ -30,6 +30,9 @@ type Props = {
     photo_url?: string | null;
     description?: string | null;
     is_active?: boolean;
+    isGroup?: boolean;
+    maxParticipants?: number | null;
+    durationMinutes?: number | null;
   };
   onUpdated?: (rec: CreatedService) => void;
 };
@@ -112,6 +115,13 @@ const EditServiceDrawer: React.FC<Props> = ({ open, onClose, record, onUpdated }
   const [price, setPrice] = React.useState<string>(String(record.price ?? ""));
   const [description, setDescription] = React.useState(record.description || "");
   const [isActive, setIsActive] = React.useState(record.is_active ?? true);
+  const [isGroup, setIsGroup] = React.useState(record.isGroup ?? false);
+  const [maxParticipants, setMaxParticipants] = React.useState(
+    record.maxParticipants != null ? String(record.maxParticipants) : ""
+  );
+  const [durationMinutes, setDurationMinutes] = React.useState(
+    record.durationMinutes != null ? String(record.durationMinutes) : ""
+  );
 
   const [selectedEmps, setSelectedEmps] = React.useState<EmployeesRow[]>([]);
   const [employees, setEmployees] = React.useState<EmployeesRow[]>([]);
@@ -181,6 +191,9 @@ const EditServiceDrawer: React.FC<Props> = ({ open, onClose, record, onUpdated }
       setPrice(String(record.price ?? ""));
       setDescription(record.description || "");
       setIsActive(record.is_active ?? true);
+      setIsGroup(record.isGroup ?? false);
+      setMaxParticipants(record.maxParticipants != null ? String(record.maxParticipants) : "");
+      setDurationMinutes(record.durationMinutes != null ? String(record.durationMinutes) : "");
       setSelectedEmps([]);
       setPhotoFile(null);
       setPhotoPreview(record.photo_url ?? null);
@@ -196,6 +209,10 @@ const EditServiceDrawer: React.FC<Props> = ({ open, onClose, record, onUpdated }
       notify?.({ type: "error", message: "Заполните название и положительную стоимость услуги" });
       return;
     }
+    if (isGroup && (!maxParticipants || Number(maxParticipants) <= 0)) {
+      notify?.({ type: "error", message: "Укажите максимальное количество участников" });
+      return;
+    }
 
     try {
       setBusy(true);
@@ -205,6 +222,9 @@ const EditServiceDrawer: React.FC<Props> = ({ open, onClose, record, onUpdated }
         priceSom: priceNum,
         description: description.trim(),
         isActive,
+        isGroup,
+        maxParticipants: isGroup && maxParticipants ? Number(maxParticipants) : null,
+        durationMinutes: durationMinutes ? Number(durationMinutes) : null,
         imageUrl: photoFile || undefined,
       });
 
@@ -236,7 +256,7 @@ const EditServiceDrawer: React.FC<Props> = ({ open, onClose, record, onUpdated }
       busy={busy}
       onClose={onClose}
       onSubmit={handleSubmit}
-      submitDisabled={!name.trim() || !price || Number(price) <= 0}
+      submitDisabled={!name.trim() || !price || Number(price) <= 0 || (isGroup && (!maxParticipants || Number(maxParticipants) <= 0))}
     >
       <Stack spacing={3}>
         <ServicePhotoUploader
@@ -254,6 +274,12 @@ const EditServiceDrawer: React.FC<Props> = ({ open, onClose, record, onUpdated }
           setDescription={setDescription}
           isActive={isActive}
           setIsActive={setIsActive}
+          isGroup={isGroup}
+          setIsGroup={setIsGroup}
+          maxParticipants={maxParticipants}
+          setMaxParticipants={setMaxParticipants}
+          durationMinutes={durationMinutes}
+          setDurationMinutes={setDurationMinutes}
           touched={touched}
         />
       </Stack>

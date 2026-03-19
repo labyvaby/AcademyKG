@@ -140,6 +140,12 @@ const AddServiceDrawer: React.FC<Props> = ({ open, onClose, onCreated }) => {
           setDescription={handlers.setDescription}
           isActive={state.isActive}
           setIsActive={handlers.setIsActive}
+          isGroup={state.isGroup}
+          setIsGroup={handlers.setIsGroup}
+          maxParticipants={state.maxParticipants}
+          setMaxParticipants={handlers.setMaxParticipants}
+          durationMinutes={state.durationMinutes}
+          setDurationMinutes={handlers.setDurationMinutes}
           touched={state.touched}
         />
       </Stack>

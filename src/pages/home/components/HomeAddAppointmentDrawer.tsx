@@ -5,6 +5,7 @@ import {
   Button,
   Card,
   CardContent,
+  Chip,
   CircularProgress,
   Divider,
   Drawer,
@@ -13,11 +14,16 @@ import {
   Stack,
   Switch,
   TextField,
+  ToggleButton,
+  ToggleButtonGroup,
   Typography,
 } from "@mui/material";
 import Autocomplete, { createFilterOptions } from "@mui/material/Autocomplete";
 import CloseOutlined from "@mui/icons-material/CloseOutlined";
-import DeleteOutlined from "@mui/icons-material/DeleteOutlined";
+import PersonOutlined from "@mui/icons-material/PersonOutlined";
+import GroupsOutlined from "@mui/icons-material/GroupsOutlined";
+import PersonAddOutlined from "@mui/icons-material/PersonAddOutlined";
+// DeleteOutlined removed — single service row, no delete needed
 import dayjs from "dayjs";
 import "dayjs/locale/ru";
 
@@ -31,6 +37,7 @@ import { type ServiceRow } from "../../../services/services";
 import type { EmployeesRow } from "../../expenses/types";
 import type { PatientOption, ServiceRowEntry } from "../types";
 import { usePermissions } from "../../../hooks/usePermissions";
+import { createGroup } from "../../../features/group-appointments/api/group-appointments.api";
 
 export const noSpinnersSx = {
   "& input[type=number]": {
@@ -110,6 +117,14 @@ export const HomeAddAppointmentDrawer: React.FC<
 
   const [isBooking, setIsBooking] = React.useState(false);
 
+  // Режим: "single" — обычный приём, "group" — групповой
+  const [appointmentMode, setAppointmentMode] = React.useState<"single" | "group">("single");
+  const [groupParticipants, setGroupParticipants] = React.useState<PatientOption[]>([]);
+  const [groupPatientInput, setGroupPatientInput] = React.useState<PatientOption | null>(null);
+  const [groupPatientSearch, setGroupPatientSearch] = React.useState("");
+  const [groupPatientResults, setGroupPatientResults] = React.useState<PatientOption[]>([]);
+  const [groupPatientLoading, setGroupPatientLoading] = React.useState(false);
+
   const [discount, setDiscount] = React.useState<number | "">("");
   const [cash, setCash] = React.useState<number | "">("");
   const [cashless, setCashless] = React.useState<number | "">("");
@@ -170,6 +185,31 @@ export const HomeAddAppointmentDrawer: React.FC<
     return () => clearTimeout(timer);
   }, [patientSearchInput, fetchPatientsServerSide]);
 
+  // Поиск для группового режима
+  const fetchGroupPatients = React.useCallback(async (query: string) => {
+    if (query.length < 1) return;
+    setGroupPatientLoading(true);
+    try {
+      const url = query
+        ? `/api/v1/clients/?search=${encodeURIComponent(query)}&page_size=30`
+        : `/api/v1/clients/?page_size=30&ordering=fullName`;
+      const res: any = await apiFetch(url);
+      const data: any[] = res?.data?.results ?? res?.results ?? [];
+      setGroupPatientResults(data.map((r: any) => {
+        const fio = r.fullName ?? r.full_name ?? "";
+        const phone = r.phone ?? r.contactPhone ?? "";
+        return { id: String(r.id ?? ""), fio, phone, "ФИО клиента": fio, "Телефон": phone, label: `${fio} — ${phone}` };
+      }).filter((p: any) => p.id));
+    } catch { setGroupPatientResults([]); }
+    finally { setGroupPatientLoading(false); }
+  }, []);
+
+  React.useEffect(() => {
+    if (appointmentMode !== "group") return;
+    const t = setTimeout(() => fetchGroupPatients(groupPatientSearch), 350);
+    return () => clearTimeout(t);
+  }, [groupPatientSearch, appointmentMode, fetchGroupPatients]);
+
   // При открытии дровера — грузим первых клиентов
   React.useEffect(() => {
     if (open) fetchPatientsServerSide("");
@@ -178,7 +218,11 @@ export const HomeAddAppointmentDrawer: React.FC<
   // При открытии, если дата/время ещё не заданы — заполняем переданным initialDate или текущим временем
   React.useEffect(() => {
     if (!open) {
-      // При закрытии можно сбрасывать, если нужно, но лучше оставлять как есть для UX
+      setAppointmentMode("single");
+      setGroupParticipants([]);
+      setGroupPatientInput(null);
+      setGroupPatientSearch("");
+      setGroupPatientResults([]);
       return;
     }
 
@@ -373,6 +417,52 @@ export const HomeAddAppointmentDrawer: React.FC<
     try {
       setIsSaving(true);
 
+      // ── ГРУППОВОЙ РЕЖИМ ──────────────────────────────────────────
+      if (appointmentMode === "group") {
+        const firstRow = serviceRows[0];
+        if (!firstRow?.doctorId || !firstRow?.serviceId) {
+          notify?.({ type: "error", message: "Выберите тренера и услугу" });
+          setIsSaving(false);
+          isSavingRef.current = false;
+          return;
+        }
+        if (groupParticipants.length === 0) {
+          notify?.({ type: "error", message: "Добавьте хотя бы одного участника" });
+          setIsSaving(false);
+          isSavingRef.current = false;
+          return;
+        }
+        const cache = employeeServicesCache[firstRow.doctorId];
+        const svc = (cache || servicesOpts).find(s => s.id === firstRow.serviceId);
+        try {
+          await createGroup({
+            appointmentAt: dayjs(visitDateTime).toISOString(),
+            performerId: firstRow.doctorId,
+            sellableItemId: firstRow.serviceId,
+            price: Number(svc?.price ?? 0),
+            maxParticipants: (svc as any)?.maxParticipants ?? null,
+            patientIds: groupParticipants.map(p => p.id),
+            patientNames: groupParticipants.map(p => p.fio ?? p.label ?? ""),
+          });
+        } catch (err: any) {
+          notify?.({ type: "error", message: "Ошибка при создании группового приёма", description: err?.message });
+          setIsSaving(false);
+          isSavingRef.current = false;
+          return;
+        }
+        setGroupParticipants([]);
+        setGroupPatientInput(null);
+        setServiceRows([{ serviceId: "", doctorId: "", quantity: 1 }]);
+        setVisitDateTime("");
+        setAdminComment("");
+        setTouched(false);
+        handleClose();
+        onCreated?.();
+        notify?.({ type: "success", message: "Групповой приём создан!" });
+        return;
+      }
+
+      // ── ОБЫЧНЫЙ РЕЖИМ ────────────────────────────────────────────
       const patientId = selectedPatient?.id || null;
 
       if (!visitDateTime || (!isBooking && !patientId)) {
@@ -529,6 +619,27 @@ export const HomeAddAppointmentDrawer: React.FC<
             <CloseOutlined />
           </IconButton>
         </Box>
+
+        {/* Переключатель режима */}
+        <Box sx={{ px: 2, pb: 1.5 }}>
+          <ToggleButtonGroup
+            value={appointmentMode}
+            exclusive
+            onChange={(_, v) => { if (v) setAppointmentMode(v); }}
+            size="small"
+            fullWidth
+          >
+            <ToggleButton value="single" sx={{ gap: 0.75 }}>
+              <PersonOutlined fontSize="small" />
+              Обычный
+            </ToggleButton>
+            <ToggleButton value="group" sx={{ gap: 0.75 }}>
+              <GroupsOutlined fontSize="small" />
+              Групповой
+            </ToggleButton>
+          </ToggleButtonGroup>
+        </Box>
+
         <Divider />
         <Box
           sx={{
@@ -543,11 +654,8 @@ export const HomeAddAppointmentDrawer: React.FC<
           }}
         >
           <Stack spacing={2}>
-            <Typography variant="h6" sx={{ mb: 1, fontWeight: 600 }}>
-              Дата и время приема
-            </Typography>
             <CustomDateTimePicker
-              label="Дата и время приема *"
+              label="Дата и время *"
               value={visitDateTime ? dayjs(visitDateTime) : null}
               onChange={(val) => {
                 const formatted = val ? val.format() : "";
@@ -559,369 +667,288 @@ export const HomeAddAppointmentDrawer: React.FC<
                 textField: {
                   fullWidth: true,
                   InputLabelProps: { shrink: true },
-                  sx: {
-                    '& .MuiInputBase-root': {
-                      fontSize: '1.1rem',
-                      fontWeight: 500,
-                    }
-                  }
+                  sx: { '& .MuiInputBase-root': { fontSize: '1rem', fontWeight: 500 } }
                 },
               }}
             />
+            {/* ── ТРЕНЕР ── */}
             <Stack spacing={0.5}>
-              <Stack
-                direction="row"
-                justifyContent="space-between"
-                alignItems="center"
-              >
-                <Typography
-                  variant="body2"
-                  color="text.secondary"
-                  sx={{ fontWeight: 500 }}
-                >
-                  Клиент *
-                </Typography>
-                <Button
-                  size="small"
-                  onClick={() => setIsPatientDrawerOpen(true)}
-                >
-                  + Добавить клиента
-                </Button>
-              </Stack>
-
-              <Box sx={{ mb: 1 }}>
-                <FormControlLabel
-                  control={
-                    <Switch
-                      checked={isBooking}
-                      onChange={(e) => {
-                        setIsBooking(e.target.checked);
-                        if (e.target.checked) setTouched(true);
-                      }}
-                      color="primary"
-                    />
-                  }
-                  label={
-                    <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                      Бронирование (без клиента)
-                    </Typography>
-                  }
-                />
-              </Box>
-
+              <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+                Тренер / Исполнитель *
+              </Typography>
               <Autocomplete
-                disabled={isBooking}
-                options={patientsSearchResults.length > 0 ? patientsSearchResults : patientsOpts}
-                loading={patientsLoading || isSearchingPatients}
-                value={selectedPatient}
-                onInputChange={(_, val) => setPatientSearchInput(val)}
-                onChange={(_, v) => setSelectedPatient(v)}
-                getOptionLabel={(o: PatientOption) => {
-                  const fio = o["ФИО клиента"] ?? o.fio ?? "";
-                  const phone = o["Телефон"] ?? o.phone ?? "";
-                  return `${fio || "Нет ФИО"} — ${phone || "Нет телефона"}`;
+                fullWidth
+                disabled={isWorkplaceNurse}
+                options={doctorsOpts}
+                loading={doctorsLoading}
+                value={doctorsOpts.find((d) => d.id === serviceRows[0]?.doctorId) || null}
+                onChange={(_, v) => {
+                  const updated = [...serviceRows];
+                  updated[0] = { ...updated[0], doctorId: v?.id || "", serviceId: "" };
+                  setServiceRows(updated);
+                  if (v?.id && !employeeServicesCache[v.id]) {
+                    setServicesLoading(true);
+                    loadServicesForEmployee(v.id).then(srvs => {
+                      setEmployeeServicesCache(prev => ({ ...prev, [v.id]: srvs }));
+                      setServicesLoading(false);
+                    });
+                  }
                 }}
-                filterOptions={(x) => x} // Отключаем локальную фильтрацию, так как ищем на сервере
-                isOptionEqualToValue={(o, v) => o.id === (v?.id || "")}
-                renderOption={(props, option) => {
-                  const fio = option["ФИО клиента"] ?? option.fio ?? "";
-                  const phone = option["Телефон"] ?? option.phone ?? "";
-                  return (
-                    <li {...props} key={option.id}>{`${fio || "Нет ФИО"} — ${phone || "Нет телефона"
-                      }`}</li>
-                  );
-                }}
+                getOptionLabel={(o) => `${o.full_name || o.id}${o.specialization ? ` — ${o.specialization}` : ""}`}
+                filterOptions={doctorFilter}
+                isOptionEqualToValue={(o, v) => o.id === v.id}
+                renderOption={(props, o) => (
+                  <li {...props} key={o.id}>{o.full_name || o.id}{o.specialization ? ` — ${o.specialization}` : ""}</li>
+                )}
                 renderInput={(params) => (
                   <TextField
                     {...params}
-                    placeholder="Поиск по ФИО или телефону"
+                    placeholder="Выберите тренера"
+                    size="small"
                     fullWidth
-                    error={touched && !isBooking && !selectedPatient}
-                    helperText={touched && !isBooking && !selectedPatient ? "Выберите клиента" : ""}
+                    error={touched && !serviceRows[0]?.doctorId}
+                    helperText={touched && !serviceRows[0]?.doctorId ? "Выберите тренера" : ""}
                   />
                 )}
               />
             </Stack>
 
-            {/* Контент ниже отображается если выбран клиент ИЛИ включен режим бронирования */}
-            {(selectedPatient || isBooking) && (
-              <>
-                {/* Блок "Услуги и врачи" */}
-                <Card variant="outlined" sx={{ bgcolor: "background.paper" }}>
-                  <CardContent sx={{ p: 2 }}>
-                    <Stack spacing={2}>
-                      <Stack
-                        direction="row"
-                        justifyContent="space-between"
-                        alignItems="center"
-                      >
-                        <Typography
-                          variant="body2"
-                          color="text.secondary"
-                          sx={{ fontWeight: 500 }}
-                        >
-                          Услуги
-                        </Typography>
-                      </Stack>
-
-                      <Divider />
-
-                      {serviceRows.map((row, index) => (
-                        <React.Fragment key={index}>
-                          {index > 0 && <Divider />}
-                          <Stack spacing={1.5}>
-                            <Stack spacing={1.5}>
-                              {index === 0 && (
-                                <Typography variant="caption" color="text.secondary">
-                                  Специалист / Исполнитель
-                                </Typography>
-                              )}
-                              <Autocomplete
-                                fullWidth
-                                disabled={isWorkplaceNurse}
-                                options={doctorsOpts}
-                                loading={doctorsLoading}
-                                value={
-                                  doctorsOpts.find(
-                                    (d) => d.id === row.doctorId
-                                  ) || null
-                                }
-                                onChange={(_, v) => {
-                                  const updated = [...serviceRows];
-                                  updated[index].doctorId = v?.id || "";
-                                  updated[index].serviceId = "";
-                                  setServiceRows(updated);
-                                  // Load services for this employee if not cached
-                                  if (v?.id && !employeeServicesCache[v.id]) {
-                                    setServicesLoading(true);
-                                    loadServicesForEmployee(v.id).then(srvs => {
-                                      setEmployeeServicesCache(prev => ({ ...prev, [v.id]: srvs }));
-                                      setServicesLoading(false);
-                                    });
-                                  }
-                                }}
-                                getOptionLabel={(o) =>
-                                  `${o.full_name || o.id} — ${o.specialization || "Нет специализации"}`
-                                }
-                                filterOptions={doctorFilter}
-                                isOptionEqualToValue={(o, v) => o.id === v.id}
-                                renderOption={(props, o) => (
-                                  <li {...props} key={o.id}>
-                                    {o.full_name || o.id} — {o.specialization || "Нет специализации"}
-                                  </li>
-                                )}
-                                renderInput={(params) => (
-                                  <TextField
-                                    {...params}
-                                    placeholder="Исполнитель"
-                                    size="small"
-                                    fullWidth
-                                    error={touched && !row.doctorId}
-                                    helperText={touched && !row.doctorId ? "Выберите исполнителя" : ""}
-                                  />
-                                )}
-                              />
-
-                              {index === 0 && (
-                                <Typography variant="caption" color="text.secondary">
-                                  Наименование услуги
-                                </Typography>
-                              )}
-                              <Stack direction="row" spacing={1} alignItems="flex-start">
-                                <Autocomplete
-                                  sx={{ flex: 1 }}
-                                  options={
-                                    row.doctorId && employeeServicesCache[row.doctorId]
-                                      ? employeeServicesCache[row.doctorId]
-                                      : servicesOpts
-                                  }
-                                  loading={servicesLoading}
-                                  value={
-                                    (row.doctorId && employeeServicesCache[row.doctorId]
-                                      ? employeeServicesCache[row.doctorId]
-                                      : servicesOpts
-                                    ).find((s) => s.id === row.serviceId) || null
-                                  }
-                                  onChange={(_, v) => {
-                                    const updated = [...serviceRows];
-                                    updated[index].serviceId = v?.id || "";
-                                    setServiceRows(updated);
-                                  }}
-                                  getOptionLabel={(o) =>
-                                    `${o.name} — ${o.price || 0} сом`
-                                  }
-                                  filterOptions={serviceFilter}
-                                  isOptionEqualToValue={(o, v) => o.id === v.id}
-                                  renderOption={(props, o) => (
-                                    <li {...props} key={o.id}>
-                                      {o.name} — {o.price || 0} сом
-                                    </li>
-                                  )}
-                                  renderInput={(params) => (
-                                    <TextField
-                                      {...params}
-                                      placeholder="Услуга"
-                                      size="small"
-                                      fullWidth
-                                      error={touched && !row.serviceId}
-                                      helperText={touched && !row.serviceId ? "Выберите услугу" : ""}
-                                    />
-                                  )}
-                                />
-                                {serviceRows.length > 1 && (
-                                  <IconButton
-                                    size="small"
-                                    color="error"
-                                    onClick={() => {
-                                      setServiceRows(
-                                        serviceRows.filter((_, i) => i !== index)
-                                      );
-                                    }}
-                                    sx={{
-                                      mt: 0.5,
-                                      border: '1px solid',
-                                      borderColor: 'error.main',
-                                      '&:hover': {
-                                        backgroundColor: 'rgba(211, 47, 47, 0.08)',
-                                      }
-                                    }}
-                                  >
-                                    <DeleteOutlined fontSize="small" />
-                                  </IconButton>
-                                )}
-                              </Stack>
-                            </Stack>
-                          </Stack>
-                        </React.Fragment>
-                      ))}
-
-                      {/* Добавить ещё строку */}
-                      <Button
-                        size="small"
-                        onClick={() => {
-                          // Копируем сотрудника из последней строки для удобства
-                          const lastRow = serviceRows[serviceRows.length - 1];
-                          const previousDoctorId = lastRow?.doctorId || "";
-                          setServiceRows([
-                            ...serviceRows,
-                            {
-                              serviceId: "",
-                              doctorId:
-                                isWorkplaceNurse && employeeId
-                                  ? employeeId
-                                  : previousDoctorId,
-                              quantity: 1,
-                            },
-                          ]);
-                        }}
-                        sx={{ alignSelf: "flex-start" }}
-                      >
-                        + Добавить услугу
-                      </Button>
-
-                      <Divider />
-
-                      {/* Список выбранных услуг */}
-                      {serviceRows.some((r) => r.serviceId && r.doctorId) && (
-                        <>
-                          <Typography
-                            variant="body2"
-                            color="text.secondary"
-                            sx={{ fontWeight: 500 }}
-                          >
-                            Выбранные услуги (
-                            {
-                              serviceRows.filter(
-                                (r) => r.serviceId && r.doctorId
-                              ).length
-                            }
-                            ):
-                          </Typography>
-                          <Stack spacing={0} divider={<Divider flexItem />}>
-                            {serviceRows.map((row, index) => {
-                              if (!row.serviceId || !row.doctorId) return null;
-                              const service = servicesOpts.find(
-                                (s) => s.id === row.serviceId
-                              );
-                              const doctor = doctorsOpts.find(
-                                (d) => d.id === row.doctorId
-                              );
-                              if (!service || !doctor) return null;
-
-                              return (
-                                <Stack key={index} sx={{ py: 1 }}>
-                                  <Stack
-                                    direction="row"
-                                    justifyContent="space-between"
-                                    alignItems="center"
-                                  >
-                                    <Typography variant="body2">
-                                      {service.name}
-                                    </Typography>
-                                    <Typography
-                                      variant="body2"
-                                      color="text.secondary"
-                                    >
-                                      {Number(service.price) || 0} сом
-                                    </Typography>
-                                  </Stack>
-                                  <Typography
-                                    variant="caption"
-                                    color="text.secondary"
-                                  >
-                                    {doctor.full_name || doctor.id}
-                                  </Typography>
-                                </Stack>
-                              );
-                            })}
-                          </Stack>
-                          <Divider />
-                        </>
-                      )}
-
-                      {/* Общая стоимость */}
-                      <Stack
-                        direction="row"
-                        justifyContent="space-between"
-                        alignItems="center"
-                      >
-                        <Typography variant="body2" color="text.secondary">
-                          Общая стоимость
-                        </Typography>
-                        <Typography variant="h6">
-                          {serviceRows.reduce((sum, row) => {
-                            const cache = row.doctorId ? employeeServicesCache[row.doctorId] : null;
-                            const service = (cache || servicesOpts).find((s) => s.id === row.serviceId);
-                            return sum + (Number(service?.price) || 0);
-                          }, 0)}{" "}
-                          сом
-                        </Typography>
-                      </Stack>
-                    </Stack>
-                  </CardContent>
-                </Card>
-                <Stack spacing={0.5}>
-                  <Typography
-                    variant="body2"
-                    color="text.secondary"
-                    sx={{ fontWeight: 500 }}
-                  >
-                    Комментарий администратора {isBooking && "*"}
-                  </Typography>
+            {/* ── УСЛУГА ── */}
+            <Stack spacing={0.5}>
+              <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+                Услуга *
+              </Typography>
+              <Autocomplete
+                fullWidth
+                options={
+                  serviceRows[0]?.doctorId && employeeServicesCache[serviceRows[0].doctorId]
+                    ? employeeServicesCache[serviceRows[0].doctorId]
+                    : servicesOpts
+                }
+                loading={servicesLoading}
+                value={
+                  (serviceRows[0]?.doctorId && employeeServicesCache[serviceRows[0].doctorId]
+                    ? employeeServicesCache[serviceRows[0].doctorId]
+                    : servicesOpts
+                  ).find((s) => s.id === serviceRows[0]?.serviceId) || null
+                }
+                onChange={(_, v) => {
+                  const updated = [...serviceRows];
+                  updated[0] = { ...updated[0], serviceId: v?.id || "" };
+                  setServiceRows(updated);
+                }}
+                getOptionLabel={(o) => `${o.name}${o.price ? ` — ${o.price} сом` : ""}`}
+                filterOptions={serviceFilter}
+                isOptionEqualToValue={(o, v) => o.id === v.id}
+                renderOption={(props, o) => (
+                  <li {...props} key={o.id}>{o.name}{o.price ? ` — ${o.price} сом` : ""}</li>
+                )}
+                renderInput={(params) => (
                   <TextField
-                    placeholder={isBooking ? "Обязательное поле для бронирования" : "Добавьте комментарий (необязательно)"}
-                    value={adminComment}
-                    onChange={(e) => setAdminComment(e.target.value)}
+                    {...params}
+                    placeholder="Выберите услугу"
+                    size="small"
                     fullWidth
-                    required={isBooking}
-                    multiline
-                    minRows={3}
-                    error={touched && isBooking && !adminComment.trim()}
-                    helperText={touched && isBooking && !adminComment.trim() ? "Обязательное поле для бронирования" : ""}
+                    error={touched && !serviceRows[0]?.serviceId}
+                    helperText={touched && !serviceRows[0]?.serviceId ? "Выберите услугу" : ""}
                   />
+                )}
+              />
+            </Stack>
+
+            {/* ── ОБЫЧНЫЙ: выбор одного клиента ── */}
+            {appointmentMode === "single" && (
+              <Stack spacing={0.5}>
+                <Stack direction="row" justifyContent="space-between" alignItems="center">
+                  <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+                    Клиент *
+                  </Typography>
+                  <Button size="small" onClick={() => setIsPatientDrawerOpen(true)}>
+                    + Новый клиент
+                  </Button>
                 </Stack>
-              </>
+
+                <Box sx={{ mb: 0.5 }}>
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={isBooking}
+                        onChange={(e) => {
+                          setIsBooking(e.target.checked);
+                          if (e.target.checked) setTouched(true);
+                        }}
+                        color="primary"
+                        size="small"
+                      />
+                    }
+                    label={<Typography variant="body2">Бронирование (без клиента)</Typography>}
+                  />
+                </Box>
+
+                <Autocomplete
+                  disabled={isBooking}
+                  options={patientsSearchResults.length > 0 ? patientsSearchResults : patientsOpts}
+                  loading={patientsLoading || isSearchingPatients}
+                  value={selectedPatient}
+                  onInputChange={(_, val) => setPatientSearchInput(val)}
+                  onChange={(_, v) => setSelectedPatient(v)}
+                  getOptionLabel={(o: PatientOption) => {
+                    const fio = o["ФИО клиента"] ?? o.fio ?? "";
+                    const phone = o["Телефон"] ?? o.phone ?? "";
+                    return `${fio || "Нет ФИО"} — ${phone || "Нет телефона"}`;
+                  }}
+                  filterOptions={(x) => x}
+                  isOptionEqualToValue={(o, v) => o.id === (v?.id || "")}
+                  renderOption={(props, option) => {
+                    const fio = option["ФИО клиента"] ?? option.fio ?? "";
+                    const phone = option["Телефон"] ?? option.phone ?? "";
+                    return <li {...props} key={option.id}>{`${fio || "Нет ФИО"} — ${phone || "Нет телефона"}`}</li>;
+                  }}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      placeholder="Поиск по ФИО или телефону"
+                      fullWidth
+                      size="small"
+                      error={touched && !isBooking && !selectedPatient}
+                      helperText={touched && !isBooking && !selectedPatient ? "Выберите клиента" : ""}
+                    />
+                  )}
+                />
+
+                {/* Комментарий — только в обычном режиме */}
+                {(selectedPatient || isBooking) && (
+                  <Stack spacing={0.5} sx={{ mt: 1 }}>
+                    <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+                      Комментарий администратора {isBooking && "*"}
+                    </Typography>
+                    <TextField
+                      placeholder={isBooking ? "Обязательное поле для бронирования" : "Комментарий (необязательно)"}
+                      value={adminComment}
+                      onChange={(e) => setAdminComment(e.target.value)}
+                      fullWidth
+                      multiline
+                      minRows={2}
+                      size="small"
+                      error={touched && isBooking && !adminComment.trim()}
+                      helperText={touched && isBooking && !adminComment.trim() ? "Обязательное поле" : ""}
+                    />
+                  </Stack>
+                )}
+              </Stack>
             )}
+
+            {/* ── ГРУППОВОЙ: мультиселект участников ── */}
+            {appointmentMode === "group" && (() => {
+              // Вычисляем лимит из выбранной услуги
+              const currentServiceCache = serviceRows[0]?.doctorId && employeeServicesCache[serviceRows[0].doctorId]
+                ? employeeServicesCache[serviceRows[0].doctorId]
+                : servicesOpts;
+              const selectedSvc = currentServiceCache.find(s => s.id === serviceRows[0]?.serviceId);
+              const maxParts: number | null = (selectedSvc as any)?.maxParticipants ?? null;
+              const isFull = maxParts != null && groupParticipants.length >= maxParts;
+
+              return (
+                <Stack spacing={0.75}>
+                  <Stack direction="row" alignItems="center" justifyContent="space-between">
+                    <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+                      Клиенты *
+                    </Typography>
+                    {maxParts != null && (
+                      <Typography
+                        variant="caption"
+                        sx={{ fontWeight: 600, color: isFull ? "primary.main" : "text.secondary" }}
+                      >
+                        {groupParticipants.length}/{maxParts} уч.
+                        {isFull && " — достигнут лимит"}
+                      </Typography>
+                    )}
+                  </Stack>
+
+                  {!isFull && (
+                    <Stack direction="row" spacing={1} alignItems="flex-start">
+                      <Autocomplete
+                        sx={{ flex: 1 }}
+                        options={groupPatientResults}
+                        value={groupPatientInput}
+                        onChange={(_, v) => setGroupPatientInput(v)}
+                        onInputChange={(_, val) => setGroupPatientSearch(val)}
+                        getOptionLabel={(o: PatientOption) => {
+                          const fio = o["ФИО клиента"] ?? o.fio ?? "";
+                          const phone = o["Телефон"] ?? o.phone ?? "";
+                          return `${fio || "Нет ФИО"} — ${phone || "Нет телефона"}`;
+                        }}
+                        filterOptions={(x) => x}
+                        isOptionEqualToValue={(o, v) => o.id === v.id}
+                        loading={groupPatientLoading}
+                        noOptionsText="Введите имя клиента"
+                        renderOption={(props, option) => {
+                          const fio = option["ФИО клиента"] ?? option.fio ?? "";
+                          const phone = option["Телефон"] ?? option.phone ?? "";
+                          return <li {...props} key={option.id}>{`${fio || "Нет ФИО"} — ${phone || "Нет телефона"}`}</li>;
+                        }}
+                        renderInput={(params) => (
+                          <TextField
+                            {...params}
+                            size="small"
+                            placeholder="Поиск клиента..."
+                            InputProps={{
+                              ...params.InputProps,
+                              endAdornment: (
+                                <>
+                                  {groupPatientLoading && <CircularProgress size={14} />}
+                                  {params.InputProps.endAdornment}
+                                </>
+                              ),
+                            }}
+                          />
+                        )}
+                      />
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        startIcon={<PersonAddOutlined />}
+                        disabled={!groupPatientInput || groupParticipants.some(p => p.id === groupPatientInput?.id)}
+                        onClick={() => {
+                          if (!groupPatientInput) return;
+                          setGroupParticipants(prev => [...prev, groupPatientInput]);
+                          setGroupPatientInput(null);
+                          setGroupPatientSearch("");
+                        }}
+                        sx={{ whiteSpace: "nowrap" }}
+                      >
+                        Добавить
+                      </Button>
+                    </Stack>
+                  )}
+
+                  {isFull && (
+                    <Typography variant="body2" color="primary.main" sx={{ fontWeight: 500 }}>
+                      Для услуги «{selectedSvc?.name}» уже набрано максимальное количество клиентов ({maxParts})
+                    </Typography>
+                  )}
+
+                  {groupParticipants.length > 0 && (
+                    <Stack spacing={0.5}>
+                      {groupParticipants.map((p) => (
+                        <Stack key={p.id} direction="row" alignItems="center" justifyContent="space-between"
+                          sx={{ px: 1.5, py: 0.75, border: "1px solid", borderColor: "divider", borderRadius: 1, bgcolor: "action.hover" }}>
+                          <Typography variant="body2">{p.fio ?? p.label ?? p.id}</Typography>
+                          <Button size="small" color="error" sx={{ minWidth: 0, px: 0.75 }}
+                            onClick={() => setGroupParticipants(prev => prev.filter(x => x.id !== p.id))}>
+                            ✕
+                          </Button>
+                        </Stack>
+                      ))}
+                    </Stack>
+                  )}
+
+                  {touched && groupParticipants.length === 0 && (
+                    <Typography variant="caption" color="error">Добавьте хотя бы одного клиента</Typography>
+                  )}
+                </Stack>
+              );
+            })()}
           </Stack>
         </Box>
         <Divider />
@@ -941,10 +968,11 @@ export const HomeAddAppointmentDrawer: React.FC<
               variant="contained"
               disabled={
                 !visitDateTime ||
-                (!isBooking && !selectedPatient) ||
-                (isBooking && !adminComment.trim()) ||
                 isSaving ||
-                !serviceRows.some((r) => r.serviceId && r.doctorId)
+                !serviceRows.some((r) => r.serviceId && r.doctorId) ||
+                (appointmentMode === "single" && !isBooking && !selectedPatient) ||
+                (appointmentMode === "single" && isBooking && !adminComment.trim()) ||
+                (appointmentMode === "group" && groupParticipants.length === 0)
               }
               onMouseEnter={() => {
                 if (!touched) setTouched(true);
@@ -956,7 +984,11 @@ export const HomeAddAppointmentDrawer: React.FC<
               }
               onClick={handleSave}
             >
-              {isSaving ? "Сохранение..." : "Сохранить"}
+              {isSaving
+                ? "Создание..."
+                : appointmentMode === "group"
+                  ? "Добавить занятие"
+                  : "Добавить прием"}
             </Button>
           </Stack>
         </Box>

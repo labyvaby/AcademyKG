@@ -32,6 +32,9 @@ export function useAddServiceForm({ open, onClose, onCreated }: UseAddServiceFor
   const [price, setPrice] = React.useState("");
   const [description, setDescription] = React.useState("");
   const [isActive, setIsActive] = React.useState(true);
+  const [isGroup, setIsGroup] = React.useState(false);
+  const [maxParticipants, setMaxParticipants] = React.useState("");
+  const [durationMinutes, setDurationMinutes] = React.useState("");
   const [photoFile, setPhotoFile] = React.useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = React.useState<string | null>(null);
   const [busy, setBusy] = React.useState(false);
@@ -44,6 +47,9 @@ export function useAddServiceForm({ open, onClose, onCreated }: UseAddServiceFor
       setPrice("");
       setDescription("");
       setIsActive(true);
+      setIsGroup(false);
+      setMaxParticipants("");
+      setDurationMinutes("");
       setPhotoFile(null);
       setPhotoPreview(null);
       setBusy(false);
@@ -87,6 +93,10 @@ export function useAddServiceForm({ open, onClose, onCreated }: UseAddServiceFor
       notify?.({ type: "error", message: "Заполните название и положительную стоимость услуги" });
       return;
     }
+    if (isGroup && (!maxParticipants || Number(maxParticipants) <= 0)) {
+      notify?.({ type: "error", message: "Укажите максимальное количество участников" });
+      return;
+    }
 
     try {
       setBusy(true);
@@ -96,6 +106,9 @@ export function useAddServiceForm({ open, onClose, onCreated }: UseAddServiceFor
         priceSom: priceNum,
         description: description.trim(),
         isActive,
+        isGroup,
+        maxParticipants: isGroup && maxParticipants ? Number(maxParticipants) : null,
+        durationMinutes: durationMinutes ? Number(durationMinutes) : null,
         imageUrl: photoFile,
       });
 
@@ -121,7 +134,11 @@ export function useAddServiceForm({ open, onClose, onCreated }: UseAddServiceFor
     }
   }, [name, price, photoFile, description, isActive, onClose, onCreated, notify]);
 
-  const submitDisabled = !name.trim() || !price || Number(price) <= 0;
+  const submitDisabled =
+    !name.trim() ||
+    !price ||
+    Number(price) <= 0 ||
+    (isGroup && (!maxParticipants || Number(maxParticipants) <= 0));
 
   return {
     state: {
@@ -129,6 +146,9 @@ export function useAddServiceForm({ open, onClose, onCreated }: UseAddServiceFor
       price,
       description,
       isActive,
+      isGroup,
+      maxParticipants,
+      durationMinutes,
       photoFile,
       photoPreview,
       busy,
@@ -139,6 +159,9 @@ export function useAddServiceForm({ open, onClose, onCreated }: UseAddServiceFor
       setPrice,
       setDescription,
       setIsActive,
+      setIsGroup,
+      setMaxParticipants,
+      setDurationMinutes,
       onPickPhoto,
       handleSubmit,
     },

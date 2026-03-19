@@ -341,11 +341,46 @@ const ShiftForm: React.FC<Props> = ({
                   />
                 ))}
               </Stack>
-              {selectedWeekdays.length > 0 && (
-                <Alert severity="warning" sx={{ mt: 1.5 }}>
-                  Смены на {selectedWeekdays.map(d => WEEKDAYS.find(w => w.value === d)?.label).join(', ')}
-                  {' '}с {dayjs(startDate).format('DD.MM.YYYY')} по {dayjs(endDate).format('DD.MM.YYYY')}
-                </Alert>
+              {selectedWeekdays.length > 0 && startDate && endDate && (
+                <>
+                  <Alert severity="warning" sx={{ mt: 1.5 }}>
+                    Смены на {selectedWeekdays.map(d => WEEKDAYS.find(w => w.value === d)?.label).join(', ')}
+                    {' '}с {dayjs(startDate).format('DD.MM.YYYY')} по {dayjs(endDate).format('DD.MM.YYYY')}
+                  </Alert>
+
+                  {/* Список конкретных дат, которые попадают под выбранные дни недели */}
+                  {(() => {
+                    const dates: string[] = [];
+                    let cur = dayjs(startDate);
+                    const end = dayjs(endDate);
+                    while ((cur.isBefore(end) || cur.isSame(end, 'day')) && dates.length < 60) {
+                      const isSelected = selectedWeekdays.some(wd =>
+                        WEEKDAYS.find(w => w.value === wd)?.dayOfWeek === cur.day()
+                      );
+                      if (isSelected) dates.push(cur.format('YYYY-MM-DD'));
+                      cur = cur.add(1, 'day');
+                    }
+                    if (dates.length === 0) return null;
+                    return (
+                      <Box sx={{ mt: 1, border: '1px solid', borderColor: 'divider', borderRadius: 1, overflow: 'hidden' }}>
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', px: 1.5, pt: 1, pb: 0.5, fontWeight: 600 }}>
+                          Будет создано {dates.length} смен{dates.length === 1 ? 'а' : dates.length < 5 ? 'ы' : ''}:
+                        </Typography>
+                        <Stack direction="row" flexWrap="wrap" gap={0.5} sx={{ px: 1.5, pb: 1 }}>
+                          {dates.map(d => (
+                            <Chip
+                              key={d}
+                              label={dayjs(d).format('dd, DD MMM')}
+                              size="small"
+                              variant="outlined"
+                              sx={{ fontSize: 11, height: 22 }}
+                            />
+                          ))}
+                        </Stack>
+                      </Box>
+                    );
+                  })()}
+                </>
               )}
             </Box>
           </>

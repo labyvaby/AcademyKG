@@ -19,6 +19,17 @@ export const GROUP_STATUS_LABELS: Record<GroupAppointmentStatus, string> = {
   not_came: "Не пришёл",
 };
 
+export const GROUP_STATUS_COLOR: Record<GroupAppointmentStatus, "default" | "warning" | "info" | "success" | "error" | "primary"> = {
+  scheduled: "warning",
+  arrived: "info",
+  in_progress: "primary",
+  completed: "default",
+  paid: "success",
+  partially_paid: "info",
+  cancelled: "error",
+  not_came: "error",
+};
+
 export type GroupParticipant = {
   id: string; // appointment id
   patientId: string;
@@ -28,8 +39,7 @@ export type GroupParticipant = {
   total: number;
   paidCash: number;
   paidCard: number;
-  paidBalance: number;
-  paidBonuses: number;
+  paidBalance: number; // баланс клиента (нал+безнал)
   debt: number;
 };
 
@@ -41,5 +51,6 @@ export type AppointmentGroup = {
   sellableItemId: string;
   sellableItemName: string;
   price: number; // per participant
+  maxParticipants?: number | null; // макс кол-во участников из услуги
   participants: GroupParticipant[];
 };

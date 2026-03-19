@@ -9,6 +9,7 @@ export const MOCK_GROUPS: AppointmentGroup[] = [
     sellableItemId: "svc-1",
     sellableItemName: "Групповое занятие (Йога)",
     price: 500,
+    maxParticipants: 5,
     participants: [
       {
         id: "appt-1",
@@ -19,7 +20,6 @@ export const MOCK_GROUPS: AppointmentGroup[] = [
         paidCash: 0,
         paidCard: 0,
         paidBalance: 0,
-        paidBonuses: 0,
         debt: 500,
       },
       {
@@ -31,7 +31,6 @@ export const MOCK_GROUPS: AppointmentGroup[] = [
         paidCash: 500,
         paidCard: 0,
         paidBalance: 0,
-        paidBonuses: 0,
         debt: 0,
       },
       {
@@ -43,7 +42,6 @@ export const MOCK_GROUPS: AppointmentGroup[] = [
         paidCash: 0,
         paidCard: 500,
         paidBalance: 0,
-        paidBonuses: 0,
         debt: 0,
       },
     ],
@@ -56,6 +54,7 @@ export const MOCK_GROUPS: AppointmentGroup[] = [
     sellableItemId: "svc-2",
     sellableItemName: "Групповое занятие (Пилатес)",
     price: 700,
+    maxParticipants: 3,
     participants: [
       {
         id: "appt-4",
@@ -66,7 +65,6 @@ export const MOCK_GROUPS: AppointmentGroup[] = [
         paidCash: 0,
         paidCard: 0,
         paidBalance: 0,
-        paidBonuses: 0,
         debt: 700,
       },
       {
@@ -78,7 +76,6 @@ export const MOCK_GROUPS: AppointmentGroup[] = [
         paidCash: 0,
         paidCard: 0,
         paidBalance: 0,
-        paidBonuses: 0,
         debt: 0,
       },
     ],

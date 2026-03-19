@@ -258,8 +258,15 @@ const ClientScheduleCalendar = React.forwardRef((_, ref) => {
   };
 
   const handleFormSuccess = async (data: any) => {
-    const items = Array.isArray(data) ? data : [data];
-    await Promise.all(items.map((item: any) => clientScheduleApi.createShift(item)));
+    const items: Array<Omit<ClientShift, "id" | "client">> = Array.isArray(data) ? data : [data];
+
+    if (items.length > 1) {
+      // Несколько дат — bulk создание
+      await clientScheduleApi.createShiftsBulk(items);
+    } else {
+      await clientScheduleApi.createShift(items[0]);
+    }
+
     fetchData();
     setIsDrawerOpen(false);
   };

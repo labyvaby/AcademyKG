@@ -17,6 +17,9 @@ export type ServiceRow = {
   employee_id?: string | null;
   employee_ids?: string[];
   is_active?: boolean;
+  isGroup?: boolean;
+  maxParticipants?: number | null;
+  durationMinutes?: number | null;
 };
 
 // Paged variant kept consistent with strict typing
@@ -34,6 +37,12 @@ type ApiService = {
   employeeIds?: string[];
   isActive?: boolean;
   is_active?: boolean;
+  isGroup?: boolean;
+  is_group?: boolean;
+  maxParticipants?: number | null;
+  max_participants?: number | null;
+  durationMinutes?: number | null;
+  duration_minutes?: number | null;
 };
 
 const toRow = (d: ApiService): ServiceRow => {
@@ -45,6 +54,9 @@ const toRow = (d: ApiService): ServiceRow => {
     photoUrl: resolveUrl(d.imageUrl ?? d.image_url),
     employee_ids: d.employeeIds ?? [],
     is_active: d.isActive ?? d.is_active ?? true,
+    isGroup: d.isGroup ?? d.is_group ?? false,
+    maxParticipants: d.maxParticipants ?? d.max_participants ?? null,
+    durationMinutes: d.durationMinutes ?? d.duration_minutes ?? null,
   };
 };
 
@@ -115,6 +127,9 @@ export type CreateServiceData = {
   description?: string;
   isActive?: boolean;
   imageUrl?: File | string | null;
+  isGroup?: boolean;
+  maxParticipants?: number | null;
+  durationMinutes?: number | null;
 };
 
 export type UpdateServiceData = Partial<CreateServiceData>;
@@ -124,12 +139,19 @@ export const createService = async (data: CreateServiceData): Promise<ServiceRow
   fd.append("name", data.name);
   fd.append("priceSom", String(data.priceSom));
   fd.append("isActive", String(data.isActive ?? true));
+  fd.append("isGroup", String(data.isGroup ?? false));
+  if (data.isGroup && data.maxParticipants != null) {
+    fd.append("maxParticipants", String(data.maxParticipants));
+  }
+  if (data.durationMinutes != null) {
+    fd.append("durationMinutes", String(data.durationMinutes));
+  }
   if (data.description) fd.append("description", data.description);
-  
+
   if (data.imageUrl instanceof File) {
     fd.append("imageUrl", data.imageUrl);
   } else if (data.imageUrl === null) {
-      fd.append("imageUrl", ""); // or how to clear? instruction says {"imageUrl": null} for JSON
+    fd.append("imageUrl", "");
   }
 
   const res: any = await apiFetch("/api/v1/services/", {
@@ -147,6 +169,17 @@ export const updateService = async (id: string | number, data: UpdateServiceData
   if (data.priceSom !== undefined) fd.append("priceSom", String(data.priceSom));
   if (data.isActive !== undefined) fd.append("isActive", String(data.isActive));
   if (data.description !== undefined) fd.append("description", data.description || "");
+  if (data.isGroup !== undefined) fd.append("isGroup", String(data.isGroup));
+  if (data.isGroup && data.maxParticipants != null) {
+    fd.append("maxParticipants", String(data.maxParticipants));
+  } else if (data.isGroup === false) {
+    fd.append("maxParticipants", "");
+  }
+  if (data.durationMinutes != null) {
+    fd.append("durationMinutes", String(data.durationMinutes));
+  } else if (data.durationMinutes === null) {
+    fd.append("durationMinutes", "");
+  }
 
   if (data.imageUrl instanceof File) {
     fd.append("imageUrl", data.imageUrl);
