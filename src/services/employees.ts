@@ -62,7 +62,10 @@ export const fetchDoctors = async (): Promise<EmployeesRow[]> => {
   try {
     const data = await fetchEmployeesBase();
     return data
-      .filter((d) => (d.role || "").toLowerCase() === "doctor")
+      .filter((d) => {
+        const roleName = typeof d.role === "object" ? (d.role as any)?.name : d.role;
+        return (roleName || "").toLowerCase() === "doctor";
+      })
       .map(toRow);
   } catch (e) {
     console.error("fetchDoctors failed", e);

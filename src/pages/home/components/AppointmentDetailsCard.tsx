@@ -137,7 +137,7 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
 
   // Confirmation Dialog State
   const [confirmOpen, setConfirmOpen] = React.useState(false);
-  const [confirmAction, setConfirmAction] = React.useState<"cancel" | "delete" | null>(null);
+  const [confirmAction, setConfirmAction] = React.useState<"cancel" | "delete" | "not_came" | null>(null);
 
 
   const queryClient = useQueryClient();
@@ -146,10 +146,24 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
   const handleStatusUpdate = async (newStatus: string) => {
     if (!item || !appointmentId) return;
 
+    const STATUS_API_MAP: Record<string, string> = {
+      "Отменено": "cancelled",
+      "Клиент не пришел": "not_came",
+    };
+    const apiStatus = STATUS_API_MAP[newStatus] ?? newStatus;
+
     try {
       setActionLoading(true);
-      // Removed status update logic as requested
-      // await apiFetch(`/api/v1/appointments/${appointmentId}/`, { ... });
+      await apiFetch(`/api/v1/appointments/${appointmentId}/`, {
+        method: "PATCH",
+        body: JSON.stringify({ status: apiStatus }),
+      });
+      open?.({ message: "Статус обновлён", type: "success" });
+      handleRefresh();
+    } catch (e: unknown) {
+      const description = e && typeof e === "object" && "message" in e
+        ? String((e as { message?: unknown }).message) : String(e);
+      open?.({ message: "Ошибка при обновлении статуса", type: "error", description });
     } finally {
       setActionLoading(false);
     }
@@ -161,6 +175,8 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
     setConfirmOpen(false);
     if (confirmAction === 'cancel') {
       await handleStatusUpdate(APPOINTMENT_STATUSES.CANCELLED);
+    } else if (confirmAction === 'not_came') {
+      await handleStatusUpdate(APPOINTMENT_STATUSES.PATIENT_NOT_CAME);
     } else if (confirmAction === 'delete') {
       if (!item || deleting) return;
       try {
@@ -203,6 +219,11 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
 
   const promptCancel = () => {
     setConfirmAction('cancel');
+    setConfirmOpen(true);
+  };
+
+  const promptNotCame = () => {
+    setConfirmAction('not_came');
     setConfirmOpen(true);
   };
 
@@ -262,8 +283,56 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
             >
               {item && !hideActionsForDoctor && !readOnly && (
                 <>
+                  {/* Кнопки для тренера: Отменить и Не пришел */}
+                  {isDoctor() && item.status !== APPOINTMENT_STATUSES.CANCELLED && item.status !== APPOINTMENT_STATUSES.PATIENT_NOT_CAME && (
+                    <>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        color="warning"
+                        startIcon={<PersonOffOutlined />}
+                        disabled={actionLoading}
+                        onClick={promptNotCame}
+                      >
+                        Не пришел
+                      </Button>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        color="error"
+                        startIcon={<DirectionsWalkOutlined />}
+                        disabled={actionLoading}
+                        onClick={promptCancel}
+                      >
+                        Отменить
+                      </Button>
+                    </>
+                  )}
 
-
+                  {/* Кнопки для регистратуры/админа: Отменить и Тренер не пришел */}
+                  {(isAdmin() || isRegistrator()) && item.status !== APPOINTMENT_STATUSES.CANCELLED && item.status !== APPOINTMENT_STATUSES.PATIENT_NOT_CAME && (
+                    <>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        color="warning"
+                        startIcon={<PersonOffOutlined />}
+                        disabled={actionLoading}
+                        onClick={promptNotCame}
+                      >
+                        Тренер не пришел
+                      </Button>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        color="error"
+                        disabled={actionLoading}
+                        onClick={promptCancel}
+                      >
+                        Отменить
+                      </Button>
+                    </>
+                  )}
 
                   {/* Кнопка изменения только для админов и регистраторов */}
                   {(isAdmin() || isRegistrator()) && (
@@ -500,7 +569,7 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
                       )}
                       {patientBalance.bonuses > 0 && (
                         <Stack direction="row" alignItems="center" spacing={0.5}>
-                          <Typography variant="caption" color="text.secondary">Бонусы:</Typography>
+                          <Typography variant="caption" color="text.secondary">Баллы:</Typography>
                           <Typography variant="caption" fontWeight={700} color="warning.main">
                             {patientBalance.bonuses.toLocaleString()} сом
                           </Typography>
@@ -794,12 +863,14 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
         onClose={() => setConfirmOpen(false)}
       >
         <DialogTitle>
-          {confirmAction === 'delete' ? "Удалить прием?" : "Отменить запись?"}
+          {confirmAction === 'delete' ? "Удалить прием?" : confirmAction === 'not_came' ? "Отметить как не пришел?" : "Отменить запись?"}
         </DialogTitle>
         <DialogContent>
           <DialogContentText>
             {confirmAction === 'delete'
               ? "Это действие необратимо. Прием будет полностью удален из базы данных."
+              : confirmAction === 'not_came'
+              ? "Прием будет отмечен как 'Клиент не пришел'."
               : "Запись будет переведена в статус 'Отменено'. Она не удалится из истории."}
           </DialogContentText>
         </DialogContent>
@@ -807,11 +878,11 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
           <Button onClick={() => setConfirmOpen(false)}>Назад</Button>
           <Button
             onClick={handleConfirmAction}
-            color="error"
+            color={confirmAction === 'not_came' ? "warning" : "error"}
             variant="contained"
             autoFocus
           >
-            {confirmAction === 'delete' ? "Удалить" : "Подтвердить отмену"}
+            {confirmAction === 'delete' ? "Удалить" : confirmAction === 'not_came' ? "Подтвердить" : "Подтвердить отмену"}
           </Button>
         </DialogActions>
       </Dialog>

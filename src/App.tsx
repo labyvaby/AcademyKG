@@ -214,8 +214,8 @@ function App() {
                         meta: { label: "Расписание" }
                       },
                       {
-                        name: "doctor",
-                        list: "/doctor",
+                        name: "specialist",
+                        list: "/specialist",
                         meta: { label: "Кабинет специалиста" }
                       },
                       {
@@ -310,7 +310,7 @@ function App() {
                         <Route
                           path="patient-search"
                           element={
-                            <ProtectedRoute allowedRoles={['admin', 'superadmin', 'manager', 'owner', 'receptionist', 'registrator', 'accountant', 'doctor', 'nurse']}>
+                            <ProtectedRoute allowedRoles={['admin', 'superadmin', 'manager', 'owner', 'receptionist', 'registrator', 'accountant', 'specialist', 'nurse']}>
                               <Suspense fallback={<LinearProgress />}>
                                 <PatientSearchPage />
                               </Suspense>
@@ -389,9 +389,9 @@ function App() {
                           }
                         />
                         <Route
-                          path="doctor"
+                          path="specialist"
                           element={
-                            <ProtectedRoute allowedRoles={['doctor']}>
+                            <ProtectedRoute allowedRoles={['specialist', 'superadmin', 'manager']}>
                               <Suspense fallback={<LinearProgress />}>
                                 <DoctorWorkPage />
                               </Suspense>
@@ -495,7 +495,7 @@ function App() {
                         <Route
                           path="settings/diagnoses"
                           element={
-                            <ProtectedRoute allowedRoles={['superadmin', 'doctor']}>
+                            <ProtectedRoute allowedRoles={['superadmin', 'specialist']}>
                               <Suspense fallback={<LinearProgress />}>
                                 <DiagnosesPage />
                               </Suspense>

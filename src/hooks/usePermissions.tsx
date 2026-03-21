@@ -159,7 +159,7 @@ async function fetchPermissions(opts: { force?: boolean } = {}): Promise<void> {
       // Старый API: employee.roleName = строка с display-именем
       const roleFromNested = typeof emp.role === 'object' ? emp.role?.name : null;
       const rawRoleName = (roleFromNested ?? emp.roleName ?? emp.role_name ?? '').toLowerCase().trim();
-      console.log('[usePermissions] employee:', emp.id, 'roleFromNested:', roleFromNested, 'roleName:', emp.roleName, 'rawRoleName:', rawRoleName);
+
       // Slug-и ролей из бэкенда: superadmin, accountant, cashier, manager, receptionist, specialist
       const ROLE_ALIAS: Record<string, string> = {
         // superadmin — slug из бэкенда уже "superadmin", алиасы для надёжности

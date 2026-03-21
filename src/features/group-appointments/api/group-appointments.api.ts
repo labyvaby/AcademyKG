@@ -112,6 +112,38 @@ export async function updateParticipantStatus(
   });
 }
 
+export async function deleteGroup(groupId: string): Promise<void> {
+  await apiFetch(`/api/v1/appointment-groups/${groupId}/`, {
+    method: "DELETE",
+  });
+}
+
+export async function updateGroup(
+  groupId: string,
+  payload: { appointmentAt?: string; performerId?: string; sellableItemId?: string; maxParticipants?: number | null },
+): Promise<AppointmentGroup> {
+  const body: Record<string, any> = {};
+  if (payload.appointmentAt !== undefined) body.appointmentAt = payload.appointmentAt;
+  if (payload.performerId !== undefined) body.performer = payload.performerId;
+  if (payload.sellableItemId !== undefined) body.sellableItem = payload.sellableItemId;
+  if (payload.maxParticipants !== undefined) body.maxParticipants = payload.maxParticipants;
+  const res: any = await apiFetch(`/api/v1/appointment-groups/${groupId}/`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  return toGroup(res?.data ?? res);
+}
+
+export async function setGroupTrainerNotCame(groupId: string): Promise<void> {
+  // Помечаем всех участников статусом not_came через групповой endpoint или поштучно
+  await apiFetch(`/api/v1/appointment-groups/${groupId}/`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ status: "not_came" }),
+  });
+}
+
 export async function payParticipant(
   groupId: string,
   participantId: string,

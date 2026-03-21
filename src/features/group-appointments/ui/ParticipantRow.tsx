@@ -1,11 +1,9 @@
-import React, { useState } from "react";
+import React from "react";
 import {
   Avatar,
   Box,
   Button,
   Chip,
-  MenuItem,
-  Select,
   Stack,
   Typography,
 } from "@mui/material";
@@ -20,15 +18,7 @@ type Props = {
   onClientClick?: () => void;
 };
 
-const ParticipantRow: React.FC<Props> = ({ participant: p, onStatusChange, onPayClick, onClientClick }) => {
-  const [statusLoading, setStatusLoading] = useState(false);
-
-  const handleStatusChange = async (status: GroupAppointmentStatus) => {
-    setStatusLoading(true);
-    try { await onStatusChange(status); }
-    finally { setStatusLoading(false); }
-  };
-
+const ParticipantRow: React.FC<Props> = ({ participant: p, onPayClick, onClientClick }) => {
   const initials = p.patientName.split(" ").slice(0, 2).map((w) => w[0]).join("").toUpperCase();
 
   return (
@@ -59,32 +49,13 @@ const ParticipantRow: React.FC<Props> = ({ participant: p, onStatusChange, onPay
           }
         </Box>
 
-        {/* Status chip-select */}
-        <Select
+        {/* Status chip (read-only) */}
+        <Chip
+          label={GROUP_STATUS_LABELS[p.status as GroupAppointmentStatus] ?? p.status}
+          color={GROUP_STATUS_COLOR[p.status as GroupAppointmentStatus] ?? "default"}
           size="small"
-          value={p.status}
-          disabled={statusLoading}
-          onChange={(e) => handleStatusChange(e.target.value as GroupAppointmentStatus)}
-          renderValue={(val) => (
-            <Chip
-              label={GROUP_STATUS_LABELS[val as GroupAppointmentStatus] ?? val}
-              color={GROUP_STATUS_COLOR[val as GroupAppointmentStatus] ?? "default"}
-              size="small"
-              sx={{ height: 20, fontSize: 11, cursor: "pointer" }}
-            />
-          )}
-          sx={{
-            "& .MuiSelect-select": { py: "2px", px: "4px !important", pr: "24px !important" },
-            "& fieldset": { border: "none" },
-            minWidth: 130,
-          }}
-        >
-          {(Object.keys(GROUP_STATUS_LABELS) as GroupAppointmentStatus[]).map((s) => (
-            <MenuItem key={s} value={s} dense>
-              <Chip label={GROUP_STATUS_LABELS[s]} color={GROUP_STATUS_COLOR[s] ?? "default"} size="small" sx={{ height: 20, fontSize: 11, pointerEvents: "none" }} />
-            </MenuItem>
-          ))}
-        </Select>
+          sx={{ height: 22, fontSize: 11 }}
+        />
 
         {/* Pay button */}
         <Button

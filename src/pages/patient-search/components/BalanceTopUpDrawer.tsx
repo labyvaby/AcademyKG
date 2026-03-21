@@ -56,7 +56,7 @@ type Props = {
 
 const TYPE_LABELS: Record<TopUpType, string> = {
   balance: "Баланс",
-  bonuses: "Бонусы",
+  bonuses: "Баллы",
 };
 
 const METHOD_LABELS: Record<PaymentMethod, string> = {

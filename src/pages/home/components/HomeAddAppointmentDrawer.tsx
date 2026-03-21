@@ -38,6 +38,8 @@ import type { EmployeesRow } from "../../expenses/types";
 import type { PatientOption, ServiceRowEntry } from "../types";
 import { usePermissions } from "../../../hooks/usePermissions";
 import { createGroup } from "../../../features/group-appointments/api/group-appointments.api";
+import { clientScheduleApi } from "../../../features/client-schedule/api/client-schedule.api";
+import CalendarMonthOutlined from "@mui/icons-material/CalendarMonthOutlined";
 
 export const noSpinnersSx = {
   "& input[type=number]": {
@@ -96,8 +98,10 @@ export const HomeAddAppointmentDrawer: React.FC<
   const [patientsOpts, setPatientsOpts] = React.useState<PatientOption[]>([]);
   const [patientsLoading, setPatientsLoading] = React.useState(false);
   const [doctorsOpts, setDoctorsOpts] = React.useState<EmployeesRow[]>([]);
+  const [allDoctorsOpts, setAllDoctorsOpts] = React.useState<EmployeesRow[]>([]);
   const [doctorsLoading, setDoctorsLoading] = React.useState(false);
   const [servicesOpts, setServicesOpts] = React.useState<ServiceRow[]>([]);
+  const [allServicesOpts, setAllServicesOpts] = React.useState<ServiceRow[]>([]);
   const [servicesLoading, setServicesLoading] = React.useState(false);
   // Per-employee services cache: employeeId -> ServiceRow[]
   const [employeeServicesCache, setEmployeeServicesCache] = React.useState<Record<string, ServiceRow[]>>({});
@@ -119,6 +123,37 @@ export const HomeAddAppointmentDrawer: React.FC<
 
   // Режим: "single" — обычный приём, "group" — групповой
   const [appointmentMode, setAppointmentMode] = React.useState<"single" | "group">("single");
+  // Подрежим: "once" — разовый, "period" — на период (несколько дат)
+  const [scheduleMode, setScheduleMode] = React.useState<"once" | "period">("once");
+  // Состояние для режима "На период"
+  const [periodWeekdays, setPeriodWeekdays] = React.useState<string[]>([]);
+  const [periodStartDate, setPeriodStartDate] = React.useState("");
+  const [periodEndDate, setPeriodEndDate] = React.useState("");
+
+  const WEEKDAYS = [
+    { label: "ПН", value: "monday", dayOfWeek: 1 },
+    { label: "ВТ", value: "tuesday", dayOfWeek: 2 },
+    { label: "СР", value: "wednesday", dayOfWeek: 3 },
+    { label: "ЧТ", value: "thursday", dayOfWeek: 4 },
+    { label: "ПТ", value: "friday", dayOfWeek: 5 },
+    { label: "СБ", value: "saturday", dayOfWeek: 6 },
+    { label: "ВС", value: "sunday", dayOfWeek: 0 },
+  ];
+
+  const periodDates = React.useMemo(() => {
+    if (periodWeekdays.length === 0 || !periodStartDate || !periodEndDate) return [];
+    const dates: string[] = [];
+    let cur = dayjs(periodStartDate);
+    const end = dayjs(periodEndDate);
+    while ((cur.isBefore(end) || cur.isSame(end, "day")) && dates.length < 60) {
+      const isSelected = periodWeekdays.some(
+        (wd) => WEEKDAYS.find((w) => w.value === wd)?.dayOfWeek === cur.day()
+      );
+      if (isSelected) dates.push(cur.format("YYYY-MM-DD"));
+      cur = cur.add(1, "day");
+    }
+    return dates;
+  }, [periodWeekdays, periodStartDate, periodEndDate]);
   const [groupParticipants, setGroupParticipants] = React.useState<PatientOption[]>([]);
   const [groupPatientInput, setGroupPatientInput] = React.useState<PatientOption | null>(null);
   const [groupPatientSearch, setGroupPatientSearch] = React.useState("");
@@ -214,10 +249,15 @@ export const HomeAddAppointmentDrawer: React.FC<
     if (open) fetchPatientsServerSide("");
   }, [open, fetchPatientsServerSide]);
 
+
   // При открытии, если дата/время ещё не заданы — заполняем переданным initialDate или текущим временем
   React.useEffect(() => {
     if (!open) {
       setAppointmentMode("single");
+      setScheduleMode("once");
+      setPeriodWeekdays([]);
+      setPeriodStartDate("");
+      setPeriodEndDate("");
       setGroupParticipants([]);
       setGroupPatientInput(null);
       setGroupPatientSearch("");
@@ -299,6 +339,7 @@ export const HomeAddAppointmentDrawer: React.FC<
     // Clear employee/service selections when date changes
     setServiceRows(prev => prev.map(r => ({ ...r, doctorId: "", serviceId: "" })));
     setEmployeeServicesCache({});
+    setServicesOpts(allServicesOpts); // Восстанавливаем все услуги при смене даты
 
     let cancelled = false;
     setDoctorsLoading(true);
@@ -317,13 +358,17 @@ export const HomeAddAppointmentDrawer: React.FC<
         if (cancelled) return;
         const results: any[] = res?.data?.results ?? res?.data ?? res?.results ?? [];
         if (results.length > 0) {
-          setDoctorsOpts(mapEmps(results));
+          const emps = mapEmps(results);
+          setDoctorsOpts(emps);
+          setAllDoctorsOpts(emps);
         } else {
           // Фоллбэк — все активные сотрудники
           const fallback: any = await apiFetch("/api/v1/employees/?status=active&page_size=200");
           if (!cancelled) {
             const fbResults: any[] = fallback?.data?.results ?? fallback?.results ?? [];
-            setDoctorsOpts(mapEmps(fbResults));
+            const emps = mapEmps(fbResults);
+            setDoctorsOpts(emps);
+            setAllDoctorsOpts(emps);
           }
         }
       })
@@ -333,13 +378,37 @@ export const HomeAddAppointmentDrawer: React.FC<
           const fallback: any = await apiFetch("/api/v1/employees/?status=active&page_size=200");
           if (!cancelled) {
             const fbResults: any[] = fallback?.data?.results ?? fallback?.results ?? [];
-            setDoctorsOpts(mapEmps(fbResults));
+            const emps = mapEmps(fbResults);
+            setDoctorsOpts(emps);
+            setAllDoctorsOpts(emps);
           }
-        } catch { if (!cancelled) setDoctorsOpts([]); }
+        } catch { if (!cancelled) { setDoctorsOpts([]); setAllDoctorsOpts([]); } }
       })
       .finally(() => { if (!cancelled) setDoctorsLoading(false); });
     return () => { cancelled = true; };
   }, [open, currentDateStr]);
+
+  // Загружаем все услуги при первом открытии (для выбора услуги без тренера)
+  React.useEffect(() => {
+    if (!open || allServicesOpts.length > 0) return;
+    setServicesLoading(true);
+    apiFetch(`/api/v1/sellable-items/?type=service&isActive=true&page_size=200`)
+      .then((res: any) => {
+        const results: any[] = res?.data?.results ?? res?.results ?? [];
+        const mapped = results.map((item: any) => ({
+          id: item.id,
+          name: item.displayName ?? item.service?.name ?? item.name ?? "",
+          price: item.displayPrice ? parseFloat(item.displayPrice) : (item.service?.price ? parseFloat(item.service.price) : undefined),
+          is_active: item.isActive ?? true,
+          employee_ids: item.employeeIds ?? item.employee_ids ?? [],
+        } as ServiceRow)).filter((s: ServiceRow) => s.id && s.name);
+        setAllServicesOpts(mapped);
+        // Показываем все услуги пока тренер не выбран
+        if (!serviceRows[0]?.doctorId) setServicesOpts(mapped);
+      })
+      .catch(() => {})
+      .finally(() => setServicesLoading(false));
+  }, [open]);
 
   // Load services per employee when employee changes in a service row
   const loadServicesForEmployee = React.useCallback(async (employeeId: string): Promise<ServiceRow[]> => {
@@ -415,6 +484,39 @@ export const HomeAddAppointmentDrawer: React.FC<
 
     try {
       setIsSaving(true);
+
+      // ── РЕЖИМ "НА ПЕРИОД" ────────────────────────────────────────
+      if (scheduleMode === "period") {
+        if (periodDates.length === 0 || (!selectedPatient && !isBooking)) {
+          setIsSaving(false);
+          isSavingRef.current = false;
+          return;
+        }
+        const firstRow = serviceRows[0];
+        // Берём время из visitDateTime или дефолт 09:00/10:00
+        const baseTime = visitDateTime ? dayjs(visitDateTime) : null;
+        const startTime = baseTime ? baseTime.format("HH:mm") : "09:00";
+        const endTime = baseTime ? baseTime.add(1, "hour").format("HH:mm") : "10:00";
+
+        if (selectedPatient) {
+          const shifts = periodDates.map((date) => ({
+            clientId: selectedPatient.id,
+            date,
+            startTime,
+            endTime,
+            isNextWeekEnd: false,
+          }));
+          await clientScheduleApi.createShiftsBulk(shifts);
+        }
+        setPeriodWeekdays([]);
+        setPeriodStartDate("");
+        setPeriodEndDate("");
+        setScheduleMode("once");
+        handleClose();
+        onCreated?.();
+        notify?.({ type: "success", message: `Расписание создано на ${periodDates.length} дней!` });
+        return;
+      }
 
       // ── ГРУППОВОЙ РЕЖИМ ──────────────────────────────────────────
       if (appointmentMode === "group") {
@@ -622,8 +724,27 @@ export const HomeAddAppointmentDrawer: React.FC<
             value={appointmentMode}
             exclusive
             onChange={(_, v) => { if (v) setAppointmentMode(v); }}
-            size="small"
+            size="medium"
             fullWidth
+            sx={{
+              gap: 1,
+              '& .MuiToggleButton-root': {
+                border: '2px solid',
+                borderColor: 'divider',
+                borderRadius: '8px !important',
+                fontWeight: 600,
+                fontSize: '0.9rem',
+                py: 1,
+                transition: 'all 0.2s',
+                color: 'text.secondary',
+              },
+              '& .MuiToggleButton-root.Mui-selected': {
+                borderColor: 'primary.main',
+                bgcolor: (theme) => `${theme.palette.primary.main} !important`,
+                color: 'primary.contrastText',
+                boxShadow: (theme) => `0 4px 12px ${theme.palette.primary.main}55`,
+              },
+            }}
           >
             <ToggleButton value="single" sx={{ gap: 0.75 }}>
               <PersonOutlined fontSize="small" />
@@ -632,6 +753,30 @@ export const HomeAddAppointmentDrawer: React.FC<
             <ToggleButton value="group" sx={{ gap: 0.75 }}>
               <GroupsOutlined fontSize="small" />
               Групповой
+            </ToggleButton>
+          </ToggleButtonGroup>
+        </Box>
+
+        {/* Переключатель разовый / на период */}
+        <Box sx={{ px: 2, pb: 1.5 }}>
+          <ToggleButtonGroup
+            value={scheduleMode}
+            exclusive
+            onChange={(_, v) => { if (v) setScheduleMode(v); }}
+            size="small"
+            fullWidth
+            sx={{
+              '& .MuiToggleButton-root': { fontWeight: 500, py: 0.75 },
+              '& .MuiToggleButton-root.Mui-selected': {
+                bgcolor: (theme) => `${theme.palette.secondary.main} !important`,
+                color: 'secondary.contrastText',
+              },
+            }}
+          >
+            <ToggleButton value="once">Разовый</ToggleButton>
+            <ToggleButton value="period" sx={{ gap: 0.5 }}>
+              <CalendarMonthOutlined fontSize="small" />
+              На период
             </ToggleButton>
           </ToggleButtonGroup>
         </Box>
@@ -650,6 +795,7 @@ export const HomeAddAppointmentDrawer: React.FC<
           }}
         >
           <Stack spacing={2}>
+            {scheduleMode === "once" && (
             <CustomDateTimePicker
               label="Дата и время *"
               value={visitDateTime ? dayjs(visitDateTime) : null}
@@ -667,6 +813,73 @@ export const HomeAddAppointmentDrawer: React.FC<
                 },
               }}
             />
+            )}
+
+            {scheduleMode === "period" && (
+              <Stack spacing={1.5}>
+                <Stack spacing={0.5}>
+                  <Typography variant="body2" color="text.secondary" fontWeight={500}>Дни недели</Typography>
+                  <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
+                    {WEEKDAYS.map((day) => (
+                      <Chip
+                        key={day.value}
+                        label={day.label}
+                        onClick={() => {
+                          if (periodWeekdays.length === 0 && periodStartDate && periodEndDate === periodStartDate) {
+                            setPeriodEndDate(dayjs(periodStartDate).add(1, "month").format("YYYY-MM-DD"));
+                          }
+                          setPeriodWeekdays((prev) =>
+                            prev.includes(day.value) ? prev.filter((d) => d !== day.value) : [...prev, day.value]
+                          );
+                        }}
+                        color={periodWeekdays.includes(day.value) ? "primary" : "default"}
+                        variant={periodWeekdays.includes(day.value) ? "filled" : "outlined"}
+                        sx={{ fontWeight: periodWeekdays.includes(day.value) ? 600 : 400, cursor: "pointer" }}
+                      />
+                    ))}
+                  </Stack>
+                </Stack>
+                <Stack direction="row" spacing={1}>
+                  <Stack spacing={0.5} sx={{ flex: 1 }}>
+                    <Typography variant="body2" color="text.secondary" fontWeight={500}>Начало</Typography>
+                    <TextField
+                      type="date"
+                      size="small"
+                      fullWidth
+                      value={periodStartDate}
+                      onChange={(e) => {
+                        setPeriodStartDate(e.target.value);
+                        if (!periodEndDate || periodEndDate < e.target.value) setPeriodEndDate(e.target.value);
+                      }}
+                      InputLabelProps={{ shrink: true }}
+                    />
+                  </Stack>
+                  <Stack spacing={0.5} sx={{ flex: 1 }}>
+                    <Typography variant="body2" color="text.secondary" fontWeight={500}>Конец</Typography>
+                    <TextField
+                      type="date"
+                      size="small"
+                      fullWidth
+                      value={periodEndDate}
+                      onChange={(e) => setPeriodEndDate(e.target.value)}
+                      InputLabelProps={{ shrink: true }}
+                    />
+                  </Stack>
+                </Stack>
+                {periodDates.length > 0 && (
+                  <Box>
+                    <Typography variant="caption" color="text.secondary">
+                      {periodDates.length} {periodDates.length === 1 ? "день" : periodDates.length < 5 ? "дня" : "дней"}:
+                    </Typography>
+                    <Box sx={{ mt: 0.5, maxHeight: 120, overflowY: "auto", display: "flex", flexWrap: "wrap", gap: 0.5, p: 1, border: "1px solid", borderColor: "divider", borderRadius: 1 }}>
+                      {periodDates.map((dateStr) => (
+                        <Chip key={dateStr} label={dayjs(dateStr).locale("ru").format("dd D MMM")} size="small" variant="outlined" sx={{ fontSize: 11, height: 22 }} />
+                      ))}
+                    </Box>
+                  </Box>
+                )}
+              </Stack>
+            )}
             {/* ── ТРЕНЕР ── */}
             <Stack spacing={0.5}>
               <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
@@ -680,14 +893,34 @@ export const HomeAddAppointmentDrawer: React.FC<
                 value={doctorsOpts.find((d) => d.id === serviceRows[0]?.doctorId) || null}
                 onChange={(_, v) => {
                   const updated = [...serviceRows];
-                  updated[0] = { ...updated[0], doctorId: v?.id || "", serviceId: "" };
+                  // Не сбрасываем serviceId при смене тренера — пусть фильтруется
+                  updated[0] = { ...updated[0], doctorId: v?.id || "" };
                   setServiceRows(updated);
-                  if (v?.id && !employeeServicesCache[v.id]) {
-                    setServicesLoading(true);
-                    loadServicesForEmployee(v.id).then(srvs => {
-                      setEmployeeServicesCache(prev => ({ ...prev, [v.id]: srvs }));
-                      setServicesLoading(false);
-                    });
+                  if (v?.id) {
+                    if (!employeeServicesCache[v.id]) {
+                      setServicesLoading(true);
+                      loadServicesForEmployee(v.id).then(srvs => {
+                        setEmployeeServicesCache(prev => ({ ...prev, [v.id]: srvs }));
+                        setServicesLoading(false);
+                      });
+                    }
+                    // Фильтруем тренеров — убираем фильтр, тренер уже выбран
+                  } else {
+                    // Тренер сброшен — показываем все услуги обратно
+                    setServicesOpts(allServicesOpts);
+                    // Тренеров восстанавливаем по текущей выбранной услуге или все
+                    const curServiceId = serviceRows[0]?.serviceId;
+                    if (curServiceId) {
+                      const svc = allServicesOpts.find(s => s.id === curServiceId);
+                      const empIds: string[] = (svc as any)?.employee_ids ?? [];
+                      if (empIds.length > 0) {
+                        setDoctorsOpts(allDoctorsOpts.filter(d => empIds.includes(d.id)));
+                      } else {
+                        setDoctorsOpts(allDoctorsOpts);
+                      }
+                    } else {
+                      setDoctorsOpts(allDoctorsOpts);
+                    }
                   }
                 }}
                 getOptionLabel={(o) => `${o.full_name || o.id}${o.specialization ? ` — ${o.specialization}` : ""}`}
@@ -732,6 +965,17 @@ export const HomeAddAppointmentDrawer: React.FC<
                   const updated = [...serviceRows];
                   updated[0] = { ...updated[0], serviceId: v?.id || "" };
                   setServiceRows(updated);
+                  // Фильтруем тренеров по выбранной услуге
+                  if (v?.id) {
+                    const empIds: string[] = (v as any)?.employee_ids ?? [];
+                    if (empIds.length > 0) {
+                      setDoctorsOpts(allDoctorsOpts.filter(d => empIds.includes(d.id)));
+                    }
+                    // Если у услуги нет employee_ids — не фильтруем тренеров
+                  } else {
+                    // Услуга сброшена — восстанавливаем всех тренеров (или фильтруем по выбранному тренеру)
+                    setDoctorsOpts(allDoctorsOpts);
+                  }
                 }}
                 getOptionLabel={(o) => `${o.name}${o.price ? ` — ${o.price} сом` : ""}`}
                 filterOptions={serviceFilter}
@@ -963,11 +1207,12 @@ export const HomeAddAppointmentDrawer: React.FC<
             <Button
               variant="contained"
               disabled={
-                !visitDateTime ||
                 isSaving ||
                 !serviceRows.some((r) => r.serviceId && r.doctorId) ||
-                (appointmentMode === "single" && !isBooking && !selectedPatient) ||
-                (appointmentMode === "group" && groupParticipants.length === 0)
+                (scheduleMode === "once" && !visitDateTime) ||
+                (scheduleMode === "period" && (periodDates.length === 0 || (!isBooking && !selectedPatient))) ||
+                (scheduleMode === "once" && appointmentMode === "single" && !isBooking && !selectedPatient) ||
+                (scheduleMode === "once" && appointmentMode === "group" && groupParticipants.length === 0)
               }
               onMouseEnter={() => {
                 if (!touched) setTouched(true);
@@ -981,9 +1226,11 @@ export const HomeAddAppointmentDrawer: React.FC<
             >
               {isSaving
                 ? "Создание..."
-                : appointmentMode === "group"
-                  ? "Добавить занятие"
-                  : "Добавить прием"}
+                : scheduleMode === "period"
+                  ? `Записать на ${periodDates.length} дней`
+                  : appointmentMode === "group"
+                    ? "Добавить занятие"
+                    : "Добавить прием"}
             </Button>
           </Stack>
         </Box>

@@ -21,6 +21,7 @@ import PeopleOutlined from "@mui/icons-material/PeopleOutlined";
 import PersonAddOutlined from "@mui/icons-material/PersonAddOutlined";
 import CheckCircleOutlined from "@mui/icons-material/CheckCircleOutlined";
 import dayjs, { Dayjs } from "dayjs";
+import "dayjs/locale/ru";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { CustomTimePicker, CustomDatePicker, AppCard } from "../../../components/ui";
@@ -451,14 +452,30 @@ const ClientShiftForm: React.FC<Props> = ({
 
         {/* Сводка по диапазону дат */}
         {selectedWeekdays.length > 0 && startDate && endDate && (
-          <Alert severity="info" sx={{ fontSize: 13 }}>
-            Смены на{" "}
-            {selectedWeekdays
-              .map((d) => WEEKDAYS.find((w) => w.value === d)?.label)
-              .join(", ")}{" "}
-            с {dayjs(startDate).format("DD.MM.YYYY")} по {dayjs(endDate).format("DD.MM.YYYY")} (
-            {weekdayDates.length} дней)
-          </Alert>
+          <Box>
+            <Alert severity="info" sx={{ fontSize: 13 }}>
+              Смены на{" "}
+              {WEEKDAYS
+                .filter((w) => selectedWeekdays.includes(w.value))
+                .map((w) => w.label)
+                .join(", ")}{" "}
+              с {dayjs(startDate).format("DD.MM.YYYY")} по {dayjs(endDate).format("DD.MM.YYYY")} (
+              {weekdayDates.length} дней)
+            </Alert>
+            {weekdayDates.length > 0 && (
+              <Box sx={{ mt: 1, maxHeight: 140, overflowY: "auto", display: "flex", flexWrap: "wrap", gap: 0.5, p: 1, border: "1px solid", borderColor: "divider", borderRadius: 1, bgcolor: "background.paper" }}>
+                {weekdayDates.map((dateStr) => (
+                  <Chip
+                    key={dateStr}
+                    label={dayjs(dateStr).locale("ru").format("dd D MMM")}
+                    size="small"
+                    variant="outlined"
+                    sx={{ fontSize: 11, height: 22 }}
+                  />
+                ))}
+              </Box>
+            )}
+          </Box>
         )}
 
         {/* Групповые занятия */}

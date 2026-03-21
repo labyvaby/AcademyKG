@@ -1,5 +1,6 @@
 import dayjs from "dayjs";
 import type { AppointmentGroup } from "../../features/group-appointments/model/types";
+import { dayjsBishkek } from "../../utility/dayjsBishkek";
 
 export type AppointmentServiceJson = {
   id?: string;
@@ -184,7 +185,9 @@ export const mapAggregatedRowToAppointment = (
       if (s.performer_name || s.doctor_name) return s;
       // performer and sellableItem are plain UUIDs (strings), name is in performerName / sellableItemName
       const performerId = typeof s.performer === "string" ? s.performer : s.performer?.id ?? null;
-      const performerName = s.performerName ?? s.performer_name ?? (typeof s.performer === "object" ? (s.performer?.fullName ?? s.performer?.full_name ?? "") : null);
+      const performerName = s.performerName ?? s.performer_name
+        ?? (typeof s.performer === "object" ? (s.performer?.fullName ?? s.performer?.full_name ?? "") : null)
+        ?? (doctorName || null); // фоллбэк — имя специалиста из самого приёма
       const sellableId = typeof s.sellableItem === "string" ? s.sellableItem : s.sellableItem?.id ?? s.sellable_item?.id ?? s.id ?? null;
       const sellableName = s.sellableItemName ?? s.serviceName ?? s.service_name ?? (typeof s.sellableItem === "object" ? (s.sellableItem?.displayName ?? s.sellableItem?.name ?? "") : null) ?? "Услуга";
       return {
@@ -208,6 +211,15 @@ export const mapAggregatedRowToAppointment = (
       parsedServices = normalizeServices(servicesArr);
     }
   } catch { /* ignore */ }
+
+  // Если сервисы есть но у них нет имени специалиста — подставим из doctorName
+  if (parsedServices && parsedServices.every(s => !s.performer_name) && doctorName) {
+    parsedServices = parsedServices.map(s => ({
+      ...s,
+      performer_name: s.performer_name ?? doctorName,
+      performer_id: s.performer_id ?? (doctorId ? String(doctorId) : null),
+    }));
+  }
 
   // Normalize API status codes (English) to Russian display names
   const STATUS_MAP: Record<string, string> = {
@@ -236,7 +248,7 @@ export const mapAggregatedRowToAppointment = (
     appointment_at: appointmentAt,
     duration: r.duration,
     formatted_date: appointmentAt
-      ? dayjs(appointmentAt).format("HH:mm DD.MM.YYYY")
+      ? dayjsBishkek(appointmentAt).format("HH:mm DD.MM.YYYY")
       : (r.formatted_date ?? ""),
     doctor_name: doctorName,
     doctor_id: doctorId,
@@ -264,7 +276,17 @@ export const mapAggregatedRowToAppointment = (
     clinic_diagnosis_id: r.clinic_diagnosis_id ?? r.clinicDiagnosisId ?? null,
     diagnosis_title: r.diagnosis_title ?? r.diagnosisTitle ?? null,
     estimated_total: r.estimated_total ?? r.estimatedTotal ?? null,
-    performer_ids: r.performer_ids ?? r.performerIds ?? [],
+    performer_ids: (() => {
+      const direct = r.performer_ids ?? r.performerIds;
+      if (Array.isArray(direct) && direct.length > 0) return direct;
+      // Фоллбэк: собираем performer_id из сервисов
+      if (doctorId) return [String(doctorId)];
+      const fromServices = (parsedServices ?? [])
+        .map((s: any) => s.performer_id)
+        .filter(Boolean)
+        .map(String);
+      return fromServices.length > 0 ? fromServices : [];
+    })(),
     has_conclusion: Boolean(r.has_conclusion ?? r.hasConclusion),
     weight: r.weight ?? null,
     height: r.height ?? null,
@@ -292,7 +314,7 @@ export const mapGroupToAppointment = (group: AppointmentGroup): Appointment => {
   return {
     id: `group_${group.id}`,
     appointment_at: group.appointmentAt,
-    formatted_date: dayjs(group.appointmentAt).format("HH:mm DD.MM.YYYY"),
+    formatted_date: dayjsBishkek(group.appointmentAt).format("HH:mm DD.MM.YYYY"),
     doctor_name: group.performerName,
     doctor_id: group.performerId,
     patient_name: `Группа: ${group.participants.length} уч.`,

@@ -281,7 +281,7 @@ const PatientCard: React.FC<Props> = ({
                         </Typography>
                       </Box>
                       <Box sx={{ flex: 1, minWidth: 70, borderRadius: 1, border: "1px solid", borderColor: "divider", px: 1.5, py: 1, textAlign: "center" }}>
-                        <Typography variant="caption" color="text.secondary" display="block">Бонусы</Typography>
+                        <Typography variant="caption" color="text.secondary" display="block">Баллы</Typography>
                         <Typography variant="body2" fontWeight={600} color={balance.bonuses > 0 ? "warning.main" : "text.primary"}>
                           {balance.bonuses.toLocaleString("ru-RU")} сом
                         </Typography>

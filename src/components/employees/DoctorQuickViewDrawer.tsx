@@ -104,7 +104,7 @@ export const DoctorQuickViewDrawer: React.FC<DoctorQuickViewDrawerProps> = ({ op
         }
 
         // 3. Recent appointments
-        const apptRes: any = await apiFetch(`/api/v1/appointments/?employee=${doctorId}&ordering=-appointmentAt&page_size=5`);
+        const apptRes: any = await apiFetch(`/api/v1/appointments/?specialist=${doctorId}&ordering=-appointmentAt&page_size=5`);
         const appts: any[] = apptRes?.data?.results ?? apptRes?.results ?? [];
         if (active) {
           setRecentAppointments(appts.map((a: any) => {

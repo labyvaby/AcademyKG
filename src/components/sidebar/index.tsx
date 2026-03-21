@@ -331,7 +331,7 @@ const SidebarSecondary: React.FC = () => {
         {(isSuper || (!isNurse && !isDoctor())) && (
           <SidebarMenuItem to="/home" icon={<HomeOutlined />} label="Регистратура" collapsed={siderCollapsed} />
         )}
-        {(isSuper || (!isNurse && !isAdmin() && !isRegistrator())) && <SidebarMenuItem to="/doctor" icon={<LocalHospitalOutlined />} label="Кабинет специалиста" collapsed={siderCollapsed} />}
+        {(isSuper || isAdmin() || isDoctor()) && <SidebarMenuItem to="/specialist" icon={<LocalHospitalOutlined />} label="Кабинет специалиста" collapsed={siderCollapsed} />}
         <SidebarMenuItem to="/all-appointments" icon={<HistoryOutlined />} label="Все приемы" collapsed={siderCollapsed} />
         <SidebarMenuItem to="/schedule" icon={<CalendarMonthOutlined />} label="Расписание" collapsed={siderCollapsed} />
         <SidebarMenuItem to="/client-schedule" icon={<CalendarMonthOutlined />} label="Клиентское расписание" collapsed={siderCollapsed} />

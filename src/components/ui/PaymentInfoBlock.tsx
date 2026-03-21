@@ -238,14 +238,14 @@ export const PaymentInfoBlock: React.FC<PaymentInfoBlockProps> = ({
                 </Stack>
               )}
 
-              {/* Bonuses */}
+              {/* Points */}
               {bonuses > 0 && (
                 <Stack direction="row" justifyContent="space-between" alignItems="center">
                   <Stack direction="row" spacing={1} alignItems="center">
                     <Box sx={{ p: 0.5, borderRadius: 1, bgcolor: alpha(theme.palette.warning.main, 0.1), display: 'flex' }}>
                       <CardGiftcardOutlined sx={{ fontSize: 18, color: 'warning.main' }} />
                     </Box>
-                    <Typography variant="body2" color="text.secondary" fontWeight={500}>Бонусами</Typography>
+                    <Typography variant="body2" color="text.secondary" fontWeight={500}>Баллами</Typography>
                   </Stack>
                   <Typography variant="body2" fontWeight={700}>{formatAmount(bonuses)} сом</Typography>
                 </Stack>

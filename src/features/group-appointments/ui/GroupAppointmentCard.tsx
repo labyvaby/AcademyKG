@@ -32,7 +32,7 @@ function participantToAppointment(p: GroupParticipant, group: AppointmentGroup):
   return {
     id: p.id,
     appointment_at: group.appointmentAt,
-    formatted_date: dayjs(group.appointmentAt).format("HH:mm DD.MM.YYYY"),
+    formatted_date: dayjs.tz(group.appointmentAt, "Asia/Bishkek").format("HH:mm DD.MM.YYYY"),
     doctor_name: group.performerName,
     doctor_id: group.performerId,
     patient_name: p.patientName,
@@ -107,7 +107,7 @@ const GroupAppointmentCard: React.FC<Props> = ({ group, onGroupUpdated, onAddPar
               <Stack direction="row" spacing={0.5} alignItems="center">
                 <AccessTimeOutlined sx={{ fontSize: 13, color: "text.secondary" }} />
                 <Typography variant="caption" color="text.secondary">
-                  {dayjs(group.appointmentAt).format("HH:mm")}
+                  {dayjs.tz(group.appointmentAt, "Asia/Bishkek").format("HH:mm")}
                 </Typography>
               </Stack>
               <Stack direction="row" spacing={0.5} alignItems="center">

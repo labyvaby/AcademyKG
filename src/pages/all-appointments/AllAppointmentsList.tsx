@@ -33,9 +33,10 @@ import AppointmentDetailsCard from "../home/components/AppointmentDetailsCard";
 import { DoctorConclusionPanel } from "../doctor/components/DoctorConclusionPanel";
 import DoctorWorkDrawer from "../../components/home/DoctorWorkDrawer";
 import { mapAggregatedRowToAppointment, Appointment, AggregatedAppointmentRow } from "../home/types";
-import { fetchDoctors } from "../../services/employees";
+import { fetchMedicalStaff } from "../../services/employees";
 import { EmployeesRow } from "../expenses/types";
 import dayjs from "dayjs";
+import type { AppointmentGroup } from "../../features/group-appointments/model/types";
 
 // Names for months in Russian
 const MONTH_NAMES = [
@@ -45,7 +46,7 @@ const MONTH_NAMES = [
 
 export const AllAppointmentsList: React.FC = () => {
     usePageTitle("Все приемы");
-    const { isAdmin, isSuperAdmin, isDoctor, isRegistrator, employeeId } = usePermissions();
+    const { isAdmin, isSuperAdmin, isDoctor, isRegistrator, employeeId, employee } = usePermissions();
     const canViewAll = isAdmin() || isSuperAdmin() || isRegistrator();
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down("md"));
@@ -80,29 +81,106 @@ export const AllAppointmentsList: React.FC = () => {
         setLoading(true);
         try {
             // Fetch Doctors for avatars
-            if (doctors.length === 0) {
-                const docs = await fetchDoctors();
-                setDoctors(docs);
+            // Fetch Doctors for avatars
+            let currentDoctors = doctors;
+            if (currentDoctors.length === 0) {
+                currentDoctors = await fetchMedicalStaff();
+                setDoctors(currentDoctors);
             }
 
-            const params = new URLSearchParams({
-                ordering: "-appointmentAt",
-            });
-
-            if (!canViewAll && employeeId) {
-                params.set("employee", employeeId);
+            const params = new URLSearchParams({ ordering: "-appointmentAt" });
+            if (!canViewAll && employeeId) params.set("specialist", employeeId);
+            if (selectedDate) {
+                params.set("date", selectedDate);
+            } else if (selectedMonth) {
+                const lastDay = dayjs(selectedMonth).endOf("month").format("YYYY-MM-DD");
+                params.set("dateFrom", `${selectedMonth}-01`);
+                params.set("dateTo", lastDay);
             }
 
-            const res: any = await apiFetch(`/api/v1/appointments/?${params.toString()}`);
-            const data: any[] = res?.data?.results ?? res?.results ?? (Array.isArray(res?.data) ? res.data : null) ?? (Array.isArray(res) ? res : []);
+            const res = await apiFetch(`/api/v1/appointments/?${params.toString()}`);
 
+            const r = res as any;
+            const data: any[] = r?.data?.results ?? r?.results ?? (Array.isArray(r?.data) ? r.data : null) ?? (Array.isArray(r) ? r : []);
+
+            // Группы подгружаются отдельно через useEffect при смене selectedDate
+            // Здесь просто маппим обычные приёмы
             const mapped = (data as AggregatedAppointmentRow[]).map(mapAggregatedRowToAppointment);
 
-            // Apply cache immediately
-            mapped.forEach((appt, idx) => {
+            // Extract distinct dates to fetch groups
+            const distinctDates = Array.from(new Set(
+                mapped.map(a => a.appointment_at ? a.appointment_at.slice(0, 10) : null).filter(Boolean) as string[]
+            ));
+
+            let allGroups: AppointmentGroup[] = [];
+            if (distinctDates.length > 0) {
+                const { fetchGroups } = await import("../../features/group-appointments/api/group-appointments.api");
+                const groupsRes = await Promise.all(distinctDates.map(date => fetchGroups(date)));
+                allGroups = groupsRes.flat();
+            }
+
+            // Exclude regular appointments that are actually group participants
+            const groupParticipantIds = new Set<string>(
+                allGroups.flatMap(g => g.participants.map(p => p.id))
+            );
+            
+            const { mapGroupToAppointment } = await import("../home/types");
+            const groupedAppointments = allGroups.map(mapGroupToAppointment);
+
+            const filteredMapped = mapped.filter(appt => !groupParticipantIds.has(String(appt.id)));
+
+            const finalAppointments = [...filteredMapped, ...groupedAppointments];
+
+            // Имя текущего залогиненного сотрудника (fallback для specialist-фильтра)
+            const currentEmployeeName = !canViewAll && employeeId
+                ? (employee?.full_name ?? employee?.fullName ?? employee?.name ?? null)
+                : null;
+
+            // Inject missing doctor names from currentDoctors array
+            finalAppointments.forEach(appt => {
+                // Fix base doctor_id if it's missing but we have it in services
+                if (!appt.doctor_id && appt.parsed_services?.[0]?.performer_id) {
+                    appt.doctor_id = appt.parsed_services[0].performer_id;
+                }
+
+                // Fix base doctor_name from doctor_id
+                if (!appt.doctor_name && appt.doctor_id) {
+                    const doc = currentDoctors.find(d => String(d.id) === String(appt.doctor_id));
+                    if (doc) appt.doctor_name = doc.full_name || (doc as any).fullName || "";
+                }
+
+                // Fix parsed_services performer_name from performer_id
+                if (appt.parsed_services) {
+                    appt.parsed_services.forEach(svc => {
+                        if (!svc.performer_name && svc.performer_id) {
+                            const doc = currentDoctors.find(d => String(d.id) === String(svc.performer_id));
+                            if (doc) svc.performer_name = doc.full_name || (doc as any).fullName || "";
+                        }
+                    });
+                }
+
+                // Финальный fallback: если у специалиста нет имени в данных —
+                // подставляем имя текущего пользователя (актуально когда API
+                // возвращает specialist-фильтрованные записи без doctor_name)
+                if (currentEmployeeName) {
+                    if (!appt.doctor_name) {
+                        appt.doctor_name = currentEmployeeName;
+                    }
+                    if (appt.parsed_services) {
+                        appt.parsed_services.forEach(svc => {
+                            if (!svc.performer_name) {
+                                svc.performer_name = currentEmployeeName;
+                            }
+                        });
+                    }
+                }
+            });
+
+            // Apply cache
+            finalAppointments.forEach((appt, idx) => {
                 const cached = getCachedDetail(appt.id);
                 if (cached) {
-                    mapped[idx] = {
+                    finalAppointments[idx] = {
                         ...appt,
                         status: cached.status || appt.status,
                         doctor_name: cached.doctor_name || appt.doctor_name,
@@ -111,35 +189,8 @@ export const AllAppointmentsList: React.FC = () => {
                     };
                 }
             });
-            setHistory([...mapped]); // show cached version immediately
 
-            // Fetch details in parallel and update cache
-            await Promise.all(mapped.map(async (appt, idx) => {
-                try {
-                    const detail: any = await apiFetch(`/api/v1/appointments/${appt.id}/`);
-                    const d = detail?.data ?? detail;
-                    if (!d) return;
-                    const fullMapped = mapAggregatedRowToAppointment(d as AggregatedAppointmentRow);
-                    const svc = d.services?.[0];
-                    const pname = svc?.performerName ?? svc?.performer_name ?? fullMapped.doctor_name ?? appt.doctor_name;
-                    const pid = svc ? (typeof svc.performer === "string" ? svc.performer : (svc.performer?.id ?? "")) : appt.doctor_id;
-                    mapped[idx] = {
-                        ...appt,
-                        status: fullMapped.status,
-                        doctor_name: pname || appt.doctor_name,
-                        doctor_id: pid || appt.doctor_id,
-                        parsed_services: fullMapped.parsed_services ?? appt.parsed_services,
-                    };
-                    setCachedDetail(appt.id, {
-                        status: fullMapped.status,
-                        doctor_name: pname || appt.doctor_name,
-                        doctor_id: pid || appt.doctor_id,
-                        parsed_services: fullMapped.parsed_services ?? [],
-                    });
-                } catch { /* ignore */ }
-            }));
-
-            setHistory([...mapped]);
+            setHistory(finalAppointments);
         } catch (error) {
             console.error("Error fetching all appointments:", error);
         } finally {
@@ -151,6 +202,7 @@ export const AllAppointmentsList: React.FC = () => {
         fetchData();
     }, [fetchData]);
 
+    // (группы на этой странице не объединяем — API не поддерживает диапазон дат для групп)
 
     // --- Derived State (Client-Side Grouping) ---
 
@@ -206,6 +258,12 @@ export const AllAppointmentsList: React.FC = () => {
     }, [selectedYear, activeMonthsSet]);
 
     const isDoctorInvolved = React.useCallback((h: Appointment, doctorName: string) => {
+        if (doctorName === "Без специалиста") {
+            const noMain = !h.doctor_name;
+            const noServices = !h.parsed_services || h.parsed_services.length === 0 || h.parsed_services.every((s: any) => !s.performer_name && !s.doctor_name);
+            if (noMain && noServices) return true;
+        }
+
         if (h.doctor_name === doctorName) return true;
         const services = h.parsed_services || [];
         if (services.length > 0) {
@@ -214,7 +272,7 @@ export const AllAppointmentsList: React.FC = () => {
         return false;
     }, []);
 
-    const getInvolvedDoctors = React.useCallback((h: Appointment) => {
+    const getInvolvedDoctors = React.useCallback((h: Appointment, doctorsList: EmployeesRow[]) => {
         const docNames = new Set<string>();
         if (h.doctor_name) docNames.add(h.doctor_name);
         const services = h.parsed_services || [];
@@ -222,7 +280,25 @@ export const AllAppointmentsList: React.FC = () => {
             if (s.performer_name) docNames.add(s.performer_name);
             else if (s.doctor_name) docNames.add(s.doctor_name);
         });
-        if (docNames.size === 0) docNames.add("Неизвестно");
+
+        // Если имя не нашлось — попробовать через performer_id из сервисов или doctor_id
+        if (docNames.size === 0) {
+            const ids = [
+                h.doctor_id,
+                ...services.map((s: any) => s.performer_id).filter(Boolean),
+                ...(h.performer_ids ?? []),
+            ].filter(Boolean).map(String);
+
+            for (const id of ids) {
+                const doc = doctorsList.find(d => String(d.id) === id);
+                if (doc) {
+                    const name = doc.full_name || (doc as any).fullName || "";
+                    if (name) docNames.add(name);
+                }
+            }
+        }
+
+        if (docNames.size === 0) docNames.add("Без специалиста");
         return Array.from(docNames);
     }, []);
 
@@ -236,7 +312,7 @@ export const AllAppointmentsList: React.FC = () => {
             // so we don't need to filter again here
             const dayKey = h.appointment_at.slice(0, 10); // fast "YYYY-MM-DD" extraction
 
-            const docNames = getInvolvedDoctors(h);
+            const docNames = getInvolvedDoctors(h, doctors);
             docNames.forEach(empName => {
                 if (!empMap.has(empName)) {
                     empMap.set(empName, { employeeName: empName, total: 0, days: new Map() });
@@ -254,7 +330,7 @@ export const AllAppointmentsList: React.FC = () => {
                 .sort((a, b) => b[0].localeCompare(a[0]))
                 .map(([date, count]) => ({ date, count }))
         })).sort((a, b) => a.employeeName.localeCompare(b.employeeName));
-    }, [filteredHistory, getInvolvedDoctors]);
+    }, [filteredHistory, getInvolvedDoctors, doctors]);
 
     // 5. Group by Employee -> Service (for "services" filter mode)
     const groupedByService = React.useMemo(() => {
@@ -266,7 +342,7 @@ export const AllAppointmentsList: React.FC = () => {
 
             if (services.length === 0) {
                 // Fallback: use doctor_name + service_names string
-                const empName = h.doctor_name || "Неизвестно";
+                const empName = h.doctor_name || "Без специалиста";
                 const svcName = h.service_names || "Без услуги";
                 if (!empMap.has(empName)) empMap.set(empName, new Map());
                 empMap.get(empName)!.set(svcName, (empMap.get(empName)!.get(svcName) || 0) + 1);
@@ -275,7 +351,7 @@ export const AllAppointmentsList: React.FC = () => {
 
             services.forEach(s => {
                 const svcName = s.name || s.service_name || "Без названия";
-                const empName = s.performer_name || h.doctor_name || "Неизвестно";
+                const empName = s.performer_name || h.doctor_name || "Без специалиста";
                 if (!empMap.has(empName)) empMap.set(empName, new Map());
                 empMap.get(empName)!.set(svcName, (empMap.get(empName)!.get(svcName) || 0) + 1);
             });

@@ -217,7 +217,80 @@ GET /api/v1/sellable-items/?type=service&isActive=true&isGroup=true&page_size=20
 
 ---
 
-## 4. Итоговая таблица — что реализовать
+## 4. Управление групповым приёмом — CRUD
+
+Фронт вызывает эти эндпоинты — **нужно реализовать на бэкенде**. В текущей схеме их нет.
+
+### PATCH /appointment-groups/{id}/
+
+Редактирование группового занятия (дата, тренер, услуга).
+
+```
+PATCH /api/v1/appointment-groups/{id}/
+Content-Type: application/json
+```
+
+Тело (все поля опциональны):
+```json
+{
+  "appointmentAt": "2026-03-21T10:00:00Z",
+  "performer": "employee-uuid",
+  "sellableItem": "sellable-item-uuid"
+}
+```
+
+Ответ `200 OK` — обновлённый объект группы (та же структура что и `GET /appointment-groups/`):
+```json
+{
+  "id": "uuid",
+  "appointmentAt": "2026-03-21T10:00:00Z",
+  "performerId": "uuid",
+  "performerName": "Иванов Алексей",
+  "sellableItemId": "uuid",
+  "sellableItemName": "Групповое занятие (Йога)",
+  "price": 500,
+  "maxParticipants": 10,
+  "participants": [ ... ]
+}
+```
+
+Права доступа: `isAdmin`, `isRegistrator`, `isSuperAdmin`.
+
+---
+
+### DELETE /appointment-groups/{id}/
+
+Удаление группового занятия вместе со всеми участниками.
+
+```
+DELETE /api/v1/appointment-groups/{id}/
+```
+
+Ответ `204 No Content`.
+
+Права доступа: **только `isSuperAdmin`**. Остальные роли — `403 Forbidden`.
+
+---
+
+### POST /appointment-groups/{id}/trainer-not-came/
+
+Отметить что тренер не пришёл — ставит статус `not_came` всем участникам группы.
+
+```
+POST /api/v1/appointment-groups/{id}/trainer-not-came/
+```
+
+Тело: пустое `{}`.
+
+Ответ `200 OK` — обновлённый объект группы со всеми участниками в статусе `not_came`.
+
+Альтернатива (если проще): принимать через `PATCH /appointment-groups/{id}/` поле `status: "not_came"` и применять ко всем участникам.
+
+Права доступа: `isAdmin`, `isRegistrator`, `isDoctor`, `isSuperAdmin`.
+
+---
+
+## 5. Итоговая таблица — что реализовать
 
 | Эндпоинт / Поле | Нужно |
 |---|---|
@@ -228,6 +301,9 @@ GET /api/v1/sellable-items/?type=service&isActive=true&isGroup=true&page_size=20
 | `POST /client-schedules/bulk/` | ✅ реализовать |
 | `GET /appointment-groups/?date=` | ✅ реализовать |
 | `POST /appointment-groups/` | ✅ реализовать |
+| `PATCH /appointment-groups/{id}/` — редактировать дату/тренера/услугу | ✅ **реализовать** |
+| `DELETE /appointment-groups/{id}/` — только superadmin | ✅ **реализовать** |
+| `POST /appointment-groups/{id}/trainer-not-came/` | ✅ **реализовать** |
 | `POST /appointment-groups/{id}/add-participant/` | ✅ реализовать |
 | `PATCH /appointments/{id}/` — статус и оплата для участников группы | проверить совместимость |
 | Поле `isGroup` в `/services/` и `/sellable-items/` | ✅ добавить |

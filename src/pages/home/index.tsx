@@ -24,6 +24,7 @@ import { apiFetch } from "../../utility/apiClient";
 // import { formatKGS } from '../../utility/format';
 import { formatDateRu } from "../../utility/format";
 import dayjs from "dayjs";
+import { dayjsBishkek } from "../../utility/dayjsBishkek";
 import AppointmentsList from "./components/AppointmentsList";
 import { fetchDoctors, fetchMedicalStaff } from "../../services/employees";
 import type { Appointment, AggregatedAppointmentRow } from "./types";
@@ -41,6 +42,7 @@ import HomeAddAppointmentDrawer from "./components/HomeAddAppointmentDrawer";
 import { DoctorConclusionPanel } from "../doctor/components/DoctorConclusionPanel";
 import { usePermissions } from "../../hooks/usePermissions";
 import { useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
+import { useSearchParams } from "react-router";
 
 
 /* Simple cache (оставляем только для услуг)
@@ -60,10 +62,6 @@ function useDebouncedValue<T>(value: T, delay = 300) {
   }, [value, delay]);
   return debounced;
 }
-
-
-
-import { useSearchParams } from "react-router";
 
 
 export const HomePage: React.FC = () => {
@@ -134,6 +132,7 @@ export const HomePage: React.FC = () => {
   const [initialSlotDate, setInitialSlotDate] = React.useState<string | null>(null);
   const [initialSlotDoctorId, setInitialSlotDoctorId] = React.useState<string | null>(null);
 
+
   const handleDateChange = (newDate: string) => {
     setDate(newDate);
     setDoctorId("");
@@ -175,7 +174,7 @@ export const HomePage: React.FC = () => {
     queryKey: ["appointments", "daily", dailyRange.key],
     queryFn: async () => {
       const [res, groups]: [any, AppointmentGroup[]] = await Promise.all([
-        apiFetch(`/api/v1/appointments/?ordering=appointmentAt`),
+        apiFetch(`/api/v1/appointments/?ordering=appointmentAt&date=${dailyRange.key}`),
         fetchGroups(dailyRange.key),
       ]);
       const items: AggregatedAppointmentRow[] = res?.data?.results ?? res?.results ?? (Array.isArray(res?.data) ? res.data : null) ?? (Array.isArray(res) ? res : []);
@@ -187,7 +186,31 @@ export const HomePage: React.FC = () => {
         .filter((row: AggregatedAppointmentRow) => !groupParticipantIds.has(String(row.id ?? "")))
         .map((row: AggregatedAppointmentRow) => mapAggregatedRowToAppointment(row));
       const grouped = groups.map(mapGroupToAppointment);
-      return [...regular, ...grouped];
+      const all = [...regular, ...grouped];
+
+      // Дозагружаем детали для regular (список не содержит services/performer)
+      await Promise.all(regular.map(async (appt, idx) => {
+        try {
+          const det: any = await apiFetch(`/api/v1/appointments/${appt.id}/`);
+          const d = det?.data ?? det;
+          if (!d) return;
+          const full = mapAggregatedRowToAppointment(d as AggregatedAppointmentRow);
+          const svc = d.services?.[0];
+          const pname = svc?.performerName ?? svc?.performer_name ?? full.doctor_name ?? appt.doctor_name;
+          const pid = svc
+            ? (typeof svc.performer === "string" ? svc.performer : (svc.performer?.id ?? ""))
+            : appt.doctor_id;
+          all[idx] = {
+            ...appt,
+            doctor_name: pname ?? appt.doctor_name,
+            doctor_id: pid ?? appt.doctor_id,
+            parsed_services: full.parsed_services ?? appt.parsed_services,
+            performer_ids: (pid ? [pid] : appt.performer_ids) ?? [],
+          };
+        } catch { /* ignore */ }
+      }));
+
+      return all;
     },
     staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
@@ -229,7 +252,7 @@ export const HomePage: React.FC = () => {
     rangeData.forEach((item: any) => {
       const raw = item.appointmentAt ?? item.appointment_at ?? "";
       if (!raw) return;
-      const day = dayjs(raw).format('YYYY-MM-DD');
+      const day = dayjsBishkek(raw).format('YYYY-MM-DD');
       if (day !== "Invalid Date") counts[day] = (counts[day] || 0) + 1;
     });
     setDayCounts(counts);

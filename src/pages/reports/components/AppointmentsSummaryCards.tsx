@@ -44,7 +44,7 @@ export const AppointmentsSummaryCards: React.FC<AppointmentsSummaryCardsProps> =
         queryFn: async () => {
             if (providedAppointments) return providedAppointments;
             const params = new URLSearchParams();
-            if (employeeId) params.set("employee", employeeId);
+            if (employeeId) params.set("specialist", employeeId);
             const res: any = await apiFetch(`/api/v1/appointments/?${params.toString()}`);
             return res?.data?.results ?? res?.results ?? [];
         },

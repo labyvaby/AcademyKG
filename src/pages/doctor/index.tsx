@@ -1,264 +1,140 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import dayjs from "dayjs";
+import React, { useState, useEffect, useMemo } from "react";
+import { dayjsBishkek } from "../../utility/dayjsBishkek";
 import {
     Box,
     Grid,
     useMediaQuery,
     useTheme,
-    Button,
     Stack,
     Typography,
-    IconButton,
     Tabs,
-    Tab
+    Tab,
+    Autocomplete,
+    TextField,
+    Avatar,
 } from "@mui/material";
-import CloseOutlined from "@mui/icons-material/CloseOutlined";
-import MedicalServicesOutlined from "@mui/icons-material/MedicalServicesOutlined";
 import { useNotification } from "@refinedev/core";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import type { Appointment, AggregatedAppointmentRow } from "../home/types";
 import { mapAggregatedRowToAppointment, compareAppointmentsByStatus } from "../home/types";
 import AppointmentsList from "../home/components/AppointmentsList";
 import { AppointmentDetailsCard } from "../home/components/AppointmentDetailsCard";
-import { DoctorConclusionPanel } from "./components/DoctorConclusionPanel";
 import { PageHeader, AppBottomSheet, DateNavigation } from "../../components/ui";
 import { useRefresh } from "../../contexts/refresh-context";
 import DoctorWorkDrawer from "../../components/home/DoctorWorkDrawer";
 import { usePermissions } from "../../hooks/usePermissions";
 import { fetchDoctors } from "../../services/employees";
 import type { EmployeesRow } from "../expenses/types";
+import { apiFetch } from "../../utility/apiClient";
 
 const DoctorWorkPage: React.FC = () => {
-    usePageTitle("Кабинет сотрудника");
+    usePageTitle("Кабинет специалиста");
     useNotification();
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down("md"));
     const { setOnRefresh } = useRefresh();
-    const { isAdmin, isRegistrator, employeeId } = usePermissions();
+    const { isAdmin, loading: permLoading, employeeId } = usePermissions();
+    const queryClient = useQueryClient();
 
-    // State
-    const [loading, setLoading] = useState(true);
-    const [appointments, setAppointments] = useState<Appointment[]>([]);
-    const [selectedAppointmentId, setSelectedAppointmentId] = useState<string | null>(null);
-    const [doctorWorkOpen, setDoctorWorkOpen] = useState(false);
-    const [doctors, setDoctors] = useState<EmployeesRow[]>([]);
+    const canSeeAll = isAdmin();
 
-    // Tab state for mobile view
-    const [activeTab, setActiveTab] = useState(0);
-    const [dayCounts, setDayCounts] = useState<Record<string, number>>({});
-
-    // Контроллеры для отмены запросов
-    const apptsCtrlRef = useRef<AbortController | null>(null);
-    const countsCtrlRef = useRef<AbortController | null>(null);
-
-    // Кэш для приемов и счетчиков
-    const appointmentsCache = useRef<Record<string, Appointment[]>>({});
-    const countsCache = useRef<Record<string, Record<string, number>>>({});
-
-    // Filter Date (Default Today)
     const [date, setDate] = useState(() => {
         const t = new Date();
-        const yyyy = t.getFullYear();
-        const mm = String(t.getMonth() + 1).padStart(2, "0");
-        const dd = String(t.getDate()).padStart(2, "0");
-        return `${yyyy}-${mm}-${dd}`;
+        return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, "0")}-${String(t.getDate()).padStart(2, "0")}`;
     });
+    const [selectedAppointmentId, setSelectedAppointmentId] = useState<string | null>(null);
+    const [doctorWorkOpen, setDoctorWorkOpen] = useState(false);
+    const [activeTab, setActiveTab] = useState(0);
+    const [selectedDoctorId, setSelectedDoctorId] = useState<string | null>(null);
 
-    // Derived
     const ruDateFromInput = useMemo(() => {
         if (!date) return "";
         const [yyyy, mm, dd] = date.split("-");
         return `${dd}.${mm}.${yyyy}`;
     }, [date]);
 
+    // --- Загрузка приёмов ---
+    const queryKey = ["doctor-appointments", date, employeeId, canSeeAll, selectedDoctorId];
 
-    // Fetch Appointments for Current Doctor (Optimized with Cache)
-    const fetchAppointments = useCallback(async (forceRefetch = false) => {
-        const selDate = date;
-
-        // Проверяем кэш
-        if (!forceRefetch && appointmentsCache.current[selDate]) {
-            setAppointments(appointmentsCache.current[selDate]);
-            setLoading(false);
-            return;
-        }
-
-        const prev = apptsCtrlRef.current;
-        if (prev) prev.abort();
-        const ctrl = new AbortController();
-        apptsCtrlRef.current = ctrl;
-
-        try {
-            setLoading(true);
-
-            // Оптимизация: используем данные из usePermissions
-            const doctorId = employeeId;
-
-            if (!doctorId) {
-                console.warn("Doctor ID not found in permissions");
-                setAppointments([]);
-                setLoading(false);
-                return;
+    const { data: appointments = [], isLoading, refetch } = useQuery<Appointment[]>({
+        queryKey,
+        queryFn: async () => {
+            const params = new URLSearchParams({ ordering: "appointmentAt", date });
+            if (!canSeeAll && employeeId) {
+                params.set("specialist", employeeId);
+            } else if (canSeeAll && selectedDoctorId) {
+                params.set("specialist", selectedDoctorId);
             }
-
-            const params = new URLSearchParams({
-                ordering: "appointmentAt",
+            const url = `/api/v1/appointments/?${params.toString()}`;
+            const res: any = await apiFetch(url);
+            const data: any[] = res?.data?.results ?? res?.results ?? [];
+            const specialistFilter = params.get("specialist");
+            return data.map((row: any) => {
+                const appt = mapAggregatedRowToAppointment(row as AggregatedAppointmentRow);
+                if (specialistFilter) {
+                    if (!appt.doctor_id) appt.doctor_id = specialistFilter;
+                    if (!appt.performer_ids?.length) appt.performer_ids = [specialistFilter];
+                }
+                return appt;
             });
-            if (!isAdmin() && doctorId) {
-                params.set("employee", doctorId);
-            }
+        },
+        enabled: !permLoading && (canSeeAll || !!employeeId),
+        staleTime: 2 * 60 * 1000,
+        refetchOnWindowFocus: false,
+    });
 
-            const { apiFetch } = await import("../../utility/apiClient");
+    // --- Счётчики дней (все приёмы специалиста без фильтра по дате) ---
+    const countsKey = ["doctor-counts", employeeId, canSeeAll, selectedDoctorId];
+
+    const { data: dayCounts = {} } = useQuery<Record<string, number>>({
+        queryKey: countsKey,
+        queryFn: async () => {
+            const params = new URLSearchParams({});
+            if (!canSeeAll && employeeId) params.set("specialist", employeeId);
+            else if (canSeeAll && selectedDoctorId) params.set("specialist", selectedDoctorId);
             const res: any = await apiFetch(`/api/v1/appointments/?${params.toString()}`);
             const data: any[] = res?.data?.results ?? res?.results ?? [];
+            const counts: Record<string, number> = {};
+            data.forEach(item => {
+                const raw = item.appointmentAt ?? item.appointment_at ?? "";
+                if (!raw) return;
+                const day = dayjsBishkek(raw).format("YYYY-MM-DD");
+                if (day && day !== "Invalid Date") counts[day] = (counts[day] || 0) + 1;
+            });
+            return counts;
+        },
+        enabled: !permLoading && (canSeeAll || !!employeeId),
+        staleTime: 2 * 60 * 1000,
+        refetchOnWindowFocus: false,
+    });
 
-            if (!ctrl.signal.aborted) {
-                const results = data.map((row: any) => mapAggregatedRowToAppointment(row as AggregatedAppointmentRow));
-                appointmentsCache.current[selDate] = results;
-                setAppointments(results);
-            }
+    // --- Список специалистов для суперадмин ---
+    const { data: doctors = [] } = useQuery<EmployeesRow[]>({
+        queryKey: ["doctor-page-doctors"],
+        queryFn: fetchDoctors,
+        enabled: canSeeAll,
+        staleTime: 5 * 60 * 1000,
+        refetchOnWindowFocus: false,
+    });
 
-        } catch (e) {
-            if (!isAbortError(e)) console.error(e);
-        } finally {
-            if (!ctrl.signal.aborted) setLoading(false);
-        }
-    }, [date, employeeId, isAdmin]);
-
-    function isAbortError(e: unknown): boolean {
-        return !!e && typeof e === "object" && (e as any).name === "AbortError";
-    }
-
-    useEffect(() => {
-        fetchAppointments();
-    }, [fetchAppointments]);
-
-    useEffect(() => {
-        if (isAdmin() || isRegistrator()) {
-            fetchDoctors().then(setDoctors);
-        }
-    }, [isAdmin, isRegistrator]);
-
-    // Загрузка количества приемов для диапазона дней (с оптимизацией кэширования)
-    const fetchRangeCounts = useCallback(async (forceRefetch = false) => {
-        const d = new Date(date);
-        const currentMonth = `${d.getFullYear()}-${d.getMonth() + 1}`;
-
-        if (!forceRefetch && countsCache.current[currentMonth] && !isAdmin()) {
-            setDayCounts(countsCache.current[currentMonth]);
-            return;
-        }
-
-        const prev = countsCtrlRef.current;
-        if (prev) prev.abort();
-        const ctrl = new AbortController();
-        countsCtrlRef.current = ctrl;
-
-        try {
-            const doctorId = employeeId;
-            if (!doctorId) return;
-
-            const start = new Date(d);
-            start.setDate(start.getDate() - 15);
-            const end = new Date(d);
-            end.setDate(end.getDate() + 15);
-
-            const startISO = start.toISOString().split('T')[0] + 'T00:00:00';
-            const endISO = end.toISOString().split('T')[0] + 'T23:59:59.999';
-
-            const countParams = new URLSearchParams({});
-            if (!isAdmin() && !isRegistrator() && doctorId) {
-                countParams.set("employee", doctorId);
-            }
-            const { apiFetch: apiFetchCounts } = await import("../../utility/apiClient");
-            const countRes: any = await apiFetchCounts(`/api/v1/appointments/?${countParams.toString()}`);
-            const data: any[] = countRes?.data?.results ?? countRes?.results ?? [];
-
-            if (!ctrl.signal.aborted) {
-                const counts: Record<string, number> = {};
-                (data || []).forEach(item => {
-                    if ((isAdmin() || isRegistrator()) && doctors.length > 0) {
-                        const pIds: string[] = Array.isArray(item.performer_ids) ? item.performer_ids : [];
-                        const isDoctorInvolved = pIds.some(id => doctors.some(d => d.id === id));
-                        if (!isDoctorInvolved) return; // Skip this appointment
-                    }
-                    const day = dayjs(item.appointment_at).format('YYYY-MM-DD');
-                    counts[day] = (counts[day] || 0) + 1;
-                });
-
-                countsCache.current[currentMonth] = counts;
-                setDayCounts(prev => ({ ...prev, ...counts }));
-            }
-        } catch (e) {
-            if (!isAbortError(e)) console.error("Error fetching day counts:", e);
-        }
-    }, [date, employeeId, isAdmin, isRegistrator, doctors]);
-
-    useEffect(() => {
-        fetchRangeCounts();
-        return () => {
-            if (countsCtrlRef.current) countsCtrlRef.current.abort();
-        };
-    }, [fetchRangeCounts]);
-
-    // Регистрация функции обновления для кнопки в Header и Realtime подписка
-    useEffect(() => {
-        const handleRefresh = () => {
-            // Очищаем кэш при ручном обновлении
-            delete appointmentsCache.current[date];
-            delete countsCache.current[`${new Date(date).getFullYear()}-${new Date(date).getMonth() + 1}`];
-            fetchAppointments(true);
-        };
-        setOnRefresh(() => handleRefresh);
-
-        return () => {
-            setOnRefresh(null);
-        };
-    }, [setOnRefresh, fetchAppointments, fetchRangeCounts, date, employeeId]);
-
-
-
-    // Frontend filtering by date to handle timezones correctly
-    const filteredAppointments = useMemo(() => {
-        return appointments.filter(a => {
-            if (date && !dayjs(a.appointment_at).isSame(dayjs(date), 'day')) return false;
-
-            // Filter by doctor if admin/superadmin
-            if ((isAdmin() || isRegistrator()) && doctors.length > 0) {
-                const pIds: string[] = Array.isArray(a.performer_ids) ? a.performer_ids : [];
-                const isDoctorInvolved = pIds.some(id => doctors.some(d => d.id === id));
-                if (!isDoctorInvolved) return false;
-            }
-
-            return true;
-        }).sort(compareAppointmentsByStatus);
-    }, [appointments, date, doctors, isAdmin, isRegistrator]);
+    // API уже фильтрует по дате (?date=), просто сортируем
+    const filteredAppointments = useMemo(() =>
+        [...appointments].sort(compareAppointmentsByStatus),
+    [appointments]);
 
     const selectedAppointment = useMemo(() =>
-        appointments.find(a => a.id === selectedAppointmentId) || null,
+        appointments.find(a => a.id === selectedAppointmentId) ?? null,
         [appointments, selectedAppointmentId]);
 
-    // Check if selected appointment has conclusion (from MedicalConclusions table)
-    const [hasConclusion, setHasConclusion] = useState(false);
-    const prevAppointmentIdRef = useRef<string | null>(null);
-
+    // --- Кнопка обновления ---
     useEffect(() => {
-        // Only reset to false when the selected appointment actually changes,
-        // not when appointments array updates (e.g. payment change).
-        // This prevents the conclusion panel (and printer icon) from flickering/disappearing.
-        if (prevAppointmentIdRef.current !== selectedAppointmentId) {
-            setHasConclusion(false);
-            prevAppointmentIdRef.current = selectedAppointmentId;
-        }
-
-        if (!selectedAppointmentId) {
-            return;
-        }
-
-        if (selectedAppointment?.has_conclusion || selectedAppointment?.conclusion || selectedAppointment?.diagnosis_code) {
-            setHasConclusion(true);
-        }
-    }, [selectedAppointmentId, appointments]);
+        setOnRefresh(() => () => {
+            queryClient.invalidateQueries({ queryKey: ["doctor-appointments"] });
+            queryClient.invalidateQueries({ queryKey: ["doctor-counts"] });
+        });
+        return () => setOnRefresh(null);
+    }, [setOnRefresh, queryClient]);
 
     return (
         <Box
@@ -273,7 +149,7 @@ const DoctorWorkPage: React.FC = () => {
             })}
         >
             <PageHeader
-                title="Кабинет сотрудника"
+                title="Кабинет специалиста"
                 showTitle={false}
                 dateNavigation={
                     <DateNavigation
@@ -284,116 +160,127 @@ const DoctorWorkPage: React.FC = () => {
                 }
             />
 
+            {canSeeAll && (
+                <Box sx={{ px: 2, pb: 1 }}>
+                    <Autocomplete
+                        size="small"
+                        options={doctors}
+                        value={doctors.find(d => d.id === selectedDoctorId) ?? null}
+                        onChange={(_, v) => setSelectedDoctorId(v?.id ?? null)}
+                        getOptionLabel={(d) => d.full_name ?? ""}
+                        isOptionEqualToValue={(a, b) => a.id === b.id}
+                        noOptionsText="Нет специалистов"
+                        renderOption={(props, d) => (
+                            <li {...props} key={d.id}>
+                                <Stack direction="row" spacing={1} alignItems="center">
+                                    <Avatar sx={{ width: 24, height: 24, fontSize: 12 }}>
+                                        {(d.full_name ?? "?")[0]}
+                                    </Avatar>
+                                    <Typography variant="body2">{d.full_name}</Typography>
+                                </Stack>
+                            </li>
+                        )}
+                        renderInput={(params) => (
+                            <TextField
+                                {...params}
+                                placeholder="Все специалисты"
+                                size="small"
+                                sx={{ minWidth: 220, bgcolor: "background.paper", borderRadius: 1 }}
+                            />
+                        )}
+                        sx={{ maxWidth: 320 }}
+                    />
+                </Box>
+            )}
 
-            {/* Columns */}
             <Box sx={(theme) => ({
                 flex: 1,
                 overflow: "hidden",
                 px: theme.appLayout.page.paddingX,
             })}>
-                <Grid container spacing={2} sx={{
-                    alignItems: "flex-start",
-                    height: "100%",
-                    boxSizing: "border-box"
-                }}>
-                    {/* Column 1: Appointments List */}
-                    <Grid item xs={12} md={6} sx={{
-                        height: '100%',
-                        overflow: 'hidden',
-                        pr: { md: 1 }
-                    }}>
+                <Grid container spacing={2} sx={{ alignItems: "flex-start", height: "100%", boxSizing: "border-box" }}>
+                    <Grid item xs={12} md={6} sx={{ height: "100%", overflow: "hidden", pr: { md: 1 } }}>
                         <AppointmentsList
                             titleDate={ruDateFromInput}
-                            loading={loading}
+                            loading={isLoading}
                             errorMsg={null}
                             items={filteredAppointments}
                             doctors={doctors}
-                            onOpenFilters={() => { }}
+                            onOpenFilters={() => {}}
                             onItemClick={(id) => {
                                 setSelectedAppointmentId(id);
                                 setActiveTab(0);
                             }}
-                            hideDoctorFilter={!(isAdmin() || isRegistrator())}
-                            restrictToDoctorId={(isAdmin() || isRegistrator()) ? undefined : (employeeId ?? undefined)}
+                            hideDoctorFilter={!canSeeAll || !!selectedDoctorId}
+                            restrictToDoctorId={!canSeeAll ? (employeeId ?? undefined) : undefined}
                         />
                     </Grid>
 
-                    {/* Column 2: Appointment Details (Desktop) */}
                     {!isMobile && (
-                        <Grid item xs={12} md={6} sx={{
-                            height: '100%',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            pl: { md: 1 },
-                            pr: { md: 1 }
-                        }}>
+                        <Grid item xs={12} md={6} sx={{ height: "100%", display: "flex", flexDirection: "column", pl: { md: 1 }, pr: { md: 1 } }}>
                             {selectedAppointmentId ? (
                                 <AppointmentDetailsCard
                                     appointmentId={selectedAppointmentId}
                                     onClose={() => setSelectedAppointmentId(null)}
-                                    onUpdate={fetchAppointments}
+                                    onUpdate={() => {
+                                        queryClient.invalidateQueries({ queryKey: ["doctor-appointments"] });
+                                        queryClient.invalidateQueries({ queryKey: ["doctor-counts"] });
+                                    }}
                                 />
                             ) : (
-                                <Box
-                                    sx={{
-                                        height: "100%",
-                                        display: "flex",
-                                        alignItems: "center",
-                                        justifyContent: "center",
-                                        border: "1px dashed",
-                                        borderColor: "divider",
-                                        borderRadius: 1,
-                                        color: "text.secondary",
-                                        bgcolor: "background.paper"
-                                    }}
-                                >
+                                <Box sx={{
+                                    height: "100%",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    border: "1px dashed",
+                                    borderColor: "divider",
+                                    borderRadius: 1,
+                                    color: "text.secondary",
+                                    bgcolor: "background.paper",
+                                }}>
                                     Выберите прием из списка
                                 </Box>
                             )}
                         </Grid>
                     )}
-
                 </Grid>
             </Box>
 
-            {/* Mobile Bottom Sheet for Details */}
             {isMobile && (
                 <AppBottomSheet
                     open={Boolean(selectedAppointmentId)}
-                    onClose={() => {
-                        setSelectedAppointmentId(null);
-                    }}
+                    onClose={() => setSelectedAppointmentId(null)}
                 >
-                    <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-                        <Tabs
-                            value={activeTab}
-                            onChange={(_, v) => setActiveTab(v)}
-                            variant="fullWidth"
-                            scrollButtons="auto"
-                        >
+                    <Box sx={{ borderBottom: 1, borderColor: "divider" }}>
+                        <Tabs value={activeTab} onChange={(_, v) => setActiveTab(v)} variant="fullWidth">
                             <Tab label="Прием" />
+                            <Tab label="Работа" />
                         </Tabs>
                     </Box>
-
-                    <Box sx={{ p: 0, height: 'calc(100% - 49px)', overflowY: 'auto' }}>
+                    {activeTab === 0 && selectedAppointmentId && (
                         <AppointmentDetailsCard
                             appointmentId={selectedAppointmentId}
                             onClose={() => setSelectedAppointmentId(null)}
-                            onUpdate={fetchAppointments}
+                            onUpdate={() => {
+                                queryClient.invalidateQueries({ queryKey: ["doctor-appointments"] });
+                                queryClient.invalidateQueries({ queryKey: ["doctor-counts"] });
+                            }}
                         />
-                    </Box>
+                    )}
+                    {activeTab === 1 && (
+                        <Box sx={{ p: 2 }}>
+                            <Typography variant="body2" color="text.secondary">Работа</Typography>
+                        </Box>
+                    )}
                 </AppBottomSheet>
             )}
 
-            {/* Doctor Work Drawer for editing conclusions */}
             <DoctorWorkDrawer
                 open={doctorWorkOpen}
                 onClose={() => setDoctorWorkOpen(false)}
                 appointment={selectedAppointment}
-                onSuccess={() => {
-                    fetchAppointments();
-                    setDoctorWorkOpen(false);
-                }}
+                onSuccess={() => queryClient.invalidateQueries({ queryKey: ["doctor-appointments"] })}
             />
         </Box>
     );

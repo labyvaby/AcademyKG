@@ -18,6 +18,7 @@ import CloseOutlined from "@mui/icons-material/CloseOutlined";
 import AccountBalanceWalletOutlined from "@mui/icons-material/AccountBalanceWalletOutlined";
 import CreditCardOutlined from "@mui/icons-material/CreditCardOutlined";
 import CardGiftcardOutlined from "@mui/icons-material/CardGiftcardOutlined";
+// AccountBalanceWalletOutlined и CreditCardOutlined используются в полях оплаты (Наличные/Безналичные)
 
 import { APPOINTMENT_STATUSES } from "../../../config/appointmentStatuses";
 import { Appointment, type AppointmentServiceJson } from "../types";
@@ -54,8 +55,8 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
     const [card, setCard] = useState<number | "">("");
     const [discountPercent, setDiscountPercent] = useState<number>(0);
     const [adminComment, setAdminComment] = useState("");
-    const [balanceUsed, setBalanceUsed] = useState<number>(0);
-    const [bonusesUsed, setBonusesUsed] = useState<number>(0);
+    const balanceUsed = 0; // Нал/Безнал счёт убран, остались только баллы
+    const [pointsUsed, setPointsUsed] = useState<number>(0);
 
     // Load patient balance
     const { balance: patientBalance, reload: reloadBalance } = usePatientBalance(
@@ -127,8 +128,7 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
             if (lastInitializedId.current !== appointment.id || lastInitializedId.current === null) {
                 setCash(appointment.paid_cash || "");
                 setCard(appointment.paid_card || "");
-                setBalanceUsed(appointment.paid_balance || 0);
-                setBonusesUsed(appointment.paid_bonuses || 0);
+                setPointsUsed(appointment.paid_bonuses || 0);
 
                 // Вычисляем процент скидки из сохранённых данных.
                 // basePrice здесь уже восстановлен (total_amount + discount),
@@ -176,7 +176,7 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
     // Total Paid Input
     const cashNum = Number(cash || 0);
     const cardNum = Number(card || 0);
-    const totalPaid = cashNum + cardNum + balanceUsed + bonusesUsed;
+    const totalPaid = cashNum + cardNum + balanceUsed + pointsUsed;
 
     // Debt = finalPrice - totalPaid
     const debt = Math.max(0, finalPrice - totalPaid);
@@ -242,17 +242,17 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
         if (!appointment?.patient_id) return;
 
         const balanceDiff = balanceUsed - (appointment.paid_balance || 0);
-        const bonusesDiff = bonusesUsed - (appointment.paid_bonuses || 0);
+        const pointsDiff = pointsUsed - (appointment.paid_bonuses || 0);
 
-        if (balanceDiff === 0 && bonusesDiff === 0) return;
+        if (balanceDiff === 0 && pointsDiff === 0) return;
 
-        if (balanceDiff > 0 || bonusesUsed > appointment.paid_bonuses) {
+        if (balanceDiff > 0 || pointsUsed > appointment.paid_bonuses) {
             // Deduct increment using API RPC or adjustment endpoint
             await apiFetch(`/api/v1/rpc/deduct_patient_balance/`, {
                 method: "POST",
                 body: JSON.stringify({
                     patient: appointment.patient_id,
-                    amount: Math.max(0, balanceDiff) + Math.max(0, bonusesUsed)
+                    amount: Math.max(0, balanceDiff) + Math.max(0, pointsUsed)
                 })
             });
         }
@@ -269,14 +269,14 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
             });
         }
 
-        if (bonusesDiff < 0) {
-            // Refund bonuses using API
+        if (pointsDiff < 0) {
+            // Refund points using API
             await apiFetch(`/api/v1/rpc/top_up_patient_balance/`, {
                 method: "POST",
                 body: JSON.stringify({
                     patient: appointment.patient_id,
-                    amount: Math.abs(bonusesDiff),
-                    comment: `Возврат бонусов за приём (корректировка)`
+                    amount: Math.abs(pointsDiff),
+                    comment: `Возврат баллов за приём (корректировка)`
                 })
             });
         }
@@ -316,7 +316,7 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
             paid_cash: cashNum,
             paid_card: cardNum,
             paid_balance: balanceUsed,
-            paid_bonuses: bonusesUsed,
+            paid_bonuses: pointsUsed,
             discount: discountAmount,
             debt: debt,
             admin_comment: adminComment,
@@ -346,7 +346,7 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
                     paidCash: cashNum,
                     paidCard: cardNum,
                     paidBalance: balanceUsed,
-                    paidBonuses: bonusesUsed,
+                    paidBonuses: pointsUsed,
                     discount: discountAmount,
                     debt: debt,
                     adminComment: adminComment,
@@ -440,77 +440,37 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
                             </Typography>
 
                             <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                                Счёт клиента
+                                Баллы клиента
                             </Typography>
-                            <Stack direction="row" spacing={1}>
-                                {/* Нал */}
-                                <Box sx={{
-                                    flex: 1, borderRadius: 1.5, border: '1px solid',
-                                    borderColor: balanceUsed > 0 ? 'success.main' : 'divider',
-                                    bgcolor: balanceUsed > 0 ? (theme) => alpha(theme.palette.success.main, 0.08) : 'background.paper',
-                                    p: 1.25, textAlign: 'center', transition: 'all 0.2s',
-                                }}>
-                                    <Stack direction="row" alignItems="center" justifyContent="center" spacing={0.5} mb={0.25}>
-                                        <AccountBalanceWalletOutlined sx={{ fontSize: 13, color: 'success.main' }} />
-                                        <Typography variant="caption" color="text.secondary">Нал</Typography>
+                            {/* Баллы */}
+                            <Box sx={{
+                                borderRadius: 1.5, border: '1px solid',
+                                borderColor: pointsUsed > 0 ? 'warning.main' : 'divider',
+                                bgcolor: pointsUsed > 0 ? (theme) => alpha(theme.palette.warning.main, 0.08) : 'background.paper',
+                                p: 1.5, transition: 'all 0.2s',
+                            }}>
+                                <Stack direction="row" alignItems="center" justifyContent="space-between">
+                                    <Stack direction="row" alignItems="center" spacing={1}>
+                                        <CardGiftcardOutlined sx={{ fontSize: 20, color: 'warning.main' }} />
+                                        <Box>
+                                            <Typography variant="caption" color="text.secondary" display="block">Доступно баллов</Typography>
+                                            <Typography variant="body1" fontWeight={700} color="warning.main">
+                                                {(patientBalance?.bonuses ?? 0).toLocaleString()} сом
+                                            </Typography>
+                                        </Box>
                                     </Stack>
-                                    <Typography variant="body2" fontWeight={700} color="success.main">
-                                        {(patientBalance?.cashBalance ?? 0).toLocaleString()} сом
-                                    </Typography>
-                                    {((patientBalance?.cashBalance ?? 0) > 0 || balanceUsed > 0) && (
-                                        <Button size="small" variant={balanceUsed > 0 ? "contained" : "text"} color="success"
-                                            sx={{ mt: 0.5, minWidth: 'auto', px: 1, py: 0, fontSize: '0.65rem', textTransform: 'none', lineHeight: 1.6 }}
+                                    {((patientBalance?.bonuses ?? 0) > 0 || pointsUsed > 0) && (
+                                        <Button size="small" variant={pointsUsed > 0 ? "contained" : "outlined"} color="warning"
+                                            sx={{ minWidth: 90, textTransform: 'none' }}
                                             onClick={() => {
-                                                if (balanceUsed > 0) { setBalanceUsed(0); }
-                                                else { setBalanceUsed(Math.min(patientBalance?.cashBalance ?? 0, Math.max(0, finalPrice - cardNum - bonusesUsed))); }
+                                                if (pointsUsed > 0) { setPointsUsed(0); }
+                                                else { setPointsUsed(Math.min(patientBalance?.bonuses ?? 0, Math.max(0, finalPrice - cashNum - cardNum))); }
                                             }}>
-                                            {balanceUsed > 0 ? "Убрать" : "Применить"}
+                                            {pointsUsed > 0 ? `Убрать (${pointsUsed.toLocaleString()})` : "Применить"}
                                         </Button>
                                     )}
-                                </Box>
-
-                                {/* Безнал */}
-                                <Box sx={{
-                                    flex: 1, borderRadius: 1.5, border: '1px solid',
-                                    borderColor: 'divider',
-                                    bgcolor: 'background.paper',
-                                    p: 1.25, textAlign: 'center',
-                                }}>
-                                    <Stack direction="row" alignItems="center" justifyContent="center" spacing={0.5} mb={0.25}>
-                                        <CreditCardOutlined sx={{ fontSize: 13, color: 'info.main' }} />
-                                        <Typography variant="caption" color="text.secondary">Безнал</Typography>
-                                    </Stack>
-                                    <Typography variant="body2" fontWeight={700} color="info.main">
-                                        {(patientBalance?.cardBalance ?? 0).toLocaleString()} сом
-                                    </Typography>
-                                </Box>
-
-                                {/* Бонусы */}
-                                <Box sx={{
-                                    flex: 1, borderRadius: 1.5, border: '1px solid',
-                                    borderColor: bonusesUsed > 0 ? 'warning.main' : 'divider',
-                                    bgcolor: bonusesUsed > 0 ? (theme) => alpha(theme.palette.warning.main, 0.08) : 'background.paper',
-                                    p: 1.25, textAlign: 'center', transition: 'all 0.2s',
-                                }}>
-                                    <Stack direction="row" alignItems="center" justifyContent="center" spacing={0.5} mb={0.25}>
-                                        <CardGiftcardOutlined sx={{ fontSize: 13, color: 'warning.main' }} />
-                                        <Typography variant="caption" color="text.secondary">Бонусы</Typography>
-                                    </Stack>
-                                    <Typography variant="body2" fontWeight={700} color="warning.main">
-                                        {(patientBalance?.bonuses ?? 0).toLocaleString()} сом
-                                    </Typography>
-                                    {((patientBalance?.bonuses ?? 0) > 0 || bonusesUsed > 0) && (
-                                        <Button size="small" variant={bonusesUsed > 0 ? "contained" : "text"} color="warning"
-                                            sx={{ mt: 0.5, minWidth: 'auto', px: 1, py: 0, fontSize: '0.65rem', textTransform: 'none', lineHeight: 1.6 }}
-                                            onClick={() => {
-                                                if (bonusesUsed > 0) { setBonusesUsed(0); }
-                                                else { setBonusesUsed(Math.min(patientBalance?.bonuses ?? 0, Math.max(0, finalPrice - cashNum - cardNum - balanceUsed))); }
-                                            }}>
-                                            {bonusesUsed > 0 ? "Убрать" : "Применить"}
-                                        </Button>
-                                    )}
-                                </Box>
-                            </Stack>
+                                </Stack>
+                            </Box>
                         </Box>
 
                         <Divider sx={{ my: 1 }} />
@@ -554,7 +514,7 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
                                             size="small"
                                             variant="text"
                                             onClick={() => {
-                                                setCash(Math.max(0, finalPrice - balanceUsed - bonusesUsed));
+                                                setCash(Math.max(0, finalPrice - pointsUsed));
                                                 setCard(0);
                                             }}
                                             sx={{ minWidth: 'auto', px: 1, fontSize: '0.7rem', textTransform: 'none' }}
@@ -575,7 +535,7 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
                                                 } else {
                                                     const val = Number(e.target.value);
                                                     // Ограничиваем сумму: не больше итоговой суммы минус другие виды платежа
-                                                    const maxAllowed = Math.max(0, finalPrice - cardNum - balanceUsed - bonusesUsed);
+                                                    const maxAllowed = Math.max(0, finalPrice - cardNum - pointsUsed);
                                                     setCash(Math.min(val, maxAllowed));
                                                 }
                                             }}
@@ -595,7 +555,7 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
                                             size="small"
                                             variant="text"
                                             onClick={() => {
-                                                setCard(Math.max(0, finalPrice - balanceUsed - bonusesUsed));
+                                                setCard(Math.max(0, finalPrice - pointsUsed));
                                                 setCash(0);
                                             }}
                                             sx={{ minWidth: 'auto', px: 1, fontSize: '0.7rem', textTransform: 'none' }}
@@ -616,7 +576,7 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
                                                 } else {
                                                     const val = Number(e.target.value);
                                                     // Ограничиваем сумму: не больше итоговой суммы минус другие виды платежа
-                                                    const maxAllowed = Math.max(0, finalPrice - cashNum - balanceUsed - bonusesUsed);
+                                                    const maxAllowed = Math.max(0, finalPrice - cashNum - pointsUsed);
                                                     setCard(Math.min(val, maxAllowed));
                                                 }
                                             }}
@@ -628,31 +588,21 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
                                 </Stack>
                             </Stack>
 
-                            {/* Со счёта клиента */}
-                            {(balanceUsed > 0 || bonusesUsed > 0) && (
+                            {/* Со счёта клиента — только баллы */}
+                            {pointsUsed > 0 && (
                                 <Paper
                                     elevation={0}
                                     sx={{
                                         p: 1.25,
-                                        bgcolor: (theme) => alpha(theme.palette.success.main, 0.06),
+                                        bgcolor: (theme) => alpha(theme.palette.warning.main, 0.06),
                                         border: '1px solid',
-                                        borderColor: (theme) => alpha(theme.palette.success.main, 0.2),
+                                        borderColor: (theme) => alpha(theme.palette.warning.main, 0.2),
                                         borderRadius: 1,
                                     }}
                                 >
-                                    <Stack spacing={0.5}>
-                                        {balanceUsed > 0 && (
-                                            <Stack direction="row" justifyContent="space-between">
-                                                <Typography variant="caption" color="success.main">Со счёта</Typography>
-                                                <Typography variant="caption" color="success.main" fontWeight={600}>− {balanceUsed.toLocaleString()} сом</Typography>
-                                            </Stack>
-                                        )}
-                                        {bonusesUsed > 0 && (
-                                            <Stack direction="row" justifyContent="space-between">
-                                                <Typography variant="caption" color="warning.main">Бонусами</Typography>
-                                                <Typography variant="caption" color="warning.main" fontWeight={600}>− {bonusesUsed.toLocaleString()} сом</Typography>
-                                            </Stack>
-                                        )}
+                                    <Stack direction="row" justifyContent="space-between">
+                                        <Typography variant="caption" color="warning.main">Баллами</Typography>
+                                        <Typography variant="caption" color="warning.main" fontWeight={600}>− {pointsUsed.toLocaleString()} сом</Typography>
                                     </Stack>
                                 </Paper>
                             )}
