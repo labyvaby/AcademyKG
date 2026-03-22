@@ -275,6 +275,412 @@ paths:
                   meta:
                     type: object
           description: ''
+  /api/v1/appointment-groups/{id}/:
+    get:
+      operationId: v1AppointmentGroupsRetrieve
+      summary: Групповой приём (детально)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this Групповой приём.
+        required: true
+      tags:
+      - Групповые приёмы
+      security:
+      - jwtAuth: []
+      responses:
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/V1AppointmentGroupsRetrieveErrorResponse400'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse401'
+              examples:
+                AuthenticationFailed:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: authentication_failed
+                      detail: Некорректные учетные данные.
+                      attr: null
+                NotAuthenticated:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: not_authenticated
+                      detail: Учетные данные не были предоставлены.
+                      attr: null
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse404'
+              examples:
+                NotFound:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: not_found
+                      detail: Страница не найдена.
+                      attr: null
+          description: ''
+        '405':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse405'
+              examples:
+                MethodNotAllowed:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: method_not_allowed
+                      detail: Метод "get" не разрешен.
+                      attr: null
+          description: ''
+        '406':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse406'
+              examples:
+                NotAcceptable:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: not_acceptable
+                      detail: Невозможно удовлетворить "Accept" заголовок запроса.
+                      attr: null
+          description: ''
+        '415':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse415'
+              examples:
+                UnsupportedMediaType:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: unsupported_media_type
+                      detail: Неподдерживаемый тип данных "application/json" в запросе.
+                      attr: null
+          description: ''
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse500'
+              examples:
+                APIException:
+                  value:
+                    type: server_error
+                    errors:
+                    - code: error
+                      detail: Ошибка сервера.
+                      attr: null
+          description: ''
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/AppointmentGroupList'
+                  meta:
+                    type: object
+          description: ''
+    patch:
+      operationId: v1AppointmentGroupsPartialUpdate
+      description: Дата/время, тренер, услуга (все поля опциональны).
+      summary: Изменить групповой приём
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this Групповой приём.
+        required: true
+      tags:
+      - Групповые приёмы
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedAppointmentGroupPartialUpdateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedAppointmentGroupPartialUpdateRequest'
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedAppointmentGroupPartialUpdateRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/V1AppointmentGroupsPartialUpdateErrorResponse400'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse401'
+              examples:
+                AuthenticationFailed:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: authentication_failed
+                      detail: Некорректные учетные данные.
+                      attr: null
+                NotAuthenticated:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: not_authenticated
+                      detail: Учетные данные не были предоставлены.
+                      attr: null
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse403'
+              examples:
+                PermissionDenied:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: permission_denied
+                      detail: У вас недостаточно прав для выполнения данного действия.
+                      attr: null
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse404'
+              examples:
+                NotFound:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: not_found
+                      detail: Страница не найдена.
+                      attr: null
+          description: ''
+        '405':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse405'
+              examples:
+                MethodNotAllowed:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: method_not_allowed
+                      detail: Метод "get" не разрешен.
+                      attr: null
+          description: ''
+        '406':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse406'
+              examples:
+                NotAcceptable:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: not_acceptable
+                      detail: Невозможно удовлетворить "Accept" заголовок запроса.
+                      attr: null
+          description: ''
+        '415':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse415'
+              examples:
+                UnsupportedMediaType:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: unsupported_media_type
+                      detail: Неподдерживаемый тип данных "application/json" в запросе.
+                      attr: null
+          description: ''
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse500'
+              examples:
+                APIException:
+                  value:
+                    type: server_error
+                    errors:
+                    - code: error
+                      detail: Ошибка сервера.
+                      attr: null
+          description: ''
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/AppointmentGroupPartialUpdate'
+                  meta:
+                    type: object
+          description: ''
+    delete:
+      operationId: v1AppointmentGroupsDestroy
+      description: Только superadmin (или Django superuser). Удаляет группу и приёмы
+        участников.
+      summary: Удалить групповой приём
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this Групповой приём.
+        required: true
+      tags:
+      - Групповые приёмы
+      security:
+      - jwtAuth: []
+      responses:
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/V1AppointmentGroupsDestroyErrorResponse400'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse401'
+              examples:
+                AuthenticationFailed:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: authentication_failed
+                      detail: Некорректные учетные данные.
+                      attr: null
+                NotAuthenticated:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: not_authenticated
+                      detail: Учетные данные не были предоставлены.
+                      attr: null
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse403'
+              examples:
+                PermissionDenied:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: permission_denied
+                      detail: У вас недостаточно прав для выполнения данного действия.
+                      attr: null
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse404'
+              examples:
+                NotFound:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: not_found
+                      detail: Страница не найдена.
+                      attr: null
+          description: ''
+        '405':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse405'
+              examples:
+                MethodNotAllowed:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: method_not_allowed
+                      detail: Метод "get" не разрешен.
+                      attr: null
+          description: ''
+        '406':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse406'
+              examples:
+                NotAcceptable:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: not_acceptable
+                      detail: Невозможно удовлетворить "Accept" заголовок запроса.
+                      attr: null
+          description: ''
+        '415':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse415'
+              examples:
+                UnsupportedMediaType:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: unsupported_media_type
+                      detail: Неподдерживаемый тип данных "application/json" в запросе.
+                      attr: null
+          description: ''
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse500'
+              examples:
+                APIException:
+                  value:
+                    type: server_error
+                    errors:
+                    - code: error
+                      detail: Ошибка сервера.
+                      attr: null
+          description: ''
+        '204':
+          description: No response body
   /api/v1/appointment-groups/{id}/add-participant/:
     post:
       operationId: v1AppointmentGroupsAddParticipantCreate
@@ -410,6 +816,146 @@ paths:
                 properties:
                   data:
                     $ref: '#/components/schemas/AddParticipant'
+                  meta:
+                    type: object
+          description: ''
+  /api/v1/appointment-groups/{id}/trainer-not-came/:
+    post:
+      operationId: v1AppointmentGroupsTrainerNotCameCreate
+      description: Статус not_came для всех участников, кроме paid и cancelled.
+      summary: Тренер не пришёл
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this Групповой приём.
+        required: true
+      tags:
+      - Групповые приёмы
+      security:
+      - jwtAuth: []
+      responses:
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/V1AppointmentGroupsTrainerNotCameCreateErrorResponse400'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse401'
+              examples:
+                AuthenticationFailed:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: authentication_failed
+                      detail: Некорректные учетные данные.
+                      attr: null
+                NotAuthenticated:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: not_authenticated
+                      detail: Учетные данные не были предоставлены.
+                      attr: null
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse403'
+              examples:
+                PermissionDenied:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: permission_denied
+                      detail: У вас недостаточно прав для выполнения данного действия.
+                      attr: null
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse404'
+              examples:
+                NotFound:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: not_found
+                      detail: Страница не найдена.
+                      attr: null
+          description: ''
+        '405':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse405'
+              examples:
+                MethodNotAllowed:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: method_not_allowed
+                      detail: Метод "get" не разрешен.
+                      attr: null
+          description: ''
+        '406':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse406'
+              examples:
+                NotAcceptable:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: not_acceptable
+                      detail: Невозможно удовлетворить "Accept" заголовок запроса.
+                      attr: null
+          description: ''
+        '415':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse415'
+              examples:
+                UnsupportedMediaType:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: unsupported_media_type
+                      detail: Неподдерживаемый тип данных "application/json" в запросе.
+                      attr: null
+          description: ''
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse500'
+              examples:
+                APIException:
+                  value:
+                    type: server_error
+                    errors:
+                    - code: error
+                      detail: Ошибка сервера.
+                      attr: null
+          description: ''
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/AppointmentGroupList'
                   meta:
                     type: object
           description: ''
@@ -18036,12 +18582,12 @@ components:
           title: Оплачено бонусами
         adminComment:
           type: string
+          default: ''
         services:
           type: array
           items:
             $ref: '#/components/schemas/AppointmentServiceWrite'
       required:
-      - adminComment
       - appointmentAt
     AppointmentCreateRequest:
       type: object
@@ -18091,13 +18637,12 @@ components:
           title: Оплачено бонусами
         adminComment:
           type: string
-          minLength: 1
+          default: ''
         services:
           type: array
           items:
             $ref: '#/components/schemas/AppointmentServiceWriteRequest'
       required:
-      - adminComment
       - appointmentAt
     AppointmentDetail:
       type: object
@@ -18443,6 +18988,19 @@ components:
       - price
       - sellableItemId
       - sellableItemName
+    AppointmentGroupPartialUpdate:
+      type: object
+      description: 'PATCH группы: все поля опциональны (camelCase приходит через парсер).'
+      properties:
+        appointmentAt:
+          type: string
+          format: date-time
+        performer:
+          type: string
+          format: uuid
+        sellableItem:
+          type: string
+          format: uuid
     AppointmentList:
       type: object
       properties:
@@ -21029,6 +21587,19 @@ components:
         description:
           type: string
           title: Описание
+    PatchedAppointmentGroupPartialUpdateRequest:
+      type: object
+      description: 'PATCH группы: все поля опциональны (camelCase приходит через парсер).'
+      properties:
+        appointmentAt:
+          type: string
+          format: date-time
+        performer:
+          type: string
+          format: uuid
+        sellableItem:
+          type: string
+          format: uuid
     PatchedAppointmentUpdateRequest:
       type: object
       properties:
@@ -23644,6 +24215,13 @@ components:
       required:
       - errors
       - type
+    V1AppointmentGroupsDestroyErrorResponse400:
+      oneOf:
+      - $ref: '#/components/schemas/ParseErrorResponse'
+      discriminator:
+        propertyName: type
+        mapping:
+          client_error: '#/components/schemas/ParseErrorResponse'
     V1AppointmentGroupsListDateErrorComponent:
       type: object
       properties:
@@ -23691,6 +24269,148 @@ components:
       required:
       - errors
       - type
+    V1AppointmentGroupsPartialUpdateAppointmentAtErrorComponent:
+      type: object
+      properties:
+        attr:
+          enum:
+          - appointment_at
+          type: string
+          description: '* `appointment_at` - appointment_at'
+        code:
+          enum:
+          - date
+          - invalid
+          - make_aware
+          - 'null'
+          - overflow
+          type: string
+          description: |-
+            * `date` - date
+            * `invalid` - invalid
+            * `make_aware` - make_aware
+            * `null` - null
+            * `overflow` - overflow
+        detail:
+          type: string
+      required:
+      - attr
+      - code
+      - detail
+    V1AppointmentGroupsPartialUpdateError:
+      oneOf:
+      - $ref: '#/components/schemas/V1AppointmentGroupsPartialUpdateNonFieldErrorsErrorComponent'
+      - $ref: '#/components/schemas/V1AppointmentGroupsPartialUpdateAppointmentAtErrorComponent'
+      - $ref: '#/components/schemas/V1AppointmentGroupsPartialUpdatePerformerErrorComponent'
+      - $ref: '#/components/schemas/V1AppointmentGroupsPartialUpdateSellableItemErrorComponent'
+      discriminator:
+        propertyName: attr
+        mapping:
+          non_field_errors: '#/components/schemas/V1AppointmentGroupsPartialUpdateNonFieldErrorsErrorComponent'
+          appointment_at: '#/components/schemas/V1AppointmentGroupsPartialUpdateAppointmentAtErrorComponent'
+          performer: '#/components/schemas/V1AppointmentGroupsPartialUpdatePerformerErrorComponent'
+          sellable_item: '#/components/schemas/V1AppointmentGroupsPartialUpdateSellableItemErrorComponent'
+    V1AppointmentGroupsPartialUpdateErrorResponse400:
+      oneOf:
+      - $ref: '#/components/schemas/V1AppointmentGroupsPartialUpdateValidationError'
+      - $ref: '#/components/schemas/ParseErrorResponse'
+      discriminator:
+        propertyName: type
+        mapping:
+          validation_error: '#/components/schemas/V1AppointmentGroupsPartialUpdateValidationError'
+          client_error: '#/components/schemas/ParseErrorResponse'
+    V1AppointmentGroupsPartialUpdateNonFieldErrorsErrorComponent:
+      type: object
+      properties:
+        attr:
+          enum:
+          - non_field_errors
+          type: string
+          description: '* `non_field_errors` - non_field_errors'
+        code:
+          enum:
+          - invalid
+          - 'null'
+          type: string
+          description: |-
+            * `invalid` - invalid
+            * `null` - null
+        detail:
+          type: string
+      required:
+      - attr
+      - code
+      - detail
+    V1AppointmentGroupsPartialUpdatePerformerErrorComponent:
+      type: object
+      properties:
+        attr:
+          enum:
+          - performer
+          type: string
+          description: '* `performer` - performer'
+        code:
+          enum:
+          - invalid
+          - 'null'
+          type: string
+          description: |-
+            * `invalid` - invalid
+            * `null` - null
+        detail:
+          type: string
+      required:
+      - attr
+      - code
+      - detail
+    V1AppointmentGroupsPartialUpdateSellableItemErrorComponent:
+      type: object
+      properties:
+        attr:
+          enum:
+          - sellable_item
+          type: string
+          description: '* `sellable_item` - sellable_item'
+        code:
+          enum:
+          - invalid
+          - 'null'
+          type: string
+          description: |-
+            * `invalid` - invalid
+            * `null` - null
+        detail:
+          type: string
+      required:
+      - attr
+      - code
+      - detail
+    V1AppointmentGroupsPartialUpdateValidationError:
+      type: object
+      properties:
+        type:
+          $ref: '#/components/schemas/ValidationErrorEnum'
+        errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/V1AppointmentGroupsPartialUpdateError'
+      required:
+      - errors
+      - type
+    V1AppointmentGroupsRetrieveErrorResponse400:
+      oneOf:
+      - $ref: '#/components/schemas/ParseErrorResponse'
+      discriminator:
+        propertyName: type
+        mapping:
+          client_error: '#/components/schemas/ParseErrorResponse'
+    V1AppointmentGroupsTrainerNotCameCreateErrorResponse400:
+      oneOf:
+      - $ref: '#/components/schemas/ParseErrorResponse'
+      discriminator:
+        propertyName: type
+        mapping:
+          client_error: '#/components/schemas/ParseErrorResponse'
     V1AppointmentsAggregatedRetrieveErrorResponse400:
       oneOf:
       - $ref: '#/components/schemas/ParseErrorResponse'
@@ -23708,19 +24428,15 @@ components:
           description: '* `admin_comment` - admin_comment'
         code:
           enum:
-          - blank
           - invalid
           - 'null'
           - null_characters_not_allowed
-          - required
           - surrogate_characters_not_allowed
           type: string
           description: |-
-            * `blank` - blank
             * `invalid` - invalid
             * `null` - null
             * `null_characters_not_allowed` - null_characters_not_allowed
-            * `required` - required
             * `surrogate_characters_not_allowed` - surrogate_characters_not_allowed
         detail:
           type: string

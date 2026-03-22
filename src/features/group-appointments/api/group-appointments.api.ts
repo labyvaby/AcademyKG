@@ -135,13 +135,14 @@ export async function updateGroup(
   return toGroup(res?.data ?? res);
 }
 
-export async function setGroupTrainerNotCame(groupId: string): Promise<void> {
-  // Помечаем всех участников статусом not_came через групповой endpoint или поштучно
-  await apiFetch(`/api/v1/appointment-groups/${groupId}/`, {
-    method: "PATCH",
+export async function setGroupTrainerNotCame(groupId: string): Promise<AppointmentGroup | null> {
+  const res: any = await apiFetch(`/api/v1/appointment-groups/${groupId}/trainer-not-came/`, {
+    method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ status: "not_came" }),
+    body: JSON.stringify({}),
   });
+  const data = res?.data ?? res;
+  return data?.id ? toGroup(data) : null;
 }
 
 export async function payParticipant(

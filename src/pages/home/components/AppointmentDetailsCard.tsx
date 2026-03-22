@@ -185,7 +185,13 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
             method: "DELETE",
         });
 
-        // onUpdate(); // Parent should refresh list
+        // Чистим кэш истории клиентов
+        try {
+          Object.keys(localStorage)
+            .filter(k => k.startsWith("patientSearch.history.v1."))
+            .forEach(k => localStorage.removeItem(k));
+        } catch { /* ignore */ }
+
         open?.({
           message: "Прием удален",
           type: "success",

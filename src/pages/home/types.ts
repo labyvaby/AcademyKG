@@ -235,8 +235,10 @@ export const mapAggregatedRowToAppointment = (
     cancelled: "Отменено",
     canceled: "Отменено",
     not_came: "Клиент не пришел",
+    no_show: "Клиент не пришел",
     patient_not_came: "Клиент не пришел",
     free: "Бесплатно",
+    trainer_not_came: "Тренер не пришел",
   };
   const rawStatus = r.status ?? "";
   const normalizedStatus = STATUS_MAP[rawStatus?.toLowerCase?.()] ?? rawStatus ?? "Ожидаем";

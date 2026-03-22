@@ -34,6 +34,7 @@ import ParticipantRow from "../../../features/group-appointments/ui/ParticipantR
 import type { GroupAppointmentStatus } from "../../../features/group-appointments/model/types";
 import { apiFetch } from "../../../utility/apiClient";
 import { usePermissions } from "../../../hooks/usePermissions";
+import { useNotification } from "@refinedev/core";
 import type { PatientOption } from "../types";
 import type { Appointment } from "../types";
 import { PaymentSidebar } from "./PaymentSidebar";
@@ -76,6 +77,7 @@ const GroupAppointmentDetailsCard: React.FC<Props> = ({ group, onGroupUpdated, o
   const totalDebt = group.participants.reduce((s, p) => s + p.debt, 0);
   const paidCount = group.participants.filter((p) => p.debt === 0).length;
   const { isSuperAdmin } = usePermissions();
+  const { open: notify } = useNotification();
 
   // Delete confirm dialog
   const [deleteOpen, setDeleteOpen] = React.useState(false);
@@ -100,8 +102,10 @@ const GroupAppointmentDetailsCard: React.FC<Props> = ({ group, onGroupUpdated, o
       await deleteGroup(group.id);
       setDeleteOpen(false);
       onClose();
-    } catch { /* ignore */ }
-    finally { setDeleting(false); }
+    } catch (e: any) {
+      const detail = e?.errors?.[0]?.detail ?? e?.message ?? "Ошибка при удалении";
+      notify?.({ type: "error", message: detail });
+    } finally { setDeleting(false); }
   };
 
   const openEdit = async () => {
@@ -142,12 +146,8 @@ const GroupAppointmentDetailsCard: React.FC<Props> = ({ group, onGroupUpdated, o
   const handleTrainerNotCame = async () => {
     setNotCameBusy(true);
     try {
-      await setGroupTrainerNotCame(group.id);
-      // Обновляем всех участников статусом not_came локально
-      onGroupUpdated({
-        ...group,
-        participants: group.participants.map(p => ({ ...p, status: "not_came" as any })),
-      });
+      const updated = await setGroupTrainerNotCame(group.id);
+      if (updated) onGroupUpdated(updated);
     } catch { /* ignore */ }
     finally { setNotCameBusy(false); }
   };

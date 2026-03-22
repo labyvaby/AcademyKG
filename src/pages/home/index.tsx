@@ -136,6 +136,8 @@ export const HomePage: React.FC = () => {
   const handleDateChange = (newDate: string) => {
     setDate(newDate);
     setDoctorId("");
+    setSelectedAppointmentId(null);
+    setConclusionOpen(false);
   };
 
   // Fetch shifts for the selected date (and previous day for night shifts) — с кэшем

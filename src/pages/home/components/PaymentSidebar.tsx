@@ -237,49 +237,23 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
         }
     };
 
-    // Helper: deduct/refund patient balance/bonuses after successful payment save
+    // Helper: deduct/refund patient bonuses after successful payment save
     const adjustPatientBalanceIfNeeded = async () => {
-        if (!appointment?.patient_id) return;
+        if (!appointment?.patient_id || pointsUsed === 0) return;
 
-        const balanceDiff = balanceUsed - (appointment.paid_balance || 0);
-        const pointsDiff = pointsUsed - (appointment.paid_bonuses || 0);
+        const prevPoints = appointment.paid_bonuses || 0;
+        const diff = pointsUsed - prevPoints; // > 0 = списываем, < 0 = возвращаем
+        if (diff === 0) return;
 
-        if (balanceDiff === 0 && pointsDiff === 0) return;
-
-        if (balanceDiff > 0 || pointsUsed > appointment.paid_bonuses) {
-            // Deduct increment using API RPC or adjustment endpoint
-            await apiFetch(`/api/v1/rpc/deduct_patient_balance/`, {
-                method: "POST",
-                body: JSON.stringify({
-                    patient: appointment.patient_id,
-                    amount: Math.max(0, balanceDiff) + Math.max(0, pointsUsed)
-                })
-            });
-        }
-
-        if (balanceDiff < 0) {
-            // Refund balance using API
-            await apiFetch(`/api/v1/rpc/top_up_patient_balance/`, {
-                method: "POST",
-                body: JSON.stringify({
-                    patient: appointment.patient_id,
-                    amount: Math.abs(balanceDiff),
-                    comment: `Возврат за приём (корректировка)`
-                })
-            });
-        }
-
-        if (pointsDiff < 0) {
-            // Refund points using API
-            await apiFetch(`/api/v1/rpc/top_up_patient_balance/`, {
-                method: "POST",
-                body: JSON.stringify({
-                    patient: appointment.patient_id,
-                    amount: Math.abs(pointsDiff),
-                    comment: `Возврат баллов за приём (корректировка)`
-                })
-            });
-        }
+        await apiFetch(`/api/v1/client-balance-transactions/`, {
+            method: "POST",
+            body: JSON.stringify({
+                patient: appointment.patient_id,
+                txType: "bonuses",
+                amount: String(-diff), // отрицательное = списание, положительное = возврат
+                note: `Оплата приёма #${appointment.id}`,
+            }),
+        });
 
         reloadBalance();
     };
@@ -289,27 +263,24 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
 
         // Optimistic Updates
         const prevDetails = queryClient.getQueryData<any>(['appointment-details', appointment.id]);
-        const STATUS_REVERSE: Record<string, string> = {
-            "Ожидаем": "scheduled",
-            "Клиент здесь": "arrived",
-            "В работе": "in_progress",
-            "Завершено": "completed",
-            "Оплачено": "paid",
-            "Частично оплачено": "partially_paid",
-            "Со скидкой": "discounted",
-            "Отменено": "cancelled",
-            "Клиент не пришел": "not_came",
-            "Бесплатно": "free",
-        };
+
+        // Статус определяется автоматически по факту оплаты
+        const newStatusApi = (() => {
+            if (debt <= 0) {
+                if (totalPaid <= 0 && discountAmount > 0) return "discounted";
+                return "paid";
+            }
+            if (totalPaid > 0) return "partially_paid";
+            return "scheduled"; // по умолчанию — ожидаем
+        })();
         const newStatusRu = (() => {
             if (debt <= 0) {
                 if (totalPaid <= 0 && discountAmount > 0) return APPOINTMENT_STATUSES.DISCOUNTED;
                 return APPOINTMENT_STATUSES.PAID;
             }
             if (totalPaid > 0) return APPOINTMENT_STATUSES.PARTIALLY_PAID;
-            return appointment.status;
+            return APPOINTMENT_STATUSES.EXPECTED; // по умолчанию — ожидаем
         })();
-        const newStatusApi = STATUS_REVERSE[newStatusRu] ?? newStatusRu;
 
         const updates = {
             status: newStatusRu, // для локального cache (русский)
@@ -625,9 +596,9 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
                                     Статус
                                 </Typography>
                                 <Chip
-                                    label={debt <= 0 ? "Оплачено" : "Долг"}
+                                    label={debt <= 0 ? "Оплачено" : totalPaid > 0 ? "Частично оплачено" : "Не оплачено"}
                                     size="small"
-                                    color={debt <= 0 ? "success" : "error"}
+                                    color={debt <= 0 ? "success" : totalPaid > 0 ? "warning" : "default"}
                                     sx={{ fontWeight: 600 }}
                                 />
                             </Stack>

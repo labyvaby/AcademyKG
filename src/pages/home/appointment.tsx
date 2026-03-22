@@ -105,7 +105,13 @@ export const AppointmentDetailsPage: React.FC = () => {
       setDeleting(true);
       await apiFetch(`/api/v1/appointments/${item.id}/`, { method: "DELETE" });
 
-      // успех
+      // Чистим кэш истории клиентов чтобы удалённый приём не отображался
+      try {
+        Object.keys(localStorage)
+          .filter(k => k.startsWith("patientSearch.history.v1."))
+          .forEach(k => localStorage.removeItem(k));
+      } catch { /* ignore */ }
+
       notify?.({
         type: "success",
         message: "Прием успешно удален",

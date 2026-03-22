@@ -68,8 +68,10 @@ const EN_TO_RU: Record<string, string> = {
   cancelled: "Отменено",
   canceled: "Отменено",
   not_came: "Клиент не пришел",
+  no_show: "Клиент не пришел",
   patient_not_came: "Клиент не пришел",
   free: "Бесплатно",
+  trainer_not_came: "Тренер не пришел",
 };
 
 export const normalizeStatus = (status: string): string =>
