@@ -5,6 +5,8 @@
  * Все данные и колбэки приходят через пропсы (SRP).
  */
 import React from "react";
+import dayjs from "dayjs";
+import { CustomDateTimePicker } from "../../../components/ui";
 import {
   Dialog,
   DialogTitle,
@@ -78,16 +80,18 @@ const VisitCreateDialog: React.FC<Props> = ({
       <DialogContent>
         {/* Секция: Поля формы приема */}
         <Stack spacing={2} sx={{ mt: 1 }}>
-          <TextField
+          <CustomDateTimePicker
             label="Дата и время *"
-            type="datetime-local"
-            value={dateTime}
-            onChange={(e) => onChangeDateTime(roundDateTimeLocalToStep(e.target.value, 5))}
-            inputProps={{ step: 300 }}
-            InputLabelProps={{ shrink: true }}
-            fullWidth
-            error={touched && !dateTime}
-            helperText={touched && !dateTime ? "Обязательное поле" : ""}
+            value={dateTime ? dayjs(dateTime) : null}
+            onChange={(val) => onChangeDateTime(val ? val.format("YYYY-MM-DDTHH:mm") : "")}
+            minutesStep={5}
+            slotProps={{
+              textField: {
+                fullWidth: true,
+                error: touched && !dateTime,
+                helperText: touched && !dateTime ? "Обязательное поле" : "",
+              }
+            }}
           />
           <TextField
             label="Доктор (ФИО или ID)"

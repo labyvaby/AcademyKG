@@ -38,6 +38,7 @@ function toGroup(r: any): AppointmentGroup {
     sellableItemName: r.sellableItemName ?? r.sellable_item_name ?? "",
     price: Number(r.price ?? 0),
     maxParticipants: r.maxParticipants ?? r.max_participants ?? null,
+    trainerNotCame: Boolean(r.trainerNotCame ?? r.trainer_not_came ?? false),
     participants: (r.participants ?? []).map(toParticipant),
   };
 }

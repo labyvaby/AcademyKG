@@ -55,5 +55,6 @@ export type AppointmentGroup = {
   sellableItemName: string;
   price: number; // per participant
   maxParticipants?: number | null; // макс кол-во участников из услуги
+  trainerNotCame: boolean;
   participants: GroupParticipant[];
 };

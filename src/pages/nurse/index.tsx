@@ -1,4 +1,5 @@
 import React from "react";
+import { CustomDatePicker } from "../../components/ui";
 import { useNotification } from "@refinedev/core";
 import {
   Box,
@@ -703,13 +704,11 @@ export const NursePage: React.FC = () => {
         </Box>
         <Divider />
         <Stack spacing={2} sx={{ p: 2 }}>
-          <TextField
+          <CustomDatePicker
             label="Дата"
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            InputLabelProps={{ shrink: true }}
-            fullWidth
+            value={date ? dayjs(date) : null}
+            onChange={(val) => setDate(val ? val.format("YYYY-MM-DD") : "")}
+            slotProps={{ textField: { fullWidth: true } }}
           />
 
           <Typography variant="subtitle2">Статус</Typography>

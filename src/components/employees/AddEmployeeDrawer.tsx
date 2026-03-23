@@ -1,4 +1,6 @@
 import React from "react";
+import dayjs from "dayjs";
+import { CustomDatePicker } from "../ui";
 import {
   Box,
   Button,
@@ -260,13 +262,11 @@ const AddEmployeeDrawer: React.FC<Props> = ({ open, onClose, onCreated }) => {
             noOptionsText="Нет специализаций"
           />
 
-          <TextField
+          <CustomDatePicker
             label="Дата рождения"
-            type="date"
-            value={birthDate}
-            onChange={(e) => setBirthDate(e.target.value)}
-            InputLabelProps={{ shrink: true }}
-            fullWidth
+            value={birthDate ? dayjs(birthDate) : null}
+            onChange={(val) => setBirthDate(val ? val.format("YYYY-MM-DD") : "")}
+            slotProps={{ textField: { fullWidth: true } }}
           />
           <Stack direction="row" gap={1} justifyContent="flex-end">
             <Button onClick={onClose} disabled={busy}>

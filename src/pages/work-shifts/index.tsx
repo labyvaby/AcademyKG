@@ -1,4 +1,5 @@
 import React from "react";
+import { CustomDatePicker } from "../../components/ui";
 import {
     Box,
     Typography,
@@ -331,23 +332,17 @@ const WorkShiftsPage: React.FC = () => {
                                 ))}
                             </TextField>
                         )}
-                        <TextField
-                            type="date"
-                            size="small"
+                        <CustomDatePicker
                             label="От"
-                            value={startDate}
-                            onChange={(e) => setStartDate(e.target.value)}
-                            InputLabelProps={{ shrink: true }}
-                            sx={{ flex: '1 1 130px', minWidth: 0 }}
+                            value={startDate ? dayjs(startDate) : null}
+                            onChange={(val) => setStartDate(val ? val.format("YYYY-MM-DD") : "")}
+                            slotProps={{ textField: { size: "small", sx: { flex: '1 1 130px', minWidth: 0 } } }}
                         />
-                        <TextField
-                            type="date"
-                            size="small"
+                        <CustomDatePicker
                             label="До"
-                            value={endDate}
-                            onChange={(e) => setEndDate(e.target.value)}
-                            InputLabelProps={{ shrink: true }}
-                            sx={{ flex: '1 1 130px', minWidth: 0 }}
+                            value={endDate ? dayjs(endDate) : null}
+                            onChange={(val) => setEndDate(val ? val.format("YYYY-MM-DD") : "")}
+                            slotProps={{ textField: { size: "small", sx: { flex: '1 1 130px', minWidth: 0 } } }}
                         />
                         {isAdmin() && (
                             <Button

@@ -1,4 +1,5 @@
 import React from "react";
+import { CustomDateTimePicker } from "../../../components/ui";
 import {
   Box,
   Button,
@@ -476,13 +477,11 @@ const GroupAppointmentDetailsCard: React.FC<Props> = ({ group, onGroupUpdated, o
             <>
               <Stack spacing={0.5}>
                 <Typography variant="body2" color="text.secondary" fontWeight={500}>Дата и время</Typography>
-                <TextField
-                  type="datetime-local"
-                  size="small"
-                  fullWidth
-                  value={editDateTime}
-                  onChange={(e) => setEditDateTime(e.target.value)}
-                  InputLabelProps={{ shrink: true }}
+                <CustomDateTimePicker
+                  value={editDateTime ? dayjs(editDateTime) : null}
+                  onChange={(val) => setEditDateTime(val ? val.format("YYYY-MM-DDTHH:mm") : "")}
+                  minutesStep={5}
+                  slotProps={{ textField: { size: "small", fullWidth: true } }}
                 />
               </Stack>
 

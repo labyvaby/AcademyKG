@@ -142,12 +142,22 @@ async function fetchPermissions(opts: { force?: boolean } = {}): Promise<void> {
       // 4. Если получаем employee, нужно убедиться, что у нас есть все поля профиля.
       // /api/v1/users/me/ может возвращать неполный объект сотрудника.
       const hasFullInfo = !!(emp.phone || emp.email || emp.telegram_id || emp.telegramId);
+      // Сохраняем permissions и role из users/me — они там самые актуальные
+      const permissionsFromMe = emp.permissions ?? [];
+      const roleFromMe = emp.role;
 
       if (emp.id && !hasFullInfo) {
         try {
           const empRes: any = await apiFetch(`/api/v1/employees/${emp.id}/`);
           const fullEmp = empRes?.data ?? empRes;
-          if (fullEmp?.id) emp = fullEmp;
+          if (fullEmp?.id) {
+            emp = {
+              ...fullEmp,
+              // Восстанавливаем permissions и role из users/me (более актуальны)
+              permissions: permissionsFromMe.length ? permissionsFromMe : (fullEmp.permissions ?? []),
+              role: roleFromMe ?? fullEmp.role,
+            };
+          }
         } catch (error) {
           console.warn('[usePermissions] Не удалось загрузить полные данные сотрудника:', error);
           // Продолжаем с тем, что есть
@@ -210,10 +220,20 @@ async function fetchPermissions(opts: { force?: boolean } = {}): Promise<void> {
         updated_at: '',
       };
 
+      // Permissions: бек возвращает массив строк вида "resource.action"
+      // Также поддерживаем старый формат [{name: "..."}]
+      const rawPerms: any[] = emp.permissions ?? user.permissions ?? [];
+      const parsedPermissions: Permission[] = rawPerms.map((p: any) =>
+        typeof p === "string" ? { name: p } : p
+      );
+
+      // isSuperuser — Django superuser обходит все проверки
+      const isSuperuser = Boolean(user.isSuperuser ?? user.is_superuser ?? false);
+
       setGlobal({
-        role,
-        employee: { ...emp, user },
-        permissions: [],
+        role: isSuperuser ? { ...role, name: 'superadmin' as RoleName } : role,
+        employee: { ...emp, user, isSuperuser },
+        permissions: parsedPermissions,
         loading: false,
         loaded: true,
         employeeId: emp.id,
@@ -301,6 +321,14 @@ export const usePermissions = (): UserPermissions & PermissionCheck => {
     [state.loading, state.permissions, state.role]
   );
 
+  // can('appointments', 'read') → проверяет 'appointments.read'
+  const can = useCallback(
+    (resource: string, action: string): boolean => {
+      return hasPermission(`${resource}.${action}`);
+    },
+    [hasPermission]
+  );
+
   // Актуальные slug-и: superadmin, manager, receptionist, accountant, cashier, specialist, nurse
   const isSuperAdmin = useCallback(() => state.role?.name === 'superadmin', [state.role]);
   const isAdmin = useCallback(() => hasRole(['superadmin', 'admin', 'manager']), [hasRole]);
@@ -319,6 +347,7 @@ export const usePermissions = (): UserPermissions & PermissionCheck => {
     hasAnyPermission,
     hasAllPermissions,
     hasRole,
+    can,
     isSuperAdmin,
     isAdmin,
     isRegistrator,

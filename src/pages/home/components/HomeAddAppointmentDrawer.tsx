@@ -1,4 +1,5 @@
 import React from "react";
+import { CustomDatePicker } from "../../../components/ui";
 import { useNotification } from "@refinedev/core";
 import {
   Box,
@@ -842,27 +843,22 @@ export const HomeAddAppointmentDrawer: React.FC<
                 <Stack direction="row" spacing={1}>
                   <Stack spacing={0.5} sx={{ flex: 1 }}>
                     <Typography variant="body2" color="text.secondary" fontWeight={500}>Начало</Typography>
-                    <TextField
-                      type="date"
-                      size="small"
-                      fullWidth
-                      value={periodStartDate}
-                      onChange={(e) => {
-                        setPeriodStartDate(e.target.value);
-                        if (!periodEndDate || periodEndDate < e.target.value) setPeriodEndDate(e.target.value);
+                    <CustomDatePicker
+                      value={periodStartDate ? dayjs(periodStartDate) : null}
+                      onChange={(val) => {
+                        const v = val ? val.format("YYYY-MM-DD") : "";
+                        setPeriodStartDate(v);
+                        if (!periodEndDate || periodEndDate < v) setPeriodEndDate(v);
                       }}
-                      InputLabelProps={{ shrink: true }}
+                      slotProps={{ textField: { size: "small", fullWidth: true } }}
                     />
                   </Stack>
                   <Stack spacing={0.5} sx={{ flex: 1 }}>
                     <Typography variant="body2" color="text.secondary" fontWeight={500}>Конец</Typography>
-                    <TextField
-                      type="date"
-                      size="small"
-                      fullWidth
-                      value={periodEndDate}
-                      onChange={(e) => setPeriodEndDate(e.target.value)}
-                      InputLabelProps={{ shrink: true }}
+                    <CustomDatePicker
+                      value={periodEndDate ? dayjs(periodEndDate) : null}
+                      onChange={(val) => setPeriodEndDate(val ? val.format("YYYY-MM-DD") : "")}
+                      slotProps={{ textField: { size: "small", fullWidth: true } }}
                     />
                   </Stack>
                 </Stack>

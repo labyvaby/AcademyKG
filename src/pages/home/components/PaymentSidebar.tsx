@@ -313,7 +313,6 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
             await apiFetch(`/api/v1/appointments/${appointment.id}/`, {
                 method: "PATCH",
                 body: JSON.stringify({
-                    status: newStatusApi,
                     paidCash: cashNum,
                     paidCard: cardNum,
                     paidBalance: balanceUsed,

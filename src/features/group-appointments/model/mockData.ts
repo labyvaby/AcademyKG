@@ -10,6 +10,7 @@ export const MOCK_GROUPS: AppointmentGroup[] = [
     sellableItemName: "Групповое занятие (Йога)",
     price: 500,
     maxParticipants: 5,
+    trainerNotCame: false,
     participants: [
       {
         id: "appt-1",
@@ -55,6 +56,7 @@ export const MOCK_GROUPS: AppointmentGroup[] = [
     sellableItemName: "Групповое занятие (Пилатес)",
     price: 700,
     maxParticipants: 3,
+    trainerNotCame: false,
     participants: [
       {
         id: "appt-4",

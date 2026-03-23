@@ -1,4 +1,5 @@
 import React, { useEffect } from "react";
+import { CustomDatePicker } from "../../components/ui";
 import { useNotification } from "@refinedev/core";
 import {
   Box,
@@ -236,9 +237,11 @@ export const HomePage: React.FC = () => {
       const end = new Date(rangeKey);
       end.setDate(end.getDate() + 7);
 
-      let url = `/api/v1/appointments/`;
+      // exclude_group_participants=true — участники групп не попадают в счётчик
+      // (бек поддерживает этот параметр, группа считается как 1 приём)
+      let url = `/api/v1/appointments/?exclude_group_participants=true`;
       if (!isAdmin() && !isRegistrator() && employeeId) {
-        url += `?employee=${employeeId}`;
+        url += `&employee=${employeeId}`;
       }
 
       const res: any = await apiFetch(url);
@@ -249,13 +252,21 @@ export const HomePage: React.FC = () => {
   });
 
   // Маппинг данных диапазона в dayCounts
+  // Участники одной группы схлопываются в 1 приём по полю group
   React.useEffect(() => {
     const counts: Record<string, number> = {};
+    const seenGroups = new Set<string>();
     rangeData.forEach((item: any) => {
       const raw = item.appointmentAt ?? item.appointment_at ?? "";
       if (!raw) return;
       const day = dayjsBishkek(raw).format('YYYY-MM-DD');
-      if (day !== "Invalid Date") counts[day] = (counts[day] || 0) + 1;
+      if (day === "Invalid Date") return;
+      const groupId = item.group ?? item.group_id ?? null;
+      if (groupId) {
+        if (seenGroups.has(groupId)) return; // уже посчитали эту группу
+        seenGroups.add(groupId);
+      }
+      counts[day] = (counts[day] || 0) + 1;
     });
     setDayCounts(counts);
   }, [rangeData]);
@@ -571,13 +582,11 @@ export const HomePage: React.FC = () => {
         </Box>
         <Divider />
         <Stack spacing={2} sx={{ p: 2 }}>
-          <TextField
+          <CustomDatePicker
             label="Дата"
-            type="date"
-            value={date}
-            onChange={(e) => handleDateChange(e.target.value)}
-            InputLabelProps={{ shrink: true }}
-            fullWidth
+            value={date ? dayjs(date) : null}
+            onChange={(val) => handleDateChange(val ? val.format("YYYY-MM-DD") : "")}
+            slotProps={{ textField: { fullWidth: true } }}
           />
 
 

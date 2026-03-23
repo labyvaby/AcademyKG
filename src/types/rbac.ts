@@ -139,6 +139,8 @@ export interface PermissionCheck {
   hasRole: (role: RoleName | RoleName[]) => boolean;
   hasAnyPermission: (permissions: string[]) => boolean;
   hasAllPermissions: (permissions: string[]) => boolean;
+  /** Короткий хелпер: can('appointments', 'read') → проверяет 'appointments.read' */
+  can: (resource: string, action: string) => boolean;
   isSuperAdmin: () => boolean;
   isAdmin: () => boolean;
   isDoctor: () => boolean;
