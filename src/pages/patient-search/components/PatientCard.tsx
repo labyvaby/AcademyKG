@@ -269,15 +269,9 @@ const PatientCard: React.FC<Props> = ({
                     </Stack>
                     <Stack direction="row" spacing={1.5} flexWrap="wrap">
                       <Box sx={{ flex: 1, minWidth: 70, borderRadius: 1, border: "1px solid", borderColor: "divider", px: 1.5, py: 1, textAlign: "center" }}>
-                        <Typography variant="caption" color="text.secondary" display="block">Нал</Typography>
-                        <Typography variant="body2" fontWeight={600} color={balance.cashBalance > 0 ? "success.main" : "text.primary"}>
-                          {balance.cashBalance.toLocaleString("ru-RU")} сом
-                        </Typography>
-                      </Box>
-                      <Box sx={{ flex: 1, minWidth: 70, borderRadius: 1, border: "1px solid", borderColor: "divider", px: 1.5, py: 1, textAlign: "center" }}>
-                        <Typography variant="caption" color="text.secondary" display="block">Безнал</Typography>
-                        <Typography variant="body2" fontWeight={600} color={balance.cardBalance > 0 ? "success.main" : "text.primary"}>
-                          {balance.cardBalance.toLocaleString("ru-RU")} сом
+                        <Typography variant="caption" color="text.secondary" display="block">Баланс</Typography>
+                        <Typography variant="body2" fontWeight={600} color={balance.balance > 0 ? "success.main" : "text.primary"}>
+                          {balance.balance.toLocaleString("ru-RU")} сом
                         </Typography>
                       </Box>
                       <Box sx={{ flex: 1, minWidth: 70, borderRadius: 1, border: "1px solid", borderColor: "divider", px: 1.5, py: 1, textAlign: "center" }}>

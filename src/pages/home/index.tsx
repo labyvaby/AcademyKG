@@ -209,6 +209,11 @@ export const HomePage: React.FC = () => {
             doctor_id: pid ?? appt.doctor_id,
             parsed_services: full.parsed_services ?? appt.parsed_services,
             performer_ids: (pid ? [pid] : appt.performer_ids) ?? [],
+            paid_cash: d.paidCash ?? d.paid_cash ?? appt.paid_cash ?? 0,
+            paid_card: d.paidCard ?? d.paid_card ?? appt.paid_card ?? 0,
+            paid_balance: d.paidBalance ?? d.paid_balance ?? appt.paid_balance ?? 0,
+            paid_bonuses: d.paidBonuses ?? d.paid_bonuses ?? appt.paid_bonuses ?? 0,
+            debt: d.debt ?? appt.debt ?? 0,
           };
         } catch { /* ignore */ }
       }));
@@ -229,21 +234,26 @@ export const HomePage: React.FC = () => {
     return monday.toISOString().split('T')[0];
   }, [date]);
 
+  const rangeParams = React.useMemo(() => {
+    const start = new Date(rangeKey);
+    start.setDate(start.getDate() - 7);
+    const end = new Date(rangeKey);
+    end.setDate(end.getDate() + 14);
+    return {
+      dateFrom: start.toISOString().split('T')[0],
+      dateTo: end.toISOString().split('T')[0],
+    };
+  }, [rangeKey]);
+
   const { data: rangeData = [] } = useQuery({
     queryKey: ["appointments", "counts", rangeKey, isAdmin(), isRegistrator(), employeeId],
     queryFn: async () => {
-      const start = new Date(rangeKey);
-      start.setDate(start.getDate() - 7);
-      const end = new Date(rangeKey);
-      end.setDate(end.getDate() + 7);
-
+      const { dateFrom, dateTo } = rangeParams;
       // exclude_group_participants=true — участники групп не попадают в счётчик
-      // (бек поддерживает этот параметр, группа считается как 1 приём)
-      let url = `/api/v1/appointments/?exclude_group_participants=true`;
+      let url = `/api/v1/appointments/?exclude_group_participants=true&dateFrom=${dateFrom}&dateTo=${dateTo}&page_size=500`;
       if (!isAdmin() && !isRegistrator() && employeeId) {
         url += `&employee=${employeeId}`;
       }
-
       const res: any = await apiFetch(url);
       return res?.data?.results ?? res?.results ?? res?.data ?? [];
     },
@@ -251,25 +261,41 @@ export const HomePage: React.FC = () => {
     refetchOnWindowFocus: false,
   });
 
+  const { data: rangeGroupData = [] } = useQuery({
+    queryKey: ["group-appointments", "counts", rangeKey],
+    queryFn: async () => {
+      const { dateFrom, dateTo } = rangeParams;
+      const res: any = await apiFetch(`/api/v1/appointment-groups/?dateFrom=${dateFrom}&dateTo=${dateTo}&page_size=500`);
+      return res?.data?.results ?? res?.results ?? res?.data ?? [];
+    },
+    staleTime: 10 * 60 * 1000,
+    refetchOnWindowFocus: false,
+  });
+
   // Маппинг данных диапазона в dayCounts
-  // Участники одной группы схлопываются в 1 приём по полю group
   React.useEffect(() => {
     const counts: Record<string, number> = {};
-    const seenGroups = new Set<string>();
+
+    // Обычные приёмы (участники групп исключены на уровне API)
     rangeData.forEach((item: any) => {
       const raw = item.appointmentAt ?? item.appointment_at ?? "";
       if (!raw) return;
       const day = dayjsBishkek(raw).format('YYYY-MM-DD');
       if (day === "Invalid Date") return;
-      const groupId = item.group ?? item.group_id ?? null;
-      if (groupId) {
-        if (seenGroups.has(groupId)) return; // уже посчитали эту группу
-        seenGroups.add(groupId);
-      }
       counts[day] = (counts[day] || 0) + 1;
     });
+
+    // Групповые приёмы — каждый группой считается как 1
+    rangeGroupData.forEach((item: any) => {
+      const raw = item.appointmentAt ?? item.appointment_at ?? item.scheduledAt ?? item.scheduled_at ?? "";
+      if (!raw) return;
+      const day = dayjsBishkek(raw).format('YYYY-MM-DD');
+      if (day === "Invalid Date") return;
+      counts[day] = (counts[day] || 0) + 1;
+    });
+
     setDayCounts(counts);
-  }, [rangeData]);
+  }, [rangeData, rangeGroupData]);
 
   useEffect(() => {
     const handleRefresh = () => {

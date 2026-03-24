@@ -55,7 +55,7 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
     const [card, setCard] = useState<number | "">("");
     const [discountPercent, setDiscountPercent] = useState<number>(0);
     const [adminComment, setAdminComment] = useState("");
-    const balanceUsed = 0; // Нал/Безнал счёт убран, остались только баллы
+    const [balanceUsed, setBalanceUsed] = useState<number>(0);
     const [pointsUsed, setPointsUsed] = useState<number>(0);
 
     // Load patient balance
@@ -128,6 +128,7 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
             if (lastInitializedId.current !== appointment.id || lastInitializedId.current === null) {
                 setCash(appointment.paid_cash || "");
                 setCard(appointment.paid_card || "");
+                setBalanceUsed(appointment.paid_balance || 0);
                 setPointsUsed(appointment.paid_bonuses || 0);
 
                 // Вычисляем процент скидки из сохранённых данных.
@@ -237,23 +238,36 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
         }
     };
 
-    // Helper: deduct/refund patient bonuses after successful payment save
-    const adjustPatientBalanceIfNeeded = async () => {
-        if (!appointment?.patient_id || pointsUsed === 0) return;
+    // Helper: deduct/refund patient balance/bonuses after successful payment save
+    // prevBalance/prevPoints must be captured BEFORE optimistic update
+    const adjustPatientBalanceIfNeeded = async (prevBalance: number, prevPoints: number) => {
+        if (!appointment?.patient_id) return;
 
-        const prevPoints = appointment.paid_bonuses || 0;
-        const diff = pointsUsed - prevPoints; // > 0 = списываем, < 0 = возвращаем
-        if (diff === 0) return;
+        const diffPoints = pointsUsed - prevPoints;
+        if (diffPoints !== 0) {
+            await apiFetch(`/api/v1/client-balance-transactions/`, {
+                method: "POST",
+                body: JSON.stringify({
+                    patient: appointment.patient_id,
+                    txType: "bonuses",
+                    amount: String(-diffPoints),
+                    note: `Оплата приёма #${appointment.id}`,
+                }),
+            });
+        }
 
-        await apiFetch(`/api/v1/client-balance-transactions/`, {
-            method: "POST",
-            body: JSON.stringify({
-                patient: appointment.patient_id,
-                txType: "bonuses",
-                amount: String(-diff), // отрицательное = списание, положительное = возврат
-                note: `Оплата приёма #${appointment.id}`,
-            }),
-        });
+        const diffBalance = balanceUsed - prevBalance;
+        if (diffBalance !== 0) {
+            await apiFetch(`/api/v1/client-balance-transactions/`, {
+                method: "POST",
+                body: JSON.stringify({
+                    patient: appointment.patient_id,
+                    txType: "balance",
+                    amount: String(-diffBalance),
+                    note: `Оплата приёма #${appointment.id}`,
+                }),
+            });
+        }
 
         reloadBalance();
     };
@@ -261,29 +275,14 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
     const handleSave = async () => {
         if (loading) return;
 
+        // Capture prev values BEFORE any optimistic updates
+        const prevBalance = appointment.paid_balance || 0;
+        const prevPoints = appointment.paid_bonuses || 0;
+
         // Optimistic Updates
         const prevDetails = queryClient.getQueryData<any>(['appointment-details', appointment.id]);
 
-        // Статус определяется автоматически по факту оплаты
-        const newStatusApi = (() => {
-            if (debt <= 0) {
-                if (totalPaid <= 0 && discountAmount > 0) return "discounted";
-                return "paid";
-            }
-            if (totalPaid > 0) return "partially_paid";
-            return "scheduled"; // по умолчанию — ожидаем
-        })();
-        const newStatusRu = (() => {
-            if (debt <= 0) {
-                if (totalPaid <= 0 && discountAmount > 0) return APPOINTMENT_STATUSES.DISCOUNTED;
-                return APPOINTMENT_STATUSES.PAID;
-            }
-            if (totalPaid > 0) return APPOINTMENT_STATUSES.PARTIALLY_PAID;
-            return APPOINTMENT_STATUSES.EXPECTED; // по умолчанию — ожидаем
-        })();
-
         const updates = {
-            status: newStatusRu, // для локального cache (русский)
             paid_cash: cashNum,
             paid_card: cardNum,
             paid_balance: balanceUsed,
@@ -323,7 +322,7 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
                 })
             });
 
-            await adjustPatientBalanceIfNeeded();
+            await adjustPatientBalanceIfNeeded(prevBalance, prevPoints);
 
 
             notify?.({
@@ -409,38 +408,44 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
                                 {appointment.patient_name}
                             </Typography>
 
-                            <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                                Баллы клиента
-                            </Typography>
-                            {/* Баллы */}
-                            <Box sx={{
-                                borderRadius: 1.5, border: '1px solid',
-                                borderColor: pointsUsed > 0 ? 'warning.main' : 'divider',
-                                bgcolor: pointsUsed > 0 ? (theme) => alpha(theme.palette.warning.main, 0.08) : 'background.paper',
-                                p: 1.5, transition: 'all 0.2s',
-                            }}>
-                                <Stack direction="row" alignItems="center" justifyContent="space-between">
-                                    <Stack direction="row" alignItems="center" spacing={1}>
-                                        <CardGiftcardOutlined sx={{ fontSize: 20, color: 'warning.main' }} />
-                                        <Box>
-                                            <Typography variant="caption" color="text.secondary" display="block">Доступно баллов</Typography>
-                                            <Typography variant="body1" fontWeight={700} color="warning.main">
-                                                {(patientBalance?.bonuses ?? 0).toLocaleString()} сом
-                                            </Typography>
-                                        </Box>
-                                    </Stack>
-                                    {((patientBalance?.bonuses ?? 0) > 0 || pointsUsed > 0) && (
-                                        <Button size="small" variant={pointsUsed > 0 ? "contained" : "outlined"} color="warning"
-                                            sx={{ minWidth: 90, textTransform: 'none' }}
-                                            onClick={() => {
-                                                if (pointsUsed > 0) { setPointsUsed(0); }
-                                                else { setPointsUsed(Math.min(patientBalance?.bonuses ?? 0, Math.max(0, finalPrice - cashNum - cardNum))); }
-                                            }}>
-                                            {pointsUsed > 0 ? `Убрать (${pointsUsed.toLocaleString()})` : "Применить"}
-                                        </Button>
-                                    )}
+                            <Stack spacing={0.5}>
+                                <Stack direction="row" justifyContent="space-between" alignItems="center">
+                                    <Typography variant="caption" color="text.secondary">
+                                        Со счёта / баллов
+                                    </Typography>
+                                    <Typography variant="caption" color="success.main" fontWeight={600}>
+                                        доступно: {((patientBalance?.balance ?? 0) + (patientBalance?.bonuses ?? 0)).toLocaleString()} сом
+                                    </Typography>
                                 </Stack>
-                            </Box>
+                                <Stack direction="row" alignItems="center" spacing={0} sx={{ border: '1px solid', borderColor: (balanceUsed + pointsUsed) > 0 ? 'success.main' : 'divider', borderRadius: 1, bgcolor: 'background.paper', transition: 'border-color 0.2s' }}>
+                                    <Box px={1}><AccountBalanceWalletOutlined sx={{ fontSize: 18, color: (balanceUsed + pointsUsed) > 0 ? 'success.main' : 'action.active' }} /></Box>
+                                    <TextField
+                                        variant="standard"
+                                        fullWidth
+                                        type="number"
+                                        value={(balanceUsed + pointsUsed) === 0 ? "" : balanceUsed + pointsUsed}
+                                        onChange={(e) => {
+                                            if (e.target.value === "") {
+                                                setBalanceUsed(0);
+                                                setPointsUsed(0);
+                                            } else {
+                                                const val = Number(e.target.value);
+                                                const maxAvailable = (patientBalance?.balance ?? 0) + (patientBalance?.bonuses ?? 0);
+                                                const maxAllowed = Math.max(0, finalPrice - cashNum - cardNum);
+                                                const clamped = Math.min(val, maxAvailable, maxAllowed);
+                                                // Сначала используем баланс, потом баллы
+                                                const fromBalance = Math.min(clamped, patientBalance?.balance ?? 0);
+                                                const fromBonuses = clamped - fromBalance;
+                                                setBalanceUsed(fromBalance);
+                                                setPointsUsed(fromBonuses);
+                                            }
+                                        }}
+                                        InputProps={{ disableUnderline: true }}
+                                        sx={{ py: 0.5, ...noSpinnersSx }}
+                                        placeholder="0"
+                                    />
+                                </Stack>
+                            </Stack>
                         </Box>
 
                         <Divider sx={{ my: 1 }} />
@@ -484,7 +489,7 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
                                             size="small"
                                             variant="text"
                                             onClick={() => {
-                                                setCash(Math.max(0, finalPrice - pointsUsed));
+                                                setCash(Math.max(0, finalPrice - balanceUsed - pointsUsed));
                                                 setCard(0);
                                             }}
                                             sx={{ minWidth: 'auto', px: 1, fontSize: '0.7rem', textTransform: 'none' }}
@@ -505,7 +510,7 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
                                                 } else {
                                                     const val = Number(e.target.value);
                                                     // Ограничиваем сумму: не больше итоговой суммы минус другие виды платежа
-                                                    const maxAllowed = Math.max(0, finalPrice - cardNum - pointsUsed);
+                                                    const maxAllowed = Math.max(0, finalPrice - cardNum - balanceUsed - pointsUsed);
                                                     setCash(Math.min(val, maxAllowed));
                                                 }
                                             }}
@@ -525,7 +530,7 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
                                             size="small"
                                             variant="text"
                                             onClick={() => {
-                                                setCard(Math.max(0, finalPrice - pointsUsed));
+                                                setCard(Math.max(0, finalPrice - balanceUsed - pointsUsed));
                                                 setCash(0);
                                             }}
                                             sx={{ minWidth: 'auto', px: 1, fontSize: '0.7rem', textTransform: 'none' }}
@@ -546,7 +551,7 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
                                                 } else {
                                                     const val = Number(e.target.value);
                                                     // Ограничиваем сумму: не больше итоговой суммы минус другие виды платежа
-                                                    const maxAllowed = Math.max(0, finalPrice - cashNum - pointsUsed);
+                                                    const maxAllowed = Math.max(0, finalPrice - cashNum - balanceUsed - pointsUsed);
                                                     setCard(Math.min(val, maxAllowed));
                                                 }
                                             }}
@@ -558,21 +563,11 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
                                 </Stack>
                             </Stack>
 
-                            {/* Со счёта клиента — только баллы */}
-                            {pointsUsed > 0 && (
-                                <Paper
-                                    elevation={0}
-                                    sx={{
-                                        p: 1.25,
-                                        bgcolor: (theme) => alpha(theme.palette.warning.main, 0.06),
-                                        border: '1px solid',
-                                        borderColor: (theme) => alpha(theme.palette.warning.main, 0.2),
-                                        borderRadius: 1,
-                                    }}
-                                >
+                            {(balanceUsed + pointsUsed) > 0 && (
+                                <Paper elevation={0} sx={{ p: 1.25, bgcolor: (theme) => alpha(theme.palette.success.main, 0.06), border: '1px solid', borderColor: (theme) => alpha(theme.palette.success.main, 0.2), borderRadius: 1 }}>
                                     <Stack direction="row" justifyContent="space-between">
-                                        <Typography variant="caption" color="warning.main">Баллами</Typography>
-                                        <Typography variant="caption" color="warning.main" fontWeight={600}>− {pointsUsed.toLocaleString()} сом</Typography>
+                                        <Typography variant="caption" color="success.main">Со счёта / баллов</Typography>
+                                        <Typography variant="caption" color="success.main" fontWeight={600}>− {(balanceUsed + pointsUsed).toLocaleString()} сом</Typography>
                                     </Stack>
                                 </Paper>
                             )}
@@ -627,16 +622,19 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
                     </Stack>
                 </Paper>
                 <Stack spacing={0.5}>
-                    <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
-                        Комментарий администратора
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                        Комментарий администратора <Typography component="span" color="error">*</Typography>
                     </Typography>
                     <TextField
                         fullWidth
                         multiline
                         rows={3}
+                        required
                         value={adminComment}
                         onChange={(e) => setAdminComment(e.target.value)}
-                        placeholder="Добавьте комментарий (необязательно)"
+                        placeholder="Обязательное поле"
+                        error={!adminComment.trim()}
+                        helperText={!adminComment.trim() ? "Обязательное поле" : ""}
                     />
                 </Stack>
 
@@ -648,7 +646,7 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
                         fullWidth
                         variant="contained"
                         size="large"
-                        disabled={loading}
+                        disabled={loading || !adminComment.trim()}
                         onClick={handleSave}
                     >
                         {loading ? (

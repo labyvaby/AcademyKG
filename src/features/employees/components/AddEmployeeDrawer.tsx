@@ -107,7 +107,7 @@ const AddEmployeeDrawer: React.FC<AddEmployeeDrawerProps> = ({ open, onClose, on
     if (phone.trim().length > 0 && phone.trim().length !== maxLen) { setPhoneError(true); return; }
     if (emailErrorMsg) return;
     if (!roleId) { notify?.({ type: "error", message: "Выберите роль сотрудника" }); return; }
-    if (selectedRole?.name === 'doctor' && !specializationId) {
+    if ((selectedRole?.name === 'doctor' || selectedRole?.name === 'specialist') && !specializationId) {
       notify?.({ type: "error", message: "Выберите специализацию" }); return;
     }
 
@@ -129,7 +129,7 @@ const AddEmployeeDrawer: React.FC<AddEmployeeDrawerProps> = ({ open, onClose, on
       if (inn.trim()) payload.inn = inn.trim();
       if (nickname.trim()) payload.nickname = nickname.trim();
 
-      if (selectedRole?.name === 'doctor' && specializationId) {
+      if ((selectedRole?.name === 'doctor' || selectedRole?.name === 'specialist') && specializationId) {
         payload.specialization_ids = [specializationId];
       }
 
@@ -215,14 +215,14 @@ const AddEmployeeDrawer: React.FC<AddEmployeeDrawerProps> = ({ open, onClose, on
         <Stack spacing={0.5}>
           <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>Роль *</Typography>
           <TextField select value={roleId}
-            onChange={e => { setRoleId(e.target.value); const r = roles.find(x => x.id === e.target.value); if (r?.name !== 'doctor') setSpecializationId(""); }}
+            onChange={e => { setRoleId(e.target.value); const r = roles.find(x => x.id === e.target.value); if (r?.name !== 'doctor' && r?.name !== 'specialist') setSpecializationId(""); }}
             fullWidth required
           >
             {roles.map(r => <MenuItem key={r.id} value={r.id}>{r.display_name || r.name}</MenuItem>)}
           </TextField>
         </Stack>
 
-        {selectedRole?.name === 'doctor' && (
+        {(selectedRole?.name === 'doctor' || selectedRole?.name === 'specialist') && (
           <Stack spacing={0.5}>
             <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>Специализация *</Typography>
             <TextField select value={specializationId} onChange={e => setSpecializationId(e.target.value)} fullWidth required>

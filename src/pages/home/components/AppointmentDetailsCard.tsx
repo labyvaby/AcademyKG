@@ -468,14 +468,18 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
                     bonuses: Number(item.paid_bonuses || 0),
                     finalTotal: Number(item.total_amount || item.total_cost || item.estimated_total || 0),
                     debt: Number(item.debt || 0),
-                    status: item.status,
+                    status: (() => {
+                      const totalPaid = Number(item.paid_cash || 0) + Number(item.paid_card || 0) + Number(item.paid_balance || 0) + Number(item.paid_bonuses || 0);
+                      const debt = Number(item.debt || 0);
+                      if (debt <= 0 && totalPaid > 0) return 'paid';
+                      if (totalPaid > 0) return 'partially_paid';
+                      return 'scheduled';
+                    })(),
                   }}
                   variant="detailed"
                   showIcons={true}
                   actionButton={
-                    showPaymentAction &&
-                      item.status !== APPOINTMENT_STATUSES.CANCELLED &&
-                      item.status !== APPOINTMENT_STATUSES.PATIENT_NOT_CAME ? (
+                    showPaymentAction ? (
                       (() => {
                         const hasPayment =
                           (item.paid_cash ?? 0) > 0 ||
@@ -785,6 +789,7 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
               </Box>
             )}
 
+
             {(isDoctor() || isNurse()) && (
               <>
                 <Divider />
@@ -798,14 +803,18 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
                     card: Number(item.paid_card || 0),
                     finalTotal: Number(item.total_amount || item.total_cost || item.estimated_total || 0),
                     debt: Number(item.debt || 0),
-                    status: item.status,
+                    status: (() => {
+                      const totalPaid = Number(item.paid_cash || 0) + Number(item.paid_card || 0) + Number(item.paid_balance || 0) + Number(item.paid_bonuses || 0);
+                      const debt = Number(item.debt || 0);
+                      if (debt <= 0 && totalPaid > 0) return 'paid';
+                      if (totalPaid > 0) return 'partially_paid';
+                      return 'scheduled';
+                    })(),
                   }}
                   variant="detailed"
                   showIcons={true}
                   actionButton={
-                    showPaymentAction &&
-                      item.status !== APPOINTMENT_STATUSES.CANCELLED &&
-                      item.status !== APPOINTMENT_STATUSES.PATIENT_NOT_CAME ? (
+                    showPaymentAction ? (
                       (() => {
                         const hasPayment = (item.paid_cash ?? 0) > 0 || (item.paid_card ?? 0) > 0;
                         return (

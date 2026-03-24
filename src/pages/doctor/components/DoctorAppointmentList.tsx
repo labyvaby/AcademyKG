@@ -18,7 +18,7 @@ import SearchOutlined from "@mui/icons-material/SearchOutlined";
 import FilterListOutlined from "@mui/icons-material/FilterListOutlined";
 import NightlightOutlined from "@mui/icons-material/NightlightOutlined";
 
-import { getStatusConfig, getStatusChipSx, APPOINTMENT_STATUSES } from "../../../config/appointmentStatuses";
+import { getStatusConfig, getStatusChipSx, APPOINTMENT_STATUSES, normalizeStatus } from "../../../config/appointmentStatuses";
 import { formatKGS } from "../../../utility/format";
 import { Appointment } from "../../home/types";
 
@@ -167,8 +167,13 @@ export const DoctorAppointmentList: React.FC<DoctorAppointmentListProps> = ({
                                             {(() => {
                                                 if (item.status === APPOINTMENT_STATUSES.PAID) return null;
                                                 const total = Number(item.total_amount || item.total_cost || item.estimated_total || 0);
+                                                const paid = Number(item.paid_cash || 0) + Number(item.paid_card || 0) + Number(item.paid_balance || 0) + Number(item.paid_bonuses || 0);
+                                                const isCancelled = normalizeStatus(item.status ?? "").toLowerCase() === "отменено" || normalizeStatus(item.status ?? "").toLowerCase() === "отменен";
+                                                if (isCancelled && paid > 0) {
+                                                    const payLabel = paid >= total && total > 0 ? APPOINTMENT_STATUSES.PAID : APPOINTMENT_STATUSES.PARTIALLY_PAID;
+                                                    return <Chip label={payLabel} size="small" sx={getStatusChipSx(payLabel)} />;
+                                                }
                                                 if (total > 0) {
-                                                    const paid = Number(item.paid_cash || 0) + Number(item.paid_card || 0);
                                                     const isPaid = paid >= total;
                                                     if (!isPaid) return null;
                                                     return (

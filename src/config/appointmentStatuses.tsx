@@ -18,6 +18,7 @@ import { alpha } from "@mui/material/styles";
  */
 export const APPOINTMENT_STATUSES = {
   CANCELLED: "Отменено",
+  CANCELLED_PAID: "Отменено (оплачено)",
   PATIENT_ARRIVED: "Клиент здесь",
   EXPECTED: "Ожидаем",
   COMPLETED: "Завершено",
@@ -28,6 +29,35 @@ export const APPOINTMENT_STATUSES = {
   DISCOUNTED: "Со скидкой",
   FREE: "Бесплатно",
 } as const;
+
+/**
+ * Возвращает статус для отображения с учётом факта оплаты.
+ * Если приём отменён, но оплата принята — показываем "Отменено (оплачено)".
+ */
+export const getDisplayStatus = (appointment: {
+  status?: string;
+  paid_cash?: number | string | null;
+  paid_card?: number | string | null;
+  paid_balance?: number | string | null;
+  paid_bonuses?: number | string | null;
+  paidCash?: number | string | null;
+  paidCard?: number | string | null;
+  paidBalance?: number | string | null;
+  paidBonuses?: number | string | null;
+}): string => {
+  const status = appointment.status ?? "";
+  const normalized = normalizeStatus(status).toLowerCase();
+  const isCancelled = normalized === APPOINTMENT_STATUSES.CANCELLED.toLowerCase() || normalized === "отменен";
+  if (isCancelled) {
+    const totalPaid =
+      Number(appointment.paid_cash ?? appointment.paidCash ?? 0) +
+      Number(appointment.paid_card ?? appointment.paidCard ?? 0) +
+      Number(appointment.paid_balance ?? appointment.paidBalance ?? 0) +
+      Number(appointment.paid_bonuses ?? appointment.paidBonuses ?? 0);
+    if (totalPaid > 0) return APPOINTMENT_STATUSES.CANCELLED_PAID;
+  }
+  return status;
+};
 
 /**
  * Тип для статусов приемов
@@ -87,6 +117,15 @@ export const getStatusConfig = (status: any): StatusConfig => {
   }
   const normalized = normalizeStatus(status);
   const statusLower = normalized.trim().toLowerCase();
+
+  // Отменено (оплачено) - оранжевый
+  if (statusLower === APPOINTMENT_STATUSES.CANCELLED_PAID.toLowerCase()) {
+    return {
+      color: "warning",
+      icon: <PaidIcon fontSize="small" />,
+      label: normalized,
+    };
+  }
 
   // Отменено - красный
   if (statusLower === APPOINTMENT_STATUSES.CANCELLED.toLowerCase() || statusLower === "отменен") {
@@ -173,11 +212,24 @@ export const getStatusConfig = (status: any): StatusConfig => {
     };
   }
 
+  // Клиент не пришел - красный
+  if (
+    statusLower === APPOINTMENT_STATUSES.PATIENT_NOT_CAME.toLowerCase() ||
+    statusLower === "не пришёл" ||
+    statusLower === "не пришел"
+  ) {
+    return {
+      color: "error",
+      icon: <CancelIcon fontSize="small" />,
+      label: normalized,
+    };
+  }
+
   // Ожидаем (дефолт) - жёлтый
   return {
     color: "warning",
     icon: <HourglassEmptyIcon fontSize="small" />,
-    label: status,
+    label: normalized,
   };
 };
 

@@ -2,9 +2,9 @@ import { useState, useEffect, useCallback } from "react";
 import { apiFetch } from "../../utility/apiClient";
 
 export type PatientBalance = {
-  balance: number;      // общий баланс (сумма нал + безнал)
-  cashBalance: number;  // нал
-  cardBalance: number;  // безнал
+  balance: number;
+  cashBalance: number;
+  cardBalance: number;
   bonuses: number;
 };
 

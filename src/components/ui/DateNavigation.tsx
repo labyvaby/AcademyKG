@@ -165,11 +165,12 @@ export const DateNavigation: React.FC<DateNavigationProps> = ({
                                     {dayCounts[dateStr] > 0 && (
                                         <Box
                                             sx={(theme) => ({
-                                                width: 18, // Уменьшил счетчик
+                                                minWidth: 18,
                                                 height: 18,
-                                                borderRadius: '50%',
-                                                bgcolor: isActive ? 'primary.dark' : (theme.palette.mode === 'dark' ? 'grey.700' : 'grey.300'),
-                                                color: isActive ? 'primary.contrastText' : 'text.primary',
+                                                px: 0.5,
+                                                borderRadius: '9px',
+                                                bgcolor: isActive ? 'white' : 'primary.main',
+                                                color: isActive ? 'primary.main' : 'primary.contrastText',
                                                 display: 'flex',
                                                 alignItems: 'center',
                                                 justifyContent: 'center',

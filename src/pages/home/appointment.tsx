@@ -30,7 +30,7 @@ import { formatKGS } from "../../utility/format";
 import { useNotification } from "@refinedev/core";
 import { usePermissions } from "../../hooks/usePermissions";
 import { useConfirmDialog } from "../../hooks/useConfirmDialog";
-import { getStatusConfig, getStatusChipSx } from "../../config/appointmentStatuses";
+import { getStatusConfig, getStatusChipSx, normalizeStatus } from "../../config/appointmentStatuses";
 import EditAppointmentSidebar from "./components/EditAppointmentSidebar";
 
 import { Appointment, mapAggregatedRowToAppointment, type AggregatedAppointmentRow } from "./types";
@@ -188,15 +188,26 @@ export const AppointmentDetailsPage: React.FC = () => {
                         {item.patient_name || "Не указан"}
                       </Typography>
                       {(() => {
+                        const totalPaid = Number(item.paid_cash || 0) + Number(item.paid_card || 0) + Number(item.paid_balance || 0) + Number(item.paid_bonuses || 0);
+                        const isCancelled = normalizeStatus(item.status ?? "").toLowerCase() === "отменено" || normalizeStatus(item.status ?? "").toLowerCase() === "отменен";
                         const isCardOnly = Number(item.paid_card || 0) > 0 && Number(item.paid_cash || 0) === 0;
-                        const displayStatus = (item.status === "Оплачено" && isCardOnly) ? "Оплачено безналом" : item.status;
+                        const displayStatus = isCancelled ? item.status : ((item.status === "Оплачено" && isCardOnly) ? "Оплачено безналом" : item.status);
                         return (
-                          <Chip
-                            size="small"
-                            label={getStatusConfig(displayStatus).label}
-                            icon={getStatusConfig(displayStatus).icon}
-                            sx={getStatusChipSx(displayStatus)}
-                          />
+                          <>
+                            <Chip
+                              size="small"
+                              label={getStatusConfig(displayStatus).label}
+                              icon={getStatusConfig(displayStatus).icon}
+                              sx={getStatusChipSx(displayStatus)}
+                            />
+                            {isCancelled && totalPaid > 0 && (
+                              <Chip
+                                size="small"
+                                label={totalPaid >= Number(item.total_amount || item.total_cost || 0) && Number(item.total_amount || item.total_cost || 0) > 0 ? "Оплачено" : "Частично оплачено"}
+                                sx={getStatusChipSx(totalPaid >= Number(item.total_amount || item.total_cost || 0) && Number(item.total_amount || item.total_cost || 0) > 0 ? "Оплачено" : "Частично оплачено")}
+                              />
+                            )}
+                          </>
                         );
                       })()}
                     </Stack>

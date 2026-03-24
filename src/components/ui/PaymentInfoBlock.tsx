@@ -57,10 +57,12 @@ export const PaymentInfoBlock: React.FC<PaymentInfoBlockProps> = ({
   if (status) {
     const s = status.trim().toLowerCase();
     isPaid = s === 'paid' || s === 'оплачено';
-    isPartiallyPaid = s === 'partial' || s === 'частично оплачено';
+    isPartiallyPaid = s === 'partial' || s === 'частично оплачено' || s === 'partially_paid';
     isDiscounted = s === 'discounted' || s === 'со скидкой';
-    isCancelled = s === 'cancelled' || s === 'отменено' || s === 'пациент не пришел';
-    isArrived = s === 'пациент здесь' || s === 'прибыл' || s === 'в очереди';
+    isCancelled = s === 'cancelled' || s === 'canceled' || s === 'отменено'
+      || s === 'not_came' || s === 'no_show' || s === 'patient_not_came'
+      || s === 'клиент не пришел' || s === 'пациент не пришел' || s === 'не пришёл' || s === 'не пришел';
+    isArrived = s === 'arrived' || s === 'клиент здесь' || s === 'пациент здесь' || s === 'прибыл' || s === 'в очереди' || s === 'client_here';
   } else {
     // Fallback logic
     isDiscounted = debt <= 0 && totalPaid <= 0 && (discountAmount || 0) > 0;
@@ -70,8 +72,9 @@ export const PaymentInfoBlock: React.FC<PaymentInfoBlockProps> = ({
 
   const getStatusConfig = () => {
     if (isCancelled) {
+      const isNotCame = status && ['not_came','no_show','patient_not_came','клиент не пришел','пациент не пришел','не пришёл','не пришел'].includes(status.trim().toLowerCase());
       return {
-        label: status || "Отменено",
+        label: isNotCame ? "Клиент не пришел" : (status || "Отменено"),
         color: "error" as const,
         icon: <CancelIcon fontSize="small" />,
         bgColor: theme.palette.error.main,

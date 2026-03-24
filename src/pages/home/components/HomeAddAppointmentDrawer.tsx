@@ -106,6 +106,8 @@ export const HomeAddAppointmentDrawer: React.FC<
   const [servicesLoading, setServicesLoading] = React.useState(false);
   // Per-employee services cache: employeeId -> ServiceRow[]
   const [employeeServicesCache, setEmployeeServicesCache] = React.useState<Record<string, ServiceRow[]>>({});
+  // Обратный маппинг: serviceId -> Set<employeeId> (строится в фоне)
+  const serviceToEmployeesRef = React.useRef<Record<string, Set<string>>>({});
 
   const { isNurse, isAdmin, employeeId } = usePermissions();
   // Ограничиваем только реальных медсестер, не администраторов
@@ -358,32 +360,60 @@ export const HomeAddAppointmentDrawer: React.FC<
       .then(async (res: any) => {
         if (cancelled) return;
         const results: any[] = res?.data?.results ?? res?.data ?? res?.results ?? [];
+        const filterSpecialists = (list: EmployeesRow[]) =>
+          list.filter(e => {
+            const r = ((e as any).role as string ?? "").toLowerCase();
+            return r === "specialist" || r === "doctor";
+          });
         if (results.length > 0) {
           const emps = mapEmps(results);
-          setDoctorsOpts(emps);
-          setAllDoctorsOpts(emps);
+          const specialists = filterSpecialists(emps);
+          const final = specialists.length > 0 ? specialists : emps;
+          setDoctorsOpts(final);
+          setAllDoctorsOpts(final);
+          buildServiceToEmployeesMap(final);
         } else {
-          // Фоллбэк — все активные сотрудники
-          const fallback: any = await apiFetch("/api/v1/employees/?status=active&page_size=200");
-          if (!cancelled) {
-            const fbResults: any[] = fallback?.data?.results ?? fallback?.results ?? [];
-            const emps = mapEmps(fbResults);
-            setDoctorsOpts(emps);
-            setAllDoctorsOpts(emps);
+          // Фоллбэк — загружаем UUID роли specialist, потом фильтруем
+          try {
+            const rolesRes: any = await apiFetch("/api/v1/roles/");
+            const rolesArr: any[] = rolesRes?.data ?? rolesRes?.results ?? [];
+            const specialistRole = rolesArr.find((r: any) => r.name === "specialist");
+            const roleParam = specialistRole?.id ? `&role=${specialistRole.id}` : "";
+            const fallback: any = await apiFetch(`/api/v1/employees/?status=active${roleParam}&page_size=200`);
+            if (!cancelled) {
+              const fbResults: any[] = fallback?.data?.results ?? fallback?.results ?? [];
+              const emps = mapEmps(fbResults);
+              const specialists = filterSpecialists(emps);
+              const final = specialists.length > 0 ? specialists : emps;
+              setDoctorsOpts(final);
+              setAllDoctorsOpts(final);
+              buildServiceToEmployeesMap(final);
+            }
+          } catch {
+            if (!cancelled) { setDoctorsOpts([]); setAllDoctorsOpts([]); }
           }
         }
       })
       .catch(async () => {
         if (cancelled) return;
         try {
-          const fallback: any = await apiFetch("/api/v1/employees/?status=active&page_size=200");
+          const rolesRes: any = await apiFetch("/api/v1/roles/");
+          const rolesArr: any[] = rolesRes?.data ?? rolesRes?.results ?? [];
+          const specialistRole = rolesArr.find((r: any) => r.name === "specialist");
+          const roleParam = specialistRole?.id ? `&role=${specialistRole.id}` : "";
+          const fallback: any = await apiFetch(`/api/v1/employees/?status=active${roleParam}&page_size=200`);
           if (!cancelled) {
             const fbResults: any[] = fallback?.data?.results ?? fallback?.results ?? [];
             const emps = mapEmps(fbResults);
-            setDoctorsOpts(emps);
-            setAllDoctorsOpts(emps);
+            const filterSpecialists = (list: EmployeesRow[]) =>
+              list.filter(e => { const r = ((e as any).role as string ?? "").toLowerCase(); return r === "specialist" || r === "doctor"; });
+            const specialists = filterSpecialists(emps);
+            const final = specialists.length > 0 ? specialists : emps;
+            setDoctorsOpts(final);
+            setAllDoctorsOpts(final);
           }
-        } catch { if (!cancelled) { setDoctorsOpts([]); setAllDoctorsOpts([]); } }
+        } catch { if (!cancelled) { setDoctorsOpts([]); setAllDoctorsOpts([]); }
+        }
       })
       .finally(() => { if (!cancelled) setDoctorsLoading(false); });
     return () => { cancelled = true; };
@@ -410,6 +440,33 @@ export const HomeAddAppointmentDrawer: React.FC<
       .catch(() => {})
       .finally(() => setServicesLoading(false));
   }, [open]);
+
+  // Строим обратный маппинг serviceId → Set<employeeId> для всех тренеров в фоне
+  const buildServiceToEmployeesMap = React.useCallback(async (emps: EmployeesRow[]) => {
+    const map: Record<string, Set<string>> = {};
+    await Promise.all(emps.map(async (emp) => {
+      try {
+        const res: any = await apiFetch(`/api/v1/sellable-items/?type=service&isActive=true&employee=${emp.id}&page_size=200`);
+        const results: any[] = res?.data?.results ?? res?.results ?? [];
+        results.forEach((item: any) => {
+          if (!item.id) return;
+          if (!map[item.id]) map[item.id] = new Set();
+          map[item.id].add(emp.id);
+        });
+        // Также кэшируем услуги сотрудника
+        setEmployeeServicesCache(prev => ({
+          ...prev,
+          [emp.id]: results.map((item: any) => ({
+            id: item.id,
+            name: item.displayName ?? item.service?.name ?? item.name ?? "",
+            price: item.displayPrice ? parseFloat(item.displayPrice) : undefined,
+            is_active: item.isActive ?? true,
+          } as ServiceRow)).filter((s: ServiceRow) => s.id && s.name),
+        }));
+      } catch { /* ignore */ }
+    }));
+    serviceToEmployeesRef.current = map;
+  }, []);
 
   // Load services per employee when employee changes in a service row
   const loadServicesForEmployee = React.useCallback(async (employeeId: string): Promise<ServiceRow[]> => {
@@ -907,10 +964,9 @@ export const HomeAddAppointmentDrawer: React.FC<
                     // Тренеров восстанавливаем по текущей выбранной услуге или все
                     const curServiceId = serviceRows[0]?.serviceId;
                     if (curServiceId) {
-                      const svc = allServicesOpts.find(s => s.id === curServiceId);
-                      const empIds: string[] = (svc as any)?.employee_ids ?? [];
-                      if (empIds.length > 0) {
-                        setDoctorsOpts(allDoctorsOpts.filter(d => empIds.includes(d.id)));
+                      const empSet = serviceToEmployeesRef.current[curServiceId];
+                      if (empSet && empSet.size > 0) {
+                        setDoctorsOpts(allDoctorsOpts.filter(d => empSet.has(d.id)));
                       } else {
                         setDoctorsOpts(allDoctorsOpts);
                       }
@@ -961,15 +1017,15 @@ export const HomeAddAppointmentDrawer: React.FC<
                   const updated = [...serviceRows];
                   updated[0] = { ...updated[0], serviceId: v?.id || "" };
                   setServiceRows(updated);
-                  // Фильтруем тренеров по выбранной услуге
                   if (v?.id) {
-                    const empIds: string[] = (v as any)?.employee_ids ?? [];
-                    if (empIds.length > 0) {
-                      setDoctorsOpts(allDoctorsOpts.filter(d => empIds.includes(d.id)));
+                    // Фильтруем тренеров по обратному маппингу serviceId → Set<employeeId>
+                    const empSet = serviceToEmployeesRef.current[v.id];
+                    if (empSet && empSet.size > 0) {
+                      setDoctorsOpts(allDoctorsOpts.filter(d => empSet.has(d.id)));
                     }
-                    // Если у услуги нет employee_ids — не фильтруем тренеров
+                    // Если маппинг ещё не загружен — не фильтруем (загрузка идёт в фоне)
                   } else {
-                    // Услуга сброшена — восстанавливаем всех тренеров (или фильтруем по выбранному тренеру)
+                    // Услуга сброшена — восстанавливаем всех тренеров
                     setDoctorsOpts(allDoctorsOpts);
                   }
                 }}

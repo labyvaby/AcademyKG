@@ -297,8 +297,12 @@ export const mapAggregatedRowToAppointment = (
     objective: r.objective ?? null,
     created_at: r.created_at ?? r.createdAt,
     updated_at: r.updated_at ?? r.updatedAt,
-    created_by_name: r.created_by_name ?? r.createdByName ?? null,
-    updated_by_name: r.updated_by_name ?? r.updatedByName ?? null,
+    created_by_name: r.created_by_name ?? r.createdByName
+      ?? (r.createdBy ? (r.createdBy.fullName ?? r.createdBy.full_name ?? r.createdBy.email ?? null) : null)
+      ?? null,
+    updated_by_name: r.updated_by_name ?? r.updatedByName
+      ?? (r.updatedBy ? (r.updatedBy.fullName ?? r.updatedBy.full_name ?? r.updatedBy.email ?? null) : null)
+      ?? null,
     diagnosis_data: r.diagnosis_data ?? r.diagnosisData ?? null,
     conclusion_history: r.conclusion_history ?? r.conclusionHistory ?? null,
   };

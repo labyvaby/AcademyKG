@@ -117,13 +117,21 @@ const GroupAppointmentDetailsCard: React.FC<Props> = ({ group, onGroupUpdated, o
     if (editEmployees.length === 0) {
       setEditLoading(true);
       try {
-        const [empRes, svcRes]: [any, any] = await Promise.all([
-          apiFetch("/api/v1/employees/?status=active&page_size=200"),
+        const [rolesRes, svcRes]: [any, any] = await Promise.all([
+          apiFetch("/api/v1/roles/"),
           apiFetch("/api/v1/sellable-items/?type=service&isActive=true&page_size=200"),
         ]);
-        const emps: any[] = empRes?.data?.results ?? empRes?.results ?? [];
+        const rolesArr: any[] = rolesRes?.data ?? rolesRes?.results ?? [];
+        const specialistRole = rolesArr.find((r: any) => r.name === "specialist");
+        const roleParam = specialistRole?.id ? `?status=active&role=${specialistRole.id}&page_size=200` : "?status=active&page_size=200";
+        const empRes: any = await apiFetch(`/api/v1/employees/${roleParam}`);
         const svcs: any[] = svcRes?.data?.results ?? svcRes?.results ?? [];
-        setEditEmployees(emps.map((e: any) => ({ id: String(e.id), name: e.fullName ?? e.full_name ?? e.id })));
+        const emps: any[] = empRes?.data?.results ?? empRes?.results ?? [];
+        const specialists = emps.filter((e: any) => {
+          const r = (e.role?.name ?? e.roleName ?? "").toLowerCase();
+          return r === "specialist" || r === "doctor";
+        });
+        setEditEmployees((specialists.length > 0 ? specialists : emps).map((e: any) => ({ id: String(e.id), name: e.fullName ?? e.full_name ?? e.id })));
         setEditServices(svcs.map((s: any) => ({ id: String(s.id), name: s.displayName ?? s.display_name ?? s.name ?? s.id })));
       } catch { /* ignore */ }
       finally { setEditLoading(false); }
