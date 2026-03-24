@@ -74,6 +74,7 @@ const LoadAnalyticsPage = lazy(() => import("./pages/admin/load").then(module =>
 const ForgotPasswordPage = lazy(() => import("./pages/auth/ForgotPassword"));
 const ResetPasswordConfirmPage = lazy(() => import("./pages/auth/ResetPasswordConfirm"));
 const ClientSchedulePage = lazy(() => import("./pages/ClientSchedulePage"));
+const RolesPage = lazy(() => import("./pages/roles"));
 
 
 // Вспомогательный компонент для обработки глобальных событий аутентификации
@@ -454,6 +455,17 @@ function App() {
                             <ProtectedRoute deniedRoles={[]}>
                               <Suspense fallback={<LinearProgress />}>
                                 <SalaryReportsPage />
+                              </Suspense>
+                            </ProtectedRoute>
+                          }
+                        />
+
+                        <Route
+                          path="roles"
+                          element={
+                            <ProtectedRoute allowedRoles={['superadmin']}>
+                              <Suspense fallback={<LinearProgress />}>
+                                <RolesPage />
                               </Suspense>
                             </ProtectedRoute>
                           }

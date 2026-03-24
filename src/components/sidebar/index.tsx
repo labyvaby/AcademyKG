@@ -44,6 +44,7 @@ import AccessTimeOutlined from "@mui/icons-material/AccessTimeOutlined";
 import LogoutOutlined from "@mui/icons-material/LogoutOutlined";
 import HistoryOutlined from "@mui/icons-material/HistoryOutlined";
 import NotificationsOutlined from "@mui/icons-material/NotificationsOutlined";
+import AdminPanelSettingsOutlined from "@mui/icons-material/AdminPanelSettingsOutlined";
 
 import { useThemedLayoutContext } from "@refinedev/mui";
 import { logout } from "../../services/auth";
@@ -351,6 +352,9 @@ const SidebarSecondary: React.FC = () => {
           <SidebarMenuItem to="/cashbox" icon={<AccountBalanceWalletOutlined />} label="Касса" collapsed={siderCollapsed} />
         )}
         <SidebarMenuItem to="/services" icon={<MedicalServicesOutlined />} label="Услуги" collapsed={siderCollapsed} />
+        {isSuper && (
+          <SidebarMenuItem to="/roles" icon={<AdminPanelSettingsOutlined />} label="Роли и права" collapsed={siderCollapsed} />
+        )}
         {isSuper && (
           <SidebarMenuItem to="/settings/notifications" icon={<NotificationsOutlined />} label="Уведомления" collapsed={siderCollapsed} />
         )}
