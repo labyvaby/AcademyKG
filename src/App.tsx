@@ -59,7 +59,6 @@ const SchedulePage = lazy(() => import("./pages/SchedulePage"));
 const WorkShiftsPage = lazy(() => import("./pages/work-shifts"));
 const AccessDeniedPage = lazy(() => import("./pages/AccessDenied"));
 const DoctorWorkPage = lazy(() => import("./pages/doctor"));
-const NursePage = lazy(() => import("./pages/nurse"));
 const SkudSettingsPage = lazy(() => import("./pages/settings/SkudSettingsPage").then(module => ({ default: module.SkudSettingsPage })));
 const ConclusionPrintPage = lazy(() => import("./pages/print/ConclusionPrintPage").then(module => ({ default: module.ConclusionPrintPage }))); // New Print Page
 const CertificatePrintPage = lazy(() => import("./pages/print/CertificatePrintPage").then(module => ({ default: module.CertificatePrintPage }))); // New Certificate Page
@@ -311,7 +310,7 @@ function App() {
                         <Route
                           path="patient-search"
                           element={
-                            <ProtectedRoute allowedRoles={['admin', 'superadmin', 'manager', 'owner', 'receptionist', 'registrator', 'accountant', 'specialist', 'nurse']}>
+                            <ProtectedRoute allowedRoles={['admin', 'superadmin', 'manager', 'owner', 'receptionist', 'registrator', 'accountant', 'specialist']}>
                               <Suspense fallback={<LinearProgress />}>
                                 <PatientSearchPage />
                               </Suspense>
@@ -395,16 +394,6 @@ function App() {
                             <ProtectedRoute allowedRoles={['specialist', 'superadmin', 'manager']}>
                               <Suspense fallback={<LinearProgress />}>
                                 <DoctorWorkPage />
-                              </Suspense>
-                            </ProtectedRoute>
-                          }
-                        />
-                        <Route
-                          path="nurse"
-                          element={
-                            <ProtectedRoute allowedRoles={['nurse', 'admin', 'superadmin', 'receptionist']}>
-                              <Suspense fallback={<LinearProgress />}>
-                                <NursePage />
                               </Suspense>
                             </ProtectedRoute>
                           }

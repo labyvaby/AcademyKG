@@ -55,6 +55,16 @@ export async function fetchGroups(date: string): Promise<AppointmentGroup[]> {
   }
 }
 
+export async function fetchGroupsByRange(dateFrom: string, dateTo: string): Promise<AppointmentGroup[]> {
+  try {
+    const res: any = await apiFetch(`/api/v1/appointment-groups/?dateFrom=${dateFrom}&dateTo=${dateTo}&page_size=500`);
+    const results: any[] = res?.data?.results ?? res?.results ?? [];
+    return results.map(toGroup);
+  } catch {
+    return [];
+  }
+}
+
 export async function createGroup(payload: {
   appointmentAt: string;
   performerId: string;

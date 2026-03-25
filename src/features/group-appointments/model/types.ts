@@ -7,7 +7,8 @@ export type GroupAppointmentStatus =
   | "partially_paid"
   | "cancelled"
   | "not_came"
-  | "no_show";
+  | "no_show"
+  | "patient_not_came";
 
 export const GROUP_STATUS_LABELS: Record<GroupAppointmentStatus, string> = {
   scheduled: "Ожидаем",
@@ -17,8 +18,9 @@ export const GROUP_STATUS_LABELS: Record<GroupAppointmentStatus, string> = {
   paid: "Оплачено",
   partially_paid: "Частично оплачено",
   cancelled: "Отменено",
-  not_came: "Не пришёл",
-  no_show: "Не пришёл",
+  not_came: "Клиент не пришел",
+  no_show: "Клиент не пришел",
+  patient_not_came: "Клиент не пришел",
 };
 
 export const GROUP_STATUS_COLOR: Record<GroupAppointmentStatus, "default" | "warning" | "info" | "success" | "error" | "primary"> = {
@@ -31,6 +33,7 @@ export const GROUP_STATUS_COLOR: Record<GroupAppointmentStatus, "default" | "war
   cancelled: "error",
   not_came: "error",
   no_show: "error",
+  patient_not_came: "error",
 };
 
 export type GroupParticipant = {

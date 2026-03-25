@@ -32,7 +32,7 @@ import { apiFetch } from "../../utility/apiClient";
 
 
 export const PatientSearchPage: React.FC = () => {
-  const { hasPermission, isAdmin, isRegistrator, isDoctor, isNurse } = usePermissions();
+  const { hasPermission, isAdmin, isRegistrator } = usePermissions();
   const [searchParams, setSearchParams] = useSearchParams();
   const [addInitialPhone, setAddInitialPhone] = React.useState("");
 
@@ -50,8 +50,6 @@ export const PatientSearchPage: React.FC = () => {
   }, [searchParams, setSearchParams]);
 
   const canCreatePatient = (isAdmin() || isRegistrator()) && hasPermission(PERMISSIONS.PATIENTS_CREATE);
-  const isEmployee = isDoctor() || isNurse();
-  const canSeeWaitList = isAdmin() || isRegistrator() || isEmployee;
   const canUpdatePatient = isAdmin() || isRegistrator();
 
 
@@ -94,6 +92,7 @@ export const PatientSearchPage: React.FC = () => {
     if (!selected) {
       setVitals(null);
       setDocuments([]);
+      setBalance(null);
       return;
     }
     let active = true;
@@ -117,6 +116,18 @@ export const PatientSearchPage: React.FC = () => {
           });
           // Обновляем фото и данные в списке клиентов
           patchPatient(String(data?.id ?? ""), patch);
+        }
+        // Balance
+        if (active) {
+          const bal = data?.balance;
+          setBalance(bal
+            ? {
+                balance: Number(bal.balance) || 0,
+                cashBalance: Number(bal.cashBalance ?? bal.cash_balance) || 0,
+                cardBalance: Number(bal.cardBalance ?? bal.card_balance) || 0,
+                bonuses: Number(bal.bonuses) || 0,
+              }
+            : { balance: 0, cashBalance: 0, cardBalance: 0, bonuses: 0 });
         }
         // Documents
         if (active) {
@@ -196,11 +207,12 @@ export const PatientSearchPage: React.FC = () => {
   });
 
   const {
-    balance,
     submitting: balanceSubmitting,
     submitError: balanceSubmitError,
     topUp,
   } = usePatientBalance(selected?.id);
+
+  const [balance, setBalance] = React.useState<import("./usePatientBalance").PatientBalance | null>(null);
 
   const [topUpOpen, setTopUpOpen] = React.useState(false);
   const [addOpen, setAddOpen] = React.useState(false);
@@ -576,7 +588,22 @@ export const PatientSearchPage: React.FC = () => {
         patientFio={selected?.fio ?? ""}
         submitting={balanceSubmitting}
         submitError={balanceSubmitError}
-        onSubmit={topUp}
+        onSubmit={async (payload) => {
+          const ok = await topUp(payload);
+          if (ok && selected) {
+            const data = await loadClientDetail(selected.id);
+            const bal = data?.balance;
+            setBalance(bal
+              ? {
+                  balance: Number(bal.balance) || 0,
+                  cashBalance: Number(bal.cashBalance ?? bal.cash_balance) || 0,
+                  cardBalance: Number(bal.cardBalance ?? bal.card_balance) || 0,
+                  bonuses: Number(bal.bonuses) || 0,
+                }
+              : { balance: 0, cashBalance: 0, cardBalance: 0, bonuses: 0 });
+          }
+          return ok;
+        }}
       />
     </Box>
   );

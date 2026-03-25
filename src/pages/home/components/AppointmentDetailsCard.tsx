@@ -315,18 +315,18 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
                     </>
                   )}
 
-                  {/* Кнопки для регистратуры/админа: Отменить и Тренер не пришел */}
+                  {/* Кнопки для регистратуры/админа: Отменить и Клиент не пришел */}
                   {(isAdmin() || isRegistrator()) && item.status !== APPOINTMENT_STATUSES.CANCELLED && item.status !== APPOINTMENT_STATUSES.PATIENT_NOT_CAME && (
                     <>
                       <Button
                         variant="outlined"
                         size="small"
-                        color="warning"
+                        color="error"
                         startIcon={<PersonOffOutlined />}
                         disabled={actionLoading}
                         onClick={promptNotCame}
                       >
-                        Тренер не пришел
+                        Клиент не пришел
                       </Button>
                       <Button
                         variant="outlined"

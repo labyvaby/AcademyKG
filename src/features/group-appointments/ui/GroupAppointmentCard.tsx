@@ -120,8 +120,10 @@ const GroupAppointmentCard: React.FC<Props> = ({ group, onGroupUpdated, onAddPar
               {isFull && (
                 <Chip label="Группа полная" size="small" color="error" sx={{ height: 18, fontSize: 10 }} />
               )}
-              {group.trainerNotCame && (
-                <Chip label="Тренер не пришёл" size="small" color="warning" sx={{ height: 18, fontSize: 10 }} />
+              {group.participants.length > 0 && group.participants.every((p) =>
+                p.status === "not_came" || p.status === "no_show" || p.status === "patient_not_came"
+              ) && (
+                <Chip label="Клиент не пришел" size="small" color="error" sx={{ height: 18, fontSize: 10 }} />
               )}
             </Stack>
           </Box>

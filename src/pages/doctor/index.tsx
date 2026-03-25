@@ -24,7 +24,7 @@ import { PageHeader, AppBottomSheet, DateNavigation } from "../../components/ui"
 import { useRefresh } from "../../contexts/refresh-context";
 import DoctorWorkDrawer from "../../components/home/DoctorWorkDrawer";
 import { usePermissions } from "../../hooks/usePermissions";
-import { fetchDoctors } from "../../services/employees";
+import { fetchMedicalStaff } from "../../services/employees";
 import type { EmployeesRow } from "../expenses/types";
 import { apiFetch } from "../../utility/apiClient";
 
@@ -34,7 +34,7 @@ const DoctorWorkPage: React.FC = () => {
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down("md"));
     const { setOnRefresh } = useRefresh();
-    const { isAdmin, loading: permLoading, employeeId } = usePermissions();
+    const { isAdmin, loading: permLoading, employeeId, employee } = usePermissions();
     const queryClient = useQueryClient();
 
     const canSeeAll = isAdmin();
@@ -70,12 +70,56 @@ const DoctorWorkPage: React.FC = () => {
             const res: any = await apiFetch(url);
             const data: any[] = res?.data?.results ?? res?.results ?? [];
             const specialistFilter = params.get("specialist");
+
+            // Берём список специалистов из кэша React Query для подстановки имён
+            const currentDoctors: EmployeesRow[] =
+                queryClient.getQueryData<EmployeesRow[]>(["employees", "medical-staff"]) ?? [];
+
+            // Имя текущего специалиста (для fallback когда тренер смотрит свои приёмы)
+            const currentEmployeeName = !canSeeAll && employee
+                ? (employee.full_name ?? employee.fullName ?? employee.name ?? null)
+                : null;
+
             return data.map((row: any) => {
                 const appt = mapAggregatedRowToAppointment(row as AggregatedAppointmentRow);
+
+                // Подставляем doctor_id из specialist фильтра если отсутствует
                 if (specialistFilter) {
                     if (!appt.doctor_id) appt.doctor_id = specialistFilter;
                     if (!appt.performer_ids?.length) appt.performer_ids = [specialistFilter];
                 }
+
+                // Подставляем doctor_id из сервисов если отсутствует
+                if (!appt.doctor_id && appt.parsed_services?.[0]?.performer_id) {
+                    appt.doctor_id = appt.parsed_services[0].performer_id;
+                }
+
+                // Подставляем имя специалиста из списка врачей по doctor_id
+                if (!appt.doctor_name && appt.doctor_id) {
+                    const doc = currentDoctors.find(d => String(d.id) === String(appt.doctor_id));
+                    if (doc) appt.doctor_name = doc.full_name || "";
+                }
+
+                // Подставляем имена исполнителей в сервисах
+                if (appt.parsed_services) {
+                    appt.parsed_services.forEach(svc => {
+                        if (!svc.performer_name && svc.performer_id) {
+                            const doc = currentDoctors.find(d => String(d.id) === String(svc.performer_id));
+                            if (doc) svc.performer_name = doc.full_name || "";
+                        }
+                    });
+                }
+
+                // Финальный fallback: для специалиста подставляем его собственное имя
+                if (currentEmployeeName) {
+                    if (!appt.doctor_name) appt.doctor_name = currentEmployeeName;
+                    if (appt.parsed_services) {
+                        appt.parsed_services.forEach(svc => {
+                            if (!svc.performer_name) svc.performer_name = currentEmployeeName;
+                        });
+                    }
+                }
+
                 return appt;
             });
         },
@@ -84,13 +128,30 @@ const DoctorWorkPage: React.FC = () => {
         refetchOnWindowFocus: false,
     });
 
-    // --- Счётчики дней (все приёмы специалиста без фильтра по дате) ---
-    const countsKey = ["doctor-counts", employeeId, canSeeAll, selectedDoctorId];
+    // --- Счётчики дней (диапазон ±2 недели от выбранной даты) ---
+    const rangeKey = useMemo(() => {
+        const d = new Date(date);
+        const day = d.getDay();
+        const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+        return new Date(d.setDate(diff)).toISOString().split("T")[0];
+    }, [date]);
+
+    const rangeParams = useMemo(() => {
+        const start = new Date(rangeKey);
+        start.setDate(start.getDate() - 7);
+        const end = new Date(rangeKey);
+        end.setDate(end.getDate() + 14);
+        return {
+            dateFrom: start.toISOString().split("T")[0],
+            dateTo: end.toISOString().split("T")[0],
+        };
+    }, [rangeKey]);
 
     const { data: dayCounts = {} } = useQuery<Record<string, number>>({
-        queryKey: countsKey,
+        queryKey: ["doctor-counts", rangeKey, employeeId, canSeeAll, selectedDoctorId],
         queryFn: async () => {
-            const params = new URLSearchParams({});
+            const { dateFrom, dateTo } = rangeParams;
+            const params = new URLSearchParams({ dateFrom, dateTo, page_size: "500" });
             if (!canSeeAll && employeeId) params.set("specialist", employeeId);
             else if (canSeeAll && selectedDoctorId) params.set("specialist", selectedDoctorId);
             const res: any = await apiFetch(`/api/v1/appointments/?${params.toString()}`);
@@ -105,15 +166,14 @@ const DoctorWorkPage: React.FC = () => {
             return counts;
         },
         enabled: !permLoading && (canSeeAll || !!employeeId),
-        staleTime: 2 * 60 * 1000,
+        staleTime: 10 * 60 * 1000,
         refetchOnWindowFocus: false,
     });
 
-    // --- Список специалистов для суперадмин ---
+    // --- Список специалистов (для подстановки имён и фильтра суперадмина) ---
     const { data: doctors = [] } = useQuery<EmployeesRow[]>({
-        queryKey: ["doctor-page-doctors"],
-        queryFn: fetchDoctors,
-        enabled: canSeeAll,
+        queryKey: ["employees", "medical-staff"],
+        queryFn: fetchMedicalStaff,
         staleTime: 5 * 60 * 1000,
         refetchOnWindowFocus: false,
     });

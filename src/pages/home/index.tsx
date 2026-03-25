@@ -189,36 +189,8 @@ export const HomePage: React.FC = () => {
         .filter((row: AggregatedAppointmentRow) => !groupParticipantIds.has(String(row.id ?? "")))
         .map((row: AggregatedAppointmentRow) => mapAggregatedRowToAppointment(row));
       const grouped = groups.map(mapGroupToAppointment);
-      const all = [...regular, ...grouped];
 
-      // Дозагружаем детали для regular (список не содержит services/performer)
-      await Promise.all(regular.map(async (appt, idx) => {
-        try {
-          const det: any = await apiFetch(`/api/v1/appointments/${appt.id}/`);
-          const d = det?.data ?? det;
-          if (!d) return;
-          const full = mapAggregatedRowToAppointment(d as AggregatedAppointmentRow);
-          const svc = d.services?.[0];
-          const pname = svc?.performerName ?? svc?.performer_name ?? full.doctor_name ?? appt.doctor_name;
-          const pid = svc
-            ? (typeof svc.performer === "string" ? svc.performer : (svc.performer?.id ?? ""))
-            : appt.doctor_id;
-          all[idx] = {
-            ...appt,
-            doctor_name: pname ?? appt.doctor_name,
-            doctor_id: pid ?? appt.doctor_id,
-            parsed_services: full.parsed_services ?? appt.parsed_services,
-            performer_ids: (pid ? [pid] : appt.performer_ids) ?? [],
-            paid_cash: d.paidCash ?? d.paid_cash ?? appt.paid_cash ?? 0,
-            paid_card: d.paidCard ?? d.paid_card ?? appt.paid_card ?? 0,
-            paid_balance: d.paidBalance ?? d.paid_balance ?? appt.paid_balance ?? 0,
-            paid_bonuses: d.paidBonuses ?? d.paid_bonuses ?? appt.paid_bonuses ?? 0,
-            debt: d.debt ?? appt.debt ?? 0,
-          };
-        } catch { /* ignore */ }
-      }));
-
-      return all;
+      return [...regular, ...grouped];
     },
     staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,

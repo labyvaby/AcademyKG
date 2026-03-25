@@ -22,7 +22,7 @@ export const ROLE_HOME_PAGES: Record<RoleName, string> = {
   manager: '/home',
   doctor: '/doctor',
   specialist: '/doctor',
-  nurse: '/nurse',
+  nurse: '/home',
   receptionist: '/home',
   registrator: '/home',
   accountant: '/home',

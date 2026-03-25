@@ -139,30 +139,7 @@ async function fetchPermissions(opts: { force?: boolean } = {}): Promise<void> {
         return;
       }
 
-      // 4. Если получаем employee, нужно убедиться, что у нас есть все поля профиля.
-      // /api/v1/users/me/ может возвращать неполный объект сотрудника.
-      const hasFullInfo = !!(emp.phone || emp.email || emp.telegram_id || emp.telegramId);
-      // Сохраняем permissions и role из users/me — они там самые актуальные
-      const permissionsFromMe = emp.permissions ?? [];
-      const roleFromMe = emp.role;
-
-      if (emp.id && !hasFullInfo) {
-        try {
-          const empRes: any = await apiFetch(`/api/v1/employees/${emp.id}/`);
-          const fullEmp = empRes?.data ?? empRes;
-          if (fullEmp?.id) {
-            emp = {
-              ...fullEmp,
-              // Восстанавливаем permissions и role из users/me (более актуальны)
-              permissions: permissionsFromMe.length ? permissionsFromMe : (fullEmp.permissions ?? []),
-              role: roleFromMe ?? fullEmp.role,
-            };
-          }
-        } catch (error) {
-          console.warn('[usePermissions] Не удалось загрузить полные данные сотрудника:', error);
-          // Продолжаем с тем, что есть
-        }
-      }
+      // Данные employee из users/me содержат всё необходимое (role, permissions, id)
 
       // 4. Формируем объект роли из roleName
       // Новый API: employee.role = { id, name } где name — slug роли

@@ -30,7 +30,7 @@ import CalendarMonthOutlined from "@mui/icons-material/CalendarMonthOutlined";
 import dayjs from "dayjs";
 import { dayjsBishkek } from "../../../utility/dayjsBishkek";
 import type { AppointmentGroup, GroupParticipant } from "../../../features/group-appointments/model/types";
-import { addParticipantToGroup, updateParticipantStatus, payParticipant, deleteGroup, updateGroup, setGroupTrainerNotCame } from "../../../features/group-appointments/api/group-appointments.api";
+import { addParticipantToGroup, updateParticipantStatus, payParticipant, deleteGroup, updateGroup } from "../../../features/group-appointments/api/group-appointments.api";
 import ParticipantRow from "../../../features/group-appointments/ui/ParticipantRow";
 import type { GroupAppointmentStatus } from "../../../features/group-appointments/model/types";
 import { apiFetch } from "../../../utility/apiClient";
@@ -152,11 +152,24 @@ const GroupAppointmentDetailsCard: React.FC<Props> = ({ group, onGroupUpdated, o
     finally { setEditSaving(false); }
   };
 
-  const handleTrainerNotCame = async () => {
+  const allNotCame = group.participants.length > 0 &&
+    group.participants.every((p) => p.status === "not_came" || p.status === "no_show" || p.status === "patient_not_came");
+
+  const handleClientNotCame = async () => {
     setNotCameBusy(true);
     try {
-      const updated = await setGroupTrainerNotCame(group.id);
-      if (updated) onGroupUpdated(updated);
+      await Promise.all(
+        group.participants.map((p) =>
+          updateParticipantStatus(group.id, p.id, "not_came" as GroupAppointmentStatus)
+        )
+      );
+      const updatedParticipants = group.participants.map((p) => ({ ...p, status: "not_came" as GroupAppointmentStatus }));
+      const optimistic = { ...group, participants: updatedParticipants };
+      onGroupUpdated(optimistic);
+      if (updatedParticipants.length > 0) {
+        // Открываем сайдбар оплаты для первого участника
+        setPaymentParticipant(updatedParticipants[0]);
+      }
     } catch { /* ignore */ }
     finally { setNotCameBusy(false); }
   };
@@ -235,9 +248,9 @@ const GroupAppointmentDetailsCard: React.FC<Props> = ({ group, onGroupUpdated, o
     setPaymentParticipant(null);
   };
 
-  // Sync paymentParticipant with latest group data
   const paymentAppointment = React.useMemo(() => {
     if (!paymentParticipant) return null;
+    // Prefer latest from group props, fallback to stored participant
     const latest = group.participants.find(p => p.id === paymentParticipant.id) ?? paymentParticipant;
     return participantToAppointment(latest, group);
   }, [paymentParticipant, group]);
@@ -256,14 +269,14 @@ const GroupAppointmentDetailsCard: React.FC<Props> = ({ group, onGroupUpdated, o
             <Stack direction="row" spacing={0.5}>
               <Button
                 size="small"
-                color="warning"
+                color="error"
                 variant="outlined"
                 startIcon={notCameBusy ? <CircularProgress size={14} color="inherit" /> : <NotificationsPausedOutlined fontSize="small" />}
-                disabled={notCameBusy}
-                onClick={handleTrainerNotCame}
+                disabled={notCameBusy || allNotCame}
+                onClick={handleClientNotCame}
                 sx={{ whiteSpace: "nowrap", fontSize: 12 }}
               >
-                Тренер не пришел
+                Клиент не пришел
               </Button>
               <IconButton size="small" onClick={openEdit}>
                 <EditOutlined fontSize="small" />

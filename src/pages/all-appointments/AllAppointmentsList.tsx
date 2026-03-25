@@ -107,16 +107,15 @@ export const AllAppointmentsList: React.FC = () => {
             // Здесь просто маппим обычные приёмы
             const mapped = (data as AggregatedAppointmentRow[]).map(mapAggregatedRowToAppointment);
 
-            // Extract distinct dates to fetch groups
-            const distinctDates = Array.from(new Set(
-                mapped.map(a => a.appointment_at ? a.appointment_at.slice(0, 10) : null).filter(Boolean) as string[]
-            ));
-
+            // Загружаем группы одним запросом с диапазоном дат
             let allGroups: AppointmentGroup[] = [];
-            if (distinctDates.length > 0) {
+            if (selectedDate) {
                 const { fetchGroups } = await import("../../features/group-appointments/api/group-appointments.api");
-                const groupsRes = await Promise.all(distinctDates.map(date => fetchGroups(date)));
-                allGroups = groupsRes.flat();
+                allGroups = await fetchGroups(selectedDate);
+            } else if (selectedMonth) {
+                const lastDay = dayjs(selectedMonth).endOf("month").format("YYYY-MM-DD");
+                const { fetchGroupsByRange } = await import("../../features/group-appointments/api/group-appointments.api");
+                allGroups = await fetchGroupsByRange(`${selectedMonth}-01`, lastDay);
             }
 
             // Exclude regular appointments that are actually group participants
