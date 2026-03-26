@@ -89,7 +89,7 @@ const ClientShiftForm: React.FC<Props> = ({
   // Загрузка услуг
   useEffect(() => {
     setServicesLoading(true);
-    apiFetch(`/api/v1/sellable-items/?type=service&isActive=true&page_size=200`)
+    apiFetch(`/api/v1/sellable-items/?type=service&isActive=true&pageSize=200`)
       .then((res: any) => {
         const results: any[] = res?.data?.results ?? res?.results ?? [];
         setServiceOptions(

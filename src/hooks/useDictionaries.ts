@@ -15,7 +15,7 @@ type DictionariesByType = {
 const fetchAllDictionaries = async (): Promise<DictionariesByType> => {
   const patientsPromise = (async () => {
     try {
-      const res: any = await apiFetch("/api/v1/clients/?page_size=1000&ordering=fullName");
+      const res: any = await apiFetch("/api/v1/clients/?pageSize=1000&ordering=fullName");
       const rawData: any[] = res?.data?.results ?? res?.results ?? [];
       return rawData.map((r: any) => {
         const id = String(r.id ?? "");

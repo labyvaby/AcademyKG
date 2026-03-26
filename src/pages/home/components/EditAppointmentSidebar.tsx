@@ -29,6 +29,9 @@ import { CustomDateTimePicker } from "../../../components/ui";
 import { useNotification } from "@refinedev/core";
 import { useDictionaries } from "../../../hooks/useDictionaries";
 import { usePermissions } from "../../../hooks/usePermissions";
+import { PERMISSIONS } from "../../../constants/permissions";
+import { isOwnOnlySpecialist } from "../../../utils/permissionHelpers";
+
 
 const patientFilter = createFilterOptions<PatientOption>({
   matchFrom: "start",
@@ -57,8 +60,8 @@ const EditAppointmentSidebar: React.FC<EditAppointmentSidebarProps> = ({
   onSaved,
 }) => {
   const { open: notify } = useNotification();
-  const { isNurse, employeeId } = usePermissions();
-  const isWorkplaceNurse = isNurse();
+  const { hasPermission, employeeId } = usePermissions();
+  const isWorkplaceNurse = isOwnOnlySpecialist(hasPermission);
   const [busy, setBusy] = React.useState(false);
   const busyRef = React.useRef(false);
   const [touched, setTouched] = React.useState(false);
@@ -101,7 +104,7 @@ const EditAppointmentSidebar: React.FC<EditAppointmentSidebarProps> = ({
   const loadServicesForEmployee = React.useCallback(async (empId: string): Promise<ServiceRow[]> => {
     if (!empId) return [];
     try {
-      const res: any = await apiFetch(`/api/v1/sellable-items/?type=service&isActive=true&employee=${empId}&page_size=200`);
+      const res: any = await apiFetch(`/api/v1/sellable-items/?type=service&isActive=true&employee=${empId}&pageSize=200`);
       const results: any[] = res?.data?.results ?? res?.results ?? [];
       return results.map((item: any) => ({
         id: item.id,
@@ -180,7 +183,7 @@ const EditAppointmentSidebar: React.FC<EditAppointmentSidebarProps> = ({
     try {
       const cleanQ = query.trim();
 
-      const res: any = await apiFetch(`/api/v1/clients/?search=${encodeURIComponent(cleanQ)}&page_size=50`);
+      const res: any = await apiFetch(`/api/v1/clients/?search=${encodeURIComponent(cleanQ)}&pageSize=50`);
       const data = res?.data?.results ?? res?.results ?? [];
 
       const mapped = (data || []).map((r: any) => {

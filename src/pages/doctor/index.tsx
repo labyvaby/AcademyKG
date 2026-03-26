@@ -24,6 +24,8 @@ import { PageHeader, AppBottomSheet, DateNavigation } from "../../components/ui"
 import { useRefresh } from "../../contexts/refresh-context";
 import DoctorWorkDrawer from "../../components/home/DoctorWorkDrawer";
 import { usePermissions } from "../../hooks/usePermissions";
+import { PERMISSIONS } from "../../constants/permissions";
+
 import { fetchMedicalStaff } from "../../services/employees";
 import type { EmployeesRow } from "../expenses/types";
 import { apiFetch } from "../../utility/apiClient";
@@ -34,10 +36,12 @@ const DoctorWorkPage: React.FC = () => {
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down("md"));
     const { setOnRefresh } = useRefresh();
-    const { isAdmin, loading: permLoading, employeeId, employee } = usePermissions();
+    const { hasPermission, hasRole, loading: permLoading, employeeId, employee } = usePermissions();
     const queryClient = useQueryClient();
 
-    const canSeeAll = isAdmin();
+    // Тренер/specialist видит только свои приёмы, даже если у него есть appointments.read
+    const isSpecialist = hasRole('specialist');
+    const canSeeAll = hasPermission(PERMISSIONS.APPOINTMENTS_READ) && !isSpecialist;
 
     const [date, setDate] = useState(() => {
         const t = new Date();
@@ -55,19 +59,18 @@ const DoctorWorkPage: React.FC = () => {
     }, [date]);
 
     // --- Загрузка приёмов ---
-    const queryKey = ["doctor-appointments", date, employeeId, canSeeAll, selectedDoctorId];
+    const queryKey = ["doctor-appointments-v2", date, employeeId, canSeeAll, selectedDoctorId];
 
     const { data: appointments = [], isLoading, refetch } = useQuery<Appointment[]>({
         queryKey,
         queryFn: async () => {
-            const params = new URLSearchParams({ ordering: "appointmentAt", date });
+            const params = new URLSearchParams({ ordering: "appointmentAt", date, pageSize: "200" });
             if (!canSeeAll && employeeId) {
                 params.set("specialist", employeeId);
             } else if (canSeeAll && selectedDoctorId) {
                 params.set("specialist", selectedDoctorId);
             }
-            const url = `/api/v1/appointments/?${params.toString()}`;
-            const res: any = await apiFetch(url);
+            const res: any = await apiFetch(`/api/v1/appointments/?${params.toString()}`);
             const data: any[] = res?.data?.results ?? res?.results ?? [];
             const specialistFilter = params.get("specialist");
 
@@ -151,7 +154,7 @@ const DoctorWorkPage: React.FC = () => {
         queryKey: ["doctor-counts", rangeKey, employeeId, canSeeAll, selectedDoctorId],
         queryFn: async () => {
             const { dateFrom, dateTo } = rangeParams;
-            const params = new URLSearchParams({ dateFrom, dateTo, page_size: "500" });
+            const params = new URLSearchParams({ dateFrom, dateTo, excludeGroupParticipants: "true", pageSize: "500" });
             if (!canSeeAll && employeeId) params.set("specialist", employeeId);
             else if (canSeeAll && selectedDoctorId) params.set("specialist", selectedDoctorId);
             const res: any = await apiFetch(`/api/v1/appointments/?${params.toString()}`);
@@ -190,7 +193,7 @@ const DoctorWorkPage: React.FC = () => {
     // --- Кнопка обновления ---
     useEffect(() => {
         setOnRefresh(() => () => {
-            queryClient.invalidateQueries({ queryKey: ["doctor-appointments"] });
+            queryClient.invalidateQueries({ queryKey: ["doctor-appointments-v2"] });
             queryClient.invalidateQueries({ queryKey: ["doctor-counts"] });
         });
         return () => setOnRefresh(null);
@@ -283,7 +286,7 @@ const DoctorWorkPage: React.FC = () => {
                                     appointmentId={selectedAppointmentId}
                                     onClose={() => setSelectedAppointmentId(null)}
                                     onUpdate={() => {
-                                        queryClient.invalidateQueries({ queryKey: ["doctor-appointments"] });
+                                        queryClient.invalidateQueries({ queryKey: ["doctor-appointments-v2"] });
                                         queryClient.invalidateQueries({ queryKey: ["doctor-counts"] });
                                     }}
                                 />
@@ -323,7 +326,7 @@ const DoctorWorkPage: React.FC = () => {
                             appointmentId={selectedAppointmentId}
                             onClose={() => setSelectedAppointmentId(null)}
                             onUpdate={() => {
-                                queryClient.invalidateQueries({ queryKey: ["doctor-appointments"] });
+                                queryClient.invalidateQueries({ queryKey: ["doctor-appointments-v2"] });
                                 queryClient.invalidateQueries({ queryKey: ["doctor-counts"] });
                             }}
                         />
@@ -340,7 +343,7 @@ const DoctorWorkPage: React.FC = () => {
                 open={doctorWorkOpen}
                 onClose={() => setDoctorWorkOpen(false)}
                 appointment={selectedAppointment}
-                onSuccess={() => queryClient.invalidateQueries({ queryKey: ["doctor-appointments"] })}
+                onSuccess={() => queryClient.invalidateQueries({ queryKey: ["doctor-appointments-v2"] })}
             />
         </Box>
     );

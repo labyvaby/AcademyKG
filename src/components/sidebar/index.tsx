@@ -32,13 +32,8 @@ import LocalHospitalOutlined from "@mui/icons-material/LocalHospitalOutlined";
 import PaymentsOutlined from "@mui/icons-material/PaymentsOutlined";
 import BadgeOutlined from "@mui/icons-material/BadgeOutlined";
 import MedicalServicesOutlined from "@mui/icons-material/MedicalServicesOutlined";
-import Inventory2Outlined from "@mui/icons-material/Inventory2Outlined";
-// import BlockOutlined from "@mui/icons-material/BlockOutlined";
-// import ScienceOutlined from "@mui/icons-material/ScienceOutlined";
 import AnalyticsOutlined from "@mui/icons-material/AnalyticsOutlined";
 import CalendarMonthOutlined from "@mui/icons-material/CalendarMonthOutlined";
-import AssessmentOutlined from "@mui/icons-material/AssessmentOutlined";
-import ScienceOutlined from "@mui/icons-material/ScienceOutlined";
 import MenuOutlined from "@mui/icons-material/MenuOutlined";
 import AccessTimeOutlined from "@mui/icons-material/AccessTimeOutlined";
 import LogoutOutlined from "@mui/icons-material/LogoutOutlined";
@@ -53,6 +48,8 @@ import { useMobileSidebar } from "./mobile-context";
 import { SettingsModal } from "./SettingsModal";
 import { useWorkShift } from "../../hooks/useWorkShift";
 import { usePermissions } from "../../hooks/usePermissions";
+import { PERMISSIONS } from "../../constants/permissions";
+
 import { useSkudActions } from "../../hooks/useSkudActions";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import StopIcon from "@mui/icons-material/Stop";
@@ -308,12 +305,10 @@ const DesktopSidebarHeader: React.FC = () => {
 const SidebarSecondary: React.FC = () => {
   const { siderCollapsed } = useThemedLayoutContext();
   useWorkShift();
-  const { hasRole, isNurse: isNurseFunc, isAdmin, isRegistrator, isDoctor, isSuperAdmin, loading: permissionsLoading } = usePermissions();
-  const isNurse = isNurseFunc();
+  const { hasPermission, isSuperAdmin, loading: permissionsLoading } = usePermissions();
   const isSuper = isSuperAdmin();
-  const hasAccessToCashbox = isSuper || hasRole(['admin', 'manager', 'superadmin', 'accountant', 'cashier', 'receptionist']);
 
-  // Во время загрузки прав не показываем элементы меню, которые зависят от роли
+  // Во время загрузки прав не показываем элементы меню
   // Это предотвращает "моргание" при переключении вкладок
   if (permissionsLoading) {
     return (
@@ -329,35 +324,45 @@ const SidebarSecondary: React.FC = () => {
   return (
     <>
       <List sx={{ py: 0 }}>
-        {(isSuper || (!isNurse && !isDoctor())) && (
+        {hasPermission(PERMISSIONS.APPOINTMENTS_READ) && (
           <SidebarMenuItem to="/home" icon={<HomeOutlined />} label="Регистратура" collapsed={siderCollapsed} />
         )}
-        {(isSuper || isAdmin() || isDoctor()) && <SidebarMenuItem to="/specialist" icon={<LocalHospitalOutlined />} label="Кабинет специалиста" collapsed={siderCollapsed} />}
+
+        {hasPermission(PERMISSIONS.APPOINTMENTS_READ) && (
+          <SidebarMenuItem to="/specialist" icon={<LocalHospitalOutlined />} label="Кабинет специалиста" collapsed={siderCollapsed} />
+        )}
+
         <SidebarMenuItem to="/all-appointments" icon={<HistoryOutlined />} label="Все приемы" collapsed={siderCollapsed} />
         <SidebarMenuItem to="/schedule" icon={<CalendarMonthOutlined />} label="Расписание" collapsed={siderCollapsed} />
         <SidebarMenuItem to="/client-schedule" icon={<CalendarMonthOutlined />} label="Клиентское расписание" collapsed={siderCollapsed} />
-        {(isSuper || !isNurse) && <SidebarMenuItem to="/employees" icon={<BadgeOutlined />} label="Сотрудники" collapsed={siderCollapsed} />}
-        {(isSuper || !isNurse) && (
+        {hasPermission(PERMISSIONS.EMPLOYEES_READ) && (
+          <SidebarMenuItem to="/employees" icon={<BadgeOutlined />} label="Сотрудники" collapsed={siderCollapsed} />
+        )}
+
+        {hasPermission(PERMISSIONS.APPOINTMENTS_READ) && (
           <SidebarMenuItem to="/patient-search" icon={<SearchOutlined />} label="Поиск клиентов" collapsed={siderCollapsed} />
         )}
-        {isSuper && (
+
+        {hasPermission(PERMISSIONS.REPORTS_READ) && (
           <SidebarMenuItem to="/admin/load" icon={<AnalyticsOutlined />} label="Нагрузка" collapsed={siderCollapsed} />
         )}
-        {isSuper && (
+        {hasPermission(PERMISSIONS.REPORTS_READ) && (
           <SidebarMenuItem to="/salary-reports" icon={<AccountBalanceWalletOutlined />} label="Отчет по ЗП" collapsed={siderCollapsed} />
         )}
-        {/* Отчеты скрыты для всех */}
+
         <SidebarMenuItem to="/expenses" icon={<PaymentsOutlined />} label="Расходы" collapsed={siderCollapsed} />
-        {hasAccessToCashbox && (
+        {hasPermission(PERMISSIONS.EXPENSES_READ) && (
           <SidebarMenuItem to="/cashbox" icon={<AccountBalanceWalletOutlined />} label="Касса" collapsed={siderCollapsed} />
         )}
+
         <SidebarMenuItem to="/services" icon={<MedicalServicesOutlined />} label="Услуги" collapsed={siderCollapsed} />
         {isSuper && (
           <SidebarMenuItem to="/roles" icon={<AdminPanelSettingsOutlined />} label="Роли и права" collapsed={siderCollapsed} />
         )}
-        {isSuper && (
+        {hasPermission(PERMISSIONS.APP_SETTINGS_UPDATE) && (
           <SidebarMenuItem to="/settings/notifications" icon={<NotificationsOutlined />} label="Уведомления" collapsed={siderCollapsed} />
         )}
+
       </List>
     </>
   );

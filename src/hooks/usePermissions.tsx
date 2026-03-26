@@ -1,8 +1,14 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { apiFetch } from '../utility/apiClient';
 import { isAuthenticated } from '../services/auth';
 import { tokenStorage } from '../utility/apiClient';
 import type { Role, Permission, UserPermissions, RoleName, PermissionCheck } from '../types/rbac';
+import { type Permission as PermissionString, ALL_PERMISSIONS } from '../constants/permissions';
+import { validatePermissions, auditPermissions, fixSuggestions, type PermissionAuditResult } from '../utils/validatePermissions';
+
+/** Режим строгого RBAC: ошибка вместо предупреждения при неизвестном пермишене */
+const STRICT_RBAC = true;
+
 
 // ---------------------------------------------------------------------------
 // Типы
@@ -174,12 +180,7 @@ async function fetchPermissions(opts: { force?: boolean } = {}): Promise<void> {
         // specialist (специалист/тренер) — slug "specialist"
         'специалист': 'specialist',
         'специалист (тренер)': 'specialist',
-        'врач': 'specialist',
-        'doctor': 'specialist',
         'сотрудник': 'specialist',
-        // nurse — slug "nurse"
-        'медсестра': 'nurse',
-        'процедурный': 'nurse',
       };
       // Slug из API может совпасть напрямую — ROLE_ALIAS используется только для display-имён
       let roleName = ROLE_ALIAS[rawRoleName] ?? rawRoleName;
@@ -198,11 +199,48 @@ async function fetchPermissions(opts: { force?: boolean } = {}): Promise<void> {
       };
 
       // Permissions: бек возвращает массив строк вида "resource.action"
-      // Также поддерживаем старый формат [{name: "..."}]
+      // Аудит: алиасы + фильтр unknown→deny + dev-логирование
       const rawPerms: any[] = emp.permissions ?? user.permissions ?? [];
-      const parsedPermissions: Permission[] = rawPerms.map((p: any) =>
-        typeof p === "string" ? { name: p } : p
-      );
+      const audit = auditPermissions(rawPerms);
+      if (process.env.NODE_ENV === 'development' && audit.aliased.length > 0) {
+        console.info('[RBAC] Aliased permissions:', audit.aliased);
+      }
+      const parsedPermissions: Permission[] = audit.granted.map(name => ({ name } as any));
+
+
+      // Синхронизация с Backend: получаем список активных прав в системе
+      if (process.env.NODE_ENV === 'development') {
+        void (async () => {
+          try {
+            const allBackendPermsRes: any = await apiFetch('/api/v1/permissions/');
+            // GET /permissions/ возвращает { data: { "resource.action": {...}, ... } } — объект, не массив
+            const raw = allBackendPermsRes?.data;
+            const backendNames = new Set<string>(
+              Array.isArray(raw) ? raw.map((p: any) => p.name)
+              : raw && typeof raw === 'object' ? Object.keys(raw)
+              : []
+            );
+            const frontendNames = new Set<string>(ALL_PERMISSIONS as readonly string[]);
+
+
+            // Ищем то что есть на фронте, но нет на беке
+            frontendNames.forEach(name => {
+              if (!backendNames.has(name)) {
+                console.warn(`[RBAC Sync] Permission "${name}" exists on Frontend but missing on Backend!`);
+              }
+            });
+            // Ищем то что есть на беке, но нет на фронте
+            backendNames.forEach(name => {
+              if (!frontendNames.has(name)) {
+                console.info(`[RBAC Sync] New permission found on Backend: "${name}". You should add it to src/constants/permissions.ts`);
+              }
+            });
+          } catch {
+            console.error('[RBAC Sync] Failed to fetch system permissions from /api/v1/permissions/');
+          }
+        })();
+      }
+
 
       // isSuperuser — Django superuser обходит все проверки
       const isSuperuser = Boolean(user.isSuperuser ?? user.is_superuser ?? false);
@@ -255,9 +293,130 @@ export const usePermissions = (): UserPermissions & PermissionCheck => {
     };
   }, []);
 
+  // Глобальный объект для дебага в консоли
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development') {
+      const __names = () => new Set(globalState.permissions.map(p => p.name));
+
+      (window as any).__RBAC__ = {
+        state: globalState,
+        role: globalState.role?.name,
+        permissions: Array.from(__names()),
+
+        /** Быстрая проверка: check('appointments', 'read') */
+        check: (resource: string, action: string) => __names().has(`${resource}.${action}`),
+
+        /** Быстрая проверка по полной строке: hasPermission('appointments.read') */
+        hasPermission: (p: string) => __names().has(p),
+
+        /**
+         * Показывает расхождения между правами пользователя и реестром фронта.
+         * unknown_from_api — права из API которых нет в constants/permissions.ts
+         * not_granted — права которые есть во фронте, но не выданы пользователю
+         */
+        diff: () => {
+          const userPerms = __names();
+          const known = new Set(ALL_PERMISSIONS as readonly string[]);
+          return {
+            unknown_from_api: [...userPerms].filter(p => !known.has(p)),
+            not_granted:      [...known].filter(p => !userPerms.has(p)),
+          };
+        },
+
+        /**
+         * Генерирует готовый TypeScript-код для добавления неизвестных прав.
+         * Скопируй вывод в src/constants/permissions.ts
+         */
+        fixSuggestions: () => {
+          const rawPerms = globalState.employee?.permissions ?? [];
+          const audit = auditPermissions(rawPerms);
+          const result = fixSuggestions(audit);
+          console.log(result);
+          return result;
+        },
+
+        /**
+         * Полный аудит: возвращает granted/unknown/aliased/issues.
+         * Issues содержат severity (critical/warning/info) и suggestedFix.
+         */
+        auditFull: (): PermissionAuditResult => {
+          const rawPerms = globalState.employee?.permissions ?? [];
+          const result = auditPermissions(rawPerms);
+          const criticals = result.issues.filter(i => i.severity === 'critical');
+          const warnings  = result.issues.filter(i => i.severity === 'warning');
+          const infos     = result.issues.filter(i => i.severity === 'info');
+
+          console.group('[RBAC] Full Audit Report');
+          console.log(`Role: ${globalState.role?.name ?? '(none)'}`);
+          console.log(`Granted: ${result.granted.length} permissions`);
+          console.log(`Unknown (DENIED): ${result.unknown.length}`);
+          console.log(`Aliased: ${result.aliased.length}`);
+          if (criticals.length > 0) {
+            console.group(`🔴 Critical (${criticals.length})`);
+            criticals.forEach(i => console.error(`  ${i.permission}: ${i.message}`, i.suggestedFix ?? ''));
+            console.groupEnd();
+          }
+          if (warnings.length > 0) {
+            console.group(`🟡 Warnings (${warnings.length})`);
+            warnings.forEach(i => console.warn(`  ${i.permission}: ${i.message}`));
+            console.groupEnd();
+          }
+          if (infos.length > 0) {
+            console.group(`🔵 Info (${infos.length})`);
+            infos.forEach(i => console.info(`  ${i.permission}: ${i.message}`));
+            console.groupEnd();
+          }
+          console.groupEnd();
+          return result;
+        },
+
+        /**
+         * Печатает матрицу прав текущего пользователя по модулям.
+         * console.table с колонками: resource | create | read | update | delete
+         */
+        printMatrix: () => {
+          const names = __names();
+          const resources = new Set<string>();
+          for (const p of names) {
+            const [res] = p.split('.');
+            if (res) resources.add(res);
+          }
+          // Добавляем ресурсы из ALL_PERMISSIONS для полноты матрицы
+          for (const p of ALL_PERMISSIONS as readonly string[]) {
+            const [res] = p.split('.');
+            if (res) resources.add(res);
+          }
+          const ACTIONS = ['create', 'read', 'update', 'delete'] as const;
+          const matrix: Record<string, Record<string, string>> = {};
+          for (const res of Array.from(resources).sort()) {
+            matrix[res] = {};
+            for (const act of ACTIONS) {
+              matrix[res][act] = names.has(`${res}.${act}`) ? '✅' : '❌';
+            }
+          }
+          console.log(`[RBAC] Permission matrix for role: ${globalState.role?.name ?? '(none)'}`);
+          console.table(matrix);
+          return matrix;
+        },
+
+        /** Принудительная перезагрузка профиля и прав */
+        reload: () => refetchPermissions(),
+      };
+    }
+  }, [state]);
+
+
   // ---------------------------------------------------------------------------
   // Хелперы
   // ---------------------------------------------------------------------------
+
+  /** Set строк для O(1) поиска вместо .some() */
+  const permissionNames = useMemo(
+    () => new Set(state.permissions.map(p => p.name)),
+    [state.permissions]
+  );
+
+  const isSuperuser = state.role?.name === 'superadmin';
 
   const hasRole = useCallback(
     (roleName: RoleName | RoleName[]): boolean => {
@@ -270,50 +429,98 @@ export const usePermissions = (): UserPermissions & PermissionCheck => {
   );
 
   const hasPermission = useCallback(
-    (permission: string | string[]): boolean => {
+    (permission: PermissionString | PermissionString[]): boolean => {
+      const isDev = process.env.NODE_ENV === 'development';
+      
       if (state.loading) return false;
-      if (state.role?.name === 'superadmin') return true;
-      if (!state.permissions.length) return false;
+      if (isSuperuser) return true;
+      if (permissionNames.size === 0) return false;
+      
       const toCheck = Array.isArray(permission) ? permission : [permission];
-      return toCheck.some(p => state.permissions.some(sp => sp.name === p));
+
+      if (isDev) {
+        toCheck.forEach(p => {
+          if (!(ALL_PERMISSIONS as readonly string[]).includes(p)) {
+            const msg = `[RBAC] Unknown permission: "${p}". Check src/constants/permissions.ts`;
+            // Никогда не throw в render — только error/warn (throw роняет весь UI)
+            if (STRICT_RBAC) console.error(msg);
+            else console.warn(msg);
+          }
+        });
+      }
+
+      const result = toCheck.some(p => permissionNames.has(p));
+
+      if (isDev && !result) {
+        // Логируем только если прав нет (потенциальный интерес для отладки UI)
+        // console.debug(`[RBAC] Access denied for: ${JSON.stringify(toCheck)}`);
+      }
+
+      return result;
     },
-    [state.loading, state.permissions, state.role]
+
+    [state.loading, permissionNames, isSuperuser]
   );
 
   const hasAnyPermission = useCallback(
-    (perms: string[]): boolean => {
+    (perms: PermissionString[]): boolean => {
       if (state.loading) return false;
-      if (state.role?.name === 'superadmin') return true;
-      return perms.some(p => state.permissions.some(sp => sp.name === p));
+      if (isSuperuser) return true;
+      return perms.some(p => permissionNames.has(p));
     },
-    [state.loading, state.permissions, state.role]
+    [state.loading, permissionNames, isSuperuser]
   );
 
   const hasAllPermissions = useCallback(
-    (perms: string[]): boolean => {
+    (perms: PermissionString[]): boolean => {
       if (state.loading) return false;
-      if (state.role?.name === 'superadmin') return true;
-      return perms.every(p => state.permissions.some(sp => sp.name === p));
+      if (isSuperuser) return true;
+      return perms.every(p => permissionNames.has(p));
     },
-    [state.loading, state.permissions, state.role]
+    [state.loading, permissionNames, isSuperuser]
   );
 
   // can('appointments', 'read') → проверяет 'appointments.read'
   const can = useCallback(
     (resource: string, action: string): boolean => {
-      return hasPermission(`${resource}.${action}`);
+      if (state.loading) return false;
+      if (isSuperuser) return true;
+      const key = `${resource}.${action}`;
+      if (process.env.NODE_ENV === 'development') {
+        if (!(ALL_PERMISSIONS as readonly string[]).includes(key)) {
+          console.warn(`[usePermissions] Unknown permission: "${key}". Check src/constants/permissions.ts`);
+        }
+      }
+      return permissionNames.has(key);
     },
-    [hasPermission]
+    [state.loading, permissionNames, isSuperuser]
   );
 
-  // Актуальные slug-и: superadmin, manager, receptionist, accountant, cashier, specialist, nurse
-  const isSuperAdmin = useCallback(() => state.role?.name === 'superadmin', [state.role]);
-  const isAdmin = useCallback(() => hasRole(['superadmin', 'admin', 'manager']), [hasRole]);
-  const isRegistrator = useCallback(() => hasRole(['receptionist', 'registrator']), [hasRole]);
-  const isDoctor = useCallback(() => hasRole(['doctor', 'specialist']), [hasRole]);
-  const isNurse = useCallback(() => hasRole('nurse'), [hasRole]);
-  const canManageEmployees = useCallback(() => hasRole(['superadmin', 'admin', 'manager', 'receptionist', 'registrator']), [hasRole]);
-  const canManageExpenses = useCallback(() => hasRole(['superadmin', 'admin', 'manager', 'registrator', 'receptionist', 'accountant', 'cashier']), [hasRole]);
+  const isSuperAdmin = useCallback(() => isSuperuser, [isSuperuser]);
+
+  // ---------------------------------------------------------------------------
+  // Legacy role-helper shorthands (deprecated — используй hasPermission/can)
+  // ---------------------------------------------------------------------------
+  /** @deprecated Использовать hasPermission() или can() */
+  const isAdmin = useCallback(
+    () => hasRole(['superadmin', 'admin', 'manager']),
+    [hasRole]
+  );
+  /** @deprecated Использовать hasRole(['receptionist', 'registrator']) */
+  const isRegistrator = useCallback(
+    () => hasRole(['receptionist', 'registrator']),
+    [hasRole]
+  );
+  /** @deprecated */
+  const canManageEmployees = useCallback(
+    () => hasRole(['superadmin', 'admin', 'manager', 'receptionist', 'registrator']),
+    [hasRole]
+  );
+  /** @deprecated */
+  const canManageExpenses = useCallback(
+    () => hasRole(['superadmin', 'admin', 'manager', 'registrator', 'receptionist', 'accountant', 'cashier']),
+    [hasRole]
+  );
 
   return {
     role: state.role,
@@ -328,23 +535,16 @@ export const usePermissions = (): UserPermissions & PermissionCheck => {
     isSuperAdmin,
     isAdmin,
     isRegistrator,
-    isDoctor,
-    isNurse,
     canManageEmployees,
     canManageExpenses,
     employee: state.employee,
   };
 };
 
-/** Быстрые хелперы */
-export const useHasPermission = (permission: string | string[]): boolean => {
+/** Быстрый хелпер */
+export const useHasPermission = (permission: PermissionString | PermissionString[]): boolean => {
   const { hasPermission } = usePermissions();
   return hasPermission(permission);
-};
-
-export const useHasRole = (roleName: RoleName | RoleName[]): boolean => {
-  const { hasRole } = usePermissions();
-  return hasRole(roleName);
 };
 
 /** Принудительный сброс всех данных (при Logout) */
@@ -380,4 +580,10 @@ export const refetchPermissions = (): Promise<void> => {
   };
   notify();
   return fetchPermissions({ force: true });
+};
+
+/** Быстрый хелпер для ролей */
+export const useHasRole = (role: RoleName | RoleName[]): boolean => {
+  const { hasRole } = usePermissions();
+  return hasRole(role);
 };

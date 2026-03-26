@@ -39,8 +39,7 @@ const ProductsPage: React.FC = () => {
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const { open: notify } = useNotification();
   const { confirm, ConfirmDialog } = useConfirmDialog();
-  const { isNurse: isNurseFunc, isAdmin: isAdminFunc } = usePermissions();
-  // const isNurse = isNurseFunc();
+  const { isAdmin: isAdminFunc } = usePermissions();
   const isAdmin = isAdminFunc();
 
   // Drawers

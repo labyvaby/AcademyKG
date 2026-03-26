@@ -64,7 +64,7 @@ export const AppointmentConclusionDrawer: React.FC<AppointmentConclusionDrawerPr
     useEffect(() => {
         let cancelled = false;
         setIsLoadingDiagnoses(true);
-        apiFetch("/api/v1/clinic-diagnoses/?page_size=200&ordering=name")
+        apiFetch("/api/v1/clinic-diagnoses/?pageSize=200&ordering=name")
             .then((res: any) => {
                 if (!cancelled) {
                     const items: ClinicDiagnosis[] = res?.data?.results ?? res?.results ?? [];

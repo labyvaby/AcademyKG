@@ -1,6 +1,8 @@
 
 import React from 'react';
 import { usePermissions } from '../../hooks/usePermissions';
+import { PERMISSIONS } from '../../constants/permissions';
+
 import {
     Box,
     Typography,
@@ -110,9 +112,10 @@ interface SaleDetailsProps {
 
 export const SaleDetails: React.FC<SaleDetailsProps> = ({ sale, onEdit, onDelete }) => {
     const [confirmOpen, setConfirmOpen] = React.useState(false);
-    const { isAdmin, isRegistrator } = usePermissions();
-    const canEdit = isAdmin() || isRegistrator();
-    const canDelete = isAdmin() && !isRegistrator();
+    const { hasPermission } = usePermissions();
+    const canEdit = hasPermission(PERMISSIONS.EXPENSES_UPDATE);
+    const canDelete = hasPermission(PERMISSIONS.EXPENSES_DELETE);
+
 
     if (!sale) {
         return (

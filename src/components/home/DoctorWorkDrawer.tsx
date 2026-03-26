@@ -62,8 +62,8 @@ const DoctorWorkDrawer: React.FC<DoctorWorkDrawerProps> = ({
     onSuccess,
 }) => {
     const { open: notify } = useNotification();
-    const { isDoctor: isDoctorFunc, employeeId, employee } = usePermissions();
-    const isDoctor = isDoctorFunc();
+    const { hasRole, employeeId, employee } = usePermissions();
+    const isDoctor = hasRole('specialist');
 
     // State
     const [conclusion, setConclusion] = useState("");

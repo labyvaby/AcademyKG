@@ -66,7 +66,7 @@ export const EditExpenseModal: React.FC<EditExpenseModalProps> = ({
       try {
         const [emps, catRes] = await Promise.all([
           fetchEmployees(),
-          apiFetch<any>("/api/v1/expense-categories/?page_size=200"),
+          apiFetch<any>("/api/v1/expense-categories/?pageSize=200"),
         ]);
 
         const cats: ExpenseCategory[] = (catRes?.data?.results ?? catRes?.results ?? []).map(

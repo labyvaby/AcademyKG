@@ -16,12 +16,11 @@ const SchedulePage: React.FC = () => {
   usePageTitle("График");
   const calendarRef = React.useRef<{ openAddShift: () => void }>(null);
 
-  const { isNurse: isNurseFunc, employeeId, isAdmin: isAdminFunc, isRegistrator: isRegistratorFunc, isDoctor: isDoctorFunc } = usePermissions();
-  const isNurse = isNurseFunc();
-  const isAdmin = isAdminFunc();
-  const isRegistrator = isRegistratorFunc();
-  const isDoctor = isDoctorFunc();
-  const canManageSchedule = isAdmin || isRegistrator || isDoctor;
+  const { hasPermission, employeeId } = usePermissions();
+  const isAdmin = hasPermission('employees.update' as any);
+  const isRegistrator = hasPermission('appointments.create' as any);
+  const isSpecialist = hasPermission('appointments.read' as any);
+  const canManageSchedule = isAdmin || isRegistrator || isSpecialist;
 
   const handleAddShift = () => {
     calendarRef.current?.openAddShift();
@@ -47,10 +46,9 @@ const SchedulePage: React.FC = () => {
         {/* Основной календарь */}
         <ScheduleCalendar
           ref={calendarRef}
-          isNurse={isNurse}
           isAdmin={isAdmin}
           isRegistrator={isRegistrator}
-          isDoctor={isDoctor}
+          isSpecialist={isSpecialist}
           employeeId={employeeId}
         />
       </Box>

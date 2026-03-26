@@ -39,6 +39,8 @@ import { usePageTitle } from "../../hooks/usePageTitle";
 import { useSimplePageCache } from "../../hooks/useSimplePageCache";
 import { PageHeader, AppBottomSheet } from "../../components/ui";
 import { usePermissions } from "../../hooks/usePermissions";
+import { PERMISSIONS } from "../../constants/permissions";
+
 
 
 
@@ -155,11 +157,10 @@ const ExpensesListPage: React.FC = () => {
   usePageTitle("Расходы");
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
-  const { hasPermission, isNurse: isNurseFunc, employeeId, isAdmin: isAdminFunc, canManageExpenses } = usePermissions();
-  const isAdmin = isAdminFunc();
-  const hasManageExpenses = canManageExpenses();
-  // const isNurse = isNurseFunc(); // No longer needed for logic, we use isAdmin vs others
-  const canDelete = hasPermission("expenses.delete");
+  const { hasPermission, employeeId } = usePermissions();
+  const hasManageExpenses = hasPermission(PERMISSIONS.EXPENSES_CREATE);
+  const canDelete = hasPermission(PERMISSIONS.EXPENSES_DELETE);
+
 
   const [expenses, setExpenses] = React.useState<Expense[]>([]);
   const [searchQuery, setSearchQuery] = React.useState("");
@@ -236,7 +237,7 @@ const ExpensesListPage: React.FC = () => {
     const loadCategories = async () => {
       try {
         const { apiFetch } = await import("../../utility/apiClient");
-        const res: any = await apiFetch("/api/v1/expense-categories/?page_size=200");
+        const res: any = await apiFetch("/api/v1/expense-categories/?pageSize=200");
         const data: any[] = res?.data?.results ?? res?.results ?? [];
         if (!cancelled && Array.isArray(data)) {
           const m = new Map<string, string>();
@@ -569,7 +570,7 @@ const ExpensesListPage: React.FC = () => {
               </Stack>
             )}
 
-            {isAdmin && (
+            {canDelete && (
               <Tooltip title="Удалить">
                 <span>
                   <IconButton
@@ -838,7 +839,7 @@ const ExpensesListPage: React.FC = () => {
                 <Box sx={{ overflowY: "auto", flex: 1, p: 2 }}>
                   <Stack spacing={2}>
                     {/* Фильтр по сотрудникам (для администраторов) */}
-                    {(isAdmin || hasManageExpenses) && employees.length > 0 && (
+                    {hasManageExpenses && employees.length > 0 && (
                       <Stack spacing={0.5}>
                         <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
                           Сотрудник

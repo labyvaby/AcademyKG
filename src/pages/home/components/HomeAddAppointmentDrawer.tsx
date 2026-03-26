@@ -38,6 +38,9 @@ import { type ServiceRow } from "../../../services/services";
 import type { EmployeesRow } from "../../expenses/types";
 import type { PatientOption, ServiceRowEntry } from "../types";
 import { usePermissions } from "../../../hooks/usePermissions";
+import { PERMISSIONS } from "../../../constants/permissions";
+import { isOwnOnlySpecialist } from "../../../utils/permissionHelpers";
+
 import { createGroup } from "../../../features/group-appointments/api/group-appointments.api";
 import { clientScheduleApi } from "../../../features/client-schedule/api/client-schedule.api";
 import CalendarMonthOutlined from "@mui/icons-material/CalendarMonthOutlined";
@@ -109,9 +112,8 @@ export const HomeAddAppointmentDrawer: React.FC<
   // Обратный маппинг: serviceId -> Set<employeeId> (строится в фоне)
   const serviceToEmployeesRef = React.useRef<Record<string, Set<string>>>({});
 
-  const { isNurse, isAdmin, employeeId } = usePermissions();
-  // Ограничиваем только реальных медсестер, не администраторов
-  const isWorkplaceNurse = isNurse() && !isAdmin();
+  const { hasPermission, employeeId } = usePermissions();
+  const isWorkplaceNurse = isOwnOnlySpecialist(hasPermission);
 
   const [selectedPatient, setSelectedPatient] =
     React.useState<PatientOption | null>(null);
@@ -190,8 +192,8 @@ export const HomeAddAppointmentDrawer: React.FC<
     try {
       const cleanQ = query.trim();
       const url = cleanQ
-        ? `/api/v1/clients/?search=${encodeURIComponent(cleanQ)}&page_size=50`
-        : `/api/v1/clients/?page_size=50&ordering=fullName`;
+        ? `/api/v1/clients/?search=${encodeURIComponent(cleanQ)}&pageSize=50`
+        : `/api/v1/clients/?pageSize=50&ordering=fullName`;
       const res: any = await apiFetch(url);
       const data: any[] = res?.data?.results ?? res?.results ?? [];
 
@@ -228,8 +230,8 @@ export const HomeAddAppointmentDrawer: React.FC<
     setGroupPatientLoading(true);
     try {
       const url = query
-        ? `/api/v1/clients/?search=${encodeURIComponent(query)}&page_size=30`
-        : `/api/v1/clients/?page_size=30&ordering=fullName`;
+        ? `/api/v1/clients/?search=${encodeURIComponent(query)}&pageSize=30`
+        : `/api/v1/clients/?pageSize=30&ordering=fullName`;
       const res: any = await apiFetch(url);
       const data: any[] = res?.data?.results ?? res?.results ?? [];
       setGroupPatientResults(data.map((r: any) => {
@@ -363,7 +365,7 @@ export const HomeAddAppointmentDrawer: React.FC<
         const filterSpecialists = (list: EmployeesRow[]) =>
           list.filter(e => {
             const r = ((e as any).role as string ?? "").toLowerCase();
-            return r === "specialist" || r === "doctor";
+            return r === "specialist";
           });
         if (results.length > 0) {
           const emps = mapEmps(results);
@@ -379,7 +381,7 @@ export const HomeAddAppointmentDrawer: React.FC<
             const rolesArr: any[] = rolesRes?.data ?? rolesRes?.results ?? [];
             const specialistRole = rolesArr.find((r: any) => r.name === "specialist");
             const roleParam = specialistRole?.id ? `&role=${specialistRole.id}` : "";
-            const fallback: any = await apiFetch(`/api/v1/employees/?status=active${roleParam}&page_size=200`);
+            const fallback: any = await apiFetch(`/api/v1/employees/?status=active${roleParam}&pageSize=200`);
             if (!cancelled) {
               const fbResults: any[] = fallback?.data?.results ?? fallback?.results ?? [];
               const emps = mapEmps(fbResults);
@@ -401,12 +403,12 @@ export const HomeAddAppointmentDrawer: React.FC<
           const rolesArr: any[] = rolesRes?.data ?? rolesRes?.results ?? [];
           const specialistRole = rolesArr.find((r: any) => r.name === "specialist");
           const roleParam = specialistRole?.id ? `&role=${specialistRole.id}` : "";
-          const fallback: any = await apiFetch(`/api/v1/employees/?status=active${roleParam}&page_size=200`);
+          const fallback: any = await apiFetch(`/api/v1/employees/?status=active${roleParam}&pageSize=200`);
           if (!cancelled) {
             const fbResults: any[] = fallback?.data?.results ?? fallback?.results ?? [];
             const emps = mapEmps(fbResults);
             const filterSpecialists = (list: EmployeesRow[]) =>
-              list.filter(e => { const r = ((e as any).role as string ?? "").toLowerCase(); return r === "specialist" || r === "doctor"; });
+              list.filter(e => { const r = ((e as any).role as string ?? "").toLowerCase(); return r === "specialist"; });
             const specialists = filterSpecialists(emps);
             const final = specialists.length > 0 ? specialists : emps;
             setDoctorsOpts(final);
@@ -423,7 +425,7 @@ export const HomeAddAppointmentDrawer: React.FC<
   React.useEffect(() => {
     if (!open || allServicesOpts.length > 0) return;
     setServicesLoading(true);
-    apiFetch(`/api/v1/sellable-items/?type=service&isActive=true&page_size=200`)
+    apiFetch(`/api/v1/sellable-items/?type=service&isActive=true&pageSize=200`)
       .then((res: any) => {
         const results: any[] = res?.data?.results ?? res?.results ?? [];
         const mapped = results.map((item: any) => ({
@@ -446,7 +448,7 @@ export const HomeAddAppointmentDrawer: React.FC<
     const map: Record<string, Set<string>> = {};
     await Promise.all(emps.map(async (emp) => {
       try {
-        const res: any = await apiFetch(`/api/v1/sellable-items/?type=service&isActive=true&employee=${emp.id}&page_size=200`);
+        const res: any = await apiFetch(`/api/v1/sellable-items/?type=service&isActive=true&employee=${emp.id}&pageSize=200`);
         const results: any[] = res?.data?.results ?? res?.results ?? [];
         results.forEach((item: any) => {
           if (!item.id) return;
@@ -472,7 +474,7 @@ export const HomeAddAppointmentDrawer: React.FC<
   const loadServicesForEmployee = React.useCallback(async (employeeId: string): Promise<ServiceRow[]> => {
     if (!employeeId) return [];
     try {
-      const res: any = await apiFetch(`/api/v1/sellable-items/?type=service&isActive=true&employee=${employeeId}&page_size=200`);
+      const res: any = await apiFetch(`/api/v1/sellable-items/?type=service&isActive=true&employee=${employeeId}&pageSize=200`);
       const results: any[] = res?.data?.results ?? res?.results ?? [];
       return results.map((item: any) => ({
         id: item.id,

@@ -393,11 +393,20 @@ export const AppointmentsList: React.FC<AppointmentsListProps & { onAddSlot?: (d
 
       const services = item.parsed_services || [];
 
+      const resolveDoctorName = (id?: string | null, name?: string | null): string | null => {
+        if (name) return name;
+        if (id && doctors) {
+          const doc = doctors.find(d => String(d.id) === String(id));
+          if (doc) return doc.full_name || (doc as any).name || null;
+        }
+        return null;
+      };
+
       const performersMap = new Map<string, { name: string, id?: string }>();
       if (Array.isArray(services) && services.length > 0) {
         services.forEach(svc => {
-          const name = svc.performer_name || svc.doctor_name;
           const id = svc.performer_id || svc.doctor_id;
+          const name = resolveDoctorName(id, svc.performer_name || svc.doctor_name);
           if (name) {
             const key = id || name;
             if (!performersMap.has(key)) {
@@ -406,19 +415,52 @@ export const AppointmentsList: React.FC<AppointmentsListProps & { onAddSlot?: (d
             if (id) doctorIdMap[name] = id;
           }
         });
-      } else if (item.doctor_name) {
-        if (item.doctor_name.includes(",")) {
-          item.doctor_name.split(",").forEach(n => {
-            const trimmedName = n.trim();
-            if (trimmedName) performersMap.set(trimmedName, { name: trimmedName });
-          });
-        } else {
-          performersMap.set(item.doctor_id || item.doctor_name || "no-doctor", {
-            name: item.doctor_name || "Без специалиста",
-            id: item.doctor_id
-          });
-          if (item.doctor_id) doctorIdMap[item.doctor_name || "Без специалиста"] = item.doctor_id;
+      } else if (item.doctor_name || item.doctor_id) {
+        const nameFallback = resolveDoctorName(item.doctor_id, item.doctor_name);
+        if (nameFallback) {
+          if (nameFallback.includes(",")) {
+            nameFallback.split(",").forEach(n => {
+              const trimmedName = n.trim();
+              if (trimmedName) performersMap.set(trimmedName, { name: trimmedName });
+            });
+          } else {
+            const fallbackId = item.doctor_id;
+            performersMap.set(fallbackId || nameFallback || "no-doctor", {
+              name: nameFallback,
+              id: fallbackId ?? undefined
+            });
+            if (fallbackId) doctorIdMap[nameFallback] = fallbackId;
+          }
         }
+      }
+
+      // Если performersMap пустой — пробуем взять из parsed_services (с учетом id)
+      if (performersMap.size === 0 && item.parsed_services?.length) {
+        item.parsed_services.forEach(svc => {
+          const id = svc.performer_id || null;
+          const name = resolveDoctorName(id, svc.performer_name || null);
+          if (name) {
+            const key = id || name;
+            if (!performersMap.has(key)) {
+              performersMap.set(key, { name, id: id ?? undefined });
+            }
+            if (id) doctorIdMap[name] = id;
+          }
+        });
+      }
+
+      // Еще один фоллбэк: если есть performer_ids (API списка может возвращать только их)
+      if (performersMap.size === 0 && item.performer_ids?.length) {
+        item.performer_ids.forEach(id => {
+          const name = resolveDoctorName(id, null);
+          if (name) {
+            const key = id || name;
+            if (!performersMap.has(key)) {
+              performersMap.set(key, { name, id });
+            }
+            doctorIdMap[name] = id;
+          }
+        });
       }
 
       if (performersMap.size === 0) {

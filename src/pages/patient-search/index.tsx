@@ -21,7 +21,8 @@ import { Drawer } from "@mui/material";
 import type { Patient, HistoryRow } from "../../types/models";
 import type { PatientDocument } from "./components/PatientCard";
 import { usePermissions } from "../../hooks/usePermissions";
-import { PERMISSIONS } from "../../types/rbac";
+import { PERMISSIONS } from "../../constants/permissions";
+
 import { usePatientBalance } from "./usePatientBalance";
 import BalanceTopUpDrawer from "./components/BalanceTopUpDrawer";
 import { apiFetch } from "../../utility/apiClient";
@@ -32,7 +33,7 @@ import { apiFetch } from "../../utility/apiClient";
 
 
 export const PatientSearchPage: React.FC = () => {
-  const { hasPermission, isAdmin, isRegistrator } = usePermissions();
+  const { hasPermission } = usePermissions();
   const [searchParams, setSearchParams] = useSearchParams();
   const [addInitialPhone, setAddInitialPhone] = React.useState("");
 
@@ -49,8 +50,9 @@ export const PatientSearchPage: React.FC = () => {
     }
   }, [searchParams, setSearchParams]);
 
-  const canCreatePatient = (isAdmin() || isRegistrator()) && hasPermission(PERMISSIONS.PATIENTS_CREATE);
-  const canUpdatePatient = isAdmin() || isRegistrator();
+  const canCreatePatient = hasPermission(PERMISSIONS.APPOINTMENTS_CREATE);
+  const canUpdatePatient = hasPermission(PERMISSIONS.APPOINTMENTS_UPDATE);
+
 
 
   const {

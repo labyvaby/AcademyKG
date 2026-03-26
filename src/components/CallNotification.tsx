@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { supabase } from '../utility/supabaseClient';
 import { usePermissions } from '../hooks/usePermissions';
+import { PERMISSIONS } from '../constants/permissions';
+
 import {
     Paper,
     Typography,
@@ -400,7 +402,7 @@ const CallNotificationItem: React.FC<{
 };
 
 export const CallNotification: React.FC = () => {
-    const { isRegistrator } = usePermissions();
+    const { hasPermission } = usePermissions();
     const [calls, setCalls] = useState<IncomingCall[]>([]);
 
     // Persistence: Load on mount
@@ -433,7 +435,7 @@ export const CallNotification: React.FC = () => {
                 'postgres_changes',
                 { event: 'INSERT', schema: 'public', table: 'incoming_calls' },
                 (payload) => {
-                    if (!isRegistrator()) return;
+                    if (!hasPermission(PERMISSIONS.APPOINTMENTS_CREATE)) return;
                     console.log('Incoming call received:', payload.new);
                     setCalls(prev => [...prev, payload.new as IncomingCall]);
                 }
@@ -443,7 +445,7 @@ export const CallNotification: React.FC = () => {
         return () => {
             supabase.removeChannel(channel);
         };
-    }, [isRegistrator]);
+    }, [hasPermission]);
 
     const handleClose = (id: string) => {
         setCalls(prev => prev.filter(c => c.id !== id));

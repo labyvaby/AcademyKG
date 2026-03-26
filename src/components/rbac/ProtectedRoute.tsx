@@ -3,126 +3,87 @@ import { Navigate } from 'react-router';
 import { useNotification } from "@refinedev/core";
 import { usePermissions } from '../../hooks/usePermissions';
 import { ROLE_HOME_PAGES, type RoleName } from '../../types/rbac';
-import { CircularProgress, Box, Typography } from '@mui/material';
+import type { Permission } from '../../constants/permissions';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
-  /** Разрешенные роли для доступа к маршруту */
+  /**
+   * Требуемые разрешения. Пользователь должен иметь ВСЕ указанные права.
+   * Предпочтительный способ защиты маршрутов.
+   *
+   * @example
+   * <ProtectedRoute requiredPermissions={['patients.read']}>
+   */
+  requiredPermissions?: Permission[];
+
+  /**
+   * @deprecated Использовать requiredPermissions вместо ролей.
+   * Оставлено для обратной совместимости на период миграции.
+   */
   allowedRoles?: RoleName[];
-  /** Запрещенные роли для доступа к маршруту */
+  /**
+   * @deprecated Использовать requiredPermissions вместо ролей.
+   */
   deniedRoles?: RoleName[];
-  /** Требуемые разрешения для доступа */
-  requiredPermissions?: string[];
-  /** Требовать все разрешения (по умолчанию false - хотя бы одно) */
-  requireAll?: boolean;
-  /** Куда редиректить при отсутствии доступа */
   redirectTo?: string;
 }
 
-/**
- * Компонент для защиты маршрутов на основе ролей и разрешений
- *
- * @example
- * <ProtectedRoute allowedRoles={['admin', 'superadmin']}>
- *   <ExpensesPage />
- * </ProtectedRoute>
- *
- * @example
- * <ProtectedRoute requiredPermissions={['patients.create', 'patients.update']}>
- *   <AddPatientPage />
- * </ProtectedRoute>
- *
- * @example
- * <ProtectedRoute
- *   allowedRoles={['doctor']}
- *   requiredPermissions={['appointments.read']}
- *   redirectTo="/access-denied"
- * >
- *   <DoctorDashboard />
- * </ProtectedRoute>
- */
 export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   children,
+  requiredPermissions,
   allowedRoles,
   deniedRoles,
-  requiredPermissions,
-  requireAll = false,
   redirectTo = '/home',
 }) => {
-  const { hasRole, hasPermission, hasAllPermissions, loading, role: userRole } = usePermissions();
+  const { hasAllPermissions, hasRole, loading, role: userRole, isSuperAdmin } = usePermissions();
   const { open } = useNotification();
 
-  // 0) Супер-админ всегда имеет доступ ко всему
-  // Проверяем как по объекту роли, так и через hasRole (всемогущество)
-  const isSuper = userRole?.name === 'superadmin';
-
-  if (isSuper) {
+  // Superadmin обходит все проверки
+  if (isSuperAdmin()) {
     return <>{children}</>;
   }
 
-  // Показываем загрузку пока проверяем права (но не блокируем полностью)
+  // Ждём загрузки — не блокируем контент
   if (loading) {
-    // Показываем контент сразу, не ждём прав — иначе бесконечный спиннер
-    // если employee-auth-links не нашёл запись
     return <>{children}</>;
   }
 
-  // Функция для определения куда редиректить
   const getRedirectPath = () => {
-    // Если явно передан redirectTo, используем его
     if (redirectTo !== '/home') return redirectTo;
-
-    // Иначе пытаемся определить домашнюю страницу роли
     if (userRole?.name && ROLE_HOME_PAGES[userRole.name]) {
       return ROLE_HOME_PAGES[userRole.name];
     }
-
-    // Фолбэк
     return '/home';
   };
 
-  const handleAccessDenied = () => {
-    // Не показываем уведомление если это просто редирект неавторизованного юзера
+  const deny = () => {
     if (userRole) {
       open?.({
-        type: "error",
-        message: "Доступ запрещен",
-        description: "У вас нет прав доступа к этому разделу",
+        type: 'error',
+        message: 'Доступ запрещён',
+        description: 'У вас нет прав доступа к этому разделу',
       });
     }
-
     return <Navigate to={getRedirectPath()} replace />;
   };
 
-  // Проверка запрещенных ролей (Супер-админ игнорирует запреты)
-  if (!isSuper && deniedRoles && deniedRoles.length > 0) {
-    if (hasRole(deniedRoles)) {
-      return handleAccessDenied();
+  // --- Новый permission-based путь ---
+  if (requiredPermissions && requiredPermissions.length > 0) {
+    if (!hasAllPermissions(requiredPermissions)) {
+      return deny();
     }
+    return <>{children}</>;
   }
 
-  // Проверка ролей — если роль ещё не загружена, пропускаем (не блокируем)
+  // --- Legacy role-based (deprecated, временно) ---
+  if (deniedRoles && deniedRoles.length > 0 && hasRole(deniedRoles)) {
+    return deny();
+  }
   if (allowedRoles && allowedRoles.length > 0 && userRole !== null) {
     if (!hasRole(allowedRoles)) {
-      return handleAccessDenied();
+      return deny();
     }
   }
 
-  // Проверка разрешений
-  if (requiredPermissions && requiredPermissions.length > 0) {
-    if (requireAll) {
-      // Требуем все разрешения
-      if (!hasAllPermissions(requiredPermissions)) {
-        return handleAccessDenied();
-      }
-    } else {
-      // Требуем хотя бы одно разрешение
-      if (!hasPermission(requiredPermissions)) {
-        return handleAccessDenied();
-      }
-    }
-  }
-
-  // Доступ разрешен
   return <>{children}</>;
 };

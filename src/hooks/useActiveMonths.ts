@@ -26,7 +26,7 @@ export function useActiveMonths(
                 const threeYearsAgo = dayjs().subtract(3, 'year').startOf('month').format('YYYY-MM-DD');
                 const oneYearAhead = dayjs().add(1, 'year').endOf('month').format('YYYY-MM-DD');
 
-                const res: any = await apiFetch(`/api/v1/appointments/`);
+                const res: any = await apiFetch(`/api/v1/appointments/?dateFrom=${threeYearsAgo}&dateTo=${oneYearAhead}&pageSize=1000`);
 
                 if (cancelled) return;
 

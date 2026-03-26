@@ -27,7 +27,7 @@ import { formatDateRu } from "../../utility/format";
 import dayjs from "dayjs";
 import { dayjsBishkek } from "../../utility/dayjsBishkek";
 import AppointmentsList from "./components/AppointmentsList";
-import { fetchDoctors, fetchMedicalStaff } from "../../services/employees";
+import { fetchMedicalStaff } from "../../services/employees";
 import type { Appointment, AggregatedAppointmentRow } from "./types";
 import { mapAggregatedRowToAppointment, mapGroupToAppointment, compareAppointmentsByStatus } from "./types";
 import { fetchGroups } from "../../features/group-appointments/api/group-appointments.api";
@@ -42,6 +42,8 @@ import useMediaQuery from "@mui/material/useMediaQuery";
 import HomeAddAppointmentDrawer from "./components/HomeAddAppointmentDrawer";
 import { DoctorConclusionPanel } from "../doctor/components/DoctorConclusionPanel";
 import { usePermissions } from "../../hooks/usePermissions";
+import { PERMISSIONS } from "../../constants/permissions";
+
 import { useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { useSearchParams } from "react-router";
 
@@ -71,7 +73,7 @@ export const HomePage: React.FC = () => {
   const queryClient = useQueryClient();
   const { setOnRefresh } = useRefresh();
   const theme = useTheme();
-  const { isAdmin, isRegistrator, employeeId } = usePermissions();
+  const { hasPermission, employeeId } = usePermissions();
   const [searchParams, setSearchParams] = useSearchParams();
 
   // Handling deep link for creating appointment or selecting existing one
@@ -218,14 +220,15 @@ export const HomePage: React.FC = () => {
   }, [rangeKey]);
 
   const { data: rangeData = [] } = useQuery({
-    queryKey: ["appointments", "counts", rangeKey, isAdmin(), isRegistrator(), employeeId],
+    queryKey: ["appointments", "counts", rangeKey, hasPermission(PERMISSIONS.APPOINTMENTS_READ), employeeId],
     queryFn: async () => {
       const { dateFrom, dateTo } = rangeParams;
-      // exclude_group_participants=true — участники групп не попадают в счётчик
-      let url = `/api/v1/appointments/?exclude_group_participants=true&dateFrom=${dateFrom}&dateTo=${dateTo}&page_size=500`;
-      if (!isAdmin() && !isRegistrator() && employeeId) {
+      // excludeGroupParticipants=true — участники групп не попадают в счётчик (camelCase — как в схеме)
+      let url = `/api/v1/appointments/?excludeGroupParticipants=true&dateFrom=${dateFrom}&dateTo=${dateTo}&pageSize=500`;
+      if (!hasPermission(PERMISSIONS.APPOINTMENTS_READ) && employeeId) {
         url += `&employee=${employeeId}`;
       }
+
       const res: any = await apiFetch(url);
       return res?.data?.results ?? res?.results ?? res?.data ?? [];
     },
@@ -237,7 +240,7 @@ export const HomePage: React.FC = () => {
     queryKey: ["group-appointments", "counts", rangeKey],
     queryFn: async () => {
       const { dateFrom, dateTo } = rangeParams;
-      const res: any = await apiFetch(`/api/v1/appointment-groups/?dateFrom=${dateFrom}&dateTo=${dateTo}&page_size=500`);
+      const res: any = await apiFetch(`/api/v1/appointment-groups/?dateFrom=${dateFrom}&dateTo=${dateTo}&pageSize=500`);
       return res?.data?.results ?? res?.results ?? res?.data ?? [];
     },
     staleTime: 10 * 60 * 1000,

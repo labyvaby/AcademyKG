@@ -6,6 +6,8 @@ import { AppButton } from "../../../components/ui";
 import { deleteEmployeeApi } from "../hooks/useEmployeesPage";
 import { useNotification } from "@refinedev/core";
 import { usePermissions } from "../../../hooks/usePermissions";
+import { PERMISSIONS } from "../../../constants/permissions";
+
 
 export type DeleteEmployeeDialogProps = {
   record: EmployesRow | null;
@@ -17,14 +19,14 @@ const DeleteEmployeeDialog: React.FC<DeleteEmployeeDialogProps> = ({ record, onC
   const open = Boolean(record);
   const [busy, setBusy] = React.useState(false);
   const { open: notify } = useNotification();
-  const { isAdmin } = usePermissions();
+  const { hasPermission } = usePermissions();
 
   React.useEffect(() => {
     if (!open) setBusy(false);
   }, [open]);
 
   const handleDelete = async () => {
-    if (!record || !isAdmin()) return;
+    if (!record || !hasPermission(PERMISSIONS.EMPLOYEES_DELETE)) return;
     try {
       setBusy(true);
       await deleteEmployeeApi(String(record.id));

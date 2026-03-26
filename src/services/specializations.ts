@@ -7,7 +7,7 @@ export type SpecializationRow = {
 
 export const fetchSpecializations = async (): Promise<SpecializationRow[]> => {
   try {
-    const res: any = await apiFetch("/api/v1/specializations/?page_size=1000");
+    const res: any = await apiFetch("/api/v1/specializations/?pageSize=1000");
     const data = res?.data?.results ?? res?.results ?? [];
     
     return data.map((r: any) => ({ 

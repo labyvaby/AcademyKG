@@ -175,7 +175,7 @@ const ServicesPage: React.FC = () => {
       const { apiFetch } = await import("../../utility/apiClient");
       // Собираем все страницы
       const allItems: AggregatedService[] = [];
-      let nextUrl: string | null = "/api/v1/services/?page_size=200&ordering=name";
+      let nextUrl: string | null = "/api/v1/services/?pageSize=200&ordering=name";
       while (nextUrl) {
         const res: any = await apiFetch(nextUrl);
         const items: any[] = res?.data?.results ?? res?.results ?? [];

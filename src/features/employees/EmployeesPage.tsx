@@ -23,12 +23,14 @@ import { useEmployeesPageState, fetchRoles } from "./hooks/useEmployeesPage";
 import { fetchServices, type ServiceRow as ServiceDto } from "../../services/services";
 import { AppBottomSheet, PageHeader } from "../../components/ui";
 import { usePermissions } from "../../hooks/usePermissions";
+import { PERMISSIONS } from "../../constants/permissions";
+
 
 const EmployeesPage: React.FC = () => {
   usePageTitle("Сотрудники");
   const state = useEmployeesPageState();
   const [isGrouped, setIsGrouped] = React.useState(true);
-  const { canManageEmployees, isAdmin } = usePermissions();
+  const { hasPermission } = usePermissions();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const listRef = React.useRef<HTMLDivElement | null>(null);
@@ -68,7 +70,7 @@ const EmployeesPage: React.FC = () => {
         title="Сотрудники"
         showTitle={false}
         addButtonText="Добавить сотрудника"
-        onAdd={canManageEmployees() ? () => state.setAddOpen(true) : undefined}
+        onAdd={hasPermission(PERMISSIONS.EMPLOYEES_CREATE) ? () => state.setAddOpen(true) : undefined}
         showSearch
         searchVal={state.q}
         onSearchChange={(v) => state.setQ(v)}
@@ -138,8 +140,8 @@ const EmployeesPage: React.FC = () => {
               <EmployeeList
                 items={state.filtered}
                 onSelect={(e) => state.setDetailsOpen(e)}
-                onEdit={canManageEmployees() ? (e) => state.setEditOpen(e) : undefined}
-                onDelete={isAdmin() && canManageEmployees() ? (e) => state.setDeleteOpen(e) : undefined}
+                onEdit={hasPermission(PERMISSIONS.EMPLOYEES_UPDATE) ? (e) => state.setEditOpen(e) : undefined}
+                onDelete={hasPermission(PERMISSIONS.EMPLOYEES_DELETE) ? (e) => state.setDeleteOpen(e) : undefined}
                 listRef={listRef}
                 onScroll={state.loadMore}
                 loading={state.loading}

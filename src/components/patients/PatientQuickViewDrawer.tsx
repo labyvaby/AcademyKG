@@ -97,7 +97,7 @@ export const PatientQuickViewDrawer: React.FC<PatientQuickViewDrawerProps> = ({
         const data = resPatient?.data ?? resPatient;
 
         // 2. Приемы (фильтрация по клиенту)
-        const resApts: any = await apiFetch(`/api/v1/appointments/?patient=${patientId}&page_size=5&ordering=-appointment_at`);
+        const resApts: any = await apiFetch(`/api/v1/appointments/?patient=${patientId}&pageSize=5&ordering=-appointment_at`);
         const aptsData = resApts?.data?.results || resApts?.results || [];
 
         if (active && data) {

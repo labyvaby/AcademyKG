@@ -90,7 +90,7 @@ export const AddExpenseDrawer: React.FC<AddExpenseDrawerProps> = ({
     const fetchCategories = async () => {
       setLoadingCategories(true);
       try {
-        const res: any = await apiFetch("/api/v1/expense-categories/?page_size=200");
+        const res: any = await apiFetch("/api/v1/expense-categories/?pageSize=200");
         const data = res?.data?.results ?? res?.results ?? [];
         if (Array.isArray(data)) {
           setCategories(

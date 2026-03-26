@@ -1,5 +1,5 @@
 import type { RoleName } from '../types/rbac';
-import { PERMISSIONS } from '../types/rbac';
+import { PERMISSIONS } from '../constants/permissions';
 
 /**
  * Конфигурация маршрутов с правами доступа
@@ -17,42 +17,42 @@ export const ROUTE_PERMISSIONS: RoutePermissionConfig[] = [
   // Главная страница - доступна всем авторизованным
   {
     path: '/home',
-    allowedRoles: ['superadmin', 'admin', 'doctor', 'receptionist', 'accountant'],
+    allowedRoles: ['superadmin', 'admin', 'specialist','receptionist', 'accountant'],
   },
 
   // Поиск пациентов - доступен всем кроме бухгалтера
   {
     path: '/patient-search',
-    allowedRoles: ['superadmin', 'admin', 'doctor', 'receptionist'],
-    requiredPermissions: [PERMISSIONS.PATIENTS_LIST],
+    allowedRoles: ['superadmin', 'admin', 'specialist','receptionist'],
+    requiredPermissions: [PERMISSIONS.APPOINTMENTS_READ],
   },
 
   // Расходы - для администраторов, бухгалтеров и регистраторов
   {
     path: '/expenses',
     allowedRoles: ['superadmin', 'admin', 'accountant', 'registrator', 'receptionist', 'manager'],
-    requiredPermissions: [PERMISSIONS.EXPENSES_LIST],
+    requiredPermissions: [PERMISSIONS.EXPENSES_READ],
   },
 
   // Сотрудники - только для администраторов
   {
     path: '/employees',
     allowedRoles: ['superadmin', 'admin'],
-    requiredPermissions: [PERMISSIONS.EMPLOYEES_LIST],
+    requiredPermissions: [PERMISSIONS.EMPLOYEES_READ],
   },
 
   // Услуги - доступны всем (чтение), редактирование только админам
   {
     path: '/services',
-    allowedRoles: ['superadmin', 'admin', 'doctor', 'receptionist', 'accountant'],
-    requiredPermissions: [PERMISSIONS.SERVICES_LIST],
+    allowedRoles: ['superadmin', 'admin', 'specialist','receptionist', 'accountant'],
+    requiredPermissions: [PERMISSIONS.SERVICES_READ],
   },
 
   // График - доступен всем для просмотра
   {
     path: '/schedule',
-    allowedRoles: ['superadmin', 'admin', 'doctor', 'receptionist'],
-    requiredPermissions: [PERMISSIONS.SCHEDULE_READ],
+    allowedRoles: ['superadmin', 'admin', 'specialist','receptionist'],
+    requiredPermissions: [PERMISSIONS.APPOINTMENTS_READ],
   },
 
   // Категории - только для администраторов

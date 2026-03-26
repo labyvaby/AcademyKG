@@ -62,7 +62,7 @@ const GroupAppointmentsPage: React.FC = () => {
     const t = setTimeout(async () => {
       setAddPatientLoading(true);
       try {
-        const res: any = await apiFetch(`/api/v1/clients/?search=${encodeURIComponent(addPatientSearch)}&page_size=30`);
+        const res: any = await apiFetch(`/api/v1/clients/?search=${encodeURIComponent(addPatientSearch)}&pageSize=30`);
         const data: any[] = res?.data?.results ?? res?.results ?? [];
         setAddPatientResults(data.map((r: any) => {
           const fio = r.fullName ?? r.full_name ?? "";

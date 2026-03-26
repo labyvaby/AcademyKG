@@ -67,7 +67,7 @@ export function usePatientList(options?: UsePatientListOptions) {
 
     try {
       const params = new URLSearchParams({
-        page_size: String(PER_PAGE),
+        pageSize: String(PER_PAGE),
         page: String(page + 1),
         ordering: "-createdAt",
       });

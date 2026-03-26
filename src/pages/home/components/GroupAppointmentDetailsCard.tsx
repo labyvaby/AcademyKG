@@ -119,17 +119,17 @@ const GroupAppointmentDetailsCard: React.FC<Props> = ({ group, onGroupUpdated, o
       try {
         const [rolesRes, svcRes]: [any, any] = await Promise.all([
           apiFetch("/api/v1/roles/"),
-          apiFetch("/api/v1/sellable-items/?type=service&isActive=true&page_size=200"),
+          apiFetch("/api/v1/sellable-items/?type=service&isActive=true&pageSize=200"),
         ]);
         const rolesArr: any[] = rolesRes?.data ?? rolesRes?.results ?? [];
         const specialistRole = rolesArr.find((r: any) => r.name === "specialist");
-        const roleParam = specialistRole?.id ? `?status=active&role=${specialistRole.id}&page_size=200` : "?status=active&page_size=200";
+        const roleParam = specialistRole?.id ? `?status=active&role=${specialistRole.id}&pageSize=200` : "?status=active&pageSize=200";
         const empRes: any = await apiFetch(`/api/v1/employees/${roleParam}`);
         const svcs: any[] = svcRes?.data?.results ?? svcRes?.results ?? [];
         const emps: any[] = empRes?.data?.results ?? empRes?.results ?? [];
         const specialists = emps.filter((e: any) => {
           const r = (e.role?.name ?? e.roleName ?? "").toLowerCase();
-          return r === "specialist" || r === "doctor";
+          return r === "specialist";
         });
         setEditEmployees((specialists.length > 0 ? specialists : emps).map((e: any) => ({ id: String(e.id), name: e.fullName ?? e.full_name ?? e.id })));
         setEditServices(svcs.map((s: any) => ({ id: String(s.id), name: s.displayName ?? s.display_name ?? s.name ?? s.id })));
@@ -196,8 +196,8 @@ const GroupAppointmentDetailsCard: React.FC<Props> = ({ group, onGroupUpdated, o
       setAddPatientLoading(true);
       try {
         const url = addPatientSearch
-          ? `/api/v1/clients/?search=${encodeURIComponent(addPatientSearch)}&page_size=30`
-          : `/api/v1/clients/?page_size=30&ordering=fullName`;
+          ? `/api/v1/clients/?search=${encodeURIComponent(addPatientSearch)}&pageSize=30`
+          : `/api/v1/clients/?pageSize=30&ordering=fullName`;
         const res: any = await apiFetch(url);
         const data: any[] = res?.data?.results ?? res?.results ?? [];
         setAddPatientResults(data.map((r: any) => {

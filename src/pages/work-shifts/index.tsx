@@ -24,6 +24,8 @@ import {
     Grid2
 } from "@mui/material";
 import { usePermissions } from "../../hooks/usePermissions";
+import { PERMISSIONS } from "../../constants/permissions";
+
 import { useSkudActions, WorkShift } from "../../hooks/useSkudActions";
 import { useEmployees } from "../../hooks/useEmployees";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
@@ -50,7 +52,7 @@ dayjs.extend(duration);
 const WorkShiftsPage: React.FC = () => {
     usePageTitle("СКУД");
     const { open: notify } = useNotification();
-    const { isAdmin, isSuperAdmin } = usePermissions();
+    const { hasPermission, isSuperAdmin } = usePermissions();
     const { employees } = useEmployees();
 
     // Default to current month
@@ -317,7 +319,7 @@ const WorkShiftsPage: React.FC = () => {
 
                     {/* Filters Row */}
                     <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
-                        {isAdmin() && (
+                        {hasPermission(PERMISSIONS.EMPLOYEES_READ) && (
                             <TextField
                                 select
                                 size="small"
@@ -344,7 +346,7 @@ const WorkShiftsPage: React.FC = () => {
                             onChange={(val) => setEndDate(val ? val.format("YYYY-MM-DD") : "")}
                             slotProps={{ textField: { size: "small", sx: { flex: '1 1 130px', minWidth: 0 } } }}
                         />
-                        {isAdmin() && (
+                        {hasPermission(PERMISSIONS.EMPLOYEES_READ) && (
                             <Button
                                 variant="contained"
                                 size="small"
@@ -384,12 +386,12 @@ const WorkShiftsPage: React.FC = () => {
                                         <TableRow>
                                             <TableCell>Дата</TableCell>
                                             <TableCell>Режим</TableCell>
-                                            {isAdmin() && <TableCell>Сотрудник</TableCell>}
+                                            {hasPermission(PERMISSIONS.EMPLOYEES_READ) && <TableCell>Сотрудник</TableCell>}
                                             <TableCell>Начало</TableCell>
                                             <TableCell>Конец</TableCell>
                                             <TableCell>Длительность</TableCell>
                                             <TableCell>Статус</TableCell>
-                                            {isAdmin() && <TableCell align="right">Действия</TableCell>}
+                                            {hasPermission(PERMISSIONS.EMPLOYEES_READ) && <TableCell align="right">Действия</TableCell>}
                                         </TableRow>
                                     </TableHead>
                                     <TableBody>
@@ -412,7 +414,7 @@ const WorkShiftsPage: React.FC = () => {
                                                                 }}
                                                             >
                                                                 <TableCell
-                                                                    colSpan={isAdmin() ? 8 : 6}
+                                                                    colSpan={hasPermission(PERMISSIONS.EMPLOYEES_READ) ? 8 : 6}
                                                                     sx={{
                                                                         py: 1,
                                                                         fontWeight: 600,
@@ -452,7 +454,7 @@ const WorkShiftsPage: React.FC = () => {
                                                                     />
                                                                 )}
                                                             </TableCell>
-                                                            {isAdmin() && <TableCell>{shift.employee?.full_name || shift.employes_id}</TableCell>}
+                                                            {hasPermission(PERMISSIONS.EMPLOYEES_READ) && <TableCell>{shift.employee?.full_name || shift.employes_id}</TableCell>}
                                                             <TableCell>{shift.timeStart}</TableCell>
                                                             <TableCell>{shift.timeEnd}</TableCell>
                                                             <TableCell>{shift.durationStr}</TableCell>
@@ -463,7 +465,7 @@ const WorkShiftsPage: React.FC = () => {
                                                                     return <Chip label="Завершено" color="info" size="small" />;
                                                                 })()}
                                                             </TableCell>
-                                                            {isAdmin() && (
+                                                            {hasPermission(PERMISSIONS.EMPLOYEES_READ) && (
                                                                 <TableCell align="right">
                                                                     <IconButton size="small" onClick={() => handleEditClick(shift as any)} title="Редактировать">
                                                                         <EditOutlined fontSize="small" />
@@ -541,7 +543,7 @@ const WorkShiftsPage: React.FC = () => {
                                                                     <Typography variant="caption" color="text.secondary">
                                                                         Длительность: <strong>{shift.durationStr}</strong>
                                                                     </Typography>
-                                                                    {isAdmin() && shift.employee?.full_name && (
+                                                                    {hasPermission(PERMISSIONS.EMPLOYEES_READ) && shift.employee?.full_name && (
                                                                         <Typography variant="caption" color="text.secondary" noWrap>
                                                                             {shift.employee.full_name}
                                                                         </Typography>
@@ -551,7 +553,7 @@ const WorkShiftsPage: React.FC = () => {
 
                                                             <Stack direction="row" alignItems="center" spacing={0.5} ml={1} sx={{ flexShrink: 0 }}>
                                                                 {statusChip}
-                                                                {isAdmin() && (
+                                                                {hasPermission(PERMISSIONS.EMPLOYEES_READ) && (
                                                                     <IconButton size="small" onClick={() => handleEditClick(shift as any)}>
                                                                         <EditOutlined fontSize="small" />
                                                                     </IconButton>

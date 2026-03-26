@@ -45,7 +45,7 @@ type Props = {
   onSuccess: (data: Omit<Shift, 'id' | 'employee'> | Omit<Shift, 'id' | 'employee'>[]) => void;
   onCancel: () => void;
   onDelete?: (id: string) => void;
-  isDoctor?: boolean;
+  isSpecialist?: boolean;
   currentEmployeeId?: string | null;
 };
 
@@ -77,7 +77,7 @@ const ShiftForm: React.FC<Props> = ({
   onSuccess,
   onCancel,
   onDelete,
-  isDoctor,
+  isSpecialist,
   currentEmployeeId,
 }) => {
   const { open: notify } = useNotification();
@@ -115,7 +115,7 @@ const ShiftForm: React.FC<Props> = ({
       if (hasLunchTime) setLunchStart(shiftToEdit.lunch_start?.slice(0, 5) || '13:00');
       setSelectedWeekdays(shiftToEdit.weekdays || []);
     } else if (initialDate) {
-      if (isDoctor && currentEmployeeId) {
+      if (isSpecialist && currentEmployeeId) {
         setEmployee(allEmployees.find(e => e.id === currentEmployeeId) || null);
       } else {
         setEmployee(null);
@@ -204,7 +204,7 @@ const ShiftForm: React.FC<Props> = ({
           <Autocomplete
             options={allEmployees}
             value={employee}
-            disabled={isDoctor}
+            disabled={isSpecialist}
             onChange={(_, v) => setEmployee(v)}
             getOptionLabel={(o) =>
               `${o.full_name || o.id}${o.specialization ? ` — ${o.specialization}` : ""}`

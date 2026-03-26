@@ -1,18 +1,17 @@
-# Что нужно от бэкенда
+# Требования к бэкенду — статус
 
-Base URL: `https://academy.operator.kg/api/v1`
-Auth: `Authorization: Bearer <token>`
-camelCase ↔ snake_case поддерживается с обеих сторон.
+Актуальные открытые задачи — в [rbac_backend_contract.md](rbac_backend_contract.md).
+
+| # | Задача | Статус |
+|---|---|---|
+| 1 | `POST /client-schedules/bulk/` — формат `partial_success_skip_duplicates` | ⚠️ Уточнить у бэкенда |
+| 2 | Автоматический расчёт статуса при оплате участника группы (`paid`/`partially_paid`/`scheduled`) | ⚠️ Уточнить у бэкенда |
 
 ---
 
-## 1. Клиентское расписание
+## POST /client-schedules/bulk/ — формат ответа
 
-> Все базовые эндпоинты (`GET`, `POST`, `PATCH`, `DELETE`, `bulk`) — **реализованы в схеме**.
-
-### Единственное что нужно исправить: POST /client-schedules/bulk/ — формат ответа
-
-Текущий ответ схемы возвращает просто `ClientScheduleRead`. Нужен формат `partial_success_skip_duplicates`:
+Нужен формат `partial_success_skip_duplicates` (дубликат = та же дата + тот же клиент, пропускается без 400):
 
 ```json
 {
@@ -26,15 +25,9 @@ camelCase ↔ snake_case поддерживается с обеих сторон
 }
 ```
 
-Дубликат = та же дата + тот же клиент. Пропускается без ошибки `400`.
-
 ---
 
-## 2. Групповые приёмы — поведение оплаты
-
-> `GET`, `POST`, `PATCH`, `DELETE`, `add-participant`, `trainer-not-came` — **реализованы в схеме**.
-
-### Статус при оплате участника — автоматический расчёт
+## Автоматический статус при оплате участника группы
 
 `PATCH /appointments/{id}/` при изменении оплаты должен **автоматически** выставлять статус:
 

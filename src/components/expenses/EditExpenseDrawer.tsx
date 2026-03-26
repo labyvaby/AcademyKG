@@ -91,7 +91,7 @@ export const EditExpenseDrawer: React.FC<EditExpenseDrawerProps> = ({
     let cancelled = false;
     const load = async () => {
       try {
-        const res: any = await apiFetch("/api/v1/expense-categories/?page_size=200");
+        const res: any = await apiFetch("/api/v1/expense-categories/?pageSize=200");
         const data = res?.data?.results ?? res?.results ?? [];
 
         if (Array.isArray(data)) {

@@ -3,6 +3,8 @@ import dayjs from "dayjs";
 import duration from "dayjs/plugin/duration";
 import { useNotification } from "@refinedev/core";
 import { usePermissions } from "./usePermissions";
+import { PERMISSIONS } from "../constants/permissions";
+
 import { useWorkShift } from "./useWorkShift";
 import { useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { apiFetch } from "../utility/apiClient";
@@ -28,7 +30,7 @@ export const useSkudActions = (
     filterStartDate?: string | null,
     filterEndDate?: string | null
 ) => {
-    const { isAdmin } = usePermissions();
+    const { hasPermission } = usePermissions();
     const { open: notify } = useNotification();
     const queryClient = useQueryClient();
     
@@ -76,9 +78,9 @@ export const useSkudActions = (
         queryKey: ['workShifts', 'history', currentUserEmployeeId, filterEmployeeId, filterStartDate, filterEndDate],
         queryFn: async () => {
             // Need employee ID to fetch history
-            if (!currentUserEmployeeId && !isAdmin()) return [];
-            
-            const employeeFilter = isAdmin() ? filterEmployeeId : (currentUserEmployeeId || null);
+            if (!currentUserEmployeeId && !hasPermission(PERMISSIONS.EMPLOYEES_READ)) return [];
+
+            const employeeFilter = hasPermission(PERMISSIONS.EMPLOYEES_READ) ? filterEmployeeId : (currentUserEmployeeId || null);
 
             return await fetchShifts({
                 employee: employeeFilter ?? undefined,

@@ -93,7 +93,7 @@ export const DoctorQuickViewDrawer: React.FC<DoctorQuickViewDrawerProps> = ({ op
         }
 
         // 2. Services
-        const svcRes: any = await apiFetch(`/api/v1/sellable-items/?type=service&isActive=true&employee=${doctorId}&page_size=100`);
+        const svcRes: any = await apiFetch(`/api/v1/sellable-items/?type=service&isActive=true&employee=${doctorId}&pageSize=100`);
         const svcItems: any[] = svcRes?.data?.results ?? svcRes?.results ?? [];
         if (active) {
           setServices(svcItems.map((s: any) => ({
@@ -104,7 +104,7 @@ export const DoctorQuickViewDrawer: React.FC<DoctorQuickViewDrawerProps> = ({ op
         }
 
         // 3. Recent appointments
-        const apptRes: any = await apiFetch(`/api/v1/appointments/?specialist=${doctorId}&ordering=-appointmentAt&page_size=5`);
+        const apptRes: any = await apiFetch(`/api/v1/appointments/?specialist=${doctorId}&ordering=-appointmentAt&pageSize=5`);
         const appts: any[] = apptRes?.data?.results ?? apptRes?.results ?? [];
         if (active) {
           setRecentAppointments(appts.map((a: any) => {

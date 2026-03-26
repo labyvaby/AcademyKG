@@ -44,6 +44,9 @@ import { setCachedDetail, getCachedDetail } from "../../../utility/appointmentCa
 import { formatKGS } from "../../../utility/format";
 import EditAppointmentSidebar from "./EditAppointmentSidebar";
 import { useHasPermission, usePermissions } from "../../../hooks/usePermissions";
+import { PERMISSIONS } from "../../../constants/permissions";
+import { canSeePatientBalance, canViewSpecialistContent, canViewAllAppointments } from "../../../utils/permissionHelpers";
+
 import { getStatusConfig, getStatusChipSx, APPOINTMENT_STATUSES } from "../../../config/appointmentStatuses";
 import { useAppointmentDetails } from "../../../hooks/useAppointmentDetails";
 import { usePatientBalance } from "../../patient-search/usePatientBalance";
@@ -101,10 +104,11 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
   // Sidebar редактирования приема
   const [editOpen, setEditOpen] = React.useState(false);
   const [deleting, setDeleting] = React.useState(false);
-  const { isDoctor, isNurse, isAdmin, isRegistrator, isSuperAdmin, hasPermission, employeeId } = usePermissions();
-  const canDelete = isSuperAdmin?.() ?? false;
+  const { isSuperAdmin, hasPermission, employeeId } = usePermissions();
+  const canDelete = isSuperAdmin();
 
-  const isNurseRole = isNurse?.() ?? false;
+  const canManageAppointment = hasPermission(PERMISSIONS.APPOINTMENTS_UPDATE);
+  const canViewAsSpecialist = canViewSpecialistContent(hasPermission);
 
   // Drawer'ы быстрого просмотра
   const [patientDrawerOpen, setPatientDrawerOpen] = React.useState(false);
@@ -126,8 +130,7 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
   // Payment Sidebar
   const [paymentOpen, setPaymentOpen] = React.useState(false);
 
-  // Patient balance (visible for admin/registrator)
-  const canSeeBalance = !isDoctor?.() && !isNurse?.();
+  const canSeeBalance = canSeePatientBalance(hasPermission);
   const { balance: patientBalance } = usePatientBalance(
     canSeeBalance ? (item?.patient_id ?? null) : null
   );
@@ -290,7 +293,7 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
               {item && !hideActionsForDoctor && !readOnly && (
                 <>
                   {/* Кнопки для тренера: Отменить и Не пришел */}
-                  {isDoctor() && item.status !== APPOINTMENT_STATUSES.CANCELLED && item.status !== APPOINTMENT_STATUSES.PATIENT_NOT_CAME && (
+                  {canViewAsSpecialist && item.status !== APPOINTMENT_STATUSES.CANCELLED && item.status !== APPOINTMENT_STATUSES.PATIENT_NOT_CAME && (
                     <>
                       <Button
                         variant="outlined"
@@ -316,7 +319,7 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
                   )}
 
                   {/* Кнопки для регистратуры/админа: Отменить и Клиент не пришел */}
-                  {(isAdmin() || isRegistrator()) && item.status !== APPOINTMENT_STATUSES.CANCELLED && item.status !== APPOINTMENT_STATUSES.PATIENT_NOT_CAME && (
+                  {canManageAppointment && item.status !== APPOINTMENT_STATUSES.CANCELLED && item.status !== APPOINTMENT_STATUSES.PATIENT_NOT_CAME && (
                     <>
                       <Button
                         variant="outlined"
@@ -341,7 +344,7 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
                   )}
 
                   {/* Кнопка изменения только для админов и регистраторов */}
-                  {(isAdmin() || isRegistrator()) && (
+                  {canManageAppointment && (
                     <Button
                       variant="outlined"
                       size="small"
@@ -360,7 +363,7 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
             </Stack>
 
             {/* Второстепенные действия - справа - Show for Admin/SuperAdmin/Receptionist */}
-            {item && !hideActionsForDoctor && !readOnly && (isAdmin() || isRegistrator()) && (
+            {item && !hideActionsForDoctor && !readOnly && canManageAppointment && (
               <Stack direction="row" spacing={1}>
 
                 {/* Кнопка удаления приема - только для Супер-админа */}
@@ -456,7 +459,7 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
           <Stack spacing={3}>
 
 
-            {!isDoctor() && !isNurse() && (
+            {canSeeBalance && (
               <>
                 {/* Payment Information */}
                 <PaymentInfoBlock
@@ -790,7 +793,7 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
             )}
 
 
-            {(isDoctor() || isNurse()) && (
+            {canViewAsSpecialist && (
               <>
                 <Divider />
                 <Typography variant="caption" color="text.secondary" display="block">

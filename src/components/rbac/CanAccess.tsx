@@ -1,11 +1,12 @@
-import React from 'react';
 import { usePermissions } from '../../hooks/usePermissions';
 import type { RoleName } from '../../types/rbac';
+import type { Permission } from '../../constants/permissions';
 
 interface CanAccessProps {
   children: React.ReactNode;
   /** Требуемые разрешения (хотя бы одно) */
-  permissions?: string | string[];
+  permissions?: Permission | Permission[];
+
   /** Требуемые роли (хотя бы одна) */
   roles?: RoleName | RoleName[];
   /** Требовать все разрешения вместо хотя бы одного */

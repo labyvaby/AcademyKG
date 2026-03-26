@@ -26,6 +26,8 @@ import { EditSaleDrawer } from "../../components/sales/EditSaleDrawer";
 import { getProducts } from "../../services/products";
 import { formatKGS } from "../../utility/format";
 import { usePermissions } from "../../hooks/usePermissions";
+import { PERMISSIONS } from "../../constants/permissions";
+
 
 // Components
 import { SalesList } from "../../components/sales/SalesList";
@@ -41,8 +43,9 @@ const SalesPage: React.FC = () => {
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down("md"));
     const { open: notify } = useNotification();
-    const { isAdmin, isRegistrator } = usePermissions();
-    const canManageSales = isAdmin() || isRegistrator();
+    const { hasPermission } = usePermissions();
+    const canManageSales = hasPermission(PERMISSIONS.EXPENSES_CREATE);
+
 
     // State
     const [sales, setSales] = useState<Sale[]>([]);

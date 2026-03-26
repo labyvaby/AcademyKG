@@ -5,3 +5,5 @@
 
 export { CanAccess } from './CanAccess';
 export { ProtectedRoute } from './ProtectedRoute';
+export { PermissionGuard, withPermission } from './PermissionGuard';
+export type { PermissionGuardProps } from './PermissionGuard';

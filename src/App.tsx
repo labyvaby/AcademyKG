@@ -300,7 +300,7 @@ function App() {
                         <Route
                           path="home"
                           element={
-                            <ProtectedRoute allowedRoles={['admin', 'superadmin', 'manager', 'owner', 'receptionist', 'registrator', 'accountant']}>
+                            <ProtectedRoute requiredPermissions={['appointments.read']}>
                               <Suspense fallback={<LinearProgress />}>
                                 <HomePage />
                               </Suspense>
@@ -310,7 +310,7 @@ function App() {
                         <Route
                           path="patient-search"
                           element={
-                            <ProtectedRoute allowedRoles={['admin', 'superadmin', 'manager', 'owner', 'receptionist', 'registrator', 'accountant', 'specialist']}>
+                            <ProtectedRoute requiredPermissions={['appointments.read']}>
                               <Suspense fallback={<LinearProgress />}>
                                 <PatientSearchPage />
                               </Suspense>
@@ -361,7 +361,7 @@ function App() {
                         <Route
                           path="storage"
                           element={
-                            <ProtectedRoute allowedRoles={['admin', 'superadmin']}>
+                            <ProtectedRoute requiredPermissions={['app_settings.update']}>
                               <Suspense fallback={<LinearProgress />}>
                                 <StoragePage />
                               </Suspense>
@@ -371,7 +371,7 @@ function App() {
                         <Route
                           path="warehouses"
                           element={
-                            <ProtectedRoute allowedRoles={['admin', 'superadmin']}>
+                            <ProtectedRoute requiredPermissions={['app_settings.update']}>
                               <Suspense fallback={<LinearProgress />}>
                                 <WarehousesPage />
                               </Suspense>
@@ -391,7 +391,7 @@ function App() {
                         <Route
                           path="specialist"
                           element={
-                            <ProtectedRoute allowedRoles={['specialist', 'superadmin', 'manager']}>
+                            <ProtectedRoute requiredPermissions={['appointments.read']}>
                               <Suspense fallback={<LinearProgress />}>
                                 <DoctorWorkPage />
                               </Suspense>
@@ -411,7 +411,7 @@ function App() {
                         <Route
                           path="sales"
                           element={
-                            <ProtectedRoute allowedRoles={['admin', 'superadmin', 'registrator', 'receptionist']}>
+                            <ProtectedRoute requiredPermissions={['expenses.create']}>
                               <Suspense fallback={<LinearProgress />}>
                                 <SalesPage />
                               </Suspense>
@@ -421,7 +421,7 @@ function App() {
                         <Route
                           path="cashbox"
                           element={
-                            <ProtectedRoute allowedRoles={['admin', 'superadmin', 'accountant', 'receptionist']}>
+                            <ProtectedRoute requiredPermissions={['expenses.read']}>
                               <Suspense fallback={<LinearProgress />}>
                                 <CashboxPage />
                               </Suspense>
@@ -431,7 +431,7 @@ function App() {
                         <Route
                           path="reports"
                           element={
-                            <ProtectedRoute allowedRoles={['admin', 'superadmin', 'accountant']}>
+                            <ProtectedRoute requiredPermissions={['reports.read']}>
                               <Suspense fallback={<LinearProgress />}>
                                 <ReportsPage />
                               </Suspense>
@@ -452,7 +452,7 @@ function App() {
                         <Route
                           path="roles"
                           element={
-                            <ProtectedRoute allowedRoles={['superadmin']}>
+                            <ProtectedRoute requiredPermissions={['app_settings.update']}>
                               <Suspense fallback={<LinearProgress />}>
                                 <RolesPage />
                               </Suspense>
@@ -486,7 +486,7 @@ function App() {
                         <Route
                           path="settings/skud"
                           element={
-                            <ProtectedRoute allowedRoles={['admin', 'superadmin']}>
+                            <ProtectedRoute requiredPermissions={['app_settings.update']}>
                               <Suspense fallback={<LinearProgress />}>
                                 <SkudSettingsPage />
                               </Suspense>
@@ -496,7 +496,7 @@ function App() {
                         <Route
                           path="settings/diagnoses"
                           element={
-                            <ProtectedRoute allowedRoles={['superadmin', 'specialist']}>
+                            <ProtectedRoute requiredPermissions={['app_settings.update']}>
                               <Suspense fallback={<LinearProgress />}>
                                 <DiagnosesPage />
                               </Suspense>
@@ -506,7 +506,7 @@ function App() {
                         <Route
                           path="settings/notifications"
                           element={
-                            <ProtectedRoute allowedRoles={['superadmin']}>
+                            <ProtectedRoute requiredPermissions={['app_settings.update']}>
                               <Suspense fallback={<LinearProgress />}>
                                 <NotificationSettingsPage />
                               </Suspense>
@@ -516,7 +516,7 @@ function App() {
                         <Route
                           path="admin/load"
                           element={
-                            <ProtectedRoute allowedRoles={['superadmin']}>
+                            <ProtectedRoute requiredPermissions={['reports.read']}>
                               <Suspense fallback={<LinearProgress />}>
                                 <LoadAnalyticsPage />
                               </Suspense>

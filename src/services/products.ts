@@ -57,7 +57,7 @@ const mapApiToProduct = (apiP: any, pricesMap?: Map<string, number>, stockMap?: 
 export const getProducts = async (): Promise<Product[]> => {
     try {
         // Try catalog/sellable-items?type=product first (new API)
-        const res: any = await apiFetch("/catalog/sellable-items/?type=product&is_active=true&page_size=1000");
+        const res: any = await apiFetch("/catalog/sellable-items/?type=product&is_active=true&pageSize=1000");
         const items = res?.data?.results ?? res?.results ?? res ?? [];
 
         if (Array.isArray(items) && items.length > 0) {
@@ -78,19 +78,19 @@ export const getProducts = async (): Promise<Product[]> => {
     }
 
     // Fallback: old endpoints
-    const res: any = await apiFetch("/api/v1/products/?page_size=1000");
+    const res: any = await apiFetch("/api/v1/products/?pageSize=1000");
     const products = res?.data?.results ?? res?.results ?? res ?? [];
 
     if (!Array.isArray(products)) return [];
 
-    const pricesRes: any = await apiFetch("/api/v1/prices/?page_size=1000&is_current=true");
+    const pricesRes: any = await apiFetch("/api/v1/prices/?pageSize=1000&is_current=true");
     const prices = pricesRes?.data?.results ?? pricesRes?.results ?? pricesRes ?? [];
     const pricesMap = new Map<string, number>();
     if (Array.isArray(prices)) {
         prices.forEach((p: any) => { pricesMap.set(p.sellableItem, Number(p.price)); });
     }
 
-    const invRes: any = await apiFetch("/api/v1/inventory/?page_size=1000");
+    const invRes: any = await apiFetch("/api/v1/inventory/?pageSize=1000");
     const inventory = invRes?.data?.results ?? invRes?.results ?? invRes ?? [];
     const stockMap = new Map<string, number>();
     if (Array.isArray(inventory)) {

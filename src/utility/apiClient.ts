@@ -115,6 +115,18 @@ export async function apiFetch<T = unknown>(
     } catch {
       // ignore
     }
+
+    // 403 — недостаточно прав. Не ломаем UI глобальной ошибкой,
+    // бросаем специфичный класс — caller может обработать или проигнорировать.
+    if (response.status === 403) {
+      if (process.env.NODE_ENV === 'development') {
+        console.warn(`[apiFetch] 403 Forbidden: ${path}`, errorDetail);
+      }
+      const err = new Error(errorDetail) as Error & { status: number };
+      err.status = 403;
+      throw err;
+    }
+
     throw new Error(errorDetail);
   }
 

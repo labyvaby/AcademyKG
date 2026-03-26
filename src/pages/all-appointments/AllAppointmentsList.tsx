@@ -23,11 +23,12 @@ import MedicalServicesIcon from "@mui/icons-material/MedicalServices";
 import { ExpandLess, ExpandMore } from "@mui/icons-material";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { usePermissions } from "../../hooks/usePermissions";
+import { PERMISSIONS } from "../../constants/permissions";
+
 import { useActiveMonths } from "../../hooks/useActiveMonths";
 import { PageHeader, AppBottomSheet } from "../../components/ui";
 import { formatDateRu } from "../../utility/format";
 import { apiFetch } from "../../utility/apiClient";
-import { getCachedDetail, setCachedDetail } from "../../utility/appointmentCache";
 import AppointmentsList from "../home/components/AppointmentsList";
 import AppointmentDetailsCard from "../home/components/AppointmentDetailsCard";
 import { DoctorConclusionPanel } from "../doctor/components/DoctorConclusionPanel";
@@ -46,8 +47,10 @@ const MONTH_NAMES = [
 
 export const AllAppointmentsList: React.FC = () => {
     usePageTitle("Все приемы");
-    const { isAdmin, isSuperAdmin, isDoctor, isRegistrator, employeeId, employee } = usePermissions();
-    const canViewAll = isAdmin() || isSuperAdmin() || isRegistrator();
+    const { hasPermission, hasRole, employeeId, employee } = usePermissions();
+    const isSpecialist = hasRole('specialist');
+    const canViewAll = hasPermission(PERMISSIONS.APPOINTMENTS_READ) && !isSpecialist;
+
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down("md"));
     const activeMonthsSet = useActiveMonths("HistoryAppointments", "appointment_at", true);
@@ -175,27 +178,13 @@ export const AllAppointmentsList: React.FC = () => {
                 }
             });
 
-            // Apply cache
-            finalAppointments.forEach((appt, idx) => {
-                const cached = getCachedDetail(appt.id);
-                if (cached) {
-                    finalAppointments[idx] = {
-                        ...appt,
-                        status: cached.status || appt.status,
-                        doctor_name: cached.doctor_name || appt.doctor_name,
-                        doctor_id: cached.doctor_id || appt.doctor_id,
-                        parsed_services: cached.parsed_services?.length ? cached.parsed_services : appt.parsed_services,
-                    };
-                }
-            });
-
             setHistory(finalAppointments);
         } catch (error) {
             console.error("Error fetching all appointments:", error);
         } finally {
             setLoading(false);
         }
-    }, [canViewAll, employeeId, selectedYear, selectedMonth]);
+    }, [canViewAll, employeeId, employee, selectedYear, selectedMonth, selectedDate]);
 
     React.useEffect(() => {
         fetchData();

@@ -23,6 +23,8 @@ import {
 } from "../../../services/diagnoses";
 import { useNotification } from "@refinedev/core";
 import { usePermissions } from "../../../hooks/usePermissions";
+import { PERMISSIONS } from "../../../constants/permissions";
+
 import { supabase } from "../../../utility/supabaseClient";
 import { DB_TABLES } from "../../../utility/constants";
 import EditOutlined from "@mui/icons-material/EditOutlined";
@@ -90,7 +92,7 @@ export const DoctorConclusionPanel: React.FC<DoctorConclusionPanelProps> = ({
     const { open: notify } = useNotification();
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down("md"));
-    const { isDoctor, isAdmin, employeeId } = usePermissions();
+    const { hasPermission, employeeId } = usePermissions();
     const lastAppointmentId = useRef<string | null>(null);
 
     const [loading, setLoading] = useState(false);
@@ -488,7 +490,7 @@ export const DoctorConclusionPanel: React.FC<DoctorConclusionPanelProps> = ({
                     </Stack>
                     <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ gap: 1 }}>
                         {/* Button: Edit - Visible for author doctor or admin */}
-                        {((isDoctor() && currentDoctorId === employeeId) || isAdmin()) && !readOnly && !hideEditButton && (
+                        {(hasPermission(PERMISSIONS.APPOINTMENTS_READ) || hasPermission(PERMISSIONS.APPOINTMENTS_UPDATE)) && !readOnly && !hideEditButton && (
                             <Button
                                 variant="outlined"
                                 size="small"
@@ -503,7 +505,7 @@ export const DoctorConclusionPanel: React.FC<DoctorConclusionPanelProps> = ({
                             </Button>
                         )}
                         {/* Tooltip: Why disabled - for other doctors */}
-                        {isDoctor() && currentDoctorId !== employeeId && !isAdmin() && !hideEditButton && (
+                        {hasPermission(PERMISSIONS.APPOINTMENTS_READ) && !hasPermission(PERMISSIONS.APPOINTMENTS_UPDATE) && currentDoctorId !== employeeId && !hideEditButton && (
                             <Tooltip title="Вы можете редактировать только свое собственное заключение">
                                 <span>
                                     <Button
@@ -633,7 +635,7 @@ export const DoctorConclusionPanel: React.FC<DoctorConclusionPanelProps> = ({
                             <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap' }}>{doctorComplaints || "—"}</Typography>
                         </Box>
 
-                        {isDoctor() && internalComment && (
+                        {hasPermission(PERMISSIONS.APPOINTMENTS_READ) && internalComment && (
                             <Paper variant="outlined" sx={{ p: 1.5, bgcolor: (theme) => theme.palette.mode === 'dark' ? alpha(theme.palette.warning.main, 0.15) : '#fff9c4' }}>
                                 <Typography variant="caption" color="text.secondary" display="block" gutterBottom>Внутренний комментарий</Typography>
                                 <Typography variant="body2">{internalComment}</Typography>

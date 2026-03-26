@@ -392,16 +392,15 @@ interface ScheduleCalendarHandle {
 }
 
 interface ScheduleCalendarProps {
-  isNurse?: boolean;
   isAdmin?: boolean;
   isRegistrator?: boolean;
-  isDoctor?: boolean;
+  isSpecialist?: boolean;
   employeeId?: string | null;
 }
 
 const ScheduleCalendar = React.forwardRef<ScheduleCalendarHandle, ScheduleCalendarProps>((props, ref) => {
-  const { isNurse, isAdmin, isRegistrator, isDoctor, employeeId } = props;
-  const canManage = isAdmin || isRegistrator || isDoctor;
+  const { isAdmin, isRegistrator, isSpecialist, employeeId } = props;
+  const canManage = isAdmin || isRegistrator || isSpecialist;
   const [currentMonth, setCurrentMonth] = useState(dayjs());
   const today = dayjs();
   const { open: notify } = useNotification();
@@ -434,7 +433,7 @@ const ScheduleCalendar = React.forwardRef<ScheduleCalendarHandle, ScheduleCalend
       setIsLoading(true);
 
       // 1. Сотрудники
-      const empRes = await apiFetch("/api/v1/employees/?page_size=200");
+      const empRes = await apiFetch("/api/v1/employees/?pageSize=200");
       const empData = (empRes as any)?.data?.results || (empRes as any)?.data || empRes || [];
       const loadedEmps: Employee[] = (Array.isArray(empData) ? empData : []).map((e: any) => ({
         id: e.id,
@@ -451,7 +450,7 @@ const ScheduleCalendar = React.forwardRef<ScheduleCalendarHandle, ScheduleCalend
       const startDate = currentMonth.startOf('month').subtract(7, 'day').format('YYYY-MM-DD');
       const endDate = currentMonth.endOf('month').add(7, 'day').format('YYYY-MM-DD');
       const schedRes: any = await apiFetch(
-        `/api/v1/employee-schedules/?page_size=500&ordering=date`
+        `/api/v1/employee-schedules/?pageSize=500&ordering=date`
       );
       const schedResults: any[] = schedRes?.data?.results ?? schedRes?.results ?? [];
 
@@ -490,7 +489,7 @@ const ScheduleCalendar = React.forwardRef<ScheduleCalendarHandle, ScheduleCalend
 
   useEffect(() => {
     fetchData();
-  }, [currentMonth, isNurse, employeeId]); // can optimize to refetch only on month change if filtering
+  }, [currentMonth, employeeId]); // can optimize to refetch only on month change if filtering
 
   // REALTIME: Подписка на изменения смен - REMOVED
 
@@ -572,8 +571,7 @@ const ScheduleCalendar = React.forwardRef<ScheduleCalendarHandle, ScheduleCalend
   };
 
   const handleEditClick = (shift: Shift) => {
-    if (!canManage) return; // Disallow editing for non-managers
-    // The previous logic was `if (isNurse) return`. User asked to fix accessing.
+    if (!canManage) return;
     // Assuming only Admins can edit shifts generally.
 
     setEditingShift(shift);
@@ -915,10 +913,10 @@ const ScheduleCalendar = React.forwardRef<ScheduleCalendarHandle, ScheduleCalend
                       </Box>
                       {canManage && (
                         <>
-                          {(isAdmin || isRegistrator || (isDoctor && shift.employes_id === employeeId)) && (
+                          {(isAdmin || isRegistrator || (isSpecialist && shift.employes_id === employeeId)) && (
                             <IconButton size="small" onClick={() => handleEditClick(shift)}><Edit /></IconButton>
                           )}
-                          {(isAdmin || isRegistrator || (isDoctor && shift.employes_id === employeeId)) && (
+                          {(isAdmin || isRegistrator || (isSpecialist && shift.employes_id === employeeId)) && (
                             <IconButton size="small" color="error" onClick={() => handleDelete(shift.id)}><Delete /></IconButton>
                           )}
                         </>
@@ -943,8 +941,8 @@ const ScheduleCalendar = React.forwardRef<ScheduleCalendarHandle, ScheduleCalend
               allEmployees={employees} // Передаем реальных сотрудников!
               onSuccess={handleFormSuccess}
               onCancel={() => setDrawerMode("view")}
-              onDelete={(isAdmin || isRegistrator || (isDoctor && editingShift?.employes_id === employeeId)) ? handleDelete : undefined}
-              isDoctor={isDoctor}
+              onDelete={(isAdmin || isRegistrator || (isSpecialist && editingShift?.employes_id === employeeId)) ? handleDelete : undefined}
+              isSpecialist={isSpecialist}
               currentEmployeeId={employeeId}
             />
           )}

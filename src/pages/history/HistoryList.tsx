@@ -16,6 +16,8 @@ import {
 } from "@mui/material";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { usePermissions } from "../../hooks/usePermissions";
+import { PERMISSIONS } from "../../constants/permissions";
+
 import { PageHeader, AppBottomSheet } from "../../components/ui";
 import { formatDateRu } from "../../utility/format";
 import { supabase } from "../../utility/supabaseClient";
@@ -36,8 +38,10 @@ const MONTH_NAMES = [
 
 const HistoryList: React.FC = () => {
     usePageTitle("История приемов");
-    const { isAdmin, isSuperAdmin, isDoctor, isRegistrator, employeeId } = usePermissions();
-    const canViewAll = isAdmin() || isSuperAdmin() || isRegistrator();
+    const { hasPermission, hasRole, employeeId } = usePermissions();
+    const isSpecialist = hasRole('specialist');
+    const canViewAll = hasPermission(PERMISSIONS.APPOINTMENTS_READ) && !isSpecialist;
+
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down("md"));
 
@@ -104,7 +108,7 @@ const HistoryList: React.FC = () => {
         } finally {
             setLoading(false);
         }
-    }, [canViewAll, employeeId, selectedEmployee, doctors.length, isDoctor]);
+    }, [canViewAll, employeeId, selectedEmployee, doctors.length]);
 
     React.useEffect(() => {
         fetchData();

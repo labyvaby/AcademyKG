@@ -14,20 +14,22 @@ import {
 import SaveOutlined from "@mui/icons-material/SaveOutlined";
 import { supabase } from "../../utility/supabaseClient";
 import { usePermissions } from "../../hooks/usePermissions";
+import { PERMISSIONS } from "../../constants/permissions";
+
 import { Navigate } from "react-router";
 
 export const SkudSettingsPage: React.FC = () => {
-    const { isAdmin, loading: authLoading } = usePermissions();
+    const { hasPermission, loading: authLoading } = usePermissions();
     const [url, setUrl] = useState("");
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
     const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
     useEffect(() => {
-        if (isAdmin()) {
+        if (hasPermission(PERMISSIONS.APP_SETTINGS_UPDATE)) {
             fetchSettings();
         }
-    }, [isAdmin]);
+    }, [hasPermission]);
 
     const fetchSettings = async () => {
         setLoading(true);
@@ -79,7 +81,7 @@ export const SkudSettingsPage: React.FC = () => {
         return <CircularProgress />;
     }
 
-    if (!isAdmin()) {
+    if (!hasPermission(PERMISSIONS.APP_SETTINGS_UPDATE)) {
         return <Navigate to="/access-denied" replace />;
     }
 

@@ -87,6 +87,7 @@ const RESOURCE_LABELS: Record<string, string> = {
   tags: "Теги",
   tasks: "Задачи",
   permissions: "Права доступа",
+  reception: "Ресепшн",
 };
 
 const ACTION_LABELS: Record<string, string> = {
@@ -115,25 +116,55 @@ const RolesPage: React.FC = () => {
     try {
       const [rolesRes, permsRes]: [any, any] = await Promise.all([
         apiFetch("/api/v1/roles/"),
-        apiFetch("/api/v1/permissions/"),
+        apiFetch("/api/v1/permissions/").catch(() => null),
       ]);
 
-      const rolesData: Role[] = rolesRes?.data?.data ?? rolesRes?.data ?? rolesRes ?? [];
+      const rolesListData: Role[] = rolesRes?.data ?? rolesRes ?? [];
+
+      // Грузим detail всех ролей параллельно чтобы получить permissions[]
+      const rolesWithDetails = await Promise.all(
+        rolesListData.map(async (role) => {
+          try {
+            const detail: any = await apiFetch(`/api/v1/roles/${role.id}/`);
+            return (detail?.data ?? role) as Role;
+          } catch {
+            return role;
+          }
+        })
+      );
+      const rolesData = rolesWithDetails;
       setRoles(rolesData);
 
-      const raw = permsRes?.data?.data ?? permsRes?.data ?? permsRes ?? [];
-      const entries: PermissionEntry[] = Array.isArray(raw)
-        ? raw.map((p: any) => {
-            const [resource, action] = (p.name as string).split(".");
-            const displayName = `${RESOURCE_LABELS[resource] ?? resource}: ${ACTION_LABELS[action] ?? action}`;
-            return { name: p.name, displayName };
-          })
-        : [];
+      // GET /permissions/ может вернуть массив [{ name, displayName }]
+      // или объект { "resource.action": { displayName } }
+      // Может вернуть 403 если нет прав — тогда permsRes === null
+      const rawPerms = permsRes?.data ?? permsRes ?? null;
+      let entries: PermissionEntry[] = [];
+      if (Array.isArray(rawPerms)) {
+        entries = rawPerms.map((p: any) => {
+          const name = p?.name ?? "";
+          const [resource, action] = name.split(".");
+          const displayName = p?.displayName ?? p?.display_name
+            ?? `${RESOURCE_LABELS[resource] ?? resource}: ${ACTION_LABELS[action] ?? action}`;
+          return { name, displayName };
+        });
+      } else if (rawPerms && typeof rawPerms === "object") {
+        entries = Object.keys(rawPerms).map((name) => {
+          const p = rawPerms[name];
+          const [resource, action] = name.split(".");
+          const displayName = p?.displayName ?? p?.display_name
+            ?? `${RESOURCE_LABELS[resource] ?? resource}: ${ACTION_LABELS[action] ?? action}`;
+          return { name, displayName };
+        });
+      }
       setAllPermissions(entries);
 
       if (rolesData.length > 0) {
-        setSelectedRole(rolesData[0]);
-        setEditedPermissions(new Set(rolesData[0].permissions));
+        // Грузим detail первой роли чтобы получить permissions
+        const firstDetail: any = await apiFetch(`/api/v1/roles/${rolesData[0].id}/`);
+        const firstRole: Role = firstDetail?.data ?? rolesData[0];
+        setSelectedRole(firstRole);
+        setEditedPermissions(new Set(firstRole.permissions ?? []));
       }
     } catch (e: any) {
       notify?.({ type: "error", message: e?.message ?? "Ошибка загрузки" });
@@ -144,10 +175,17 @@ const RolesPage: React.FC = () => {
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  const handleSelectRole = (role: Role) => {
+  const handleSelectRole = async (role: Role) => {
     setSelectedRole(role);
-    setEditedPermissions(new Set(role.permissions));
+    setEditedPermissions(new Set(role.permissions ?? []));
     setDirty(false);
+    // Грузим detail чтобы получить актуальные permissions
+    try {
+      const detail: any = await apiFetch(`/api/v1/roles/${role.id}/`);
+      const fullRole: Role = detail?.data ?? role;
+      setSelectedRole(fullRole);
+      setEditedPermissions(new Set(fullRole.permissions ?? []));
+    } catch { /* оставляем то что есть в list */ }
   };
 
   const handleToggle = (permName: string) => {
@@ -186,13 +224,14 @@ const RolesPage: React.FC = () => {
     if (!selectedRole) return;
     setSaving(true);
     try {
-      await apiFetch(`/api/v1/roles/${selectedRole.id}/`, {
+      const patchRes: any = await apiFetch(`/api/v1/roles/${selectedRole.id}/`, {
         method: "PATCH",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ permissions: Array.from(editedPermissions) }),
       });
-      const updated = Array.from(editedPermissions);
-      setRoles((prev) => prev.map((r) => r.id === selectedRole.id ? { ...r, permissions: updated } : r));
-      setSelectedRole((prev) => prev ? { ...prev, permissions: updated } : prev);
+      const updatedRole: Role = patchRes?.data ?? { ...selectedRole, permissions: Array.from(editedPermissions) };
+      setRoles((prev) => prev.map((r) => r.id === selectedRole.id ? updatedRole : r));
+      setSelectedRole(updatedRole);
       setDirty(false);
       notify?.({ type: "success", message: "Права сохранены" });
     } catch (e: any) {
@@ -264,7 +303,7 @@ const RolesPage: React.FC = () => {
                   {role.displayName}
                 </Typography>
                 <Chip
-                  label={`${role.permissions.length} прав`}
+                  label={`${(role.permissions ?? []).length} прав`}
                   size="small"
                   sx={{ mt: 0.5, height: 18, fontSize: "0.62rem", fontWeight: 600, bgcolor: active ? (t) => alpha(t.palette.primary.main, 0.15) : "action.selected", color: active ? "primary.main" : "text.secondary" }}
                 />

@@ -58,21 +58,6 @@ export const fetchEmployees = async (): Promise<EmployeesRow[]> => {
   }
 };
 
-export const fetchDoctors = async (): Promise<EmployeesRow[]> => {
-  try {
-    const data = await fetchEmployeesBase();
-    return data
-      .filter((d) => {
-        const roleName = typeof d.role === "object" ? (d.role as any)?.name : d.role;
-        return (roleName || "").toLowerCase() === "doctor";
-      })
-      .map(toRow);
-  } catch (e) {
-    console.error("fetchDoctors failed", e);
-    return [];
-  }
-};
-
 export const fetchMedicalStaff = async (): Promise<EmployeesRow[]> => {
   try {
     const data = await fetchEmployeesBase();
@@ -83,14 +68,3 @@ export const fetchMedicalStaff = async (): Promise<EmployeesRow[]> => {
   }
 };
 
-export const fetchNurses = async (): Promise<EmployeesRow[]> => {
-  try {
-    const data = await fetchEmployeesBase();
-    return data
-      .filter((d) => (d.role || "").toLowerCase() === "nurse")
-      .map(toRow);
-  } catch (e) {
-    console.error("fetchNurses failed", e);
-    return [];
-  }
-};

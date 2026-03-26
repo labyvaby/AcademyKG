@@ -41,7 +41,7 @@ export const clientScheduleApi = {
   /** Загрузить список клиентов */
   fetchClients: async (): Promise<Client[]> => {
     try {
-      const res: any = await apiFetch("/api/v1/clients/?page_size=500&ordering=fullName");
+      const res: any = await apiFetch("/api/v1/clients/?pageSize=500&ordering=fullName");
       const results: any[] = res?.data?.results ?? res?.results ?? [];
       return results.map(toClient).filter((c) => c.id && c.fullName);
     } catch {
@@ -53,7 +53,7 @@ export const clientScheduleApi = {
   fetchShifts: async (startDate: string, endDate: string): Promise<ClientShift[]> => {
     try {
       const res: any = await apiFetch(
-        `/api/v1/client-schedules/?start_date=${startDate}&end_date=${endDate}&page_size=500`
+        `/api/v1/client-schedules/?start_date=${startDate}&end_date=${endDate}&pageSize=500`
       );
       const results: any[] = res?.data?.results ?? res?.results ?? [];
       return results.map(toShift).filter((s) => s.id && s.date);

@@ -55,7 +55,7 @@ const EmployeeList: React.FC<EmployeeListProps> = ({
 
     // Ищем имя роли в массиве ролей
     const roleObj = roles.find((r) => r.id === e.role_id);
-    const roleText = roleObj?.display_name || roleObj?.name || (e.role_id === "doctor" ? "Доктор" : e.role_id === "admin" ? "Управляющий" : statusText || "Сотрудник");
+    const roleText = roleObj?.display_name || roleObj?.name || (e.role_id === "admin" ? "Управляющий" : statusText || "Сотрудник");
 
     const photoUrl = e.photo_url || null;
 

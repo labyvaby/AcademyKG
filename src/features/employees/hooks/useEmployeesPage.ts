@@ -241,7 +241,7 @@ export async function adminCreateUser(payload: {
 // Получить специализации
 export async function fetchSpecializations(): Promise<{ id: string; name: string }[]> {
   try {
-    const res: any = await apiFetch("/api/v1/specializations/?page_size=200");
+    const res: any = await apiFetch("/api/v1/specializations/?pageSize=200");
     const results = res?.data?.results ?? res?.results ?? [];
     return Array.isArray(results) ? results : [];
   } catch {

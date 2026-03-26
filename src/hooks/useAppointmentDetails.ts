@@ -92,7 +92,7 @@ export const useAppointmentDetails = (appointmentId: string | null) => {
                 const sellableNameMap = new Map<string, string>();
                 if (sellableIds.length > 0) {
                     try {
-                        const siRes: any = await apiFetch(`/api/v1/sellable-items/?ids=${sellableIds.join(",")}&page_size=50`);
+                        const siRes: any = await apiFetch(`/api/v1/sellable-items/?ids=${sellableIds.join(",")}&pageSize=50`);
                         const siItems: any[] = siRes?.data?.results ?? siRes?.results ?? siRes?.data ?? [];
                         siItems.forEach((si: any) => {
                             if (si.id) sellableNameMap.set(String(si.id), si.displayName ?? si.display_name ?? si.name ?? "Услуга");

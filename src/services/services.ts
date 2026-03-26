@@ -63,7 +63,7 @@ const toRow = (d: ApiService): ServiceRow => {
 const fetchServicesBase = async (page?: number, pageSize?: number): Promise<{ items: ApiService[], total: number }> => {
   const queryParams = new URLSearchParams();
   if (page !== undefined) queryParams.append("page", (page + 1).toString());
-  if (pageSize !== undefined) queryParams.append("page_size", pageSize.toString());
+  if (pageSize !== undefined) queryParams.append("pageSize", pageSize.toString());
 
   const res: any = await apiFetch(`/api/v1/services/?${queryParams.toString()}`);
   const results = res?.data?.results ?? res?.results ?? [];
@@ -83,7 +83,7 @@ const fetchServicesBase = async (page?: number, pageSize?: number): Promise<{ it
 // Для привязки услуг к сотруднику — грузит из /api/v1/sellable-items/?type=service
 // ID из sellable-items нужны для поля serviceIds в EmployeeWriteRequest
 export const fetchSellableServices = async (): Promise<ServiceRow[]> => {
-  const res: any = await apiFetch("/api/v1/sellable-items/?type=service&page_size=200");
+  const res: any = await apiFetch("/api/v1/sellable-items/?type=service&pageSize=200");
   const results = res?.data?.results ?? res?.results ?? [];
   return results
     .map((item: any): ServiceRow => ({

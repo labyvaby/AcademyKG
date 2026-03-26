@@ -19,6 +19,8 @@ import {
 import { ExpandLess, ExpandMore } from "@mui/icons-material";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { usePermissions } from "../../hooks/usePermissions";
+import { PERMISSIONS } from "../../constants/permissions";
+
 import { useActiveMonths } from "../../hooks/useActiveMonths";
 import { PageHeader, AppBottomSheet } from "../../components/ui";
 import { formatDateRu } from "../../utility/format";
@@ -28,7 +30,7 @@ import AppointmentDetailsCard from "../home/components/AppointmentDetailsCard";
 import { DoctorConclusionPanel } from "../doctor/components/DoctorConclusionPanel";
 import DoctorWorkDrawer from "../../components/home/DoctorWorkDrawer";
 import { mapAggregatedRowToAppointment, Appointment, AggregatedAppointmentRow } from "../home/types";
-import { fetchNurses } from "../../services/employees";
+import { fetchMedicalStaff } from "../../services/employees";
 import { EmployeesRow } from "../expenses/types";
 import dayjs from "dayjs";
 
@@ -40,8 +42,10 @@ const MONTH_NAMES = [
 
 export const AllProceduresList: React.FC = () => {
     usePageTitle("Все процедуры");
-    const { isAdmin, isSuperAdmin, isRegistrator, employeeId } = usePermissions();
-    const canViewAll = isAdmin() || isSuperAdmin() || isRegistrator();
+    const { hasPermission, hasRole, employeeId } = usePermissions();
+    const isSpecialist = hasRole('specialist');
+    const canViewAll = hasPermission(PERMISSIONS.APPOINTMENTS_READ) && !isSpecialist;
+
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down("md"));
     const activeMonthsSet = useActiveMonths("HistoryAppointments", "appointment_at", true);
@@ -71,7 +75,7 @@ export const AllProceduresList: React.FC = () => {
         try {
             let fetchedNurses = doctors;
             if (fetchedNurses.length === 0) {
-                fetchedNurses = await fetchNurses();
+                fetchedNurses = await fetchMedicalStaff();
                 setDoctors(fetchedNurses);
             }
 
