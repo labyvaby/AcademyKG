@@ -128,7 +128,7 @@ const PatientHistoryPanel: React.FC<Props> = ({
                         <Chip
                           label={normalizeStatus(h.Статус)}
                           size="small"
-                          sx={(theme) => ({ mt: 0.5, ...(getStatusChipSx(h.Статус) as Function)(theme) })}
+                          sx={(theme) => ({ mt: 0.5, ...(getStatusChipSx(h.Статус ?? "") as Function)(theme) })}
                         />
                       )}
                     </Stack>
