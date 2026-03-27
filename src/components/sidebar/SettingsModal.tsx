@@ -11,7 +11,6 @@ import {
 import LogoutOutlined from "@mui/icons-material/LogoutOutlined";
 import Brightness4Outlined from "@mui/icons-material/Brightness4Outlined";
 import NotificationsOutlined from "@mui/icons-material/NotificationsOutlined";
-import SettingsSystemDaydreamOutlined from "@mui/icons-material/SettingsSystemDaydreamOutlined";
 import { logout } from "../../services/auth";
 import { ColorModeContext } from "../../contexts/color-mode";
 import { CanAccess } from "../rbac/CanAccess";
@@ -44,20 +43,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       <Divider />
       <DialogContent sx={{ pb: 3 }}>
         <Stack spacing={2}>
-          <CanAccess roles={['admin', 'superadmin']}>
-            <Button
-              variant="outlined"
-              fullWidth
-              component={RouterLink}
-              to="/settings/skud"
-              onClick={onClose}
-              startIcon={<SettingsSystemDaydreamOutlined />}
-            >
-              Настройка СКУД
-            </Button>
-          </CanAccess>
-
-          <CanAccess roles={['superadmin']}>
+<CanAccess roles={['superadmin']}>
             <Button
               variant="outlined"
               fullWidth

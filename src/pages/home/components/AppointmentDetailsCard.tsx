@@ -292,8 +292,8 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
             >
               {item && !hideActionsForDoctor && !readOnly && (
                 <>
-                  {/* Кнопки для тренера: Отменить и Не пришел */}
-                  {canViewAsSpecialist && item.status !== APPOINTMENT_STATUSES.CANCELLED && item.status !== APPOINTMENT_STATUSES.PATIENT_NOT_CAME && (
+                  {/* Кнопки для тренера: Отменить и Не пришел (только если нет прав на управление) */}
+                  {canViewAsSpecialist && !canManageAppointment && item.status !== APPOINTMENT_STATUSES.CANCELLED && item.status !== APPOINTMENT_STATUSES.PATIENT_NOT_CAME && (
                     <>
                       <Button
                         variant="outlined"

@@ -105,7 +105,7 @@ export function usePatientHistory(selected: Patient | null) {
 
         // Load from REST API
         const res: any = await apiFetch(
-          `/api/v1/appointments/?client=${selected.id}&ordering=-appointmentAt`
+          `/api/v1/appointments/?patient=${selected.id}&ordering=-appointmentAt`
         );
 
         if (ctrl.signal.aborted) return;

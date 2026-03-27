@@ -1,5 +1,11 @@
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || "https://academy.operator.kg";
 
+// Глобальный фильтр по филиалу для суперадмина.
+// Устанавливается из BranchContext через setBranchFilter().
+let _activeBranchId: string | null = null;
+export const setBranchFilter = (branchId: string | null) => { _activeBranchId = branchId; };
+export const getBranchFilter = () => _activeBranchId;
+
 const TOKEN_KEY = "academy_access_token";
 const REFRESH_KEY = "academy_refresh_token";
 
@@ -48,12 +54,36 @@ async function refreshAccessToken(): Promise<string | null> {
   }
 }
 
+// Эндпоинты, для которых НЕ нужно подставлять branch (справочники, аутентификация)
+const BRANCH_FILTER_SKIP = [
+  "/api/v1/branches/",
+  "/api/v1/auth/",
+  "/api/v1/users/me",
+  "/api/v1/roles/",
+  "/api/v1/permissions/",
+  "/api/v1/organizations/",
+  "/api/v1/clients/",
+  "/api/v1/services/",
+];
+
+function injectBranchParam(path: string, method: string): string {
+  if (!_activeBranchId) return path;
+  if (method && method !== "GET") return path;
+  if (BRANCH_FILTER_SKIP.some((skip) => path.startsWith(skip))) return path;
+  // Уже есть branch= в URL — не дублируем
+  if (path.includes("branch=")) return path;
+  const separator = path.includes("?") ? "&" : "?";
+  return `${path}${separator}branch=${_activeBranchId}`;
+}
+
 export async function apiFetch<T = unknown>(
   path: string,
   options: RequestInit = {},
   skipAuth = false
 ): Promise<T> {
-  const url = `${BASE_URL}${path}`;
+  const method = (options.method ?? "GET").toUpperCase();
+  const resolvedPath = injectBranchParam(path, method);
+  const url = `${BASE_URL}${resolvedPath}`;
 
   const buildHeaders = (token?: string | null): HeadersInit => {
     const headers: Record<string, string> = {

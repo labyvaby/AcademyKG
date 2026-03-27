@@ -34,10 +34,12 @@ import { PageCacheProvider } from "./contexts/page-cache-context";
 import { RequireAuth } from "./components/auth/RequireAuth";
 import { ProtectedRoute } from "./components/rbac/ProtectedRoute";
 import { CallNotification } from "./components/CallNotification";
+import { BranchProvider } from "./contexts/branch-context";
 // import { RoleDebugNotification } from "./components/debug/RoleDebugNotification"; // ⚠️ Временно отключено
 
 import { lazy, Suspense, useEffect } from "react";
 import { useAuthIdentitySync } from "./hooks/useAuthIdentitySync";
+import { usePermissions } from "./hooks/usePermissions";
 import dataProvider from "@refinedev/simple-rest";
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "https://academy.operator.kg";
 
@@ -56,10 +58,8 @@ const WarehousesPage = lazy(() => import("./pages/warehouses"));
 const SalesPage = lazy(() => import("./pages/sales"));
 const LoginPage = lazy(() => import("./pages/auth/login"));
 const SchedulePage = lazy(() => import("./pages/SchedulePage"));
-const WorkShiftsPage = lazy(() => import("./pages/work-shifts"));
 const AccessDeniedPage = lazy(() => import("./pages/AccessDenied"));
 const DoctorWorkPage = lazy(() => import("./pages/doctor"));
-const SkudSettingsPage = lazy(() => import("./pages/settings/SkudSettingsPage").then(module => ({ default: module.SkudSettingsPage })));
 const ConclusionPrintPage = lazy(() => import("./pages/print/ConclusionPrintPage").then(module => ({ default: module.ConclusionPrintPage }))); // New Print Page
 const CertificatePrintPage = lazy(() => import("./pages/print/CertificatePrintPage").then(module => ({ default: module.CertificatePrintPage }))); // New Certificate Page
 const CashboxPage = lazy(() => import("./pages/cashbox"));
@@ -78,6 +78,12 @@ const RolesPage = lazy(() => import("./pages/roles"));
 
 // Вспомогательный компонент для обработки глобальных событий аутентификации
 const AuthHelper = () => null;
+
+// Оборачивает layout в BranchProvider с доступом к isSuperAdmin
+const BranchAwareLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { isSuperAdmin } = usePermissions();
+  return <BranchProvider isSuperAdmin={isSuperAdmin()}>{children}</BranchProvider>;
+};
 
 // Вспомогательный компонент для защиты корневого редиректа
 const RootRedirect = () => {
@@ -266,6 +272,7 @@ function App() {
                       <Route
                         element={
                           <RequireAuth>
+                            <BranchAwareLayout>
                             <MobileSidebarProvider>
                               <ThemedLayout
                                 Header={() => <Header sticky />}
@@ -282,6 +289,7 @@ function App() {
                                 <Outlet />
                               </ThemedLayout>
                             </MobileSidebarProvider>
+                            </BranchAwareLayout>
                           </RequireAuth>
                         }
                       >
@@ -399,16 +407,6 @@ function App() {
                           }
                         />
                         <Route
-                          path="work-shifts"
-                          element={
-                            <ProtectedRoute deniedRoles={[]}>
-                              <Suspense fallback={<LinearProgress />}>
-                                <WorkShiftsPage />
-                              </Suspense>
-                            </ProtectedRoute>
-                          }
-                        />
-                        <Route
                           path="sales"
                           element={
                             <ProtectedRoute requiredPermissions={['expenses.create']}>
@@ -460,6 +458,7 @@ function App() {
                           }
                         />
 
+
                         <Route
                           path="all-appointments"
                           element={
@@ -483,16 +482,6 @@ function App() {
 
 
 
-                        <Route
-                          path="settings/skud"
-                          element={
-                            <ProtectedRoute requiredPermissions={['app_settings.update']}>
-                              <Suspense fallback={<LinearProgress />}>
-                                <SkudSettingsPage />
-                              </Suspense>
-                            </ProtectedRoute>
-                          }
-                        />
                         <Route
                           path="settings/diagnoses"
                           element={

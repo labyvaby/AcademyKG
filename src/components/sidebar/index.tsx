@@ -35,7 +35,6 @@ import MedicalServicesOutlined from "@mui/icons-material/MedicalServicesOutlined
 import AnalyticsOutlined from "@mui/icons-material/AnalyticsOutlined";
 import CalendarMonthOutlined from "@mui/icons-material/CalendarMonthOutlined";
 import MenuOutlined from "@mui/icons-material/MenuOutlined";
-import AccessTimeOutlined from "@mui/icons-material/AccessTimeOutlined";
 import LogoutOutlined from "@mui/icons-material/LogoutOutlined";
 import HistoryOutlined from "@mui/icons-material/HistoryOutlined";
 import NotificationsOutlined from "@mui/icons-material/NotificationsOutlined";
@@ -46,14 +45,14 @@ import { logout } from "../../services/auth";
 import { Link as RouterLink, useLocation } from "react-router";
 import { useMobileSidebar } from "./mobile-context";
 import { SettingsModal } from "./SettingsModal";
-import { useWorkShift } from "../../hooks/useWorkShift";
 import { usePermissions } from "../../hooks/usePermissions";
 import { PERMISSIONS } from "../../constants/permissions";
 
-import { useSkudActions } from "../../hooks/useSkudActions";
-import PlayArrowIcon from "@mui/icons-material/PlayArrow";
-import StopIcon from "@mui/icons-material/Stop";
 import { AccountBalanceWalletOutlined } from "@mui/icons-material";
+import CorporateFareOutlined from "@mui/icons-material/CorporateFareOutlined";
+import Select from "@mui/material/Select";
+import MenuItem from "@mui/material/MenuItem";
+import { useBranchContext } from "../../contexts/branch-context";
 
 // Sidebar root that ThemedLayout will render via Sider={() => <Sidebar />}
 export const Sidebar: React.FC = () => {
@@ -74,6 +73,7 @@ export const Sidebar: React.FC = () => {
   const footer = (
     <>
       <Divider sx={{ my: 1 }} />
+      <BranchSwitcher />
       <SidebarFooter />
     </>
   );
@@ -304,8 +304,7 @@ const DesktopSidebarHeader: React.FC = () => {
 // Extra static sections: mimic the provided design with many items
 const SidebarSecondary: React.FC = () => {
   const { siderCollapsed } = useThemedLayoutContext();
-  useWorkShift();
-  const { hasPermission, isSuperAdmin, loading: permissionsLoading } = usePermissions();
+const { hasPermission, isSuperAdmin, loading: permissionsLoading } = usePermissions();
   const isSuper = isSuperAdmin();
 
   // Во время загрузки прав не показываем элементы меню
@@ -490,66 +489,57 @@ const SidebarMenuItem: React.FC<SidebarMenuItemProps> = ({
   return button;
 };
 
-// Custom SKUD item with quick actions
-const SidebarSkudItem: React.FC<{ collapsed?: boolean }> = ({ collapsed }) => {
-  const {
-    currentShift,
-    handleStartShift,
-    handleEndShift,
-    actionLoading,
-    isIpCorrect
-  } = useSkudActions();
+// Branch switcher — только для суперадмина
+const BranchSwitcher: React.FC = () => {
+  const { siderCollapsed } = useThemedLayoutContext();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
+  const isCollapsed = siderCollapsed && !isMobile;
+  const { isSuperAdmin } = usePermissions();
+  const { branches, selectedBranch, setSelectedBranch } = useBranchContext();
 
-  // If collapsed, show standard item with icon
-  if (collapsed) {
-    return <SidebarMenuItem to="/work-shifts" icon={<AccessTimeOutlined />} label="СКУД" collapsed={true} />;
+  if (!isSuperAdmin() || branches.length === 0) return null;
+
+  if (isCollapsed) {
+    return (
+      <Tooltip title={selectedBranch ? selectedBranch.name : "Все филиалы"} placement="right">
+        <Box sx={{ display: "flex", justifyContent: "center", py: 0.5 }}>
+          <IconButton size="small" sx={{ color: selectedBranch ? "primary.main" : "text.secondary" }}>
+            <CorporateFareOutlined fontSize="small" />
+          </IconButton>
+        </Box>
+      </Tooltip>
+    );
   }
 
-  // Expanded: No left icon, show Play/Stop buttons next to text
-  const handlePlay = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    handleStartShift();
-  };
-
-  const handleStop = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    handleEndShift();
-  };
-
-  const labelContent = (
-    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-      <Typography variant="body2" sx={{ fontWeight: 'medium' }}>СКУД</Typography>
-      <Box sx={{ display: 'flex', gap: 0.5, mr: -1 }}>
-        {!currentShift ? (
-          <IconButton
-            size="small"
-            onClick={handlePlay}
-            disabled={actionLoading || !isIpCorrect}
-            color="success"
-            title={!isIpCorrect ? "Доступно только из офиса" : "Начать смену"}
-            sx={{ p: 0.5 }}
-          >
-            <PlayArrowIcon fontSize="small" />
-          </IconButton>
-        ) : (
-          <IconButton
-            size="small"
-            onClick={handleStop}
-            disabled={actionLoading}
-            color="error"
-            title="Завершить смену"
-            sx={{ p: 0.5 }}
-          >
-            <StopIcon fontSize="small" />
-          </IconButton>
-        )}
-      </Box>
+  return (
+    <Box sx={{ px: 1, pb: 1 }}>
+      <Select
+        size="small"
+        fullWidth
+        value={selectedBranch?.id ?? "all"}
+        onChange={(e) => {
+          const val = e.target.value;
+          if (val === "all") setSelectedBranch(null);
+          else setSelectedBranch(branches.find((b) => b.id === val) ?? null);
+          setTimeout(() => window.location.reload(), 50);
+        }}
+        startAdornment={<CorporateFareOutlined fontSize="small" sx={{ mr: 0.5, color: selectedBranch ? "primary.main" : "text.secondary" }} />}
+        sx={{
+          fontSize: "0.8rem",
+          bgcolor: selectedBranch ? (theme) => theme.palette.primary.main + "18" : "transparent",
+          "& .MuiOutlinedInput-notchedOutline": {
+            borderColor: selectedBranch ? "primary.main" : "divider",
+          },
+        }}
+      >
+        <MenuItem value="all">Все филиалы</MenuItem>
+        {branches.map((b) => (
+          <MenuItem key={b.id} value={b.id}>{b.name}</MenuItem>
+        ))}
+      </Select>
     </Box>
   );
-
-  return <SidebarMenuItem to="/work-shifts" icon={<AccessTimeOutlined />} label={labelContent} collapsed={false} />;
 };
 
 // Bottom area (user info + logout)

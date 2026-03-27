@@ -93,9 +93,9 @@ export const AllAppointmentsList: React.FC = () => {
 
             const params = new URLSearchParams({ ordering: "-appointmentAt" });
             if (!canViewAll && employeeId) params.set("specialist", employeeId);
-            if (selectedDate) {
-                params.set("date", selectedDate);
-            } else if (selectedMonth) {
+            // Always fetch full month — date filtering is done client-side
+            // so the employee list in the left panel stays intact when a date is selected
+            if (selectedMonth) {
                 const lastDay = dayjs(selectedMonth).endOf("month").format("YYYY-MM-DD");
                 params.set("dateFrom", `${selectedMonth}-01`);
                 params.set("dateTo", lastDay);
@@ -110,12 +110,9 @@ export const AllAppointmentsList: React.FC = () => {
             // Здесь просто маппим обычные приёмы
             const mapped = (data as AggregatedAppointmentRow[]).map(mapAggregatedRowToAppointment);
 
-            // Загружаем группы одним запросом с диапазоном дат
+            // Загружаем группы за весь месяц (фильтрация по дате — на клиенте)
             let allGroups: AppointmentGroup[] = [];
-            if (selectedDate) {
-                const { fetchGroups } = await import("../../features/group-appointments/api/group-appointments.api");
-                allGroups = await fetchGroups(selectedDate);
-            } else if (selectedMonth) {
+            if (selectedMonth) {
                 const lastDay = dayjs(selectedMonth).endOf("month").format("YYYY-MM-DD");
                 const { fetchGroupsByRange } = await import("../../features/group-appointments/api/group-appointments.api");
                 allGroups = await fetchGroupsByRange(`${selectedMonth}-01`, lastDay);
@@ -184,7 +181,7 @@ export const AllAppointmentsList: React.FC = () => {
         } finally {
             setLoading(false);
         }
-    }, [canViewAll, employeeId, employee, selectedYear, selectedMonth, selectedDate]);
+    }, [canViewAll, employeeId, employee, selectedYear, selectedMonth]);
 
     React.useEffect(() => {
         fetchData();

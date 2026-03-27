@@ -218,14 +218,14 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
         {/* Spacer to push right content if needed, but absolute positioning handles center */}
         <Box sx={{ flex: 1 }} />
 
-        {/* Правая часть: Refresh + Avatar */}
+        {/* Правая часть: Branch switcher (superadmin) + Refresh + Avatar */}
         <Stack
           direction="row"
           alignItems="center"
           spacing={{ xs: 0.5, sm: 1 }}
           sx={{ ml: "auto" }}
         >
-          <IconButton
+<IconButton
             color="inherit"
             onClick={() => {
               if (onRefresh) {

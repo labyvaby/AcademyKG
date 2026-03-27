@@ -23,7 +23,9 @@ import {
   ListItemText
 } from "@mui/material";
 import HistoryOutlined from "@mui/icons-material/HistoryOutlined";
+import dayjs from "dayjs";
 import { formatKGS } from "../../../utility/format";
+import { getStatusConfig, getStatusChipSx, normalizeStatus } from "../../../config/appointmentStatuses";
 import type { HistoryRow } from "../../../types/models";
 
 type Props = {
@@ -102,10 +104,12 @@ const PatientHistoryPanel: React.FC<Props> = ({
                   >
                     <Stack>
                       <Typography variant="subtitle2">
-                        {h["Дата и время"]}
+                        {h["Дата и время"]
+                          ? dayjs(h["Дата и время"]).format("DD.MM.YYYY HH:mm")
+                          : "—"}
                       </Typography>
                       <Typography variant="body2" color="text.secondary">
-                        Доктор: {h["Доктор ФИО"] || "—"}
+                        Тренер: {h["Доктор ФИО"] || "—"}
                       </Typography>
                       {h["Услуга"] && (
                         <Typography variant="body2" color="text.secondary">
@@ -122,17 +126,9 @@ const PatientHistoryPanel: React.FC<Props> = ({
                       ) : null}
                       {h.Статус && (
                         <Chip
-                          label={h.Статус}
+                          label={normalizeStatus(h.Статус)}
                           size="small"
-                          color={
-                            h.Статус === "Оплачено"
-                              ? "success"
-                              : h.Статус === "Ожидаем"
-                                ? "warning"
-                                : "default"
-                          }
-                          variant={h.Статус === "Со скидкой" ? "outlined" : "filled"}
-                          sx={{ mt: 0.5 }}
+                          sx={(theme) => ({ mt: 0.5, ...(getStatusChipSx(h.Статус) as Function)(theme) })}
                         />
                       )}
                     </Stack>

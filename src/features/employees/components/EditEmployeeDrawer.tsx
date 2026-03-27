@@ -65,6 +65,8 @@ const EditEmployeeDrawer: React.FC<EditEmployeeDrawerProps> = ({ record, onClose
   const [servicesLoading, setServicesLoading] = React.useState(false);
   const [selectedServices, setSelectedServices] = React.useState<ServiceRow[]>([]);
   const [specializations, setSpecializations] = React.useState<{ id: string; name: string }[]>([]);
+  const [branchId, setBranchId] = React.useState("");
+  const [branches, setBranches] = React.useState<{ id: string; name: string }[]>([]);
 
   const selectedRole = roles.find(r => r.id === roleId);
 
@@ -87,6 +89,7 @@ const EditEmployeeDrawer: React.FC<EditEmployeeDrawerProps> = ({ record, onClose
       setNickname(""); setEmail(""); setEmailErrorMsg(""); setBusy(false); setInn("");
       setPhotoPreview(null); setServices([]); setSelectedServices([]);
       setPassportPhotos([]); setPassportFiles([]); setRemovedPassportUrls([]);
+      setBranchId("");
       return;
     }
 
@@ -104,11 +107,12 @@ const EditEmployeeDrawer: React.FC<EditEmployeeDrawerProps> = ({ record, onClose
     (async () => {
       try {
         setServicesLoading(true);
-        const [allSrv, specs, apiRoles, empDetailRaw] = await Promise.all([
+        const [allSrv, specs, apiRoles, empDetailRaw, branchesRes] = await Promise.all([
           employeeFormUtils.fetchServices(),
           employeeFormUtils.fetchSpecializations(),
           fetchRoles(),
           apiFetch(`/api/v1/employees/${record.id}/`),
+          apiFetch("/api/v1/branches/").then((r: any) => r?.data?.results ?? r?.results ?? []).catch(() => []),
         ]);
         if (cancelled) return;
 
@@ -130,6 +134,10 @@ const EditEmployeeDrawer: React.FC<EditEmployeeDrawerProps> = ({ record, onClose
         setServices(allSrvUniq);
         setSpecializations(specs);
         setRoles(apiRoles.length > 0 ? apiRoles : FALLBACK_ROLES);
+        setBranches(branchesRes.map((b: any) => ({ id: String(b.id ?? b.uuid ?? ""), name: b.name ?? b.displayName ?? "" })));
+        // Подставляем текущий филиал сотрудника
+        const currentBranchId = d?.branch?.id ?? d?.branchId ?? "";
+        if (currentBranchId) setBranchId(String(currentBranchId));
 
         // Специализации
         const specList: any[] = Array.isArray(d?.specializations) ? d.specializations : [];
@@ -180,6 +188,7 @@ const EditEmployeeDrawer: React.FC<EditEmployeeDrawerProps> = ({ record, onClose
       if (fullPhone) payload.userPhoneNumber = fullPhone;
       if (email.trim()) payload.userEmail = email.trim();
       if (birthDate) payload.birthDate = birthDate;
+      if (branchId) payload.branch = branchId;
       if (telegramId.trim()) payload.telegramId = telegramId.trim();
       if (bankAccountNumber.trim()) payload.bankAccountNumber = bankAccountNumber.trim();
       if (inn.trim()) payload.inn = inn.trim();
@@ -311,6 +320,13 @@ const EditEmployeeDrawer: React.FC<EditEmployeeDrawerProps> = ({ record, onClose
             fullWidth required
           >
             {roles.map(r => <MenuItem key={r.id} value={r.id}>{r.display_name || r.name}</MenuItem>)}
+          </TextField>
+        </Stack>
+
+        <Stack spacing={0.5}>
+          <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>Филиал *</Typography>
+          <TextField select value={branchId} onChange={e => setBranchId(e.target.value)} fullWidth required>
+            {branches.map(b => <MenuItem key={b.id} value={b.id}>{b.name}</MenuItem>)}
           </TextField>
         </Stack>
 

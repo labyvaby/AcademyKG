@@ -7,11 +7,22 @@ paths:
   /api/v1/appointment-groups/:
     get:
       operationId: v1AppointmentGroupsList
-      description: Возвращает список групповых приёмов на выбранную дату.
+      description: Список групповых приёмов. Доступна фильтрация по одной дате (date)
+        или диапазону (dateFrom / dateTo, в query после middleware — date_from / date_to).
       summary: Список групповых приёмов
       parameters:
       - in: query
         name: date
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: dateFrom
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: dateTo
         schema:
           type: string
           format: date
@@ -25,6 +36,12 @@ paths:
         required: false
         in: query
         description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: pageSize
+        required: false
+        in: query
+        description: Number of results to return per page.
         schema:
           type: integer
       - in: query
@@ -1075,6 +1092,12 @@ paths:
         required: false
         in: query
         description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: pageSize
+        required: false
+        in: query
+        description: Number of results to return per page.
         schema:
           type: integer
       - in: query
@@ -3053,6 +3076,12 @@ paths:
         description: A page number within the paginated result set.
         schema:
           type: integer
+      - name: pageSize
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
       - name: search
         required: false
         in: query
@@ -4066,6 +4095,12 @@ paths:
         required: false
         in: query
         description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: pageSize
+        required: false
+        in: query
+        description: Number of results to return per page.
         schema:
           type: integer
       - in: query
@@ -5109,6 +5144,12 @@ paths:
         description: A page number within the paginated result set.
         schema:
           type: integer
+      - name: pageSize
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
       - in: query
         name: patientId
         schema:
@@ -6139,6 +6180,12 @@ paths:
         required: false
         in: query
         description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: pageSize
+        required: false
+        in: query
+        description: Number of results to return per page.
         schema:
           type: integer
       - name: search
@@ -7601,6 +7648,12 @@ paths:
         description: A page number within the paginated result set.
         schema:
           type: integer
+      - name: pageSize
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
       - name: search
         required: false
         in: query
@@ -8485,6 +8538,12 @@ paths:
         required: false
         in: query
         description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: pageSize
+        required: false
+        in: query
+        description: Number of results to return per page.
         schema:
           type: integer
       - in: query
@@ -9524,6 +9583,12 @@ paths:
         description: A page number within the paginated result set.
         schema:
           type: integer
+      - name: pageSize
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
       - name: search
         required: false
         in: query
@@ -10399,6 +10464,12 @@ paths:
         description: A page number within the paginated result set.
         schema:
           type: integer
+      - name: pageSize
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
       - name: search
         required: false
         in: query
@@ -11260,6 +11331,12 @@ paths:
         required: false
         in: query
         description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: pageSize
+        required: false
+        in: query
+        description: Number of results to return per page.
         schema:
           type: integer
       - name: search
@@ -12140,6 +12217,12 @@ paths:
         description: A page number within the paginated result set.
         schema:
           type: integer
+      - name: pageSize
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
       - in: query
         name: sale
         schema:
@@ -12994,8 +13077,9 @@ paths:
           description: No response body
   /api/v1/permissions/:
     get:
-      operationId: v1PermissionsRetrieve
-      description: Возвращает полный список доступных прав для настройки ролей.
+      operationId: v1PermissionsList
+      description: 'Полный список прав для настройки ролей. Успешное тело после envelope:
+        ``{ "data": [ { "name", "displayName" }, ... ], "meta": {} }``.'
       summary: Реестр всех прав
       tags:
       - Роли
@@ -13006,7 +13090,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/V1PermissionsRetrieveErrorResponse400'
+                $ref: '#/components/schemas/V1PermissionsListErrorResponse400'
           description: ''
         '401':
           content:
@@ -13106,8 +13190,9 @@ paths:
                 type: object
                 properties:
                   data:
-                    type: object
-                    additionalProperties: {}
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PermissionRegistryItem'
                   meta:
                     type: object
           description: ''
@@ -14384,6 +14469,12 @@ paths:
         description: A page number within the paginated result set.
         schema:
           type: integer
+      - name: pageSize
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
       - in: query
         name: sale
         schema:
@@ -15260,6 +15351,12 @@ paths:
         required: false
         in: query
         description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: pageSize
+        required: false
+        in: query
+        description: Number of results to return per page.
         schema:
           type: integer
       - in: query
@@ -16161,6 +16258,12 @@ paths:
         description: A page number within the paginated result set.
         schema:
           type: integer
+      - name: pageSize
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
       - name: search
         required: false
         in: query
@@ -17040,6 +17143,12 @@ paths:
         description: A page number within the paginated result set.
         schema:
           type: integer
+      - name: pageSize
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
       - name: search
         required: false
         in: query
@@ -17905,6 +18014,12 @@ paths:
         description: A page number within the paginated result set.
         schema:
           type: integer
+      - name: pageSize
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
       - name: search
         required: false
         in: query
@@ -18764,6 +18879,12 @@ paths:
         required: false
         in: query
         description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: pageSize
+        required: false
+        in: query
+        description: Number of results to return per page.
         schema:
           type: integer
       - name: search
@@ -19858,6 +19979,12 @@ paths:
         required: false
         in: query
         description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: pageSize
+        required: false
+        in: query
+        description: Number of results to return per page.
         schema:
           type: integer
       - name: search
@@ -21312,6 +21439,11 @@ components:
         servicesCount:
           type: integer
           readOnly: true
+        services:
+          type: array
+          items:
+            $ref: '#/components/schemas/AppointmentListService'
+          readOnly: true
         patient:
           allOf:
           - $ref: '#/components/schemas/PatientNested'
@@ -21337,9 +21469,78 @@ components:
       - paidBalance
       - paidBonuses
       - patient
+      - services
       - servicesCount
       - status
       - total
+    AppointmentListPerformerNested:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        fullName:
+          type: string
+          readOnly: true
+          title: ФИО
+        photoUrl:
+          type: string
+          format: uri
+          readOnly: true
+          nullable: true
+          title: Фото
+      required:
+      - fullName
+      - id
+      - photoUrl
+    AppointmentListSellableItemNested:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        displayName:
+          type: string
+          readOnly: true
+      required:
+      - displayName
+      - id
+    AppointmentListService:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        sellableItem:
+          allOf:
+          - $ref: '#/components/schemas/AppointmentListSellableItemNested'
+          readOnly: true
+        performer:
+          allOf:
+          - $ref: '#/components/schemas/AppointmentListPerformerNested'
+          readOnly: true
+        price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          readOnly: true
+          nullable: true
+          title: Цена
+        quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          readOnly: true
+          title: Количество
+      required:
+      - id
+      - performer
+      - price
+      - quantity
+      - sellableItem
     AppointmentService:
       type: object
       properties:
@@ -25337,6 +25538,18 @@ components:
       - expensesSum
       - grossEarnings
       - netSalary
+    PermissionRegistryItem:
+      type: object
+      description: Контракт элемента ``GET /permissions/`` (рендерер также camelCase-ит
+        вложенные ключи).
+      properties:
+        name:
+          type: string
+        displayName:
+          type: string
+      required:
+      - displayName
+      - name
     PurposeEnum:
       enum:
       - register
@@ -26712,14 +26925,56 @@ components:
       - attr
       - code
       - detail
+    V1AppointmentGroupsListDateFromErrorComponent:
+      type: object
+      properties:
+        attr:
+          enum:
+          - date_from
+          type: string
+          description: '* `date_from` - date_from'
+        code:
+          enum:
+          - invalid
+          type: string
+          description: '* `invalid` - invalid'
+        detail:
+          type: string
+      required:
+      - attr
+      - code
+      - detail
+    V1AppointmentGroupsListDateToErrorComponent:
+      type: object
+      properties:
+        attr:
+          enum:
+          - date_to
+          type: string
+          description: '* `date_to` - date_to'
+        code:
+          enum:
+          - invalid
+          type: string
+          description: '* `invalid` - invalid'
+        detail:
+          type: string
+      required:
+      - attr
+      - code
+      - detail
     V1AppointmentGroupsListError:
       oneOf:
       - $ref: '#/components/schemas/V1AppointmentGroupsListDateErrorComponent'
+      - $ref: '#/components/schemas/V1AppointmentGroupsListDateFromErrorComponent'
+      - $ref: '#/components/schemas/V1AppointmentGroupsListDateToErrorComponent'
       - $ref: '#/components/schemas/V1AppointmentGroupsListPerformerErrorComponent'
       discriminator:
         propertyName: attr
         mapping:
           date: '#/components/schemas/V1AppointmentGroupsListDateErrorComponent'
+          date_from: '#/components/schemas/V1AppointmentGroupsListDateFromErrorComponent'
+          date_to: '#/components/schemas/V1AppointmentGroupsListDateToErrorComponent'
           performer: '#/components/schemas/V1AppointmentGroupsListPerformerErrorComponent'
     V1AppointmentGroupsListErrorResponse400:
       oneOf:
@@ -37857,7 +38112,7 @@ components:
       required:
       - errors
       - type
-    V1PermissionsRetrieveErrorResponse400:
+    V1PermissionsListErrorResponse400:
       oneOf:
       - $ref: '#/components/schemas/ParseErrorResponse'
       discriminator:

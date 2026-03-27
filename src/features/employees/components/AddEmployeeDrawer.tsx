@@ -57,6 +57,8 @@ const AddEmployeeDrawer: React.FC<AddEmployeeDrawerProps> = ({ open, onClose, on
   const [specializations, setSpecializations] = React.useState<{ id: string; name: string }[]>([]);
   const [specializationId, setSpecializationId] = React.useState("");
   const [inn, setInn] = React.useState("");
+  const [branchId, setBranchId] = React.useState("");
+  const [branches, setBranches] = React.useState<{ id: string; name: string }[]>([]);
 
   const selectedRole = roles.find(r => r.id === roleId);
 
@@ -68,6 +70,7 @@ const AddEmployeeDrawer: React.FC<AddEmployeeDrawerProps> = ({ open, onClose, on
       setTelegramId(""); setEmail(""); setEmailErrorMsg("");
       setSelectedServices([]);
       setNickname(""); setPassportPhotos([]); setPassportFiles([]); setBusy(false);
+      setBranchId("");
     }
   }, [open]);
 
@@ -77,15 +80,17 @@ const AddEmployeeDrawer: React.FC<AddEmployeeDrawerProps> = ({ open, onClose, on
     (async () => {
       try {
         setServicesLoading(true);
-        const [srvItems, specs, apiRoles] = await Promise.all([
+        const [srvItems, specs, apiRoles, branchesRes] = await Promise.all([
           employeeFormUtils.fetchServices(),
           employeeFormUtils.fetchSpecializations(),
           fetchRoles(),
+          apiFetch("/api/v1/branches/").then((r: any) => r?.data?.results ?? r?.results ?? []).catch(() => []),
         ]);
         if (!cancelled) {
           setServices(Array.from(new Map(srvItems.map(s => [s.id, s])).values()));
           setSpecializations(specs);
           setRoles(apiRoles.length > 0 ? apiRoles : FALLBACK_ROLES);
+          setBranches(branchesRes.map((b: any) => ({ id: String(b.id ?? b.uuid ?? ""), name: b.name ?? b.displayName ?? "" })));
         }
       } catch {
         if (!cancelled) setRoles(FALLBACK_ROLES);
@@ -107,6 +112,7 @@ const AddEmployeeDrawer: React.FC<AddEmployeeDrawerProps> = ({ open, onClose, on
     if (phone.trim().length > 0 && phone.trim().length !== maxLen) { setPhoneError(true); return; }
     if (emailErrorMsg) return;
     if (!roleId) { notify?.({ type: "error", message: "Выберите роль сотрудника" }); return; }
+    if (!branchId) { notify?.({ type: "error", message: "Выберите филиал сотрудника" }); return; }
     if ((selectedRole?.name === 'specialist') && !specializationId) {
       notify?.({ type: "error", message: "Выберите специализацию" }); return;
     }
@@ -123,6 +129,7 @@ const AddEmployeeDrawer: React.FC<AddEmployeeDrawerProps> = ({ open, onClose, on
 
       if (fullPhone) payload.userPhoneNumber = fullPhone;
       if (email.trim()) payload.userEmail = email.trim();
+      if (branchId) payload.branch = branchId;
       if (birthDate) payload.birthDate = birthDate;
       if (telegramId.trim()) payload.telegramId = telegramId.trim();
       if (bankAccountNumber.trim()) payload.bankAccountNumber = bankAccountNumber.trim();
@@ -219,6 +226,13 @@ const AddEmployeeDrawer: React.FC<AddEmployeeDrawerProps> = ({ open, onClose, on
             fullWidth required
           >
             {roles.map(r => <MenuItem key={r.id} value={r.id}>{r.display_name || r.name}</MenuItem>)}
+          </TextField>
+        </Stack>
+
+        <Stack spacing={0.5}>
+          <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>Филиал *</Typography>
+          <TextField select value={branchId} onChange={e => setBranchId(e.target.value)} fullWidth required>
+            {branches.map(b => <MenuItem key={b.id} value={b.id}>{b.name}</MenuItem>)}
           </TextField>
         </Stack>
 
