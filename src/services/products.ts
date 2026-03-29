@@ -1,5 +1,4 @@
 import { apiFetch } from "../utility/apiClient";
-import { getPrimaryWarehouseId } from "./warehouse";
 
 export type Product = {
   sellable_item_id: string; // Map from 'id' in API
@@ -34,7 +33,7 @@ export type CreateProductData = {
 
 export type UpdateProductData = Partial<CreateProductData>;
 
-const mapApiToProduct = (apiP: any, pricesMap?: Map<string, number>, stockMap?: Map<string, number>): Product => {
+const mapApiToProduct = (apiP: any, pricesMap?: Map<string, number>): Product => {
     const id = apiP.id;
     return {
         sellable_item_id: id,
@@ -50,7 +49,7 @@ const mapApiToProduct = (apiP: any, pricesMap?: Map<string, number>, stockMap?: 
         created_at: apiP.createdAt,
         updated_at: apiP.updatedAt,
         price: pricesMap?.get(id) || apiP.price,
-        stock: stockMap?.get(id) || apiP.stock || 0
+        stock: apiP.stock || 0
     };
 };
 
@@ -90,18 +89,7 @@ export const getProducts = async (): Promise<Product[]> => {
         prices.forEach((p: any) => { pricesMap.set(p.sellableItem, Number(p.price)); });
     }
 
-    const invRes: any = await apiFetch("/api/v1/inventory/?pageSize=1000");
-    const inventory = invRes?.data?.results ?? invRes?.results ?? invRes ?? [];
-    const stockMap = new Map<string, number>();
-    if (Array.isArray(inventory)) {
-        inventory.forEach((i: any) => {
-            const productId = i.product || i.product_id;
-            const prev = stockMap.get(productId) || 0;
-            stockMap.set(productId, prev + Number(i.quantity));
-        });
-    }
-
-    return products.map((p: any) => mapApiToProduct(p, pricesMap, stockMap));
+    return products.map((p: any) => mapApiToProduct(p, pricesMap));
 };
 
 export const createProduct = async (productData: CreateProductData) => {
@@ -146,21 +134,6 @@ export const createProduct = async (productData: CreateProductData) => {
                 sellableItem: sellableId,
                 price: productData.price,
                 isCurrent: true
-            })
-        });
-    }
-
-    // 4. Create StockMovement
-    const warehouseId = await getPrimaryWarehouseId();
-    if (warehouseId && productData.stock !== undefined && productData.stock !== 0) {
-        await apiFetch("/api/v1/stock-movements/", {
-            method: "POST",
-            body: JSON.stringify({
-                product: sellableId,
-                warehouse: warehouseId,
-                quantity: productData.stock,
-                moveType: "receipt",
-                unitCost: productData.price || 0
             })
         });
     }
@@ -211,28 +184,6 @@ export const updateProduct = async (id: string, productData: UpdateProductData) 
                 isCurrent: true
             })
         });
-    }
-
-    // Update Stock
-    const warehouseId = await getPrimaryWarehouseId();
-    if (warehouseId && productData.stock !== undefined) {
-        const invRes: any = await apiFetch(`/api/v1/inventory/?product_id=${id}&warehouse_id=${warehouseId}`);
-        const inv = invRes?.data?.results?.[0] ?? invRes?.results?.[0] ?? invRes?.[0];
-        const currentStock = Number(inv?.quantity || 0);
-        const diff = productData.stock - currentStock;
-
-        if (diff !== 0) {
-            await apiFetch("/api/v1/stock-movements/", {
-                method: "POST",
-                body: JSON.stringify({
-                    product: id,
-                    warehouse: warehouseId,
-                    quantity: diff,
-                    moveType: "adjustment",
-                    unitCost: productData.price || 0
-                })
-            });
-        }
     }
 
     return mapApiToProduct(product);

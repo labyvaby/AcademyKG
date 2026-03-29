@@ -32,7 +32,7 @@ import { CustomDateTimePicker } from "../../../components/ui";
 import { useDictionaries } from "../../../hooks/useDictionaries";
 import AddPatientDrawer from "../../../components/patients/AddPatientDrawer";
 import AddServiceDrawer from "../../../components/services/AddServiceDrawer";
-import { apiFetch } from "../../../utility/apiClient";
+import { apiFetch, getBranchFilter } from "../../../utility/apiClient";
 import { roundDateTimeLocalToStep } from "../../../utility/time";
 import { type ServiceRow } from "../../../services/services";
 import type { EmployeesRow } from "../../expenses/types";
@@ -571,6 +571,7 @@ export const HomeAddAppointmentDrawer: React.FC<
 
         const patientId = selectedPatient?.id || null;
 
+        const branchId = getBranchFilter();
         const requests = periodDates.map((date) => {
           const appointmentAt = dayjs(`${date}T${timeStr}:00`).toISOString();
           const payload: any = {
@@ -579,6 +580,7 @@ export const HomeAddAppointmentDrawer: React.FC<
             services: allServicesPayload,
           };
           if (adminComment.trim()) payload.adminComment = adminComment.trim();
+          if (branchId) payload.branch = branchId;
           return apiFetch("/api/v1/appointments/", {
             method: "POST",
             body: JSON.stringify(payload),
@@ -741,6 +743,8 @@ export const HomeAddAppointmentDrawer: React.FC<
       if (adminComment.trim()) {
         requestPayload.adminComment = adminComment.trim();
       }
+      const singleBranchId = getBranchFilter();
+      if (singleBranchId) requestPayload.branch = singleBranchId;
 
       try {
         await apiFetch("/api/v1/appointments/", {

@@ -50,8 +50,8 @@ export const PatientSearchPage: React.FC = () => {
     }
   }, [searchParams, setSearchParams]);
 
-  const canCreatePatient = hasPermission(PERMISSIONS.APPOINTMENTS_CREATE);
-  const canUpdatePatient = hasPermission(PERMISSIONS.APPOINTMENTS_UPDATE);
+  const canCreatePatient = hasPermission(PERMISSIONS.CLIENTS_CREATE);
+  const canUpdatePatient = hasPermission(PERMISSIONS.CLIENTS_UPDATE);
 
 
 

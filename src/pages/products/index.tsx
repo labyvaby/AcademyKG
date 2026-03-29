@@ -32,6 +32,7 @@ import { AddProductDrawer } from "../../components/products/AddProductDrawer";
 import { EditProductDrawer } from "../../components/products/EditProductDrawer";
 import ProductFilterDrawer, { ProductFilters } from "../../components/products/ProductFilterDrawer";
 import { usePermissions } from "../../hooks/usePermissions";
+import { PERMISSIONS } from "../../constants/permissions";
 
 const ProductsPage: React.FC = () => {
   usePageTitle("Товары");
@@ -39,8 +40,10 @@ const ProductsPage: React.FC = () => {
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const { open: notify } = useNotification();
   const { confirm, ConfirmDialog } = useConfirmDialog();
-  const { isAdmin: isAdminFunc } = usePermissions();
-  const isAdmin = isAdminFunc();
+  const { hasPermission } = usePermissions();
+  const canCreate = hasPermission(PERMISSIONS.PRODUCTS_CREATE);
+  const canEdit = hasPermission(PERMISSIONS.PRODUCTS_UPDATE);
+  const canDelete = hasPermission(PERMISSIONS.PRODUCTS_DELETE);
 
   // Drawers
   const [addDrawerOpen, setAddDrawerOpen] = React.useState(false);
@@ -207,8 +210,8 @@ const ProductsPage: React.FC = () => {
       <PageHeader
         title="Товары"
         showTitle={false}
-        addButtonText={isAdmin ? "Добавить товар" : undefined}
-        onAdd={isAdmin ? () => setAddDrawerOpen(true) : undefined}
+        addButtonText={canCreate ? "Добавить товар" : undefined}
+        onAdd={canCreate ? () => setAddDrawerOpen(true) : undefined}
         showSearch
         searchVal={searchQuery}
         onSearchChange={setSearchQuery}
@@ -327,7 +330,8 @@ const ProductsPage: React.FC = () => {
                 product={selectedProduct}
                 onEdit={() => selectedProduct && handleEditClick(selectedProduct)}
                 onDelete={() => selectedProduct && handleDelete(selectedProduct)}
-                readOnly={!isAdmin}
+                canEdit={canEdit}
+                canDelete={canDelete}
               />
             </Grid2>
           )}
@@ -369,7 +373,8 @@ const ProductsPage: React.FC = () => {
                 product={selectedProduct}
                 onEdit={() => handleEditClick(selectedProduct)}
                 onDelete={() => handleDelete(selectedProduct)}
-                readOnly={!isAdmin}
+                canEdit={canEdit}
+                canDelete={canDelete}
               />
             </Box>
           )}
@@ -388,8 +393,9 @@ const ProductDetailCard: React.FC<{
   product: Product | null;
   onEdit?: () => void;
   onDelete?: () => void;
-  readOnly?: boolean;
-}> = ({ product, onEdit, onDelete, readOnly }) => {
+  canEdit?: boolean;
+  canDelete?: boolean;
+}> = ({ product, onEdit, onDelete, canEdit, canDelete }) => {
   const [expanded, setExpanded] = React.useState(false);
 
   // Reset expanded state when product changes
@@ -447,7 +453,7 @@ const ProductDetailCard: React.FC<{
               pr: { xs: 0, sm: 0 },
             }}
           >
-            {!readOnly && (
+            {(canEdit || canDelete) && (
               <Stack
                 direction="row"
                 spacing={{ xs: 0.5, sm: 1 }}
@@ -455,31 +461,35 @@ const ProductDetailCard: React.FC<{
                 flexWrap="wrap"
                 sx={{ gap: { xs: 0.5, sm: 1 } }}
               >
-                <Button
-                  variant="outlined"
-                  size="small"
-                  startIcon={<EditOutlined />}
-                  onClick={onEdit}
-                >
-                  Редактировать
-                </Button>
-                <Tooltip title="Удалить товар">
-                  <IconButton
-                    color="error"
+                {canEdit && (
+                  <Button
+                    variant="outlined"
                     size="small"
-                    onClick={onDelete}
-                    sx={{
-                      border: '1px solid',
-                      borderColor: 'error.main',
-                      '&:hover': {
-                        borderColor: 'error.dark',
-                        backgroundColor: 'rgba(211, 47, 47, 0.08)',
-                      }
-                    }}
+                    startIcon={<EditOutlined />}
+                    onClick={onEdit}
                   >
-                    <DeleteOutlineOutlined fontSize="small" />
-                  </IconButton>
-                </Tooltip>
+                    Редактировать
+                  </Button>
+                )}
+                {canDelete && (
+                  <Tooltip title="Удалить товар">
+                    <IconButton
+                      color="error"
+                      size="small"
+                      onClick={onDelete}
+                      sx={{
+                        border: '1px solid',
+                        borderColor: 'error.main',
+                        '&:hover': {
+                          borderColor: 'error.dark',
+                          backgroundColor: 'rgba(211, 47, 47, 0.08)',
+                        }
+                      }}
+                    >
+                      <DeleteOutlineOutlined fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                )}
               </Stack>
             )}
           </Box>

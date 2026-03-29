@@ -291,7 +291,7 @@ const ClientScheduleCalendar = React.forwardRef((_, ref) => {
   return (
     <Paper elevation={3} sx={{ p: 2, mt: 2 }}>
       {/* Шапка */}
-      <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1.5 }}>
+      <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1.5, position: 'sticky', top: 0, zIndex: 10, bgcolor: 'background.paper', py: 1, mx: -2, px: 2 }}>
         <IconButton size="small" onClick={() => setCurrentMonth(m => m.subtract(1, "month"))}>
           <ChevronLeft />
         </IconButton>
@@ -304,14 +304,30 @@ const ClientScheduleCalendar = React.forwardRef((_, ref) => {
       </Stack>
 
       {/* Таблица-календарь */}
+      {/* Строка дней недели — sticky, вне таблицы */}
+      <Box sx={{
+        display: "grid",
+        gridTemplateColumns: "repeat(7, 1fr)",
+        minWidth: 900,
+        position: "sticky",
+        top: 56,
+        zIndex: 9,
+        bgcolor: "background.neutral",
+        overflowX: "hidden",
+      }}>
+        {DAYS_OF_WEEK.map(d => (
+          <Box key={d} sx={{ textAlign: "center", fontWeight: "bold", fontSize: "0.85rem", py: 1 }}>
+            {d}
+          </Box>
+        ))}
+      </Box>
+
       <TableContainer sx={{ overflowX: "auto" }}>
         <Table sx={{ tableLayout: "fixed", minWidth: 900 }}>
-          <TableHead>
+          <TableHead sx={{ display: "none" }}>
             <TableRow>
               {DAYS_OF_WEEK.map(d => (
-                <TableCell key={d} align="center" sx={{ fontWeight: "bold", fontSize: "0.85rem", py: 1, bgcolor: "background.neutral" }}>
-                  {d}
-                </TableCell>
+                <TableCell key={d} />
               ))}
             </TableRow>
           </TableHead>

@@ -12,7 +12,7 @@ import {
     Stack
 } from '@mui/material';
 import { Sale } from '../../services/sales';
-import { Inventory } from '@mui/icons-material';
+import { ReceiptOutlined } from '@mui/icons-material';
 import { formatKGS } from '../../utility/format';
 import { getSaleStatusConfig, getSaleStatusChipSx } from '../../config/saleStatuses';
 
@@ -87,7 +87,7 @@ export const SalesList: React.FC<SalesListProps> = ({ sales, selectedSale, onSel
                                 src={sale.lines?.[0]?.product_image || undefined}
                                 sx={{ mr: 2, width: 40, height: 40, bgcolor: 'action.selected', color: 'text.secondary' }}
                             >
-                                <Inventory />
+                                <ReceiptOutlined />
                             </Avatar>
                             <Box sx={{ flex: 1, minWidth: 0 }}>
                                 <Typography variant="body1" sx={{ fontWeight: 500 }} noWrap>

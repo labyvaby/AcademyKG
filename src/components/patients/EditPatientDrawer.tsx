@@ -22,6 +22,7 @@ import {
 import MuiAlert from "@mui/material/Alert";
 import CloseOutlined from "@mui/icons-material/CloseOutlined";
 import DeleteOutline from "@mui/icons-material/DeleteOutline";
+import AddOutlined from "@mui/icons-material/AddOutlined";
 import AttachFileOutlined from "@mui/icons-material/AttachFileOutlined";
 import DeleteOutlineOutlined from "@mui/icons-material/DeleteOutlineOutlined";
 import ZoomInOutlined from "@mui/icons-material/ZoomInOutlined";
@@ -98,6 +99,7 @@ const EditPatientDrawer: React.FC<Props> = ({
   const [parent2Name, setParent2Name] = React.useState("");
   const [parent2Phone, setParent2Phone] = React.useState("");
   const [parent2PhoneCountryCode, setParent2PhoneCountryCode] = React.useState<PhoneCountryCode>(DEFAULT_PHONE_COUNTRY_CODE);
+  const [showParent2, setShowParent2] = React.useState(false);
   const [isBlacklisted, setIsBlacklisted] = React.useState(false);
   const [blacklistReason, setBlacklistReason] = React.useState("");
   const [busy, setBusy] = React.useState(false);
@@ -159,6 +161,7 @@ const EditPatientDrawer: React.FC<Props> = ({
         const parsedParent2 = parsePhone(parent2PhoneRaw);
         setParent2PhoneCountryCode(parsedParent2.countryCode);
         setParent2Phone(parsedParent2.local.replace(/[^\d]/g, "").slice(0, getPhoneLocalMaxLength(parsedParent2.countryCode)));
+        setShowParent2(!!(parent2NameRaw || parent2PhoneRaw));
         setIsBlacklisted(blacklistRaw);
         setBlacklistReason(reasonRaw);
         setExistingPhoto(photoRaw);
@@ -353,7 +356,7 @@ const EditPatientDrawer: React.FC<Props> = ({
               {/* ФИО */}
               <Stack spacing={0.5}>
                 <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
-                  ФИО *
+                  ФИО Клиента *
                 </Typography>
                 <TextField
                   value={fio}
@@ -429,44 +432,89 @@ const EditPatientDrawer: React.FC<Props> = ({
                 />
               </Stack>
 
-              {/* Родители */}
-              {([
-                { label: "Родитель 1", name: parent1Name, setName: setParent1Name, phone: parent1Phone, setPhone: setParent1Phone, code: parent1PhoneCountryCode, setCode: setParent1PhoneCountryCode },
-                { label: "Родитель 2", name: parent2Name, setName: setParent2Name, phone: parent2Phone, setPhone: setParent2Phone, code: parent2PhoneCountryCode, setCode: setParent2PhoneCountryCode },
-              ] as const).map((p) => (
-                <Box key={p.label} sx={{ border: "1px solid", borderColor: "divider", borderRadius: 1, p: 2 }}>
-                  <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600, mb: 1.5 }}>
-                    {p.label}
-                  </Typography>
+              {/* Ответственные лица */}
+              <Box sx={{ border: "1px solid", borderColor: "divider", borderRadius: 1, p: 2 }}>
+                <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600, mb: 1.5 }}>
+                  Ответственное лицо 1
+                </Typography>
+                <Stack spacing={1.5}>
+                  <TextField
+                    value={parent1Name}
+                    onChange={(e) => setParent1Name(e.target.value)}
+                    fullWidth
+                    size="small"
+                    placeholder="ФИО ответственного лица"
+                  />
+                  <TextField
+                    value={parent1Phone}
+                    onChange={(e) => {
+                      const maxLen = getPhoneLocalMaxLength(parent1PhoneCountryCode);
+                      setParent1Phone(e.target.value.replace(/[^\d]/g, "").slice(0, maxLen));
+                    }}
+                    fullWidth
+                    size="small"
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start" sx={{ mr: 1, ml: "-14px" }}>
+                          <PhoneCountryCodeSelect value={parent1PhoneCountryCode} onChange={(code) => setParent1PhoneCountryCode(code)} />
+                        </InputAdornment>
+                      ),
+                    }}
+                    inputProps={{ inputMode: "tel", pattern: "[0-9]*", maxLength: getPhoneLocalMaxLength(parent1PhoneCountryCode) }}
+                    placeholder={getPhoneLocalMaxLength(parent1PhoneCountryCode) === 10 ? "XXX XXX XXXX" : "XXX XXX XXX"}
+                  />
+                </Stack>
+              </Box>
+
+              {showParent2 ? (
+                <Box sx={{ border: "1px solid", borderColor: "divider", borderRadius: 1, p: 2 }}>
+                  <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1.5 }}>
+                    <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
+                      Ответственное лицо 2
+                    </Typography>
+                    <IconButton size="small" color="error" onClick={() => { setShowParent2(false); setParent2Name(""); setParent2Phone(""); setParent2PhoneCountryCode(DEFAULT_PHONE_COUNTRY_CODE); }}>
+                      <CloseOutlined fontSize="small" />
+                    </IconButton>
+                  </Stack>
                   <Stack spacing={1.5}>
                     <TextField
-                      value={p.name}
-                      onChange={(e) => p.setName(e.target.value)}
+                      value={parent2Name}
+                      onChange={(e) => setParent2Name(e.target.value)}
                       fullWidth
                       size="small"
-                      placeholder="ФИО родителя"
+                      placeholder="ФИО ответственного лица"
                     />
                     <TextField
-                      value={p.phone}
+                      value={parent2Phone}
                       onChange={(e) => {
-                        const maxLen = getPhoneLocalMaxLength(p.code);
-                        p.setPhone(e.target.value.replace(/[^\d]/g, "").slice(0, maxLen));
+                        const maxLen = getPhoneLocalMaxLength(parent2PhoneCountryCode);
+                        setParent2Phone(e.target.value.replace(/[^\d]/g, "").slice(0, maxLen));
                       }}
                       fullWidth
                       size="small"
                       InputProps={{
                         startAdornment: (
                           <InputAdornment position="start" sx={{ mr: 1, ml: "-14px" }}>
-                            <PhoneCountryCodeSelect value={p.code} onChange={(code) => p.setCode(code)} />
+                            <PhoneCountryCodeSelect value={parent2PhoneCountryCode} onChange={(code) => setParent2PhoneCountryCode(code)} />
                           </InputAdornment>
                         ),
                       }}
-                      inputProps={{ inputMode: "tel", pattern: "[0-9]*", maxLength: getPhoneLocalMaxLength(p.code) }}
-                      placeholder={getPhoneLocalMaxLength(p.code) === 10 ? "XXX XXX XXXX" : "XXX XXX XXX"}
+                      inputProps={{ inputMode: "tel", pattern: "[0-9]*", maxLength: getPhoneLocalMaxLength(parent2PhoneCountryCode) }}
+                      placeholder={getPhoneLocalMaxLength(parent2PhoneCountryCode) === 10 ? "XXX XXX XXXX" : "XXX XXX XXX"}
                     />
                   </Stack>
                 </Box>
-              ))}
+              ) : (
+                <Button
+                  variant="outlined"
+                  startIcon={<AddOutlined />}
+                  onClick={() => setShowParent2(true)}
+                  size="small"
+                  sx={{ alignSelf: "flex-start" }}
+                >
+                  + Ответственное лицо
+                </Button>
+              )}
 
               {/* Чёрный список */}
               {canManageBlacklist && (

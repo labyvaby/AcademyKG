@@ -11,16 +11,17 @@ import ScheduleCalendar from "../components/schedule/ScheduleCalendar";
 import { PageHeader } from "../components/ui";
 import { usePageTitle } from "../hooks/usePageTitle";
 import { usePermissions } from "../hooks/usePermissions";
+import { PERMISSIONS } from "../constants/permissions";
 
 const SchedulePage: React.FC = () => {
   usePageTitle("График");
   const calendarRef = React.useRef<{ openAddShift: () => void }>(null);
 
   const { hasPermission, employeeId } = usePermissions();
-  const isAdmin = hasPermission('employees.update' as any);
-  const isRegistrator = hasPermission('appointments.create' as any);
-  const isSpecialist = hasPermission('appointments.read' as any);
-  const canManageSchedule = isAdmin || isRegistrator || isSpecialist;
+  const isAdmin = hasPermission(PERMISSIONS.EMPLOYEE_SCHEDULES_UPDATE);
+  const isRegistrator = hasPermission(PERMISSIONS.APPOINTMENTS_CREATE);
+  const isSpecialist = hasPermission(PERMISSIONS.APPOINTMENTS_READ);
+  const canManageSchedule = isAdmin || isRegistrator;
 
   const handleAddShift = () => {
     calendarRef.current?.openAddShift();

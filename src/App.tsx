@@ -52,7 +52,6 @@ const ExpensesListPage = lazy(() => import("./pages/expenses"));
 const EmployeesPage = lazy(() => import("./pages/employes"));
 const ServicesPage = lazy(() => import("./pages/services"));
 const ProductsPage = lazy(() => import("./pages/products"));
-const WarehousesPage = lazy(() => import("./pages/warehouses"));
 const SalesPage = lazy(() => import("./pages/sales"));
 const LoginPage = lazy(() => import("./pages/auth/login"));
 const SchedulePage = lazy(() => import("./pages/SchedulePage"));
@@ -114,7 +113,7 @@ function App() {
 
     // Приоритет 3: Редко используемые страницы загружаем в последнюю очередь
     const prefetchTertiary = () => {
-      import("./pages/warehouses");
+      /* reserved */
     };
 
     if (typeof ric === "function") {
@@ -289,7 +288,7 @@ function App() {
                         <Route
                           path="client-schedule"
                           element={
-                            <ProtectedRoute deniedRoles={[]}>
+                            <ProtectedRoute requiredPermissions={['client_schedules.read']}>
                               <Suspense fallback={<LinearProgress />}>
                                 <ClientSchedulePage />
                               </Suspense>
@@ -311,7 +310,7 @@ function App() {
                         <Route
                           path="patient-search"
                           element={
-                            <ProtectedRoute requiredPermissions={['appointments.read']}>
+                            <ProtectedRoute requiredPermissions={['clients.read']}>
                               <Suspense fallback={<LinearProgress />}>
                                 <PatientSearchPage />
                               </Suspense>
@@ -321,7 +320,7 @@ function App() {
                         <Route
                           path="expenses"
                           element={
-                            <ProtectedRoute deniedRoles={[]}>
+                            <ProtectedRoute requiredPermissions={['expenses.read']}>
                               <Suspense fallback={<LinearProgress />}>
                                 <ExpensesListPage />
                               </Suspense>
@@ -331,7 +330,7 @@ function App() {
                         <Route
                           path="employees"
                           element={
-                            <ProtectedRoute deniedRoles={[]}>
+                            <ProtectedRoute requiredPermissions={['employees.read']}>
                               <Suspense fallback={<LinearProgress />}>
                                 <EmployeesPage />
                               </Suspense>
@@ -341,7 +340,7 @@ function App() {
                         <Route
                           path="services"
                           element={
-                            <ProtectedRoute deniedRoles={[]}>
+                            <ProtectedRoute requiredPermissions={['services.read']}>
                               <Suspense fallback={<LinearProgress />}>
                                 <ServicesPage />
                               </Suspense>
@@ -351,7 +350,7 @@ function App() {
                         <Route
                           path="products"
                           element={
-                            <ProtectedRoute deniedRoles={[]}>
+                            <ProtectedRoute requiredPermissions={['products.read']}>
                               <Suspense fallback={<LinearProgress />}>
                                 <ProductsPage />
                               </Suspense>
@@ -360,19 +359,9 @@ function App() {
                         />
 
                         <Route
-                          path="warehouses"
-                          element={
-                            <ProtectedRoute requiredPermissions={['app_settings.update']}>
-                              <Suspense fallback={<LinearProgress />}>
-                                <WarehousesPage />
-                              </Suspense>
-                            </ProtectedRoute>
-                          }
-                        />
-                        <Route
                           path="schedule"
                           element={
-                            <ProtectedRoute deniedRoles={[]}>
+                            <ProtectedRoute requiredPermissions={['employee_schedules.read']}>
                               <Suspense fallback={<LinearProgress />}>
                                 <SchedulePage />
                               </Suspense>
@@ -392,7 +381,7 @@ function App() {
                         <Route
                           path="sales"
                           element={
-                            <ProtectedRoute requiredPermissions={['expenses.create']}>
+                            <ProtectedRoute requiredPermissions={['sales.read']}>
                               <Suspense fallback={<LinearProgress />}>
                                 <SalesPage />
                               </Suspense>
@@ -402,7 +391,7 @@ function App() {
                         <Route
                           path="cashbox"
                           element={
-                            <ProtectedRoute requiredPermissions={['expenses.read']}>
+                            <ProtectedRoute requiredPermissions={['cashbox.read']}>
                               <Suspense fallback={<LinearProgress />}>
                                 <CashboxPage />
                               </Suspense>
@@ -422,7 +411,7 @@ function App() {
                         <Route
                           path="salary-reports"
                           element={
-                            <ProtectedRoute deniedRoles={[]}>
+                            <ProtectedRoute requiredPermissions={['reports.read']}>
                               <Suspense fallback={<LinearProgress />}>
                                 <SalaryReportsPage />
                               </Suspense>
@@ -445,7 +434,7 @@ function App() {
                         <Route
                           path="all-appointments"
                           element={
-                            <ProtectedRoute deniedRoles={[]}>
+                            <ProtectedRoute requiredPermissions={['appointments.read']}>
                               <Suspense fallback={<LinearProgress />}>
                                 <AllAppointmentsPage />
                               </Suspense>
@@ -455,7 +444,7 @@ function App() {
                         <Route
                           path="all-procedures"
                           element={
-                            <ProtectedRoute deniedRoles={[]}>
+                            <ProtectedRoute requiredPermissions={['appointments.read']}>
                               <Suspense fallback={<LinearProgress />}>
                                 <AllProceduresPage />
                               </Suspense>

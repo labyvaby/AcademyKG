@@ -105,7 +105,7 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
   const [editOpen, setEditOpen] = React.useState(false);
   const [deleting, setDeleting] = React.useState(false);
   const { isSuperAdmin, hasPermission, employeeId } = usePermissions();
-  const canDelete = isSuperAdmin();
+  const canDelete = isSuperAdmin() || hasPermission(PERMISSIONS.APPOINTMENTS_DELETE);
 
   const canManageAppointment = hasPermission(PERMISSIONS.APPOINTMENTS_UPDATE);
   const canViewAsSpecialist = canViewSpecialistContent(hasPermission);

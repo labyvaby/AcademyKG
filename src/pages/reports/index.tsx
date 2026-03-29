@@ -29,7 +29,6 @@ import AnalyticsOutlined from "@mui/icons-material/AnalyticsOutlined";
 import { PageHeader, MonthNavigation } from "../../components/ui";
 import { AppointmentsSummaryCards } from "./components/AppointmentsSummaryCards";
 import { usePageTitle } from "../../hooks/usePageTitle";
-import { usePermissions } from "../../hooks/usePermissions";
 import { useActiveMonths } from "../../hooks/useActiveMonths";
 import { formatKGS } from "../../utility/format";
 import { apiFetch } from "../../utility/apiClient";
@@ -56,10 +55,6 @@ const ReportsPage: React.FC = () => {
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down("lg"));
     const { open: notify } = useNotification();
-    const { isSuperAdmin, hasRole } = usePermissions();
-
-    const canSeeFinancial = useMemo(() => isSuperAdmin() || hasRole(['accountant', 'admin', 'manager']), [isSuperAdmin, hasRole]);
-
     // Financial State
     const [selectedDate, setSelectedDate] = useState<string>(dayjs().format('YYYY-MM-DD'));
     const [financialLoading, setFinancialLoading] = useState(false);
@@ -83,7 +78,6 @@ const ReportsPage: React.FC = () => {
     }, [selectedDate]);
 
     const fetchFinancialData = useCallback(async (forceRefresh = false) => {
-        if (!canSeeFinancial) return;
 
         const cacheKey = dayjs(selectedDate).format('YYYY-MM');
 
@@ -156,7 +150,7 @@ const ReportsPage: React.FC = () => {
         } finally {
             setFinancialLoading(false);
         }
-    }, [dateFrom, dateTo, canSeeFinancial, notify]);
+    }, [dateFrom, dateTo, notify]);
 
     useEffect(() => {
         fetchFinancialData();
@@ -176,14 +170,6 @@ const ReportsPage: React.FC = () => {
             };
         }, { services: 0, cash: 0, card: 0, discount: 0, debt: 0, appointmentsCount: 0, waitingCount: 0 });
     }, [dailyData]);
-
-    if (!canSeeFinancial) {
-        return (
-            <Box sx={{ p: 4, textAlign: 'center' }}>
-                <Typography variant="h6" color="text.secondary">У вас нет доступа к этой странице</Typography>
-            </Box>
-        );
-    }
 
     return (
         <Box sx={{

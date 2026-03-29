@@ -1,4 +1,4 @@
-import { apiFetch } from "../utility/apiClient";
+import { apiFetch, getBranchFilter } from "../utility/apiClient";
 import { mapApiExpense } from "../pages/expenses/types";
 import type { Expense } from "../pages/expenses/types";
 
@@ -34,6 +34,8 @@ export const ExpensesService = {
 
     if (employeeId) fd.append("employee", String(employeeId));
     if (categoryId) fd.append("category", String(categoryId));
+    const branchId = getBranchFilter();
+    if (branchId) fd.append("branch", String(branchId));
     if (expense.name) fd.append("name", expense.name);
     fd.append("cashAmount", String(Number(expense.cash_amount ?? expense.cashAmount) || 0));
     fd.append("cashlessAmount", String(Number(expense.cashless_amount ?? expense.cashlessAmount) || 0));

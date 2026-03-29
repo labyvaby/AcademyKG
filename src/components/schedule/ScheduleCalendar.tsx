@@ -684,7 +684,7 @@ const ScheduleCalendar = React.forwardRef<ScheduleCalendarHandle, ScheduleCalend
   return (
     <Paper elevation={3} sx={{ p: 2, mt: 2 }}>
       {/* Заголовок */}
-      <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 1.5, overflow: 'hidden' }}>
+      <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 1.5, overflow: 'hidden', position: 'sticky', top: 0, zIndex: 10, bgcolor: 'background.paper', py: 1, mx: -2, px: 2 }}>
         <Stack direction="row" alignItems="center" spacing={1} sx={{ flexShrink: 0 }}>
           <IconButton size="small" onClick={() => setCurrentMonth(currentMonth.subtract(1, "month"))}>
             <ChevronLeft />
@@ -782,15 +782,30 @@ const ScheduleCalendar = React.forwardRef<ScheduleCalendarHandle, ScheduleCalend
         </Box>
       </Stack>
 
+      {/* Строка дней недели — sticky, вне таблицы */}
+      <Box sx={{
+        display: "grid",
+        gridTemplateColumns: "repeat(7, 1fr)",
+        position: "sticky",
+        top: 56,
+        zIndex: 9,
+        bgcolor: "background.neutral",
+        overflowX: "hidden",
+      }}>
+        {daysOfWeek.map((d) => (
+          <Box key={d} sx={{ textAlign: "center", fontWeight: "bold", fontSize: "0.85rem", py: 1 }}>
+            {d}
+          </Box>
+        ))}
+      </Box>
+
       <TableContainer sx={{ overflowX: "auto" }}>
         {/* Увеличили minWidth для более широких колонок */}
-        <Table sx={{ tableLayout: "fixed", minWidth: 1600 }}>
-          <TableHead>
+        <Table sx={{ tableLayout: "fixed", width: "100%" }}>
+          <TableHead sx={{ display: "none" }}>
             <TableRow>
               {daysOfWeek.map((d) => (
-                <TableCell key={d} align="center" sx={{ fontWeight: "bold", fontSize: "0.85rem", py: 1, bgcolor: "background.neutral" }}>
-                  {d}
-                </TableCell>
+                <TableCell key={d} />
               ))}
             </TableRow>
           </TableHead>

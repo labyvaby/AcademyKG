@@ -17,7 +17,7 @@ import {
     Chip
 } from '@mui/material';
 import { Sale } from '../../services/sales';
-import { Inventory, EditOutlined, DeleteOutline } from '@mui/icons-material';
+import { ReceiptOutlined, EditOutlined, DeleteOutline } from '@mui/icons-material';
 import { formatKGS, formatDateRu } from '../../utility/format';
 
 import { ConfirmDialog } from '../ui/ConfirmDialog';
@@ -113,8 +113,8 @@ interface SaleDetailsProps {
 export const SaleDetails: React.FC<SaleDetailsProps> = ({ sale, onEdit, onDelete }) => {
     const [confirmOpen, setConfirmOpen] = React.useState(false);
     const { hasPermission } = usePermissions();
-    const canEdit = hasPermission(PERMISSIONS.EXPENSES_UPDATE);
-    const canDelete = hasPermission(PERMISSIONS.EXPENSES_DELETE);
+    const canEdit = hasPermission(PERMISSIONS.SALES_UPDATE);
+    const canDelete = hasPermission(PERMISSIONS.SALES_DELETE);
 
 
     if (!sale) {
@@ -321,7 +321,7 @@ export const SaleDetails: React.FC<SaleDetailsProps> = ({ sale, onEdit, onDelete
                                                 color: 'text.secondary',
                                             }}
                                         >
-                                            <Inventory />
+                                            <ReceiptOutlined />
                                         </Avatar>
                                         <Box sx={{ flex: 1 }}>
                                             <Typography variant="body1" fontWeight={600}>

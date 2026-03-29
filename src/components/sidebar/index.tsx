@@ -310,14 +310,7 @@ const { hasPermission, isSuperAdmin, loading: permissionsLoading } = usePermissi
   // Во время загрузки прав не показываем элементы меню
   // Это предотвращает "моргание" при переключении вкладок
   if (permissionsLoading) {
-    return (
-      <>
-        <List sx={{ py: 0 }}>
-          <SidebarMenuItem to="/schedule" icon={<CalendarMonthOutlined />} label="Расписание" collapsed={siderCollapsed} />
-          <SidebarMenuItem to="/expenses" icon={<PaymentsOutlined />} label="Расходы" collapsed={siderCollapsed} />
-        </List>
-      </>
-    );
+    return <List sx={{ py: 0 }} />;
   }
 
   return (
@@ -331,14 +324,20 @@ const { hasPermission, isSuperAdmin, loading: permissionsLoading } = usePermissi
           <SidebarMenuItem to="/specialist" icon={<LocalHospitalOutlined />} label="Кабинет специалиста" collapsed={siderCollapsed} />
         )}
 
-        <SidebarMenuItem to="/all-appointments" icon={<HistoryOutlined />} label="Все приемы" collapsed={siderCollapsed} />
-        <SidebarMenuItem to="/schedule" icon={<CalendarMonthOutlined />} label="Расписание" collapsed={siderCollapsed} />
-        <SidebarMenuItem to="/client-schedule" icon={<CalendarMonthOutlined />} label="Клиентское расписание" collapsed={siderCollapsed} />
+        {hasPermission(PERMISSIONS.APPOINTMENTS_READ) && (
+          <SidebarMenuItem to="/all-appointments" icon={<HistoryOutlined />} label="Все приемы" collapsed={siderCollapsed} />
+        )}
+        {hasPermission(PERMISSIONS.EMPLOYEE_SCHEDULES_READ) && (
+          <SidebarMenuItem to="/schedule" icon={<CalendarMonthOutlined />} label="Расписание" collapsed={siderCollapsed} />
+        )}
+        {hasPermission(PERMISSIONS.CLIENT_SCHEDULES_READ) && (
+          <SidebarMenuItem to="/client-schedule" icon={<CalendarMonthOutlined />} label="Клиентское расписание" collapsed={siderCollapsed} />
+        )}
         {hasPermission(PERMISSIONS.EMPLOYEES_READ) && (
           <SidebarMenuItem to="/employees" icon={<BadgeOutlined />} label="Сотрудники" collapsed={siderCollapsed} />
         )}
 
-        {hasPermission(PERMISSIONS.APPOINTMENTS_READ) && (
+        {hasPermission(PERMISSIONS.CLIENTS_READ) && (
           <SidebarMenuItem to="/patient-search" icon={<SearchOutlined />} label="Поиск клиентов" collapsed={siderCollapsed} />
         )}
 
@@ -349,12 +348,16 @@ const { hasPermission, isSuperAdmin, loading: permissionsLoading } = usePermissi
           <SidebarMenuItem to="/salary-reports" icon={<AccountBalanceWalletOutlined />} label="Отчет по ЗП" collapsed={siderCollapsed} />
         )}
 
-        <SidebarMenuItem to="/expenses" icon={<PaymentsOutlined />} label="Расходы" collapsed={siderCollapsed} />
         {hasPermission(PERMISSIONS.EXPENSES_READ) && (
+          <SidebarMenuItem to="/expenses" icon={<PaymentsOutlined />} label="Расходы" collapsed={siderCollapsed} />
+        )}
+        {hasPermission(PERMISSIONS.CASHBOX_READ) && (
           <SidebarMenuItem to="/cashbox" icon={<AccountBalanceWalletOutlined />} label="Касса" collapsed={siderCollapsed} />
         )}
 
-        <SidebarMenuItem to="/services" icon={<MedicalServicesOutlined />} label="Услуги" collapsed={siderCollapsed} />
+        {hasPermission(PERMISSIONS.SERVICES_READ) && (
+          <SidebarMenuItem to="/services" icon={<MedicalServicesOutlined />} label="Услуги" collapsed={siderCollapsed} />
+        )}
         {isSuper && (
           <SidebarMenuItem to="/roles" icon={<AdminPanelSettingsOutlined />} label="Роли и права" collapsed={siderCollapsed} />
         )}

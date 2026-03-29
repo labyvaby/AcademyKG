@@ -159,6 +159,7 @@ const ExpensesListPage: React.FC = () => {
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const { hasPermission, employeeId } = usePermissions();
   const hasManageExpenses = hasPermission(PERMISSIONS.EXPENSES_CREATE);
+  const canEditExpense = hasPermission(PERMISSIONS.EXPENSES_UPDATE);
   const canDelete = hasPermission(PERMISSIONS.EXPENSES_DELETE);
 
 
@@ -557,7 +558,7 @@ const ExpensesListPage: React.FC = () => {
         {/* Кнопки управления - в самом верху как в AppointmentDetailsCard */}
         <Box sx={{ p: 2, borderBottom: 1, borderColor: "divider" }}>
           <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between">
-            {hasManageExpenses && (
+            {canEditExpense && (
               <Stack direction="row" spacing={1}>
                 <Button
                   variant="outlined"

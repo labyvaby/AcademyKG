@@ -23,6 +23,7 @@ import { PageHeader } from "../../components/ui";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { useNotification, useTranslate } from "@refinedev/core";
 import { usePermissions } from "../../hooks/usePermissions";
+import { PERMISSIONS } from "../../constants/permissions";
 import ServiceQuickViewDrawer from "../../components/services/ServiceQuickViewDrawer";
 
 const API_BASE = "https://academy.operator.kg";
@@ -132,8 +133,10 @@ function aggregateServices(rows: Array<Record<string, unknown>>): AggregatedServ
 const ServicesPage: React.FC = () => {
   usePageTitle("Услуги");
   const { open: notify } = useNotification();
-  const { isAdmin: isAdminFunc } = usePermissions();
-  const isAdmin = isAdminFunc();
+  const { hasPermission } = usePermissions();
+  const canCreate = hasPermission(PERMISSIONS.SERVICES_CREATE);
+  const canEdit = hasPermission(PERMISSIONS.SERVICES_UPDATE);
+  const canDelete = hasPermission(PERMISSIONS.SERVICES_DELETE);
   // Инфинит-скролл по уникальным услугам (после агрегации)
   const BATCH_SIZE = 20;
   const [visibleCount, setVisibleCount] = React.useState(BATCH_SIZE);
@@ -358,7 +361,7 @@ const ServicesPage: React.FC = () => {
             <Typography variant="subtitle2" color="text.primary" sx={{ whiteSpace: "nowrap" }}>
               {Number.isFinite(Number(s.price)) ? String(s.price ?? 0) : "0"} сом
             </Typography>
-            {isAdmin && (
+            {canEdit && (
               <Tooltip title={s.editable ? "Редактировать" : "Нельзя редактировать"}>
                 <span>
                   <IconButton size="small" onClick={() => handleEdit(s)} disabled={!s.editable}>
@@ -367,7 +370,7 @@ const ServicesPage: React.FC = () => {
                 </span>
               </Tooltip>
             )}
-            {isAdmin && (
+            {canDelete && (
               <Tooltip title={s.editable ? "Удалить" : "Нельзя удалить"}>
                 <span>
                   <IconButton
@@ -402,8 +405,8 @@ const ServicesPage: React.FC = () => {
       <PageHeader
         title="Услуги"
         showTitle={false}
-        addButtonText={isAdmin ? "Добавить услугу" : undefined}
-        onAdd={isAdmin ? () => setAddOpen(true) : undefined}
+        addButtonText={canCreate ? "Добавить услугу" : undefined}
+        onAdd={canCreate ? () => setAddOpen(true) : undefined}
         showSearch
         searchVal={searchQuery}
         onSearchChange={setSearchQuery}

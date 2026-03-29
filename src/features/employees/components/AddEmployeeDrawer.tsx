@@ -7,7 +7,7 @@ import CheckBoxIcon from "@mui/icons-material/CheckBox";
 import DrawerBase from "./DrawerBase";
 import type { EmployesRow, ServiceRow } from "../types";
 import { employeeFormUtils, fetchRoles } from "../hooks/useEmployeesPage";
-import { apiFetch } from "../../../utility/apiClient";
+import { apiFetch, getBranchFilter } from "../../../utility/apiClient";
 import ServicePhotoUploader from "../../../components/services/ServicePhotoUploader";
 import PassportPhotoUploader from "./PassportPhotoUploader";
 import { useNotification } from "@refinedev/core";
@@ -90,7 +90,13 @@ const AddEmployeeDrawer: React.FC<AddEmployeeDrawerProps> = ({ open, onClose, on
           setServices(Array.from(new Map(srvItems.map(s => [s.id, s])).values()));
           setSpecializations(specs);
           setRoles(apiRoles.length > 0 ? apiRoles : FALLBACK_ROLES);
-          setBranches(branchesRes.map((b: any) => ({ id: String(b.id ?? b.uuid ?? ""), name: b.name ?? b.displayName ?? "" })));
+          const mappedBranches = branchesRes.map((b: any) => ({ id: String(b.id ?? b.uuid ?? ""), name: b.name ?? b.displayName ?? "" }));
+          setBranches(mappedBranches);
+          // Подставляем текущий выбранный филиал по умолчанию
+          const activeBranchId = getBranchFilter();
+          if (activeBranchId && mappedBranches.some((b: { id: string }) => b.id === activeBranchId)) {
+            setBranchId(activeBranchId);
+          }
         }
       } catch {
         if (!cancelled) setRoles(FALLBACK_ROLES);

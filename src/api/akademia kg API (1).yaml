@@ -2338,6 +2338,20 @@ paths:
                       detail: Неподдерживаемый тип данных "application/json" в запросе.
                       attr: null
           description: ''
+        '429':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse429'
+              examples:
+                Throttled:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: throttled
+                      detail: Запрос был проигнорирован.
+                      attr: null
+          description: ''
         '500':
           content:
             application/json:
@@ -2449,6 +2463,20 @@ paths:
                     errors:
                     - code: unsupported_media_type
                       detail: Неподдерживаемый тип данных "application/json" в запросе.
+                      attr: null
+          description: ''
+        '429':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse429'
+              examples:
+                Throttled:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: throttled
+                      detail: Запрос был проигнорирован.
                       attr: null
           description: ''
         '500':
@@ -2568,6 +2596,20 @@ paths:
                     errors:
                     - code: unsupported_media_type
                       detail: Неподдерживаемый тип данных "application/json" в запросе.
+                      attr: null
+          description: ''
+        '429':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse429'
+              examples:
+                Throttled:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: throttled
+                      detail: Запрос был проигнорирован.
                       attr: null
           description: ''
         '500':
@@ -2802,6 +2844,20 @@ paths:
                     errors:
                     - code: unsupported_media_type
                       detail: Неподдерживаемый тип данных "application/json" в запросе.
+                      attr: null
+          description: ''
+        '429':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse429'
+              examples:
+                Throttled:
+                  value:
+                    type: client_error
+                    errors:
+                    - code: throttled
+                      detail: Запрос был проигнорирован.
                       attr: null
           description: ''
         '500':
@@ -10443,6 +10499,11 @@ paths:
       summary: Список расходов
       parameters:
       - in: query
+        name: branch
+        schema:
+          type: string
+          format: uuid
+      - in: query
         name: category
         schema:
           type: string
@@ -10458,6 +10519,11 @@ paths:
         description: Which field to use when ordering the results.
         schema:
           type: string
+      - in: query
+        name: organization
+        schema:
+          type: string
+          format: uuid
       - name: page
         required: false
         in: query
@@ -23064,6 +23130,20 @@ components:
       - attr
       - code
       - detail
+    Error429:
+      type: object
+      properties:
+        code:
+          $ref: '#/components/schemas/ErrorCode429Enum'
+        detail:
+          type: string
+        attr:
+          type: string
+          nullable: true
+      required:
+      - attr
+      - code
+      - detail
     Error500:
       type: object
       properties:
@@ -23111,6 +23191,11 @@ components:
       - unsupported_media_type
       type: string
       description: '* `unsupported_media_type` - Unsupported Media Type'
+    ErrorCode429Enum:
+      enum:
+      - throttled
+      type: string
+      description: '* `throttled` - Throttled'
     ErrorCode500Enum:
       enum:
       - error
@@ -23185,6 +23270,18 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Error415'
+      required:
+      - errors
+      - type
+    ErrorResponse429:
+      type: object
+      properties:
+        type:
+          $ref: '#/components/schemas/ClientErrorEnum'
+        errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/Error429'
       required:
       - errors
       - type
@@ -23346,6 +23443,10 @@ components:
           pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
           readOnly: true
           title: Итого
+        branch:
+          allOf:
+          - $ref: '#/components/schemas/BranchNested'
+          readOnly: true
         comment:
           type: string
           readOnly: true
@@ -23367,6 +23468,7 @@ components:
           readOnly: true
           title: Дата обновления
       required:
+      - branch
       - cashAmount
       - cashlessAmount
       - category
@@ -36684,6 +36786,25 @@ components:
         propertyName: type
         mapping:
           client_error: '#/components/schemas/ParseErrorResponse'
+    V1ExpensesListBranchErrorComponent:
+      type: object
+      properties:
+        attr:
+          enum:
+          - branch
+          type: string
+          description: '* `branch` - branch'
+        code:
+          enum:
+          - invalid_choice
+          type: string
+          description: '* `invalid_choice` - invalid_choice'
+        detail:
+          type: string
+      required:
+      - attr
+      - code
+      - detail
     V1ExpensesListCategoryErrorComponent:
       type: object
       properties:
@@ -36726,11 +36847,15 @@ components:
       oneOf:
       - $ref: '#/components/schemas/V1ExpensesListEmployeeErrorComponent'
       - $ref: '#/components/schemas/V1ExpensesListCategoryErrorComponent'
+      - $ref: '#/components/schemas/V1ExpensesListOrganizationErrorComponent'
+      - $ref: '#/components/schemas/V1ExpensesListBranchErrorComponent'
       discriminator:
         propertyName: attr
         mapping:
           employee: '#/components/schemas/V1ExpensesListEmployeeErrorComponent'
           category: '#/components/schemas/V1ExpensesListCategoryErrorComponent'
+          organization: '#/components/schemas/V1ExpensesListOrganizationErrorComponent'
+          branch: '#/components/schemas/V1ExpensesListBranchErrorComponent'
     V1ExpensesListErrorResponse400:
       oneOf:
       - $ref: '#/components/schemas/V1ExpensesListValidationError'
@@ -36740,6 +36865,25 @@ components:
         mapping:
           validation_error: '#/components/schemas/V1ExpensesListValidationError'
           client_error: '#/components/schemas/ParseErrorResponse'
+    V1ExpensesListOrganizationErrorComponent:
+      type: object
+      properties:
+        attr:
+          enum:
+          - organization
+          type: string
+          description: '* `organization` - organization'
+        code:
+          enum:
+          - invalid_choice
+          type: string
+          description: '* `invalid_choice` - invalid_choice'
+        detail:
+          type: string
+      required:
+      - attr
+      - code
+      - detail
     V1ExpensesListValidationError:
       type: object
       properties:

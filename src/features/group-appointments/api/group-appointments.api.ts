@@ -9,7 +9,7 @@
  */
 
 import type { AppointmentGroup, GroupParticipant, GroupAppointmentStatus } from "../model/types";
-import { apiFetch } from "../../../utility/apiClient";
+import { apiFetch, getBranchFilter } from "../../../utility/apiClient";
 
 // ── Маппинг из API ответа ──────────────────────────────────────────────────
 
@@ -76,16 +76,20 @@ export async function createGroup(payload: {
   patientIds: string[];
   patientNames: string[];
 }): Promise<AppointmentGroup> {
+  const groupBody: Record<string, any> = {
+    appointmentAt: payload.appointmentAt,
+    performer: payload.performerId,
+    sellableItem: payload.sellableItemId,
+    patients: payload.patientIds,
+    adminComment: "",
+  };
+  const branchId = getBranchFilter();
+  if (branchId) groupBody.branch = branchId;
+
   const res: any = await apiFetch("/api/v1/appointment-groups/", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      appointmentAt: payload.appointmentAt,
-      performer: payload.performerId,
-      sellableItem: payload.sellableItemId,
-      patients: payload.patientIds,
-      adminComment: "",
-    }),
+    body: JSON.stringify(groupBody),
   });
 
   const data = res?.data ?? res;

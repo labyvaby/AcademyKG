@@ -119,13 +119,6 @@ const _INCOMING_CALLS = {
   DELETE: 'incoming_calls.delete',
 } as const;
 
-const _INVENTORY = {
-  CREATE: 'inventory.create',
-  READ:   'inventory.read',
-  UPDATE: 'inventory.update',
-  DELETE: 'inventory.delete',
-} as const;
-
 const _ORGANIZATIONS = {
   CREATE: 'organizations.create',
   READ:   'organizations.read',
@@ -217,25 +210,11 @@ const _SPECIALIZATIONS = {
   DELETE: 'specializations.delete',
 } as const;
 
-const _STOCK_MOVEMENTS = {
-  CREATE: 'stock_movements.create',
-  READ:   'stock_movements.read',
-  UPDATE: 'stock_movements.update',
-  DELETE: 'stock_movements.delete',
-} as const;
-
 const _USERS = {
   CREATE: 'users.create',
   READ:   'users.read',
   UPDATE: 'users.update',
   DELETE: 'users.delete',
-} as const;
-
-const _WAREHOUSES = {
-  CREATE: 'warehouses.create',
-  READ:   'warehouses.read',
-  UPDATE: 'warehouses.update',
-  DELETE: 'warehouses.delete',
 } as const;
 
 const _WORK_SHIFTS = {
@@ -267,7 +246,6 @@ export const PERMISSIONS = {
   EXPENSE_CATEGORIES:      _EXPENSE_CATEGORIES,
   EXPENSES:                _EXPENSES,
   INCOMING_CALLS:          _INCOMING_CALLS,
-  INVENTORY:               _INVENTORY,
   ORGANIZATIONS:           _ORGANIZATIONS,
   PAYMENTS:                _PAYMENTS,
   PRODUCTS:                _PRODUCTS,
@@ -281,9 +259,7 @@ export const PERMISSIONS = {
   SERVICE_SALARY_RULES:    _SERVICE_SALARY_RULES,
   SERVICES:                _SERVICES,
   SPECIALIZATIONS:         _SPECIALIZATIONS,
-  STOCK_MOVEMENTS:         _STOCK_MOVEMENTS,
   USERS:                   _USERS,
-  WAREHOUSES:              _WAREHOUSES,
   WORK_SHIFTS:             _WORK_SHIFTS,
 
   // ---- Flat keys (backward-compat, deprecated — используй вложенные группы) --
@@ -362,11 +338,6 @@ export const PERMISSIONS = {
   INCOMING_CALLS_READ:               _INCOMING_CALLS.READ,
   INCOMING_CALLS_UPDATE:             _INCOMING_CALLS.UPDATE,
   INCOMING_CALLS_DELETE:             _INCOMING_CALLS.DELETE,
-  // Инвентарь
-  INVENTORY_CREATE:                  _INVENTORY.CREATE,
-  INVENTORY_READ:                    _INVENTORY.READ,
-  INVENTORY_UPDATE:                  _INVENTORY.UPDATE,
-  INVENTORY_DELETE:                  _INVENTORY.DELETE,
   // Организации
   ORGANIZATIONS_CREATE:              _ORGANIZATIONS.CREATE,
   ORGANIZATIONS_READ:                _ORGANIZATIONS.READ,
@@ -432,21 +403,11 @@ export const PERMISSIONS = {
   SPECIALIZATIONS_READ:              _SPECIALIZATIONS.READ,
   SPECIALIZATIONS_UPDATE:            _SPECIALIZATIONS.UPDATE,
   SPECIALIZATIONS_DELETE:            _SPECIALIZATIONS.DELETE,
-  // Движения склада
-  STOCK_MOVEMENTS_CREATE:            _STOCK_MOVEMENTS.CREATE,
-  STOCK_MOVEMENTS_READ:              _STOCK_MOVEMENTS.READ,
-  STOCK_MOVEMENTS_UPDATE:            _STOCK_MOVEMENTS.UPDATE,
-  STOCK_MOVEMENTS_DELETE:            _STOCK_MOVEMENTS.DELETE,
   // Пользователи
   USERS_CREATE:                      _USERS.CREATE,
   USERS_READ:                        _USERS.READ,
   USERS_UPDATE:                      _USERS.UPDATE,
   USERS_DELETE:                      _USERS.DELETE,
-  // Склады
-  WAREHOUSES_CREATE:                 _WAREHOUSES.CREATE,
-  WAREHOUSES_READ:                   _WAREHOUSES.READ,
-  WAREHOUSES_UPDATE:                 _WAREHOUSES.UPDATE,
-  WAREHOUSES_DELETE:                 _WAREHOUSES.DELETE,
   // Рабочие смены
   WORK_SHIFTS_CREATE:                _WORK_SHIFTS.CREATE,
   WORK_SHIFTS_READ:                  _WORK_SHIFTS.READ,
@@ -534,11 +495,6 @@ export const P = {
   INCOMING_CALLS_READ:               _INCOMING_CALLS.READ,
   INCOMING_CALLS_UPDATE:             _INCOMING_CALLS.UPDATE,
   INCOMING_CALLS_DELETE:             _INCOMING_CALLS.DELETE,
-  // Инвентарь
-  INVENTORY_CREATE:                  _INVENTORY.CREATE,
-  INVENTORY_READ:                    _INVENTORY.READ,
-  INVENTORY_UPDATE:                  _INVENTORY.UPDATE,
-  INVENTORY_DELETE:                  _INVENTORY.DELETE,
   // Организации
   ORGANIZATIONS_CREATE:              _ORGANIZATIONS.CREATE,
   ORGANIZATIONS_READ:                _ORGANIZATIONS.READ,
@@ -604,21 +560,11 @@ export const P = {
   SPECIALIZATIONS_READ:              _SPECIALIZATIONS.READ,
   SPECIALIZATIONS_UPDATE:            _SPECIALIZATIONS.UPDATE,
   SPECIALIZATIONS_DELETE:            _SPECIALIZATIONS.DELETE,
-  // Движения склада
-  STOCK_MOVEMENTS_CREATE:            _STOCK_MOVEMENTS.CREATE,
-  STOCK_MOVEMENTS_READ:              _STOCK_MOVEMENTS.READ,
-  STOCK_MOVEMENTS_UPDATE:            _STOCK_MOVEMENTS.UPDATE,
-  STOCK_MOVEMENTS_DELETE:            _STOCK_MOVEMENTS.DELETE,
   // Пользователи
   USERS_CREATE:                      _USERS.CREATE,
   USERS_READ:                        _USERS.READ,
   USERS_UPDATE:                      _USERS.UPDATE,
   USERS_DELETE:                      _USERS.DELETE,
-  // Склады
-  WAREHOUSES_CREATE:                 _WAREHOUSES.CREATE,
-  WAREHOUSES_READ:                   _WAREHOUSES.READ,
-  WAREHOUSES_UPDATE:                 _WAREHOUSES.UPDATE,
-  WAREHOUSES_DELETE:                 _WAREHOUSES.DELETE,
   // Рабочие смены
   WORK_SHIFTS_CREATE:                _WORK_SHIFTS.CREATE,
   WORK_SHIFTS_READ:                  _WORK_SHIFTS.READ,
