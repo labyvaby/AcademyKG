@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Box, Typography, Paper, CircularProgress } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '../../../utility/supabaseClient';
+import { apiFetch } from '../../../utility/apiClient';
 import dayjs, { Dayjs } from 'dayjs';
 
 import { LoadFilters } from './LoadFilters';
@@ -16,21 +16,11 @@ export const LoadAnalyticsPage: React.FC = () => {
     const { data: appointments, isLoading } = useQuery({
         queryKey: ['appointmentsLoad', dateRange[0]?.toISOString(), dateRange[1]?.toISOString()],
         queryFn: async () => {
-            let query = supabase
-                .from('HistoryAppointments')
-                .select('id, appointment_at, performer_ids, status')
-                .neq('status', 'Отменено');
-
-            if (dateRange[0]) {
-                query = query.gte('appointment_at', dateRange[0].startOf('day').toISOString());
-            }
-            if (dateRange[1]) {
-                query = query.lte('appointment_at', dateRange[1].endOf('day').toISOString());
-            }
-
-            const { data, error } = await query;
-            if (error) throw error;
-            return data || [];
+            const params = new URLSearchParams({ pageSize: '500', excludeStatus: 'cancelled' });
+            if (dateRange[0]) params.set('dateFrom', dateRange[0].startOf('day').toISOString());
+            if (dateRange[1]) params.set('dateTo', dateRange[1].endOf('day').toISOString());
+            const res: any = await apiFetch(`/api/v1/appointments/?${params.toString()}`);
+            return (res?.data?.results ?? res?.results ?? []) as { id: string; appointment_at: string; performer_ids?: string[]; status: string }[];
         },
         enabled: !!dateRange[0] && !!dateRange[1],
     });

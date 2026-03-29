@@ -31,6 +31,7 @@ import { useMobileSidebar } from "../sidebar/mobile-context";
 import { useRefresh } from "../../contexts/refresh-context";
 import { useTitleContext } from "../../contexts/title-context";
 import { mapAnyToEmployee, EMPLOYEES_WRITE } from "../../features/employees/api";
+import { apiFetch } from "../../utility/apiClient";
 import { Employee } from "../../features/employees/types";
 import { DB_TABLES } from "../../utility/constants";
 import { EMPLOYEE_PHOTOS_BUCKET, EMPLOYEE_PASSPORTS_BUCKET } from "../../features/employees/api";
@@ -66,7 +67,6 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
   React.useEffect(() => {
     if (empFromPerms) {
       setEmployee(mapAnyToEmployee(empFromPerms));
-      // Новый API возвращает roleName (строка), не вложенный объект roles
       const roleName = empFromPerms.roleName ?? empFromPerms.roles?.name ?? '';
       const roleDisplayName = empFromPerms.roles?.display_name ?? roleName;
       if (roleName) {
@@ -78,6 +78,25 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
       setSpecializationName(null);
     }
   }, [empFromPerms]);
+
+  // Дозагружаем полный профиль сотрудника при открытии модалки
+  React.useEffect(() => {
+    if (!profileOpen) return;
+    const empId = empFromPerms?.id;
+    if (!empId) return;
+    apiFetch(`/api/v1/employees/${empId}/`)
+      .then((res: any) => {
+        const raw = res?.data ?? res;
+        if (!raw?.id) return;
+        const roleName = typeof raw.role === 'object' ? (raw.role?.displayName ?? raw.role?.name ?? '') : (raw.roleName ?? '');
+        if (roleName) setRoleInfo({ name: roleName, display_name: roleName });
+        const spec = raw.specializations?.[0]?.name ?? null;
+        if (spec) setSpecializationName(spec);
+        const full = mapAnyToEmployee(raw);
+        if (full) setEmployee(full);
+      })
+      .catch(() => { /* оставляем то что уже есть */ });
+  }, [profileOpen, empFromPerms]);
 
   React.useEffect(() => {
     if (employee) {

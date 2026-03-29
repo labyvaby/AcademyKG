@@ -20,11 +20,9 @@ import { PERMISSIONS } from "../../constants/permissions";
 
 import { PageHeader, AppBottomSheet } from "../../components/ui";
 import { formatDateRu } from "../../utility/format";
-import { supabase } from "../../utility/supabaseClient";
+import { apiFetch } from "../../utility/apiClient";
 import AppointmentsList from "../home/components/AppointmentsList";
 import AppointmentDetailsCard from "../home/components/AppointmentDetailsCard";
-import { DoctorConclusionPanel } from "../doctor/components/DoctorConclusionPanel";
-import DoctorWorkDrawer from "../../components/home/DoctorWorkDrawer";
 import { mapAggregatedRowToAppointment, Appointment, AggregatedAppointmentRow } from "../home/types";
 import { fetchMedicalStaff } from "../../services/employees";
 import { EmployeesRow } from "../expenses/types";
@@ -57,12 +55,10 @@ const HistoryList: React.FC = () => {
     const [selectedId, setSelectedId] = React.useState<string | null>(null);
 
     // UI State for Details/Conclusion
-    const [conclusionOpen, setConclusionOpen] = React.useState(false);
 
     // Additional admin filters
     const [searchQuery, setSearchQuery] = React.useState("");
     const [selectedEmployee, setSelectedEmployee] = React.useState<string | null>(null);
-    const [drawerOpen, setDrawerOpen] = React.useState(false);
 
     // Fetch Data
     const fetchData = React.useCallback(async () => {
@@ -74,35 +70,16 @@ const HistoryList: React.FC = () => {
                 setDoctors(docs);
             }
 
-            let query = supabase
-                .from("HistoryAppointments")
-                .select("*")
-                .order("appointment_at", { ascending: false });
-
-            // Apply Role Filters
-            if (!canViewAll) {
-                // For logic, if user is restricted, we ALWAYS apply filter.
-                // The issue might be that `AppointmentsAggregated` DOES NOT have performer_ids column?
-                // Or user is falling into 'canViewAll' unexpectedly.
-                // Assuming AppointmentsAggregated HAS performer_ids as String[] since mapped types say so.
-                // Let's filter effectively.
-                query = query.contains("performer_ids", [employeeId]);
-            } else if (selectedEmployee) {
-                // Admin filter
-                query = query.or(`doctor_id.eq.${selectedEmployee},performer_ids.cs.{${selectedEmployee}}`);
+            const params = new URLSearchParams({ pageSize: '500', ordering: '-appointmentAt' });
+            if (!canViewAll && employeeId) {
+                params.set('specialist', employeeId);
+            } else if (canViewAll && selectedEmployee) {
+                params.set('specialist', selectedEmployee);
             }
-
-            // Temporarily limit fetch to recent 2000 records to avoid overload
-            query = query.limit(2000);
-
-            const { data, error } = await query;
-            if (error) throw error;
-
-            if (data) {
-                // Map to Appointment type
-                const mapped = (data as AggregatedAppointmentRow[]).map(mapAggregatedRowToAppointment);
-                setHistory(mapped);
-            }
+            const res: any = await apiFetch(`/api/v1/appointments/?${params.toString()}`);
+            const data: any[] = res?.data?.results ?? res?.results ?? [];
+            const mapped = data.map(r => mapAggregatedRowToAppointment(r as AggregatedAppointmentRow));
+            setHistory(mapped);
         } catch (error) {
             console.error("Error fetching history:", error);
         } finally {
@@ -404,7 +381,6 @@ const HistoryList: React.FC = () => {
                                     onOpenFilters={() => { }} // No specific filters for history list yet
                                     onItemClick={(id) => {
                                         setSelectedId(id);
-                                        setConclusionOpen(false); // Reset conclusion view on change
                                     }}
                                     doctors={doctors}
                                     // No gaps or adding slots in history
@@ -429,26 +405,13 @@ const HistoryList: React.FC = () => {
                                 },
                             })}
                         >
-                            {conclusionOpen ? (
-                                <DoctorConclusionPanel
-                                    appointmentId={selectedId!}
-                                    onClose={() => setConclusionOpen(false)}
-                                    // Read-only essentially, but saving allowed if permissable
-                                    onSaveSuccess={() => fetchData()}
-                                    hideCloseButton={false}
-                                    onEditClick={() => setDrawerOpen(true)}
-                                    readOnly={true}
-                                />
-                            ) : (
-                                <AppointmentDetailsCard
-                                    appointmentId={selectedId}
-                                    onClose={() => setSelectedId(null)}
-                                    // Update is useless in read-only but keeps consistency
-                                    onUpdate={() => fetchData()}
-                                    showPaymentAction={false} // Hide payment action specifically
-                                    readOnly={true} // Enforce read-only mode (hides edit/buttons)
-                                />
-                            )}
+                            <AppointmentDetailsCard
+                                appointmentId={selectedId}
+                                onClose={() => setSelectedId(null)}
+                                onUpdate={() => fetchData()}
+                                showPaymentAction={false}
+                                readOnly={true}
+                            />
                         </Grid2>
                     )}
                 </Grid2>
@@ -458,37 +421,17 @@ const HistoryList: React.FC = () => {
             {isMobile && (
                 <AppBottomSheet open={!!selectedId} onClose={() => setSelectedId(null)}>
                     <Box sx={{ p: 0, height: '80vh' }}>
-                        {conclusionOpen ? (
-                            <DoctorConclusionPanel
-                                appointmentId={selectedId!}
-                                onClose={() => setConclusionOpen(false)}
-                                onSaveSuccess={() => fetchData()}
-                                hideCloseButton={false}
-                                onEditClick={() => setDrawerOpen(true)}
-                                readOnly={true}
-                            />
-                        ) : (
-                            <AppointmentDetailsCard
-                                appointmentId={selectedId}
-                                onClose={() => setSelectedId(null)}
-                                onUpdate={() => fetchData()}
-                                showPaymentAction={false}
-                                readOnly={true}
-                            />
-                        )}
+                        <AppointmentDetailsCard
+                            appointmentId={selectedId}
+                            onClose={() => setSelectedId(null)}
+                            onUpdate={() => fetchData()}
+                            showPaymentAction={false}
+                            readOnly={true}
+                        />
                     </Box>
                 </AppBottomSheet>
             )}
 
-            <DoctorWorkDrawer
-                open={drawerOpen}
-                onClose={() => setDrawerOpen(false)}
-                appointment={history.find(h => h.id === selectedId) || null}
-                onSuccess={() => {
-                    fetchData();
-                    setDrawerOpen(false);
-                }}
-            />
         </Box>
     );
 };

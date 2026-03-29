@@ -15,7 +15,7 @@ import {
   Autocomplete,
 } from "@mui/material";
 import CloseOutlined from "@mui/icons-material/CloseOutlined";
-import { supabase } from "../../utility/supabaseClient";
+import { apiFetch } from "../../utility/apiClient";
 import { fetchSpecializations, type SpecializationRow } from "../../services/specializations";
 import { PhoneCountryCodeSelect } from "../ui";
 import {
@@ -40,18 +40,6 @@ type Props = {
   onCreated?: (e: CreatedEmployee) => void;
 };
 
-// Фиксация: имя таблицы и имена столбцов (кириллица)
-const importMetaEnv =
-  ((import.meta as unknown) as { env?: Record<string, string | undefined> })
-    .env || {};
-// Если в env настроено VITE_EMPLOYEES_WRITE_TABLE — используем его, иначе "Employes"
-const EMPLOYEE_WRITE_TABLE: string =
-  importMetaEnv.VITE_EMPLOYEES_WRITE_TABLE || "Employes";
-const FIO_COLUMN = "ФИО сотрудников";
-const PHONE_COLUMN = "Телефон";
-const EMPLOYEE_TYPE_COLUMN = "Тип сотрудника";
-const SPECIALIZATION_COLUMN = "Специализация";
-const BIRTHDATE_COLUMN = "Дата рождения";
 
 const AddEmployeeDrawer: React.FC<Props> = ({ open, onClose, onCreated }) => {
   const [fullName, setFullName] = React.useState("");
@@ -97,55 +85,21 @@ const AddEmployeeDrawer: React.FC<Props> = ({ open, onClose, onCreated }) => {
 
       const fullPhone = composePhone(phoneCountryCode, phone);
 
-      // Убираем циклы: один payload в зафиксированную таблицу с кириллическими ключами
       const payload: Record<string, unknown> = {
-        [FIO_COLUMN]: fio,
-        [PHONE_COLUMN]: fullPhone,
-        [EMPLOYEE_TYPE_COLUMN]: employeeType.trim() ? employeeType.trim() : null,
-        // Save Name to the legacy column for display consistency
-        [SPECIALIZATION_COLUMN]: selectedSpec ? selectedSpec.name : null,
-
-        [BIRTHDATE_COLUMN]: birthDate || null,
+        full_name: fio,
+        phone: fullPhone,
+        employee_type: employeeType.trim() || null,
+        specialization: selectedSpec ? selectedSpec.name : null,
+        specialization_id: selectedSpec ? selectedSpec.id : null,
+        birth_date: birthDate || null,
       };
 
-      // Try to add specialization_id if the table supports it (Implicit check)
-      if (selectedSpec) {
-        // We'll tentatively add it. If the column strictly doesn't exist and it throws, we might have an issue.
-        // But often Supabase/Postgres silently ignores extra keys in some configurations OR errors out.
-        // Given "Add specialization which you take from specialization table", likely there is a column.
-        // Let's assume standard column name "specialization_id" or "SpecializationID" or similar.
-        // Since the other columns are Cyrillic, maybe "ID специализации"?
-        // Safest bet is to relying on the NAME in the text column for legacy support, 
-        // AND adding `specialization_id` field if I knew the name.
-        // I will ADD `specialization_id` to the payload. If it errors, I'll need to remove it.
-        // But wait, the user said "take from table", so the RELATION is key.
-        // I'll add `specialization_id` key.
-        payload["specialization_id"] = selectedSpec.id;
-      }
+      const res: any = await apiFetch("/api/v1/employees/", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
 
-      const { data, error } = await supabase
-        .schema("public")
-        .from(EMPLOYEE_WRITE_TABLE)
-        .insert(payload)
-        .select("*")
-        .single();
-
-      if (error) {
-        // If error is about missing column specialization_id, retry without it
-        if (error.message?.includes("column \"specialization_id\" of relation") || error.code === '42703') {
-          delete payload["specialization_id"];
-          const { data: retryData, error: retryError } = await supabase
-            .schema("public")
-            .from(EMPLOYEE_WRITE_TABLE)
-            .insert(payload)
-            .select("*")
-            .single();
-          if (retryError) throw retryError;
-          handleSuccess(retryData, fio, fullPhone);
-          return;
-        }
-        throw error;
-      }
+      const data = res?.data ?? res;
 
       handleSuccess(data, fio, fullPhone);
 

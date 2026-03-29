@@ -643,6 +643,15 @@ const ExpensesListPage: React.FC = () => {
                   {empName}
                 </Typography>
               </Box>
+
+              {expense.branch?.name && (
+                <Box display="flex" justifyContent="space-between" alignItems="center">
+                  <Typography variant="body2" color="text.secondary">Филиал</Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                    {expense.branch.name}
+                  </Typography>
+                </Box>
+              )}
             </Stack>
 
             {/* Payment Information */}

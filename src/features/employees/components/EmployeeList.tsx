@@ -23,6 +23,7 @@ export type EmployeeListProps = {
   onSelect: (e: EmployesRow) => void;
   onEdit?: (e: EmployesRow) => void;
   onDelete?: (e: EmployesRow) => void;
+  canEdit?: (e: EmployesRow) => boolean;
   listRef: React.RefObject<HTMLDivElement | null>;
   onScroll: () => void;
   loading?: boolean;
@@ -37,6 +38,7 @@ const EmployeeList: React.FC<EmployeeListProps> = ({
   onSelect,
   onEdit,
   onDelete,
+  canEdit,
   listRef,
   onScroll,
   loading,
@@ -68,7 +70,7 @@ const EmployeeList: React.FC<EmployeeListProps> = ({
         secondaryAction={
           (onEdit || onDelete) && (
             <Stack direction="row" spacing={1}>
-              {onEdit && (
+              {onEdit && (!canEdit || canEdit(e)) && (
                 <IconButton aria-label="Редактировать" onClick={() => onEdit(e)}>
                   <EditOutlined />
                 </IconButton>

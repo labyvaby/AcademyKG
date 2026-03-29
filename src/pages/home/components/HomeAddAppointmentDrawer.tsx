@@ -132,7 +132,7 @@ export const HomeAddAppointmentDrawer: React.FC<
   const [scheduleMode, setScheduleMode] = React.useState<"once" | "period">("once");
   // Состояние для режима "На период"
   const [periodWeekdays, setPeriodWeekdays] = React.useState<string[]>([]);
-  const [periodStartDate, setPeriodStartDate] = React.useState("");
+  const [periodStartDate, setPeriodStartDate] = React.useState(dayjs().format("YYYY-MM-DD"));
   const [periodEndDate, setPeriodEndDate] = React.useState("");
 
   const WEEKDAYS = [
@@ -261,7 +261,7 @@ export const HomeAddAppointmentDrawer: React.FC<
       setAppointmentMode("single");
       setScheduleMode("once");
       setPeriodWeekdays([]);
-      setPeriodStartDate("");
+      setPeriodStartDate(dayjs().format("YYYY-MM-DD"));
       setPeriodEndDate("");
       setGroupParticipants([]);
       setGroupPatientInput(null);
@@ -552,29 +552,60 @@ export const HomeAddAppointmentDrawer: React.FC<
           isSavingRef.current = false;
           return;
         }
-        const firstRow = serviceRows[0];
-        // Берём время из visitDateTime или дефолт 09:00/10:00
-        const baseTime = visitDateTime ? dayjs(visitDateTime) : null;
-        const startTime = baseTime ? baseTime.format("HH:mm") : "09:00";
-        const endTime = baseTime ? baseTime.add(1, "hour").format("HH:mm") : "10:00";
 
-        if (selectedPatient) {
-          const shifts = periodDates.map((date) => ({
-            clientId: selectedPatient.id,
-            date,
-            startTime,
-            endTime,
-            isNextWeekEnd: false,
-          }));
-          await clientScheduleApi.createShiftsBulk(shifts);
+        const validServiceRows = serviceRows.filter((r) => r.serviceId && r.doctorId);
+        if (validServiceRows.length === 0) {
+          setIsSaving(false);
+          isSavingRef.current = false;
+          return;
         }
+
+        const baseTime = visitDateTime ? dayjs(visitDateTime) : dayjs().hour(9).minute(0).second(0);
+        const timeStr = baseTime.format("HH:mm");
+
+        const allServicesPayload = validServiceRows.map((row) => ({
+          sellableItem: row.serviceId,
+          performer: row.doctorId,
+          quantity: 1,
+        }));
+
+        const patientId = selectedPatient?.id || null;
+
+        const requests = periodDates.map((date) => {
+          const appointmentAt = dayjs(`${date}T${timeStr}:00`).toISOString();
+          const payload: any = {
+            patient: patientId,
+            appointmentAt,
+            services: allServicesPayload,
+          };
+          if (adminComment.trim()) payload.adminComment = adminComment.trim();
+          return apiFetch("/api/v1/appointments/", {
+            method: "POST",
+            body: JSON.stringify(payload),
+          });
+        });
+
+        try {
+          await Promise.all(requests);
+        } catch (err: any) {
+          notify?.({ type: "error", message: "Ошибка при создании приёмов", description: err?.message || String(err) });
+          setIsSaving(false);
+          isSavingRef.current = false;
+          return;
+        }
+
         setPeriodWeekdays([]);
-        setPeriodStartDate("");
+        setPeriodStartDate(dayjs().format("YYYY-MM-DD"));
         setPeriodEndDate("");
         setScheduleMode("once");
+        setSelectedPatient(null);
+        setServiceRows([{ serviceId: "", doctorId: "", quantity: 1 }]);
+        setVisitDateTime("");
+        setAdminComment("");
+        setTouched(false);
         handleClose();
         onCreated?.();
-        notify?.({ type: "success", message: `Расписание создано на ${periodDates.length} дней!` });
+        notify?.({ type: "success", message: `Создано ${periodDates.length} приёмов!` });
         return;
       }
 
@@ -595,6 +626,53 @@ export const HomeAddAppointmentDrawer: React.FC<
         }
         const cache = employeeServicesCache[firstRow.doctorId];
         const svc = (cache || servicesOpts).find(s => s.id === firstRow.serviceId);
+
+        // ── ГРУППОВОЙ НА ПЕРИОД ──────────────────────────────────
+        if ((scheduleMode as string) === "period") {
+          if (periodDates.length === 0) {
+            setIsSaving(false);
+            isSavingRef.current = false;
+            return;
+          }
+          const baseTime = visitDateTime ? dayjs(visitDateTime) : dayjs().hour(9).minute(0).second(0);
+          const timeStr = baseTime.format("HH:mm");
+          try {
+            await Promise.all(
+              periodDates.map((date) =>
+                createGroup({
+                  appointmentAt: dayjs(`${date}T${timeStr}:00`).toISOString(),
+                  performerId: firstRow.doctorId,
+                  sellableItemId: firstRow.serviceId,
+                  price: Number(svc?.price ?? 0),
+                  maxParticipants: (svc as any)?.maxParticipants ?? null,
+                  patientIds: groupParticipants.map(p => p.id),
+                  patientNames: groupParticipants.map(p => p.fio ?? p.label ?? ""),
+                })
+              )
+            );
+          } catch (err: any) {
+            notify?.({ type: "error", message: "Ошибка при создании групповых приёмов", description: err?.message });
+            setIsSaving(false);
+            isSavingRef.current = false;
+            return;
+          }
+          setPeriodWeekdays([]);
+          setPeriodStartDate(dayjs().format("YYYY-MM-DD"));
+          setPeriodEndDate("");
+          setScheduleMode("once");
+          setGroupParticipants([]);
+          setGroupPatientInput(null);
+          setServiceRows([{ serviceId: "", doctorId: "", quantity: 1 }]);
+          setVisitDateTime("");
+          setAdminComment("");
+          setTouched(false);
+          handleClose();
+          onCreated?.();
+          notify?.({ type: "success", message: `Создано ${periodDates.length} групповых занятий!` });
+          return;
+        }
+
+        // ── ГРУППОВОЙ РАЗОВЫЙ ────────────────────────────────────
         try {
           await createGroup({
             appointmentAt: dayjs(visitDateTime).toISOString(),
@@ -819,26 +897,26 @@ export const HomeAddAppointmentDrawer: React.FC<
 
         {/* Переключатель разовый / на период */}
         <Box sx={{ px: 2, pb: 1.5 }}>
-          <ToggleButtonGroup
-            value={scheduleMode}
-            exclusive
-            onChange={(_, v) => { if (v) setScheduleMode(v); }}
-            size="small"
-            fullWidth
-            sx={{
-              '& .MuiToggleButton-root': { fontWeight: 500, py: 0.75 },
-              '& .MuiToggleButton-root.Mui-selected': {
-                bgcolor: (theme) => `${theme.palette.secondary.main} !important`,
-                color: 'secondary.contrastText',
-              },
-            }}
-          >
-            <ToggleButton value="once">Разовый</ToggleButton>
-            <ToggleButton value="period" sx={{ gap: 0.5 }}>
-              <CalendarMonthOutlined fontSize="small" />
-              На период
-            </ToggleButton>
-          </ToggleButtonGroup>
+            <ToggleButtonGroup
+              value={scheduleMode}
+              exclusive
+              onChange={(_, v) => { if (v) setScheduleMode(v); }}
+              size="small"
+              fullWidth
+              sx={{
+                '& .MuiToggleButton-root': { fontWeight: 500, py: 0.75 },
+                '& .MuiToggleButton-root.Mui-selected': {
+                  bgcolor: (theme) => `${theme.palette.secondary.main} !important`,
+                  color: 'secondary.contrastText',
+                },
+              }}
+            >
+              <ToggleButton value="once">Разовый</ToggleButton>
+              <ToggleButton value="period" sx={{ gap: 0.5 }}>
+                <CalendarMonthOutlined fontSize="small" />
+                На период
+              </ToggleButton>
+            </ToggleButtonGroup>
         </Box>
 
         <Divider />
@@ -1264,7 +1342,9 @@ export const HomeAddAppointmentDrawer: React.FC<
                 isSaving ||
                 !serviceRows.some((r) => r.serviceId && r.doctorId) ||
                 (scheduleMode === "once" && !visitDateTime) ||
-                (scheduleMode === "period" && (periodDates.length === 0 || (!isBooking && !selectedPatient))) ||
+                (scheduleMode === "period" && periodDates.length === 0) ||
+                (scheduleMode === "period" && appointmentMode === "single" && !isBooking && !selectedPatient) ||
+                (scheduleMode === "period" && appointmentMode === "group" && groupParticipants.length === 0) ||
                 (scheduleMode === "once" && appointmentMode === "single" && !isBooking && !selectedPatient) ||
                 (scheduleMode === "once" && appointmentMode === "group" && groupParticipants.length === 0)
               }
@@ -1281,7 +1361,7 @@ export const HomeAddAppointmentDrawer: React.FC<
               {isSaving
                 ? "Создание..."
                 : scheduleMode === "period"
-                  ? `Записать на ${periodDates.length} дней`
+                  ? `Записать на ${periodDates.length} ${periodDates.length === 1 ? "день" : periodDates.length < 5 ? "дня" : "дней"}`
                   : appointmentMode === "group"
                     ? "Добавить занятие"
                     : "Добавить прием"}

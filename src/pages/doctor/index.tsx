@@ -22,7 +22,6 @@ import AppointmentsList from "../home/components/AppointmentsList";
 import { AppointmentDetailsCard } from "../home/components/AppointmentDetailsCard";
 import { PageHeader, AppBottomSheet, DateNavigation } from "../../components/ui";
 import { useRefresh } from "../../contexts/refresh-context";
-import DoctorWorkDrawer from "../../components/home/DoctorWorkDrawer";
 import { usePermissions } from "../../hooks/usePermissions";
 import { PERMISSIONS } from "../../constants/permissions";
 
@@ -48,7 +47,6 @@ const DoctorWorkPage: React.FC = () => {
         return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, "0")}-${String(t.getDate()).padStart(2, "0")}`;
     });
     const [selectedAppointmentId, setSelectedAppointmentId] = useState<string | null>(null);
-    const [doctorWorkOpen, setDoctorWorkOpen] = useState(false);
     const [activeTab, setActiveTab] = useState(0);
     const [selectedDoctorId, setSelectedDoctorId] = useState<string | null>(null);
 
@@ -339,12 +337,6 @@ const DoctorWorkPage: React.FC = () => {
                 </AppBottomSheet>
             )}
 
-            <DoctorWorkDrawer
-                open={doctorWorkOpen}
-                onClose={() => setDoctorWorkOpen(false)}
-                appointment={selectedAppointment}
-                onSuccess={() => queryClient.invalidateQueries({ queryKey: ["doctor-appointments-v2"] })}
-            />
         </Box>
     );
 };

@@ -12,6 +12,11 @@ import {
   ToggleButton,
   CircularProgress,
   Paper,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
 } from "@mui/material";
 import { Save, Delete } from "@mui/icons-material";
 import PersonOutlined from "@mui/icons-material/PersonOutlined";
@@ -85,6 +90,7 @@ const ClientShiftForm: React.FC<Props> = ({
   const [enrollState, setEnrollState] = useState<Record<string, "loading" | "done">>({});
 
   const mode = shiftToEdit ? "edit" : "create";
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
   // Загрузка услуг
   useEffect(() => {
@@ -603,7 +609,7 @@ const ClientShiftForm: React.FC<Props> = ({
             <Button
               variant="outlined"
               color="error"
-              onClick={() => shiftToEdit && onDelete(shiftToEdit.id)}
+              onClick={() => setDeleteConfirmOpen(true)}
               startIcon={<Delete />}
               sx={{ minWidth: 0 }}
             >
@@ -612,6 +618,28 @@ const ClientShiftForm: React.FC<Props> = ({
           )}
         </Stack>
       </Stack>
+
+      <Dialog open={deleteConfirmOpen} onClose={() => setDeleteConfirmOpen(false)}>
+        <DialogTitle>Удалить клиента из расписания?</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Запись клиента будет удалена из расписания. Это действие нельзя отменить.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteConfirmOpen(false)}>Отмена</Button>
+          <Button
+            color="error"
+            variant="contained"
+            onClick={() => {
+              setDeleteConfirmOpen(false);
+              if (shiftToEdit) onDelete!(shiftToEdit.id);
+            }}
+          >
+            Удалить
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

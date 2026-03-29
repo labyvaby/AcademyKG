@@ -14,8 +14,6 @@ import {
   IconButton,
   TextField,
   Grid,
-  Tabs,
-  Tab,
 } from "@mui/material";
 import Autocomplete, { createFilterOptions } from "@mui/material/Autocomplete";
 import CloseOutlined from "@mui/icons-material/CloseOutlined";
@@ -40,7 +38,6 @@ import AppointmentDetailsCard from "./components/AppointmentDetailsCard";
 import GroupAppointmentDetailsCard from "./components/GroupAppointmentDetailsCard";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import HomeAddAppointmentDrawer from "./components/HomeAddAppointmentDrawer";
-import { DoctorConclusionPanel } from "../doctor/components/DoctorConclusionPanel";
 import { usePermissions } from "../../hooks/usePermissions";
 import { PERMISSIONS } from "../../constants/permissions";
 
@@ -105,7 +102,6 @@ export const HomePage: React.FC = () => {
 
   // Appointments state
   const [selectedAppointmentId, setSelectedAppointmentId] = React.useState<string | null>(null);
-  const [activeTab, setActiveTab] = React.useState(0);
 
   // Debug: log when selectedAppointmentId changes
   React.useEffect(() => {
@@ -131,7 +127,6 @@ export const HomePage: React.FC = () => {
   // Add appointment drawer state
   const [visitOpen, setVisitOpen] = React.useState(false);
   const [initialPatientId, setInitialPatientId] = React.useState<string | null>(null);
-  const [conclusionOpen, setConclusionOpen] = React.useState(false);
   const [initialSlotDate, setInitialSlotDate] = React.useState<string | null>(null);
   const [initialSlotDoctorId, setInitialSlotDoctorId] = React.useState<string | null>(null);
 
@@ -140,7 +135,6 @@ export const HomePage: React.FC = () => {
     setDate(newDate);
     setDoctorId("");
     setSelectedAppointmentId(null);
-    setConclusionOpen(false);
   };
 
   // Fetch shifts for the selected date (and previous day for night shifts) — с кэшем
@@ -300,12 +294,6 @@ export const HomePage: React.FC = () => {
     dailyAppointments.find(a => a.id === selectedAppointmentId) || null,
     [dailyAppointments, selectedAppointmentId]);
 
-  // Check if selected appointment has conclusion
-  const hasConclusion = React.useMemo(() => {
-    if (!selectedAppointment) return false;
-    return !!(selectedAppointment.has_conclusion || selectedAppointment.conclusion || selectedAppointment.diagnosis_code || selectedAppointment.diagnosis_data);
-  }, [selectedAppointment]);
-
   const resetFilters = () => {
     const today = new Date();
     const [dd, mm, yyyy] = formatRuDate(today).split(".");
@@ -358,11 +346,10 @@ export const HomePage: React.FC = () => {
           boxSizing: "border-box"
         }}>
           {/* Column 1: Appointments List */}
-          <Grid item xs={12} md={conclusionOpen ? 4 : 6} sx={{
+          <Grid item xs={12} md={6} sx={{
             height: '100%',
             overflow: 'hidden',
             pr: { md: 1 },
-            transition: 'all 0.3s ease'
           }}>
             <AppointmentsList
               titleDate={ruDateFromInput}
@@ -373,8 +360,6 @@ export const HomePage: React.FC = () => {
               onItemClick={(id) => {
                 setSelectedAppointmentId(id);
                 if (id !== selectedAppointmentId) {
-                  setConclusionOpen(false);
-                  setActiveTab(0); // Reset to details tab on new selection
                 }
               }}
               onAddSlot={(dateIso, docId) => {
@@ -389,13 +374,12 @@ export const HomePage: React.FC = () => {
 
           {/* Column 2: Appointment Details (Desktop) */}
           {!isMobile && (
-            <Grid item xs={12} md={conclusionOpen ? 4 : 6} sx={{
+            <Grid item xs={12} md={6} sx={{
               height: '100%',
               display: 'flex',
               flexDirection: 'column',
               pl: { md: 1 },
               pr: { md: 1 },
-              transition: 'all 0.3s ease'
             }}>
               {selectedAppointment?.is_group && selectedAppointment.group_data ? (
                 <GroupAppointmentDetailsCard
@@ -428,41 +412,6 @@ export const HomePage: React.FC = () => {
             </Grid>
           )}
 
-          {/* Column 3: Conclusion Panel (Desktop) */}
-          {!isMobile && conclusionOpen && (
-            <Grid item xs={12} md={4} sx={{
-              height: '100%',
-              display: 'flex',
-              flexDirection: 'column',
-              pl: { md: 1 }
-            }}>
-              {selectedAppointmentId ? (
-                <DoctorConclusionPanel
-                  appointmentId={selectedAppointmentId}
-                  onClose={() => setConclusionOpen(false)}
-                  onSaveSuccess={() => { }}
-                  hideCloseButton={false}
-                // Разрешаем закрытие через крестик в самой панели тоже
-                />
-              ) : (
-                <Box
-                  sx={{
-                    height: "100%",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    border: "1px dashed",
-                    borderColor: "divider",
-                    borderRadius: 1,
-                    color: "text.secondary",
-                    bgcolor: "background.paper"
-                  }}
-                >
-                  Выберите прием для просмотра заключения
-                </Box>
-              )}
-            </Grid>
-          )}
         </Grid>
       </Box>
 
@@ -470,24 +419,10 @@ export const HomePage: React.FC = () => {
       {isMobile && (
         <AppBottomSheet
           open={Boolean(selectedAppointmentId)}
-          onClose={() => {
-            console.log("Mobile drawer closing");
-            setSelectedAppointmentId(null);
-          }}
-          header={
-            <Tabs
-              value={activeTab}
-              onChange={(_, v) => setActiveTab(v)}
-              variant="fullWidth"
-              sx={{ flexShrink: 0 }}
-            >
-              <Tab label="Прием" />
-              {hasConclusion && <Tab label="Заключение" />}
-            </Tabs>
-          }
+          onClose={() => setSelectedAppointmentId(null)}
         >
           <Box sx={{ p: 0 }}>
-            {activeTab === 0 && selectedAppointment?.is_group && selectedAppointment.group_data ? (
+            {selectedAppointment?.is_group && selectedAppointment.group_data ? (
               <GroupAppointmentDetailsCard
                 group={selectedAppointment.group_data}
                 onClose={() => setSelectedAppointmentId(null)}
@@ -501,7 +436,7 @@ export const HomePage: React.FC = () => {
                   );
                 }}
               />
-            ) : activeTab === 0 ? (
+            ) : (
               <AppointmentDetailsCard
                 appointmentId={selectedAppointment?.is_group ? null : selectedAppointmentId}
                 onClose={() => setSelectedAppointmentId(null)}
@@ -513,14 +448,6 @@ export const HomePage: React.FC = () => {
                   setVisitOpen(true);
                 }}
                 showPaymentAction={true}
-              />
-            ) : null}
-            {activeTab === 1 && selectedAppointmentId && (
-              <DoctorConclusionPanel
-                appointmentId={selectedAppointmentId}
-                onClose={() => setActiveTab(0)}
-                onSaveSuccess={() => { }}
-                hideCloseButton={true}
               />
             )}
           </Box>

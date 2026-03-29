@@ -63,3 +63,43 @@ specialist = UUIDFilter(field_name="services__performer", lookup_expr="exact")
 paidCash + paidCard + paidBalance + paidBonuses > 0
 ```
 Независимо от `status`.
+
+---
+
+## 4. Расходы не привязаны к филиалу
+
+❌ **Не реализовано.**
+
+### Зачем
+Страница расходов и касса должны показывать данные только по выбранному филиалу.
+
+### Почему не работает
+Модель `Expense` не имеет поля `branch`. При создании расход не привязывается к филиалу. `GET /api/v1/expenses/` не принимает `?branch=` для фильтрации.
+
+### Нужно
+1. Добавить FK `branch` в модель `Expense`
+2. При создании автоматически проставлять `branch` из контекста пользователя
+3. Добавить фильтрацию `?branch=<uuid>` в `GET /api/v1/expenses/`
+4. Добавить `branch` в `ExpenseRead` и `ExpenseCreateRequest` схемы
+
+---
+
+## 5. GET /cashbox/summary/ — `net` не вычитает расходы
+
+❌ **Не реализовано.**
+
+### Зачем
+Страница "Касса" показывает чистый остаток: доходы минус расходы.
+
+### Почему не работает
+`net.cashSum` и `net.cardSum` содержат только сумму приёмов, расходы не вычитаются.
+
+### Временное решение (фронт)
+Фронт считает самостоятельно: `appointments.cashSum - expenses.cashSum` и `appointments.cardSum - expenses.cashlessSum`.
+
+### Нужно
+```
+net.cashSum = appointments.cashSum - expenses.cashSum
+net.cardSum = appointments.cardSum - expenses.cashlessSum
+net.totalSum = net.cashSum + net.cardSum
+```

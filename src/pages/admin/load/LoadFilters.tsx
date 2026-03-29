@@ -2,7 +2,7 @@ import React from 'react';
 import { Box, TextField, Autocomplete, Button, ButtonGroup, Paper } from '@mui/material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '../../../utility/supabaseClient';
+import { fetchEmployees } from '../../../services/employees';
 import dayjs, { Dayjs } from 'dayjs';
 
 interface Props {
@@ -15,10 +15,7 @@ interface Props {
 export const LoadFilters: React.FC<Props> = ({ selectedEmployees, onEmployeesChange, dateRange, onDateRangeChange }) => {
     const { data: employees } = useQuery({
         queryKey: ['employeesListAnalytics'],
-        queryFn: async () => {
-            const { data } = await supabase.from('Employees').select('id, full_name').order('full_name');
-            return data || [];
-        }
+        queryFn: () => fetchEmployees(),
     });
 
     return (

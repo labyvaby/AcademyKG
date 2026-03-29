@@ -179,7 +179,7 @@ const CashboxPage: React.FC = () => {
                             <Grid2 size={{ xs: 12, md: method === 'all' ? 6 : 12 }}>
                                 {renderBigCard(
                                     "Наличные",
-                                    data.net.cashSum,
+                                    Number(data.net.cashSum),
                                     'success',
                                     <WalletIcon />
                                 )}
@@ -190,7 +190,7 @@ const CashboxPage: React.FC = () => {
                             <Grid2 size={{ xs: 12, md: method === 'all' ? 6 : 12 }}>
                                 {renderBigCard(
                                     "Безналичные",
-                                    data.net.cardSum,
+                                    Number(data.net.cardSum),
                                     'info',
                                     <CreditCardIcon />
                                 )}

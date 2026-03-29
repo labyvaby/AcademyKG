@@ -30,7 +30,7 @@ const EmployeesPage: React.FC = () => {
   usePageTitle("Сотрудники");
   const state = useEmployeesPageState();
   const [isGrouped, setIsGrouped] = React.useState(true);
-  const { hasPermission } = usePermissions();
+  const { hasPermission, employeeId, hasRole } = usePermissions();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const listRef = React.useRef<HTMLDivElement | null>(null);
@@ -140,7 +140,10 @@ const EmployeesPage: React.FC = () => {
               <EmployeeList
                 items={state.filtered}
                 onSelect={(e) => state.setDetailsOpen(e)}
-                onEdit={hasPermission(PERMISSIONS.EMPLOYEES_UPDATE) ? (e) => state.setEditOpen(e) : undefined}
+                onEdit={hasPermission(PERMISSIONS.EMPLOYEES_UPDATE)
+                  ? (e) => state.setEditOpen(e)
+                  : undefined}
+                canEdit={(e) => !hasRole('specialist') || e.id === employeeId}
                 onDelete={hasPermission(PERMISSIONS.EMPLOYEES_DELETE) ? (e) => state.setDeleteOpen(e) : undefined}
                 listRef={listRef}
                 onScroll={state.loadMore}

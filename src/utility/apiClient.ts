@@ -66,10 +66,15 @@ const BRANCH_FILTER_SKIP = [
   "/api/v1/services/",
 ];
 
+// UUID regex — детальные запросы по ID не должны фильтроваться по филиалу
+const UUID_PATH_RE = /\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/?$/i;
+
 function injectBranchParam(path: string, method: string): string {
   if (!_activeBranchId) return path;
   if (method && method !== "GET") return path;
   if (BRANCH_FILTER_SKIP.some((skip) => path.startsWith(skip))) return path;
+  // Детальный запрос по UUID — не фильтруем по филиалу
+  if (UUID_PATH_RE.test(path.split("?")[0])) return path;
   // Уже есть branch= в URL — не дублируем
   if (path.includes("branch=")) return path;
   const separator = path.includes("?") ? "&" : "?";

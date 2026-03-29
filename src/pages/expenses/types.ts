@@ -15,6 +15,7 @@ export type Expense = {
   created_at: string;
   updated_at?: string;
   affects_month?: string | null;  // YYYY-MM
+  branch?: { id: string; name: string } | null;
 };
 
 export type ExpenseFormValues = {
@@ -73,5 +74,8 @@ export function mapApiExpense(raw: any): Expense {
     created_at: raw.createdAt ?? raw.created_at ?? "",
     updated_at: raw.updatedAt ?? raw.updated_at ?? undefined,
     affects_month: raw.affectsMonth ?? raw.affects_month ?? null,
+    branch: raw.branch && typeof raw.branch === "object"
+      ? { id: raw.branch.id, name: raw.branch.name ?? "" }
+      : null,
   };
 }

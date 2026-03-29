@@ -3,6 +3,11 @@ import {
   Avatar,
   Box,
   Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
   Drawer,
   IconButton,
   Paper,
@@ -209,6 +214,7 @@ const ClientScheduleCalendar = React.forwardRef((_, ref) => {
   const [drawerMode, setDrawerMode] = useState<"view" | "form">("view");
   const [editingShift, setEditingShift] = useState<ClientShift | null>(null);
   const [patientDrawerId, setPatientDrawerId] = useState<string | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   const today = dayjs();
   const weeks = useMemo(() => generateWeeksGrid(currentMonth), [currentMonth]);
@@ -423,7 +429,7 @@ const ClientScheduleCalendar = React.forwardRef((_, ref) => {
                         </Typography>
                       </Box>
                       <IconButton size="small" onClick={() => handleEditClick(shift)}><Edit /></IconButton>
-                      <IconButton size="small" color="error" onClick={() => handleDelete(shift.id)}><Delete /></IconButton>
+                      <IconButton size="small" color="error" onClick={() => setDeleteConfirmId(shift.id)}><Delete /></IconButton>
                     </Paper>
                   ))
                 )}
@@ -455,6 +461,28 @@ const ClientScheduleCalendar = React.forwardRef((_, ref) => {
         onClose={() => setPatientDrawerId(null)}
         patientId={patientDrawerId}
       />
+
+      <Dialog open={!!deleteConfirmId} onClose={() => setDeleteConfirmId(null)}>
+        <DialogTitle>Удалить клиента из расписания?</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Запись клиента будет удалена из расписания. Это действие нельзя отменить.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteConfirmId(null)}>Отмена</Button>
+          <Button
+            color="error"
+            variant="contained"
+            onClick={() => {
+              if (deleteConfirmId) handleDelete(deleteConfirmId);
+              setDeleteConfirmId(null);
+            }}
+          >
+            Удалить
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Paper>
   );
 });

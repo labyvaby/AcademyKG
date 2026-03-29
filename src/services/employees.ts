@@ -18,18 +18,21 @@ type ApiEmployee = {
 };
 
 const toRow = (d: ApiEmployee): EmployeesRow => {
-  const specializationNames = d.specializations?.map((s) => s.name) ?? [];
+  const specializationNames = d.specializations
+    ?.map((s) => typeof s === "string" ? s : (s as any)?.name ?? "")
+    .filter(Boolean) ?? [];
+  const role = typeof d.role === "string" ? d.role : undefined;
   return {
     id: d.id,
     full_name: d.fullName ?? d.full_name ?? "Без имени",
     nickname: d.nickname ?? undefined,
     avatar_url: d.photoUrl ?? d.photo_url ?? undefined,
-    specialization: specializationNames[0] ?? d.role ?? undefined,
+    specialization: specializationNames[0] ?? role ?? undefined,
     specializationNames,
     serviceIds: d.services ?? [],
     user_email: d.userEmail ?? d.user_email ?? null,
     user_phone_number: d.userPhoneNumber ?? d.user_phone_number ?? null,
-    role: d.role,
+    role,
   };
 };
 

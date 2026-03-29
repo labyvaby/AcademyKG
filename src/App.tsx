@@ -33,7 +33,6 @@ import { TitleProvider } from "./contexts/title-context";
 import { PageCacheProvider } from "./contexts/page-cache-context";
 import { RequireAuth } from "./components/auth/RequireAuth";
 import { ProtectedRoute } from "./components/rbac/ProtectedRoute";
-import { CallNotification } from "./components/CallNotification";
 import { BranchProvider } from "./contexts/branch-context";
 // import { RoleDebugNotification } from "./components/debug/RoleDebugNotification"; // ⚠️ Временно отключено
 
@@ -53,21 +52,16 @@ const ExpensesListPage = lazy(() => import("./pages/expenses"));
 const EmployeesPage = lazy(() => import("./pages/employes"));
 const ServicesPage = lazy(() => import("./pages/services"));
 const ProductsPage = lazy(() => import("./pages/products"));
-const StoragePage = lazy(() => import("./pages/storage"));
 const WarehousesPage = lazy(() => import("./pages/warehouses"));
 const SalesPage = lazy(() => import("./pages/sales"));
 const LoginPage = lazy(() => import("./pages/auth/login"));
 const SchedulePage = lazy(() => import("./pages/SchedulePage"));
 const AccessDeniedPage = lazy(() => import("./pages/AccessDenied"));
 const DoctorWorkPage = lazy(() => import("./pages/doctor"));
-const ConclusionPrintPage = lazy(() => import("./pages/print/ConclusionPrintPage").then(module => ({ default: module.ConclusionPrintPage }))); // New Print Page
-const CertificatePrintPage = lazy(() => import("./pages/print/CertificatePrintPage").then(module => ({ default: module.CertificatePrintPage }))); // New Certificate Page
 const CashboxPage = lazy(() => import("./pages/cashbox"));
 const ReportsPage = lazy(() => import("./pages/reports"));
 const AllAppointmentsPage = lazy(() => import("./pages/all-appointments"));
 const AllProceduresPage = lazy(() => import("./pages/all-procedures"));
-const DiagnosesPage = lazy(() => import("./pages/admin/DiagnosesPage"));
-const NotificationSettingsPage = lazy(() => import("./pages/settings/NotificationSettingsPage").then(module => ({ default: module.NotificationSettingsPage })));
 const SalaryReportsPage = lazy(() => import("./pages/salary-reports"));
 const LoadAnalyticsPage = lazy(() => import("./pages/admin/load").then(module => ({ default: module.LoadAnalyticsPage })));
 const ForgotPasswordPage = lazy(() => import("./pages/auth/ForgotPassword"));
@@ -120,7 +114,6 @@ function App() {
 
     // Приоритет 3: Редко используемые страницы загружаем в последнюю очередь
     const prefetchTertiary = () => {
-      import("./pages/storage");
       import("./pages/warehouses");
     };
 
@@ -367,16 +360,6 @@ function App() {
                         />
 
                         <Route
-                          path="storage"
-                          element={
-                            <ProtectedRoute requiredPermissions={['app_settings.update']}>
-                              <Suspense fallback={<LinearProgress />}>
-                                <StoragePage />
-                              </Suspense>
-                            </ProtectedRoute>
-                          }
-                        />
-                        <Route
                           path="warehouses"
                           element={
                             <ProtectedRoute requiredPermissions={['app_settings.update']}>
@@ -483,26 +466,6 @@ function App() {
 
 
                         <Route
-                          path="settings/diagnoses"
-                          element={
-                            <ProtectedRoute requiredPermissions={['app_settings.update']}>
-                              <Suspense fallback={<LinearProgress />}>
-                                <DiagnosesPage />
-                              </Suspense>
-                            </ProtectedRoute>
-                          }
-                        />
-                        <Route
-                          path="settings/notifications"
-                          element={
-                            <ProtectedRoute requiredPermissions={['app_settings.update']}>
-                              <Suspense fallback={<LinearProgress />}>
-                                <NotificationSettingsPage />
-                              </Suspense>
-                            </ProtectedRoute>
-                          }
-                        />
-                        <Route
                           path="admin/load"
                           element={
                             <ProtectedRoute requiredPermissions={['reports.read']}>
@@ -531,26 +494,6 @@ function App() {
                         />
                       </Route>
                       <Route
-                        path="print/conclusion/:id"
-                        element={
-                          <RequireAuth>
-                            <Suspense fallback={<LinearProgress />}>
-                              <ConclusionPrintPage />
-                            </Suspense>
-                          </RequireAuth>
-                        }
-                      />
-                      <Route
-                        path="print/certificate/:id"
-                        element={
-                          <RequireAuth>
-                            <Suspense fallback={<LinearProgress />}>
-                              <CertificatePrintPage />
-                            </Suspense>
-                          </RequireAuth>
-                        }
-                      />
-                      <Route
                         path="login"
                         element={
                           <Suspense fallback={<LinearProgress />}>
@@ -577,7 +520,6 @@ function App() {
                     </Routes>
 
                     <AuthHelper />
-                    <CallNotification />
                     <RefineKbar />
                     <UnsavedChangesNotifier />
                     <DocumentTitleHandler

@@ -31,8 +31,6 @@ import { formatDateRu } from "../../utility/format";
 import { apiFetch } from "../../utility/apiClient";
 import AppointmentsList from "../home/components/AppointmentsList";
 import AppointmentDetailsCard from "../home/components/AppointmentDetailsCard";
-import { DoctorConclusionPanel } from "../doctor/components/DoctorConclusionPanel";
-import DoctorWorkDrawer from "../../components/home/DoctorWorkDrawer";
 import { mapAggregatedRowToAppointment, Appointment, AggregatedAppointmentRow } from "../home/types";
 import { fetchMedicalStaff } from "../../services/employees";
 import { EmployeesRow } from "../expenses/types";
@@ -67,12 +65,10 @@ export const AllAppointmentsList: React.FC = () => {
     const [selectedId, setSelectedId] = React.useState<string | null>(null);
 
     // UI State for Details/Conclusion
-    const [conclusionOpen, setConclusionOpen] = React.useState(false);
 
     const [searchQuery, setSearchQuery] = React.useState("");
     const [selectedEmployeeFilter, setSelectedEmployeeFilter] = React.useState<string | null>(null);
     const [expandedEmployee, setExpandedEmployee] = React.useState<string | null>(null);
-    const [drawerOpen, setDrawerOpen] = React.useState(false);
 
     // Filter mode: "date" | "services"
     const [filterMode, setFilterMode] = React.useState<"date" | "services">("date");
@@ -710,7 +706,6 @@ export const AllAppointmentsList: React.FC = () => {
                                             onOpenFilters={() => { }}
                                             onItemClick={(id) => {
                                                 setSelectedId(id);
-                                                setConclusionOpen(false);
                                             }}
                                             doctors={doctors}
                                             onAddSlot={undefined}
@@ -736,24 +731,13 @@ export const AllAppointmentsList: React.FC = () => {
                                     },
                                 })}
                             >
-                                {conclusionOpen ? (
-                                    <DoctorConclusionPanel
-                                        appointmentId={selectedId!}
-                                        onClose={() => setConclusionOpen(false)}
-                                        onSaveSuccess={() => fetchData()}
-                                        hideCloseButton={false}
-                                        onEditClick={() => setDrawerOpen(true)}
-                                        readOnly={true}
-                                    />
-                                ) : (
-                                    <AppointmentDetailsCard
-                                        appointmentId={selectedId}
-                                        onClose={() => setSelectedId(null)}
-                                        onUpdate={() => fetchData()}
-                                        showPaymentAction={false}
-                                        readOnly={true}
-                                    />
-                                )}
+                                <AppointmentDetailsCard
+                                    appointmentId={selectedId}
+                                    onClose={() => setSelectedId(null)}
+                                    onUpdate={() => fetchData()}
+                                    showPaymentAction={false}
+                                    readOnly={true}
+                                />
                             </Grid2>
                         )}
                     </Grid2>
@@ -763,37 +747,17 @@ export const AllAppointmentsList: React.FC = () => {
                 {isMobile && (
                     <AppBottomSheet open={!!selectedId} onClose={() => setSelectedId(null)}>
                         <Box sx={{ p: 0, height: '80vh' }}>
-                            {conclusionOpen ? (
-                                <DoctorConclusionPanel
-                                    appointmentId={selectedId!}
-                                    onClose={() => setConclusionOpen(false)}
-                                    onSaveSuccess={() => fetchData()}
-                                    hideCloseButton={false}
-                                    onEditClick={() => setDrawerOpen(true)}
-                                    readOnly={true}
-                                />
-                            ) : (
-                                <AppointmentDetailsCard
-                                    appointmentId={selectedId}
-                                    onClose={() => setSelectedId(null)}
-                                    onUpdate={() => fetchData()}
-                                    showPaymentAction={false}
-                                    readOnly={true}
-                                />
-                            )}
+                            <AppointmentDetailsCard
+                                appointmentId={selectedId}
+                                onClose={() => setSelectedId(null)}
+                                onUpdate={() => fetchData()}
+                                showPaymentAction={false}
+                                readOnly={true}
+                            />
                         </Box>
                     </AppBottomSheet>
                 )}
 
-                <DoctorWorkDrawer
-                    open={drawerOpen}
-                    onClose={() => setDrawerOpen(false)}
-                    appointment={history.find(h => h.id === selectedId) || null}
-                    onSuccess={() => {
-                        fetchData();
-                        setDrawerOpen(false);
-                    }}
-                />
             </Box>
         </Box >
     );
