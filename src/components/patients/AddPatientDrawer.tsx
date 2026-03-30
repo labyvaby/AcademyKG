@@ -39,6 +39,9 @@ function resolvePhotoUrl(url: string | null | undefined): string | null {
   return `${API_BASE}${url}`;
 }
 
+const normalizePhoneValue = (value: string | null | undefined): string =>
+  String(value ?? "").replace(/[^\d+]/g, "");
+
 export type CreatedPatient = {
   id: string;
   fio: string;
@@ -55,6 +58,29 @@ type Props = {
   onClose: () => void;
   onCreated?: (p: CreatedPatient) => void;
   initialPhone?: string;
+};
+
+type PatientFieldKey = "fio" | "phone" | "birth" | "inn" | "blacklistReason";
+type FieldErrors = Partial<Record<PatientFieldKey, string>>;
+
+const mapApiErrorToField = (rawMsg: string): { field?: PatientFieldKey; message: string } => {
+  const msg = rawMsg.toLowerCase();
+  if (msg.includes("full_name") || msg.includes("fullname") || msg.includes("name") || msg.includes("fio")) {
+    return { field: "fio", message: "Проверьте ФИО: используйте корректное имя на кириллице." };
+  }
+  if (msg.includes("phone") || msg.includes("номер")) {
+    return { field: "phone", message: "Проверьте номер телефона: формат неверный или номер уже занят." };
+  }
+  if (msg.includes("birth") || msg.includes("date")) {
+    return { field: "birth", message: "Проверьте дату рождения." };
+  }
+  if (msg.includes("inn")) {
+    return { field: "inn", message: "Проверьте ИНН." };
+  }
+  if (msg.includes("blacklist")) {
+    return { field: "blacklistReason", message: "Укажите причину добавления в черный список." };
+  }
+  return { message: "Не удалось сохранить клиента. Проверьте заполненные поля." };
 };
 
 const AddPatientDrawer: React.FC<Props> = ({ open, onClose, onCreated, initialPhone }) => {
@@ -79,6 +105,7 @@ const AddPatientDrawer: React.FC<Props> = ({ open, onClose, onCreated, initialPh
 
   const canManageBlacklist = useHasRole(['superadmin', 'admin', 'receptionist']);
   const [docFiles, setDocFiles] = React.useState<File[]>([]);
+  const [fieldErrors, setFieldErrors] = React.useState<FieldErrors>({});
 
   React.useEffect(() => {
     if (!open) {
@@ -100,6 +127,7 @@ const AddPatientDrawer: React.FC<Props> = ({ open, onClose, onCreated, initialPh
       setPhotoFile(null);
       setPhotoPreview(null);
       setDocFiles([]);
+      setFieldErrors({});
     } else if (initialPhone) {
       const parsed = parsePhone(initialPhone);
       setPhone(parsed.local);
@@ -109,11 +137,24 @@ const AddPatientDrawer: React.FC<Props> = ({ open, onClose, onCreated, initialPh
 
   const handleSubmit = async () => {
     const fioTrim = fio.trim();
+    setFieldErrors({});
     if (!fioTrim) {
-      notify?.({ type: "error", message: "Введите ФИО клиента" });
+      const message = "Введите ФИО клиента";
+      setFieldErrors({ fio: message });
+      notify?.({ type: "error", message });
+      return;
+    }
+    if (/[A-Za-z]/.test(fioTrim)) {
+      setFieldErrors({ fio: "ФИО клиента должно быть на кириллице" });
+      notify?.({
+        type: "error",
+        message: "ФИО клиента должно быть на кириллице",
+        description: "Используйте русский/кыргызский алфавит. Латиница в этом поле не допускается.",
+      });
       return;
     }
     if (isBlacklisted && !blacklistReason.trim()) {
+      setFieldErrors({ blacklistReason: "Укажите причину добавления в черный список" });
       notify?.({ type: "error", message: "Укажите причину добавления в черный список" });
       return;
     }
@@ -121,6 +162,20 @@ const AddPatientDrawer: React.FC<Props> = ({ open, onClose, onCreated, initialPh
     try {
       setBusy(true);
       const fullPhone = composePhone(phoneCountryCode, phone);
+      if (fullPhone) {
+        const lookup: any = await apiFetch(`/api/v1/clients/?search=${encodeURIComponent(fullPhone)}&pageSize=30`);
+        const candidates: any[] = lookup?.data?.results ?? lookup?.results ?? [];
+        const duplicate = candidates.find((c: any) => normalizePhoneValue(c?.phone) === normalizePhoneValue(fullPhone));
+        if (duplicate) {
+          setFieldErrors({ phone: "Клиент с таким номером уже существует" });
+          notify?.({
+            type: "error",
+            message: "Клиент с таким номером уже существует",
+            description: `Номер ${fullPhone} уже привязан к клиенту. Откройте существующую карточку.`,
+          });
+          return;
+        }
+      }
 
       const fd = new FormData();
       fd.append("fullName", fioTrim);
@@ -176,7 +231,17 @@ const AddPatientDrawer: React.FC<Props> = ({ open, onClose, onCreated, initialPh
       onClose();
     } catch (e) {
       console.error(e);
-      notify?.({ type: "error", message: "Не удалось добавить клиента" });
+      const rawMsg = e instanceof Error ? e.message : String(e);
+      const mapped = mapApiErrorToField(rawMsg);
+      if (mapped.field) {
+        setFieldErrors({ [mapped.field]: mapped.message });
+      }
+      notify?.({
+        type: "error",
+        message: mapped.message,
+        description: rawMsg && rawMsg !== "[object Object]" ? rawMsg : undefined,
+      });
+      return;
     } finally {
       setBusy(false);
     }
@@ -236,10 +301,15 @@ const AddPatientDrawer: React.FC<Props> = ({ open, onClose, onCreated, initialPh
               </Typography>
               <TextField
                 value={fio}
-                onChange={(e) => setFio(e.target.value)}
+                onChange={(e) => {
+                  setFio(e.target.value);
+                  setFieldErrors((prev) => ({ ...prev, fio: undefined }));
+                }}
                 fullWidth
                 autoFocus
                 placeholder="Введите ФИО клиента"
+                error={Boolean(fieldErrors.fio)}
+                helperText={fieldErrors.fio || ""}
               />
             </Stack>
 
@@ -252,6 +322,7 @@ const AddPatientDrawer: React.FC<Props> = ({ open, onClose, onCreated, initialPh
                 onChange={(e) => {
                   const maxLen = getPhoneLocalMaxLength(phoneCountryCode);
                   setPhone(e.target.value.replace(/[^\d]/g, "").slice(0, maxLen));
+                  setFieldErrors((prev) => ({ ...prev, phone: undefined }));
                 }}
                 fullWidth
                 InputProps={{
@@ -270,6 +341,8 @@ const AddPatientDrawer: React.FC<Props> = ({ open, onClose, onCreated, initialPh
                   maxLength: getPhoneLocalMaxLength(phoneCountryCode),
                 }}
                 placeholder={getPhoneLocalMaxLength(phoneCountryCode) === 10 ? "XXX XXX XXXX" : "XXX XXX XXX"}
+                error={Boolean(fieldErrors.phone)}
+                helperText={fieldErrors.phone || ""}
               />
             </Stack>
 
@@ -279,12 +352,17 @@ const AddPatientDrawer: React.FC<Props> = ({ open, onClose, onCreated, initialPh
               </Typography>
               <CustomDatePicker
                 value={birth ? dayjs(birth) : null}
-                onChange={(val) => setBirth(val ? val.format("YYYY-MM-DD") : "")}
+                onChange={(val) => {
+                  setBirth(val ? val.format("YYYY-MM-DD") : "");
+                  setFieldErrors((prev) => ({ ...prev, birth: undefined }));
+                }}
                 slotProps={{
                   textField: {
                     fullWidth: true,
                     InputLabelProps: { shrink: true },
                     placeholder: "дд.мм.гггг",
+                    error: Boolean(fieldErrors.birth),
+                    helperText: fieldErrors.birth || "",
                   },
                 }}
               />
@@ -296,10 +374,15 @@ const AddPatientDrawer: React.FC<Props> = ({ open, onClose, onCreated, initialPh
               </Typography>
               <TextField
                 value={inn}
-                onChange={(e) => setInn(e.target.value.replace(/[^\d]/g, "").slice(0, 14))}
+                onChange={(e) => {
+                  setInn(e.target.value.replace(/[^\d]/g, "").slice(0, 14));
+                  setFieldErrors((prev) => ({ ...prev, inn: undefined }));
+                }}
                 fullWidth
                 placeholder="14 цифр"
                 inputProps={{ inputMode: "numeric", pattern: "[0-9]*", maxLength: 14 }}
+                error={Boolean(fieldErrors.inn)}
+                helperText={fieldErrors.inn || ""}
               />
             </Stack>
 
@@ -413,10 +496,13 @@ const AddPatientDrawer: React.FC<Props> = ({ open, onClose, onCreated, initialPh
                     minRows={2}
                     fullWidth
                     value={blacklistReason}
-                    onChange={(e) => setBlacklistReason(e.target.value)}
+                    onChange={(e) => {
+                      setBlacklistReason(e.target.value);
+                      setFieldErrors((prev) => ({ ...prev, blacklistReason: undefined }));
+                    }}
                     placeholder="Опишите причину добавления в ЧС..."
-                    error={!blacklistReason.trim()}
-                    helperText={!blacklistReason.trim() ? "Обязательное поле" : ""}
+                    error={Boolean(fieldErrors.blacklistReason) || !blacklistReason.trim()}
+                    helperText={fieldErrors.blacklistReason || (!blacklistReason.trim() ? "Обязательное поле" : "")}
                     sx={{ mt: 1 }}
                   />
                 )}
@@ -485,3 +571,5 @@ const AddPatientDrawer: React.FC<Props> = ({ open, onClose, onCreated, initialPh
 };
 
 export default AddPatientDrawer;
+
+

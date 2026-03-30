@@ -177,6 +177,7 @@ export const HomeAddAppointmentDrawer: React.FC<
 
   const [isSaving, setIsSaving] = React.useState(false);
   const isSavingRef = React.useRef(false);
+  const dayAppointmentsCacheRef = React.useRef<Record<string, any[]>>({});
   const [touched, setTouched] = React.useState(false);
 
   const [isPatientDrawerOpen, setIsPatientDrawerOpen] = React.useState(false);
@@ -258,6 +259,7 @@ export const HomeAddAppointmentDrawer: React.FC<
   // При открытии, если дата/время ещё не заданы — заполняем переданным initialDate или текущим временем
   React.useEffect(() => {
     if (!open) {
+      dayAppointmentsCacheRef.current = {};
       setAppointmentMode("single");
       setScheduleMode("once");
       setPeriodWeekdays([]);
@@ -530,8 +532,104 @@ export const HomeAddAppointmentDrawer: React.FC<
   // бронирование разрешает создание приема без указания клиента (null).
 
   const handleClose = () => {
+    dayAppointmentsCacheRef.current = {};
     onClose();
   };
+
+  const normalizeDurationMinutes = React.useCallback((value: unknown, fallback = 30): number => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+  }, []);
+
+  const extractServiceDurationMinutes = React.useCallback((serviceLike: any): number => {
+    if (!serviceLike || typeof serviceLike !== "object") return 30;
+    return normalizeDurationMinutes(
+      serviceLike.durationMinutes
+      ?? serviceLike.duration_minutes
+      ?? serviceLike.duration
+      ?? serviceLike.serviceDuration
+      ?? serviceLike?.sellableItem?.durationMinutes
+      ?? serviceLike?.sellableItem?.duration_minutes
+      ?? serviceLike?.service?.durationMinutes
+      ?? serviceLike?.service?.duration_minutes
+      ?? serviceLike?.service?.duration,
+      30
+    );
+  }, [normalizeDurationMinutes]);
+
+  const loadDayAppointments = React.useCallback(async (date: string): Promise<any[]> => {
+    if (dayAppointmentsCacheRef.current[date]) return dayAppointmentsCacheRef.current[date];
+    const res: any = await apiFetch(`/api/v1/appointments/?date=${date}&pageSize=500`);
+    const list: any[] = res?.data?.results ?? res?.results ?? [];
+    dayAppointmentsCacheRef.current[date] = Array.isArray(list) ? list : [];
+    return dayAppointmentsCacheRef.current[date];
+  }, []);
+
+  const getIntervalsFromAppointment = React.useCallback((appt: any): Array<{ performerId: string; start: dayjs.Dayjs; end: dayjs.Dayjs }> => {
+    const rawStart = appt?.appointmentAt ?? appt?.appointment_at;
+    if (!rawStart) return [];
+    const start = dayjs(rawStart);
+    if (!start.isValid()) return [];
+    const fallbackDuration = normalizeDurationMinutes(appt?.duration, 30);
+    const servicesRaw = appt?.services ?? appt?.services_json ?? appt?.servicesJson;
+    let services: any[] = [];
+    if (Array.isArray(servicesRaw)) services = servicesRaw;
+    else if (typeof servicesRaw === "string") {
+      try { services = JSON.parse(servicesRaw); } catch { services = []; }
+    }
+    if (services.length > 0) {
+      return services
+        .map((s) => {
+          const performerId = String(
+            s?.performer?.id
+            ?? s?.performer
+            ?? s?.performer_id
+            ?? s?.doctor_id
+            ?? appt?.doctorId
+            ?? appt?.doctor_id
+            ?? ""
+          );
+          if (!performerId) return null;
+          const duration = extractServiceDurationMinutes(s) || fallbackDuration;
+          return { performerId, start, end: start.add(duration, "minute") };
+        })
+        .filter((x): x is { performerId: string; start: dayjs.Dayjs; end: dayjs.Dayjs } => Boolean(x));
+    }
+    const fallbackPerformer = String(appt?.doctorId ?? appt?.doctor_id ?? "");
+    if (!fallbackPerformer) return [];
+    return [{ performerId: fallbackPerformer, start, end: start.add(fallbackDuration, "minute") }];
+  }, [extractServiceDurationMinutes, normalizeDurationMinutes]);
+
+  const findConflictForRows = React.useCallback(async (
+    date: string,
+    timeStr: string,
+    rows: Array<{ doctorId: string; durationMinutes: number }>,
+    excludeAppointmentId?: string
+  ): Promise<{ doctorId: string; start: string; end: string } | null> => {
+    const appts = await loadDayAppointments(date);
+    const existingIntervals = appts
+      .filter((a: any) => String(a?.id ?? "") !== String(excludeAppointmentId ?? ""))
+      .flatMap((a: any) => getIntervalsFromAppointment(a));
+
+    for (const row of rows) {
+      if (!row.doctorId) continue;
+      const start = dayjs(`${date}T${timeStr}:00`);
+      const end = start.add(normalizeDurationMinutes(row.durationMinutes, 30), "minute");
+      const conflict = existingIntervals.find((it) =>
+        it.performerId === row.doctorId &&
+        start.isBefore(it.end) &&
+        it.start.isBefore(end)
+      );
+      if (conflict) {
+        return {
+          doctorId: row.doctorId,
+          start: conflict.start.format("HH:mm"),
+          end: conflict.end.format("HH:mm"),
+        };
+      }
+    }
+    return null;
+  }, [getIntervalsFromAppointment, loadDayAppointments, normalizeDurationMinutes]);
 
   const handleSave = async () => {
     // ОПТИМИЗАЦИЯ: Удалены console.log для улучшения производительности
@@ -541,6 +639,19 @@ export const HomeAddAppointmentDrawer: React.FC<
     isSavingRef.current = true;
 
     setTouched(true);
+    const now = dayjs();
+    if (scheduleMode === "once") {
+      const chosen = visitDateTime ? dayjs(visitDateTime) : null;
+      if (!chosen || !chosen.isValid() || chosen.isBefore(now)) {
+        notify?.({
+          type: "error",
+          message: "Нельзя создавать приём в прошлом",
+          description: "Выберите текущую или будущую дату и время.",
+        });
+        isSavingRef.current = false;
+        return;
+      }
+    }
 
     try {
       setIsSaving(true);
@@ -562,6 +673,44 @@ export const HomeAddAppointmentDrawer: React.FC<
 
         const baseTime = visitDateTime ? dayjs(visitDateTime) : dayjs().hour(9).minute(0).second(0);
         const timeStr = baseTime.format("HH:mm");
+        const hasPastDate = periodDates.some((date) => dayjs(`${date}T${timeStr}:00`).isBefore(now));
+        if (hasPastDate) {
+          notify?.({
+            type: "error",
+            message: "Нельзя создавать приём в прошлом",
+            description: "Уберите прошедшие даты из периода и попробуйте снова.",
+          });
+          setIsSaving(false);
+          isSavingRef.current = false;
+          return;
+        }
+        const rowsForConflictCheck = validServiceRows.map((row) => {
+          const employeeServices = employeeServicesCache[row.doctorId] ?? [];
+          const svc = employeeServices.find((s) => s.id === row.serviceId)
+            ?? allServicesOpts.find((s) => s.id === row.serviceId)
+            ?? servicesOpts.find((s) => s.id === row.serviceId);
+          return {
+            doctorId: row.doctorId,
+            durationMinutes: extractServiceDurationMinutes(svc),
+          };
+        });
+
+        for (const date of periodDates) {
+          const conflict = await findConflictForRows(date, timeStr, rowsForConflictCheck);
+          if (conflict) {
+            const docName = doctorsOpts.find((d) => d.id === conflict.doctorId)?.full_name
+              ?? allDoctorsOpts.find((d) => d.id === conflict.doctorId)?.full_name
+              ?? "специалист";
+            notify?.({
+              type: "error",
+              message: "Конфликт расписания",
+              description: `${docName} уже занят в интервале ${conflict.start}-${conflict.end} (${date}). Выберите другое время.`,
+            });
+            setIsSaving(false);
+            isSavingRef.current = false;
+            return;
+          }
+        }
 
         const allServicesPayload = validServiceRows.map((row) => ({
           sellableItem: row.serviceId,
@@ -628,6 +777,7 @@ export const HomeAddAppointmentDrawer: React.FC<
         }
         const cache = employeeServicesCache[firstRow.doctorId];
         const svc = (cache || servicesOpts).find(s => s.id === firstRow.serviceId);
+        const groupDuration = extractServiceDurationMinutes(svc);
 
         // ── ГРУППОВОЙ НА ПЕРИОД ──────────────────────────────────
         if ((scheduleMode as string) === "period") {
@@ -638,6 +788,22 @@ export const HomeAddAppointmentDrawer: React.FC<
           }
           const baseTime = visitDateTime ? dayjs(visitDateTime) : dayjs().hour(9).minute(0).second(0);
           const timeStr = baseTime.format("HH:mm");
+          for (const date of periodDates) {
+            const conflict = await findConflictForRows(date, timeStr, [{ doctorId: firstRow.doctorId, durationMinutes: groupDuration }]);
+            if (conflict) {
+              const docName = doctorsOpts.find((d) => d.id === firstRow.doctorId)?.full_name
+                ?? allDoctorsOpts.find((d) => d.id === firstRow.doctorId)?.full_name
+                ?? "специалист";
+              notify?.({
+                type: "error",
+                message: "Конфликт расписания",
+                description: `${docName} уже занят в интервале ${conflict.start}-${conflict.end} (${date}). Выберите другое время.`,
+              });
+              setIsSaving(false);
+              isSavingRef.current = false;
+              return;
+            }
+          }
           try {
             await Promise.all(
               periodDates.map((date) =>
@@ -675,6 +841,27 @@ export const HomeAddAppointmentDrawer: React.FC<
         }
 
         // ── ГРУППОВОЙ РАЗОВЫЙ ────────────────────────────────────
+        {
+          const visitDate = dayjs(visitDateTime);
+          const conflict = await findConflictForRows(
+            visitDate.format("YYYY-MM-DD"),
+            visitDate.format("HH:mm"),
+            [{ doctorId: firstRow.doctorId, durationMinutes: groupDuration }]
+          );
+          if (conflict) {
+            const docName = doctorsOpts.find((d) => d.id === firstRow.doctorId)?.full_name
+              ?? allDoctorsOpts.find((d) => d.id === firstRow.doctorId)?.full_name
+              ?? "специалист";
+            notify?.({
+              type: "error",
+              message: "Конфликт расписания",
+              description: `${docName} уже занят в интервале ${conflict.start}-${conflict.end}. Выберите другое время.`,
+            });
+            setIsSaving(false);
+            isSavingRef.current = false;
+            return;
+          }
+        }
         try {
           await createGroup({
             appointmentAt: dayjs(visitDateTime).toISOString(),
@@ -745,6 +932,37 @@ export const HomeAddAppointmentDrawer: React.FC<
       }
       const singleBranchId = getBranchFilter();
       if (singleBranchId) requestPayload.branch = singleBranchId;
+      {
+        const visitDate = dayjs(visitDateTime);
+        const rowsForConflictCheck = validServiceRows.map((row) => {
+          const employeeServices = employeeServicesCache[row.doctorId] ?? [];
+          const svc = employeeServices.find((s) => s.id === row.serviceId)
+            ?? allServicesOpts.find((s) => s.id === row.serviceId)
+            ?? servicesOpts.find((s) => s.id === row.serviceId);
+          return {
+            doctorId: row.doctorId,
+            durationMinutes: extractServiceDurationMinutes(svc),
+          };
+        });
+        const conflict = await findConflictForRows(
+          visitDate.format("YYYY-MM-DD"),
+          visitDate.format("HH:mm"),
+          rowsForConflictCheck
+        );
+        if (conflict) {
+          const docName = doctorsOpts.find((d) => d.id === conflict.doctorId)?.full_name
+            ?? allDoctorsOpts.find((d) => d.id === conflict.doctorId)?.full_name
+            ?? "специалист";
+          notify?.({
+            type: "error",
+            message: "Конфликт расписания",
+            description: `${docName} уже занят в интервале ${conflict.start}-${conflict.end}. Выберите другое время.`,
+          });
+          setIsSaving(false);
+          isSavingRef.current = false;
+          return;
+        }
+      }
 
       try {
         await apiFetch("/api/v1/appointments/", {
@@ -753,6 +971,15 @@ export const HomeAddAppointmentDrawer: React.FC<
         });
       } catch (err: any) {
         console.error("API Error creating appointment:", err);
+        const msg = String(err?.message ?? err ?? "").toLowerCase();
+        if (msg.includes("overlap") || msg.includes("conflict") || msg.includes("занят") || msg.includes("пересека")) {
+          notify?.({
+            type: "error",
+            message: "Конфликт по времени",
+            description: "Это время уже занято у выбранного специалиста. Выберите другой слот.",
+          });
+          return;
+        }
         notify?.({
           type: "error",
           message: "Ошибка при создании приёма",

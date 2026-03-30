@@ -143,7 +143,25 @@ const SidebarContainer: React.FC<React.PropsWithChildren<{ stickyTop?: React.Rea
           {/* Лого + divider — не скроллируются */}
           <Box sx={{ flexShrink: 0 }}>{stickyTop}</Box>
           {/* Список пунктов — скроллируется */}
-          <Box sx={{ flex: 1, overflowY: "auto", overflowX: "hidden", minHeight: 0, msOverflowStyle: "none", scrollbarWidth: "none", "&::-webkit-scrollbar": { display: "none" } }}>
+          <Box
+            sx={{
+              flex: 1,
+              overflowY: "auto",
+              overflowX: "hidden",
+              minHeight: 0,
+              scrollbarWidth: "thin",
+              scrollbarColor: (theme) => `${alpha(theme.palette.text.primary, 0.28)} transparent`,
+              "&::-webkit-scrollbar": { width: 8 },
+              "&::-webkit-scrollbar-track": { background: "transparent" },
+              "&::-webkit-scrollbar-thumb": {
+                backgroundColor: (theme) => alpha(theme.palette.text.primary, 0.28),
+                borderRadius: 8,
+              },
+              "&::-webkit-scrollbar-thumb:hover": {
+                backgroundColor: (theme) => alpha(theme.palette.text.primary, 0.42),
+              },
+            }}
+          >
             {children}
           </Box>
           {/* Футер — не скроллируется */}
@@ -176,7 +194,25 @@ const SidebarContainer: React.FC<React.PropsWithChildren<{ stickyTop?: React.Rea
         {/* Лого + divider — не скроллируются */}
         <Box sx={{ flexShrink: 0 }}>{stickyTop}</Box>
         {/* Список пунктов — скроллируется */}
-        <Box sx={{ flex: 1, overflowY: "auto", overflowX: "hidden", minHeight: 0, msOverflowStyle: "none", scrollbarWidth: "none", "&::-webkit-scrollbar": { display: "none" } }}>
+        <Box
+          sx={{
+            flex: 1,
+            overflowY: "auto",
+            overflowX: "hidden",
+            minHeight: 0,
+            scrollbarWidth: "thin",
+            scrollbarColor: (theme) => `${alpha(theme.palette.text.primary, 0.28)} transparent`,
+            "&::-webkit-scrollbar": { width: 8 },
+            "&::-webkit-scrollbar-track": { background: "transparent" },
+            "&::-webkit-scrollbar-thumb": {
+              backgroundColor: (theme) => alpha(theme.palette.text.primary, 0.28),
+              borderRadius: 8,
+            },
+            "&::-webkit-scrollbar-thumb:hover": {
+              backgroundColor: (theme) => alpha(theme.palette.text.primary, 0.42),
+            },
+          }}
+        >
           {children}
         </Box>
         {/* Футер — не скроллируется */}

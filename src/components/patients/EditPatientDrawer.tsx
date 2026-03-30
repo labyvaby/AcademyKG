@@ -49,6 +49,9 @@ function resolvePhotoUrl(url: string | null | undefined): string | null {
   return `${API_BASE}${url}`;
 }
 
+const normalizePhoneValue = (value: string | null | undefined): string =>
+  String(value ?? "").replace(/[^\d+]/g, "");
+
 function resolveFileUrl(url: string | null | undefined): string {
   if (!url) return "";
   if (url.startsWith("http")) return url;
@@ -207,6 +210,22 @@ const EditPatientDrawer: React.FC<Props> = ({
     try {
       setBusy(true);
       const fullPhone = composePhone(phoneCountryCode, phone);
+      if (fullPhone) {
+        const lookup: any = await apiFetch(`/api/v1/clients/?search=${encodeURIComponent(fullPhone)}&pageSize=30`);
+        const candidates: any[] = lookup?.data?.results ?? lookup?.results ?? [];
+        const duplicate = candidates.find((c: any) =>
+          String(c?.id ?? "") !== String(patientId) &&
+          normalizePhoneValue(c?.phone) === normalizePhoneValue(fullPhone)
+        );
+        if (duplicate) {
+          notify?.({
+            type: "error",
+            message: "Клиент с таким номером уже существует",
+            description: `Номер ${fullPhone} уже привязан к другому клиенту.`,
+          });
+          return;
+        }
+      }
 
       const fd = new FormData();
       fd.append("fullName", fioTrim);

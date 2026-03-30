@@ -43,6 +43,7 @@ type ApiService = {
   max_participants?: number | null;
   durationMinutes?: number | null;
   duration_minutes?: number | null;
+  duration?: number | null;
 };
 
 const toRow = (d: ApiService): ServiceRow => {
@@ -75,6 +76,9 @@ const fetchServicesBase = async (page?: number, pageSize?: number): Promise<{ it
     priceSom: item.priceSom ?? item.price_som ?? null,
     imageUrl: item.imageUrl ?? item.image_url ?? null,
     isActive: item.isActive ?? item.is_active ?? true,
+    isGroup: item.isGroup ?? item.is_group ?? false,
+    maxParticipants: item.maxParticipants ?? item.max_participants ?? null,
+    durationMinutes: item.durationMinutes ?? item.duration_minutes ?? item.duration ?? null,
   }));
 
   return { items: mapped, total: count };
@@ -145,6 +149,7 @@ export const createService = async (data: CreateServiceData): Promise<ServiceRow
   }
   if (data.durationMinutes != null) {
     fd.append("durationMinutes", String(data.durationMinutes));
+    fd.append("duration_minutes", String(data.durationMinutes));
   }
   if (data.description) fd.append("description", data.description);
 
@@ -177,8 +182,10 @@ export const updateService = async (id: string | number, data: UpdateServiceData
   }
   if (data.durationMinutes != null) {
     fd.append("durationMinutes", String(data.durationMinutes));
+    fd.append("duration_minutes", String(data.durationMinutes));
   } else if (data.durationMinutes === null) {
     fd.append("durationMinutes", "");
+    fd.append("duration_minutes", "");
   }
 
   if (data.imageUrl instanceof File) {

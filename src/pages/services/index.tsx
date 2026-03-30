@@ -92,6 +92,9 @@ type AggregatedService = {
   editable: boolean;
   description: string | null;
   is_active: boolean;
+  isGroup?: boolean;
+  maxParticipants?: number | null;
+  durationMinutes?: number | null;
 };
 
 // Агрегация: объединяем строки по ID услуги, собираем сотрудников
@@ -164,6 +167,9 @@ const ServicesPage: React.FC = () => {
     photo_url?: string | null;
     description?: string | null;
     is_active?: boolean;
+    isGroup?: boolean;
+    maxParticipants?: number | null;
+    durationMinutes?: number | null;
   } | null>(null);
 
   // Подтверждение удаления
@@ -192,6 +198,9 @@ const ServicesPage: React.FC = () => {
             editable: true,
             description: item.description ?? null,
             is_active: item.isActive ?? item.is_active ?? true,
+            isGroup: item.isGroup ?? item.is_group ?? false,
+            maxParticipants: item.maxParticipants ?? item.max_participants ?? null,
+            durationMinutes: item.durationMinutes ?? item.duration_minutes ?? item.duration ?? null,
           });
         }
         const next = res?.data?.next ?? res?.next ?? null;
@@ -279,6 +288,9 @@ const ServicesPage: React.FC = () => {
       photo_url: row.photo_url ?? null,
       description: row.description,
       is_active: row.is_active,
+      isGroup: row.isGroup ?? false,
+      maxParticipants: row.maxParticipants ?? null,
+      durationMinutes: row.durationMinutes ?? null,
     });
     setEditOpen(true);
   };

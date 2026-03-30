@@ -167,9 +167,20 @@ const EditEmployeeDrawer: React.FC<EditEmployeeDrawerProps> = ({ record, onClose
 
   const handleSubmit = async () => {
     if (!record) return;
+    const fullNameTrim = fullName.trim();
+    if (!fullNameTrim) { notify?.({ type: "error", message: "Введите ФИО сотрудника" }); return; }
+    if (/[A-Za-z]/.test(fullNameTrim)) {
+      notify?.({
+        type: "error",
+        message: "ФИО сотрудника должно быть на кириллице",
+        description: "Латиница в этом поле не допускается. Это предотвращает ошибку сохранения 400.",
+      });
+      return;
+    }
     const maxLen = getPhoneLocalMaxLength(phoneCountryCode);
     if (phone.trim().length > 0 && phone.trim().length !== maxLen) { setPhoneError(true); return; }
     if (emailErrorMsg) return;
+    if (!branchId) { notify?.({ type: "error", message: "Выберите филиал сотрудника" }); return; }
     if (!roleId) { notify?.({ type: "error", message: "Выберите роль сотрудника" }); return; }
     if ((selectedRole?.name === 'specialist') && !specializationId) {
       notify?.({ type: "error", message: "Выберите специализацию" }); return;
@@ -180,7 +191,8 @@ const EditEmployeeDrawer: React.FC<EditEmployeeDrawerProps> = ({ record, onClose
       const fullPhone = composePhone(phoneCountryCode, phone);
 
       const payload: Record<string, unknown> = {
-        fullName: fullName.trim() || undefined,
+        fullName: fullNameTrim || undefined,
+        full_name: fullNameTrim || undefined,
         status,
         role: roleId || undefined,
       };
