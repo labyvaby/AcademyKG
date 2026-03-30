@@ -1,12 +1,10 @@
 import MenuOutlined from "@mui/icons-material/MenuOutlined";
 import RefreshOutlined from "@mui/icons-material/RefreshOutlined";
-import { usePermissions } from "../../hooks/usePermissions";
-import PersonOutlineOutlined from "@mui/icons-material/PersonOutlineOutlined";
 import LocalPhoneOutlined from "@mui/icons-material/LocalPhoneOutlined";
 import TelegramIcon from "@mui/icons-material/Telegram";
 import EmailOutlined from "@mui/icons-material/EmailOutlined";
 import CreditCardOutlined from "@mui/icons-material/CreditCardOutlined";
-import appLogo from "../../assets/img/logo.png";
+import CorporateFareOutlined from "@mui/icons-material/CorporateFareOutlined";
 import appIcon from "../../assets/img/icon_2.png";
 
 import AppBar from "@mui/material/AppBar";
@@ -18,32 +16,32 @@ import Toolbar from "@mui/material/Toolbar";
 import Typography from "@mui/material/Typography";
 import Button from "@mui/material/Button";
 import Dialog from "@mui/material/Dialog";
-import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
-import DialogContentText from "@mui/material/DialogContentText";
-import DialogTitle from "@mui/material/DialogTitle";
 import Divider from "@mui/material/Divider";
 import Chip from "@mui/material/Chip";
+import Select from "@mui/material/Select";
+import MenuItem from "@mui/material/MenuItem";
 
 import { RefineThemedLayoutHeaderProps } from "@refinedev/mui";
 import React from "react";
 import { useMobileSidebar } from "../sidebar/mobile-context";
+import { useBranchContext } from "../../contexts/branch-context";
 import { useRefresh } from "../../contexts/refresh-context";
 import { useTitleContext } from "../../contexts/title-context";
-import { mapAnyToEmployee, EMPLOYEES_WRITE } from "../../features/employees/api";
+import { mapAnyToEmployee } from "../../features/employees/api";
 import { apiFetch } from "../../utility/apiClient";
 import { Employee } from "../../features/employees/types";
-import { DB_TABLES } from "../../utility/constants";
-import { EMPLOYEE_PHOTOS_BUCKET, EMPLOYEE_PASSPORTS_BUCKET } from "../../features/employees/api";
+import { EMPLOYEE_PASSPORTS_BUCKET } from "../../features/employees/api";
 import PassportPhotoUploader from "../../features/employees/components/PassportPhotoUploader";
 import { useNotification } from "@refinedev/core";
 import SaveIcon from "@mui/icons-material/Save";
+import { usePermissions } from "../../hooks/usePermissions";
 import CircularProgress from "@mui/material/CircularProgress";
 
 export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
   sticky = true,
 }) => {
-  const [identity, setIdentity] = React.useState<{ name?: string; avatar?: string; email?: string } | null>(null);
+  const [identity] = React.useState<{ name?: string; avatar?: string; email?: string } | null>(null);
   const [employee, setEmployee] = React.useState<Employee | null>(null);
   const [profileOpen, setProfileOpen] = React.useState(false);
   const { toggle } = useMobileSidebar();
@@ -62,7 +60,9 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
   const [removedPassportUrls, setRemovedPassportUrls] = React.useState<string[]>([]);
 
 
-  const { employee: empFromPerms } = usePermissions();
+  const { employee: empFromPerms, isSuperAdmin } = usePermissions();
+  const isSuper = isSuperAdmin();
+  const { branches, selectedBranch, setSelectedBranch } = useBranchContext();
 
   React.useEffect(() => {
     if (empFromPerms) {
@@ -306,18 +306,89 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
                   height: { xs: 28, sm: 32, md: 36 },
                 }}
               />
-              <Typography
-                variant="subtitle2"
-                noWrap
-                sx={{
-                  display: { xs: "none", md: "block" },
-                  maxWidth: 200,
-                  fontWeight: 600,
-                  color: 'text.primary'
-                }}
-              >
-                {displayName}
-              </Typography>
+              {isSuper && branches.length > 0 ? (
+                <Select
+                  size="small"
+                  value={selectedBranch?.id ?? "all"}
+                  renderValue={(val) => {
+                    const selectedLabel = val === "all"
+                      ? "Все филиалы"
+                      : branches.find((b) => b.id === val)?.name ?? "Все филиалы";
+                    return (
+                      <Box
+                        sx={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 0.75,
+                          minWidth: 0,
+                          width: "100%",
+                          overflow: "hidden",
+                        }}
+                      >
+                        <CorporateFareOutlined
+                          fontSize="small"
+                          sx={{
+                            color: selectedBranch ? "primary.main" : "text.secondary",
+                            flexShrink: 0,
+                            alignSelf: "center",
+                          }}
+                        />
+                        <Box
+                          component="span"
+                          sx={{
+                            fontSize: "0.8rem",
+                            lineHeight: 1.2,
+                            flex: 1,
+                            minWidth: 0,
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                            display: "block",
+                          }}
+                        >
+                          {selectedLabel}
+                        </Box>
+                      </Box>
+                    );
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                  onChange={(e) => {
+                    e.stopPropagation();
+                    const val = e.target.value;
+                    if (val === "all") setSelectedBranch(null);
+                    else setSelectedBranch(branches.find((b) => b.id === val) ?? null);
+                    setTimeout(() => window.location.reload(), 50);
+                  }}
+                  sx={{
+                    display: { xs: "none", md: "block" },
+                    height: 34,
+                    minWidth: 130,
+                    maxWidth: 180,
+                    bgcolor: selectedBranch ? (theme) => theme.palette.primary.main + "18" : "transparent",
+                    "& .MuiOutlinedInput-notchedOutline": {
+                      borderColor: selectedBranch ? "primary.main" : "divider",
+                    },
+                    "& .MuiSelect-select, & .MuiSelect-select.MuiInputBase-input, & .MuiOutlinedInput-input.MuiSelect-select": {
+                      display: "flex !important",
+                      alignItems: "center !important",
+                      boxSizing: "border-box",
+                      paddingTop: "0 !important",
+                      paddingBottom: "0 !important",
+                      paddingLeft: "10px !important",
+                      paddingRight: "32px !important",
+                      height: "100% !important",
+                      minHeight: "unset !important",
+                      lineHeight: "normal !important",
+                      overflow: "hidden",
+                    },
+                  }}
+                >
+                  <MenuItem value="all">Все филиалы</MenuItem>
+                  {branches.map((b) => (
+                    <MenuItem key={b.id} value={b.id}>{b.name}</MenuItem>
+                  ))}
+                </Select>
+              ) : null}
             </Stack>
           )}
 

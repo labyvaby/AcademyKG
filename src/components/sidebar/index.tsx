@@ -49,10 +49,6 @@ import { usePermissions } from "../../hooks/usePermissions";
 import { PERMISSIONS } from "../../constants/permissions";
 
 import { AccountBalanceWalletOutlined } from "@mui/icons-material";
-import CorporateFareOutlined from "@mui/icons-material/CorporateFareOutlined";
-import Select from "@mui/material/Select";
-import MenuItem from "@mui/material/MenuItem";
-import { useBranchContext } from "../../contexts/branch-context";
 
 // Sidebar root that ThemedLayout will render via Sider={() => <Sidebar />}
 export const Sidebar: React.FC = () => {
@@ -73,7 +69,6 @@ export const Sidebar: React.FC = () => {
   const footer = (
     <>
       <Divider sx={{ my: 1 }} />
-      <BranchSwitcher />
       <SidebarFooter />
     </>
   );
@@ -433,7 +428,7 @@ const SidebarMenuItem: React.FC<SidebarMenuItemProps> = ({
         selected={isActive}
         sx={{
           borderRadius: 4,
-          my: 0.5,
+          my: 0.25,
           px: 1.4,
           color: (theme) => (isActive ? theme.palette.primary.main : undefined),
           '& .MuiListItemIcon-root': {
@@ -490,59 +485,6 @@ const SidebarMenuItem: React.FC<SidebarMenuItemProps> = ({
   }
 
   return button;
-};
-
-// Branch switcher — только для суперадмина
-const BranchSwitcher: React.FC = () => {
-  const { siderCollapsed } = useThemedLayoutContext();
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
-  const isCollapsed = siderCollapsed && !isMobile;
-  const { isSuperAdmin } = usePermissions();
-  const { branches, selectedBranch, setSelectedBranch } = useBranchContext();
-
-  if (!isSuperAdmin() || branches.length === 0) return null;
-
-  if (isCollapsed) {
-    return (
-      <Tooltip title={selectedBranch ? selectedBranch.name : "Все филиалы"} placement="right">
-        <Box sx={{ display: "flex", justifyContent: "center", py: 0.5 }}>
-          <IconButton size="small" sx={{ color: selectedBranch ? "primary.main" : "text.secondary" }}>
-            <CorporateFareOutlined fontSize="small" />
-          </IconButton>
-        </Box>
-      </Tooltip>
-    );
-  }
-
-  return (
-    <Box sx={{ px: 1, pb: 1 }}>
-      <Select
-        size="small"
-        fullWidth
-        value={selectedBranch?.id ?? "all"}
-        onChange={(e) => {
-          const val = e.target.value;
-          if (val === "all") setSelectedBranch(null);
-          else setSelectedBranch(branches.find((b) => b.id === val) ?? null);
-          setTimeout(() => window.location.reload(), 50);
-        }}
-        startAdornment={<CorporateFareOutlined fontSize="small" sx={{ mr: 0.5, color: selectedBranch ? "primary.main" : "text.secondary" }} />}
-        sx={{
-          fontSize: "0.8rem",
-          bgcolor: selectedBranch ? (theme) => theme.palette.primary.main + "18" : "transparent",
-          "& .MuiOutlinedInput-notchedOutline": {
-            borderColor: selectedBranch ? "primary.main" : "divider",
-          },
-        }}
-      >
-        <MenuItem value="all">Все филиалы</MenuItem>
-        {branches.map((b) => (
-          <MenuItem key={b.id} value={b.id}>{b.name}</MenuItem>
-        ))}
-      </Select>
-    </Box>
-  );
 };
 
 // Bottom area (user info + logout)
