@@ -971,6 +971,10 @@ export const HomeAddAppointmentDrawer: React.FC<
         });
       } catch (err: any) {
         console.error("API Error creating appointment:", err);
+        // Сбрасываем кеш дня чтобы следующая попытка загрузила актуальные данные
+        const visitDate = dayjs(visitDateTime).format("YYYY-MM-DD");
+        delete dayAppointmentsCacheRef.current[visitDate];
+
         const msg = String(err?.message ?? err ?? "").toLowerCase();
         if (msg.includes("overlap") || msg.includes("conflict") || msg.includes("занят") || msg.includes("пересека")) {
           notify?.({
@@ -978,6 +982,8 @@ export const HomeAddAppointmentDrawer: React.FC<
             message: "Конфликт по времени",
             description: "Это время уже занято у выбранного специалиста. Выберите другой слот.",
           });
+          setIsSaving(false);
+          isSavingRef.current = false;
           return;
         }
         notify?.({
@@ -985,6 +991,8 @@ export const HomeAddAppointmentDrawer: React.FC<
           message: "Ошибка при создании приёма",
           description: err?.message || String(err),
         });
+        setIsSaving(false);
+        isSavingRef.current = false;
         return;
       }
 

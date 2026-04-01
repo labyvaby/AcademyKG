@@ -67,6 +67,8 @@ const ForgotPasswordPage = lazy(() => import("./pages/auth/ForgotPassword"));
 const ResetPasswordConfirmPage = lazy(() => import("./pages/auth/ResetPasswordConfirm"));
 const ClientSchedulePage = lazy(() => import("./pages/ClientSchedulePage"));
 const RolesPage = lazy(() => import("./pages/roles"));
+const CategoriesPage = lazy(() => import("./pages/categories/index.tsx"));
+const BranchManagePage = lazy(() => import("./pages/branches/BranchManagePage"));
 
 
 // Вспомогательный компонент для обработки глобальных событий аутентификации
@@ -425,6 +427,28 @@ function App() {
                             <ProtectedRoute requiredPermissions={['app_settings.update']}>
                               <Suspense fallback={<LinearProgress />}>
                                 <RolesPage />
+                              </Suspense>
+                            </ProtectedRoute>
+                          }
+                        />
+
+                        <Route
+                          path="categories"
+                          element={
+                            <ProtectedRoute requiredPermissions={['expenses.read']}>
+                              <Suspense fallback={<LinearProgress />}>
+                                <CategoriesPage />
+                              </Suspense>
+                            </ProtectedRoute>
+                          }
+                        />
+
+                        <Route
+                          path="branches"
+                          element={
+                            <ProtectedRoute requiredPermissions={['app_settings.update']}>
+                              <Suspense fallback={<LinearProgress />}>
+                                <BranchManagePage />
                               </Suspense>
                             </ProtectedRoute>
                           }

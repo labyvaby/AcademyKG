@@ -39,6 +39,8 @@ import LogoutOutlined from "@mui/icons-material/LogoutOutlined";
 import HistoryOutlined from "@mui/icons-material/HistoryOutlined";
 import NotificationsOutlined from "@mui/icons-material/NotificationsOutlined";
 import AdminPanelSettingsOutlined from "@mui/icons-material/AdminPanelSettingsOutlined";
+import CategoryOutlined from "@mui/icons-material/CategoryOutlined";
+import BusinessOutlined from "@mui/icons-material/BusinessOutlined";
 
 import { useThemedLayoutContext } from "@refinedev/mui";
 import { logout } from "../../services/auth";
@@ -382,6 +384,9 @@ const { hasPermission, isSuperAdmin, loading: permissionsLoading } = usePermissi
         {hasPermission(PERMISSIONS.EXPENSES_READ) && (
           <SidebarMenuItem to="/expenses" icon={<PaymentsOutlined />} label="Расходы" collapsed={siderCollapsed} />
         )}
+        {hasPermission(PERMISSIONS.EXPENSES_READ) && (
+          <SidebarMenuItem to="/categories" icon={<CategoryOutlined />} label="Категории расходов" collapsed={siderCollapsed} />
+        )}
         {hasPermission(PERMISSIONS.CASHBOX_READ) && (
           <SidebarMenuItem to="/cashbox" icon={<AccountBalanceWalletOutlined />} label="Касса" collapsed={siderCollapsed} />
         )}
@@ -391,6 +396,9 @@ const { hasPermission, isSuperAdmin, loading: permissionsLoading } = usePermissi
         )}
         {isSuper && (
           <SidebarMenuItem to="/roles" icon={<AdminPanelSettingsOutlined />} label="Роли и права" collapsed={siderCollapsed} />
+        )}
+        {isSuper && (
+          <SidebarMenuItem to="/branches" icon={<BusinessOutlined />} label="Управление филиалами" collapsed={siderCollapsed} />
         )}
         {hasPermission(PERMISSIONS.APP_SETTINGS_UPDATE) && (
           <SidebarMenuItem to="/settings/notifications" icon={<NotificationsOutlined />} label="Уведомления" collapsed={siderCollapsed} />

@@ -5,12 +5,15 @@ import TelegramIcon from "@mui/icons-material/Telegram";
 import EmailOutlined from "@mui/icons-material/EmailOutlined";
 import CreditCardOutlined from "@mui/icons-material/CreditCardOutlined";
 import CorporateFareOutlined from "@mui/icons-material/CorporateFareOutlined";
+import EditOutlined from "@mui/icons-material/EditOutlined";
+import CloseOutlined from "@mui/icons-material/CloseOutlined";
 import appIcon from "../../assets/img/icon_2.png";
 
 import AppBar from "@mui/material/AppBar";
 import Avatar from "@mui/material/Avatar";
 import Box from "@mui/material/Box";
 import IconButton from "@mui/material/IconButton";
+import InputAdornment from "@mui/material/InputAdornment";
 import Stack from "@mui/material/Stack";
 import Toolbar from "@mui/material/Toolbar";
 import Typography from "@mui/material/Typography";
@@ -21,6 +24,8 @@ import Divider from "@mui/material/Divider";
 import Chip from "@mui/material/Chip";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
+import TextField from "@mui/material/TextField";
+import CircularProgress from "@mui/material/CircularProgress";
 
 import { RefineThemedLayoutHeaderProps } from "@refinedev/mui";
 import React from "react";
@@ -31,12 +36,19 @@ import { useTitleContext } from "../../contexts/title-context";
 import { mapAnyToEmployee } from "../../features/employees/api";
 import { apiFetch } from "../../utility/apiClient";
 import { Employee } from "../../features/employees/types";
-import { EMPLOYEE_PASSPORTS_BUCKET } from "../../features/employees/api";
 import PassportPhotoUploader from "../../features/employees/components/PassportPhotoUploader";
 import { useNotification } from "@refinedev/core";
 import SaveIcon from "@mui/icons-material/Save";
 import { usePermissions } from "../../hooks/usePermissions";
-import CircularProgress from "@mui/material/CircularProgress";
+import { updateEmployeeApi } from "../../features/employees/hooks/useEmployeesPage";
+import {
+  composePhone,
+  parsePhone,
+  DEFAULT_PHONE_COUNTRY_CODE,
+  getPhoneLocalMaxLength,
+  type PhoneCountryCode,
+} from "../../utility/phone";
+import { PhoneCountryCodeSelect } from "../ui";
 
 export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
   sticky = true,
@@ -48,9 +60,6 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
   const { triggerRefresh, onRefresh } = useRefresh();
   const { title } = useTitleContext();
 
-
-
-  // --- NEW STATE ---
   const [roleInfo, setRoleInfo] = React.useState<{ name: string; display_name: string } | null>(null);
   const [specializationName, setSpecializationName] = React.useState<string | null>(null);
   const { open: notify } = useNotification();
@@ -59,6 +68,15 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
   const [passportFiles, setPassportFiles] = React.useState<File[]>([]);
   const [removedPassportUrls, setRemovedPassportUrls] = React.useState<string[]>([]);
 
+  // Режим редактирования
+  const [editMode, setEditMode] = React.useState(false);
+  const [editFullName, setEditFullName] = React.useState("");
+  const [editPhone, setEditPhone] = React.useState("");
+  const [editPhoneCode, setEditPhoneCode] = React.useState<PhoneCountryCode>(DEFAULT_PHONE_COUNTRY_CODE);
+  const [editEmail, setEditEmail] = React.useState("");
+  const [editTelegram, setEditTelegram] = React.useState("");
+  const [editBank, setEditBank] = React.useState("");
+  const [editNameError, setEditNameError] = React.useState("");
 
   const { employee: empFromPerms, isSuperAdmin } = usePermissions();
   const isSuper = isSuperAdmin();
@@ -106,14 +124,84 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
     }
   }, [employee]);
 
+  // При закрытии диалога — сбрасываем режим редактирования
+  const handleClose = () => {
+    setProfileOpen(false);
+    setEditMode(false);
+    setEditNameError("");
+  };
+
+  // Заполняем поля при переходе в режим редактирования
+  const handleEnterEdit = () => {
+    const parsed = parsePhone(employee?.phone ?? "");
+    setEditFullName(employee?.full_name ?? "");
+    setEditPhone(parsed.local);
+    setEditPhoneCode(parsed.countryCode);
+    setEditEmail(employee?.email ?? "");
+    setEditTelegram(employee?.telegram_id ?? "");
+    setEditBank(employee?.bank_account_number ?? "");
+    setEditNameError("");
+    setEditMode(true);
+  };
+
+  const handleCancelEdit = () => {
+    setEditMode(false);
+    setEditNameError("");
+  };
+
+  const handleSaveProfile = async () => {
+    if (!empFromPerms?.id) return;
+
+    const nameTrim = editFullName.trim();
+    if (!nameTrim) {
+      setEditNameError("Введите ФИО");
+      return;
+    }
+    if (/[A-Za-z]/.test(nameTrim)) {
+      setEditNameError("ФИО должно быть на кириллице");
+      return;
+    }
+    setEditNameError("");
+
+    const fullPhone = composePhone(editPhoneCode, editPhone);
+    const payload: Record<string, unknown> = {
+      fullName: nameTrim,
+      full_name: nameTrim,
+    };
+    if (fullPhone) payload.userPhoneNumber = fullPhone;
+    if (editEmail.trim()) payload.userEmail = editEmail.trim();
+    if (editTelegram.trim()) payload.telegramId = editTelegram.trim();
+    if (editBank.trim()) payload.bankAccountNumber = editBank.trim();
+
+    try {
+      setBusy(true);
+      await updateEmployeeApi(String(empFromPerms.id), payload);
+
+      // Обновляем локальное состояние
+      setEmployee((prev) => prev ? {
+        ...prev,
+        full_name: nameTrim,
+        phone: fullPhone || prev.phone,
+        email: editEmail.trim() || prev.email,
+        telegram_id: editTelegram.trim() || prev.telegram_id,
+        bank_account_number: editBank.trim() || prev.bank_account_number,
+      } : prev);
+
+      notify?.({ type: "success", message: "Профиль обновлён" });
+      setEditMode(false);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      notify?.({ type: "error", message: "Не удалось сохранить профиль", description: msg });
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const handleSavePassport = async () => {
     if (!employee?.id) return;
     try {
       setBusy(true);
-      // TODO: Реализовать сохранение через Django API, когда эндпоинт будет готов.
-      // В данном проекте мы отказываемся от Supabase согласно /pravilo.
       notify?.({ type: "success", message: "Сохранение паспортных данных через новый API будет доступно в ближайшее время" });
-      
       setPassportFiles([]);
       setRemovedPassportUrls([]);
     } catch (e) {
@@ -124,15 +212,10 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
     }
   };
 
-
-
   const displayAvatar = employee?.photo_url || (empFromPerms as any)?.photoUrl || identity?.avatar;
   const displayName = employee?.full_name || (empFromPerms as any)?.fullName || identity?.name || "Пользователь";
   const displayEmail = employee?.email || identity?.email;
-
-  // Role display logic
   const roleText = roleInfo?.display_name || roleInfo?.name || (employee?.status === 'active' ? "Сотрудник" : "Пользователь");
-
 
   return (
     <AppBar
@@ -163,31 +246,25 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
             sx={{
               display: { xs: "inline-flex", md: "none" },
               p: { xs: 0.5, sm: 1 },
-              ml: { xs: 1, sm: 1.5 }, // Сдвиг бургера вправо
+              ml: { xs: 1, sm: 1.5 },
             }}
           >
             <MenuOutlined fontSize="small" />
           </IconButton>
 
-          {/* Компактный логотип + Текст */}
           <Box
             sx={{
               display: { xs: "flex", md: "none" },
               alignItems: "center",
               gap: 1,
-              '@media (min-width: 750px)': {
-                display: "none",
-              },
+              '@media (min-width: 750px)': { display: "none" },
             }}
           >
             <Box
               component="img"
               src={appIcon}
               alt="Academy KG"
-              sx={{
-                height: { xs: 28, sm: 32 },
-                width: "auto",
-              }}
+              sx={{ height: { xs: 28, sm: 32 }, width: "auto" }}
             />
             <Typography
               variant="h6"
@@ -214,7 +291,7 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
           display: "flex",
           justifyContent: "center",
           alignItems: "center",
-          pointerEvents: "none", // Чтобы не мешать кликам если что
+          pointerEvents: "none",
           maxWidth: { xs: "50%", md: "60%" },
         }}>
           <Typography
@@ -234,32 +311,21 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
           </Typography>
         </Box>
 
-        {/* Spacer to push right content if needed, but absolute positioning handles center */}
         <Box sx={{ flex: 1 }} />
 
-        {/* Правая часть: Branch switcher (superadmin) + Refresh + Avatar */}
-        <Stack
-          direction="row"
-          alignItems="center"
-          spacing={{ xs: 0.5, sm: 1 }}
-          sx={{ ml: "auto" }}
-        >
-<IconButton
+        {/* Правая часть: Branch switcher + Refresh + Avatar */}
+        <Stack direction="row" alignItems="center" spacing={{ xs: 0.5, sm: 1 }} sx={{ ml: "auto" }}>
+          <IconButton
             color="inherit"
             onClick={() => {
-              if (onRefresh) {
-                triggerRefresh();
-              } else {
-                window.location.reload();
-              }
+              if (onRefresh) triggerRefresh();
+              else window.location.reload();
             }}
             aria-label="Обновить"
             size="small"
             sx={{
               p: { xs: 0.5, sm: 1 },
-              bgcolor: (theme) => theme.palette.mode === 'dark'
-                ? 'rgba(255, 255, 255, 0.08)'
-                : 'rgba(0, 0, 0, 0.04)',
+              bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)',
               borderRadius: '50%',
               transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
               '&:hover': {
@@ -268,15 +334,11 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
                 transform: 'rotate(180deg)',
                 boxShadow: (theme) => `0 4px 12px ${theme.palette.primary.main}40`,
               },
-              '&:active': {
-                transform: 'rotate(180deg) scale(0.9)',
-              },
+              '&:active': { transform: 'rotate(180deg) scale(0.9)' },
             }}
           >
             <RefreshOutlined sx={{ fontSize: { xs: 18, sm: 20 } }} />
           </IconButton>
-
-
 
           {(displayAvatar || displayName) && (
             <Stack
@@ -293,18 +355,15 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
                 transition: 'background-color 0.2s',
                 '&:hover': {
                   bgcolor: (theme) => theme.palette.mode === 'dark'
-                    ? 'rgba(255, 255, 255, 0.08)'
-                    : 'rgba(0, 0, 0, 0.04)',
+                    ? 'rgba(255,255,255,0.08)'
+                    : 'rgba(0,0,0,0.04)',
                 }
               }}
             >
               <Avatar
                 src={displayAvatar}
                 alt={displayName}
-                sx={{
-                  width: { xs: 28, sm: 32, md: 36 },
-                  height: { xs: 28, sm: 32, md: 36 },
-                }}
+                sx={{ width: { xs: 28, sm: 32, md: 36 }, height: { xs: 28, sm: 32, md: 36 } }}
               />
               {isSuper && branches.length > 0 ? (
                 <Select
@@ -315,37 +374,9 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
                       ? "Все филиалы"
                       : branches.find((b) => b.id === val)?.name ?? "Все филиалы";
                     return (
-                      <Box
-                        sx={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 0.75,
-                          minWidth: 0,
-                          width: "100%",
-                          overflow: "hidden",
-                        }}
-                      >
-                        <CorporateFareOutlined
-                          fontSize="small"
-                          sx={{
-                            color: selectedBranch ? "primary.main" : "text.secondary",
-                            flexShrink: 0,
-                            alignSelf: "center",
-                          }}
-                        />
-                        <Box
-                          component="span"
-                          sx={{
-                            fontSize: "0.8rem",
-                            lineHeight: 1.2,
-                            flex: 1,
-                            minWidth: 0,
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                            whiteSpace: "nowrap",
-                            display: "block",
-                          }}
-                        >
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, minWidth: 0, width: "100%", overflow: "hidden" }}>
+                        <CorporateFareOutlined fontSize="small" sx={{ color: selectedBranch ? "primary.main" : "text.secondary", flexShrink: 0, alignSelf: "center" }} />
+                        <Box component="span" sx={{ fontSize: "0.8rem", lineHeight: 1.2, flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "block" }}>
                           {selectedLabel}
                         </Box>
                       </Box>
@@ -365,9 +396,7 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
                     minWidth: 130,
                     maxWidth: 180,
                     bgcolor: selectedBranch ? (theme) => theme.palette.primary.main + "18" : "transparent",
-                    "& .MuiOutlinedInput-notchedOutline": {
-                      borderColor: selectedBranch ? "primary.main" : "divider",
-                    },
+                    "& .MuiOutlinedInput-notchedOutline": { borderColor: selectedBranch ? "primary.main" : "divider" },
                     "& .MuiSelect-select, & .MuiSelect-select.MuiInputBase-input, & .MuiOutlinedInput-input.MuiSelect-select": {
                       display: "flex !important",
                       alignItems: "center !important",
@@ -392,27 +421,19 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
             </Stack>
           )}
 
+          {/* Диалог профиля */}
           <Dialog
             open={profileOpen}
-            onClose={() => setProfileOpen(false)}
+            onClose={handleClose}
             maxWidth="xs"
             fullWidth
             PaperProps={{
-              sx: {
-                borderRadius: 4,
-                boxShadow: "0 8px 32px rgba(0, 0, 0, 0.1)",
-                overflow: "hidden",
-              }
+              sx: { borderRadius: 4, boxShadow: "0 8px 32px rgba(0,0,0,0.1)", overflow: "hidden" }
             }}
           >
             <DialogContent sx={{ p: 0 }}>
               {/* Header Background */}
-              <Box sx={{
-                height: 100,
-                bgcolor: (theme) => theme.palette.primary.light,
-                opacity: 0.15,
-                mb: -10, // pull up avatar
-              }} />
+              <Box sx={{ height: 100, bgcolor: (theme) => theme.palette.primary.light, opacity: 0.15, mb: -10 }} />
 
               <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", px: 3, pb: 4, gap: 1 }}>
                 <Avatar
@@ -428,153 +449,252 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
                   }}
                 />
 
-                <Box sx={{ textAlign: "center", mb: 2 }}>
-                  <Typography variant="h5" component="h2" fontWeight="700">
-                    {displayName}
-                  </Typography>
-                  {/* Role & Status */}
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, alignItems: 'center', mt: 1 }}>
-                    <Typography variant="body1" color="text.secondary" fontWeight="500">
-                      {roleText}
-                    </Typography>
-                    {specializationName && (
-                      <Typography variant="body2" color="primary" fontWeight="600">
-                        {specializationName}
+                {!editMode ? (
+                  /* ── РЕЖИМ ПРОСМОТРА ── */
+                  <>
+                    <Box sx={{ textAlign: "center", mb: 1, width: "100%" }}>
+                      <Typography variant="h5" component="h2" fontWeight="700">
+                        {displayName}
                       </Typography>
-                    )}
-                    {employee?.status && (
-                      <Chip
-                        label={employee.status === "active" ? "Работает" : "Неактивен"}
-                        size="small"
-                        color={employee.status === "active" ? "success" : "default"}
-                        variant="filled"
-                        sx={{ mt: 0.5, fontWeight: 600, fontSize: '0.75rem', height: 20 }}
-                      />
-                    )}
-                  </Box>
-                </Box>
-
-                <Stack spacing={2} sx={{ width: '100%' }}>
-
-                  {/* Phone */}
-                  <Stack direction="row" spacing={2} alignItems="center">
-                    <Box sx={{ p: 1, borderRadius: '50%', bgcolor: 'action.hover' }}>
-                      <LocalPhoneOutlined color="primary" fontSize="small" />
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, alignItems: 'center', mt: 1 }}>
+                        <Typography variant="body1" color="text.secondary" fontWeight="500">
+                          {roleText}
+                        </Typography>
+                        {specializationName && (
+                          <Typography variant="body2" color="primary" fontWeight="600">
+                            {specializationName}
+                          </Typography>
+                        )}
+                        {employee?.status && (
+                          <Chip
+                            label={employee.status === "active" ? "Работает" : "Неактивен"}
+                            size="small"
+                            color={employee.status === "active" ? "success" : "default"}
+                            variant="filled"
+                            sx={{ mt: 0.5, fontWeight: 600, fontSize: '0.75rem', height: 20 }}
+                          />
+                        )}
+                      </Box>
                     </Box>
-                    <Box>
-                      <Typography variant="caption" color="text.secondary" display="block">
-                        Телефон
-                      </Typography>
-                      <Typography variant="body2" fontWeight={500}>
-                        {employee?.phone || "—"}
-                      </Typography>
-                    </Box>
-                  </Stack>
 
-                  <Divider />
+                    <Stack spacing={2} sx={{ width: '100%' }}>
+                      <Stack direction="row" spacing={2} alignItems="center">
+                        <Box sx={{ p: 1, borderRadius: '50%', bgcolor: 'action.hover' }}>
+                          <LocalPhoneOutlined color="primary" fontSize="small" />
+                        </Box>
+                        <Box>
+                          <Typography variant="caption" color="text.secondary" display="block">Телефон</Typography>
+                          <Typography variant="body2" fontWeight={500}>{employee?.phone || "—"}</Typography>
+                        </Box>
+                      </Stack>
 
-                  {/* Telegram */}
-                  <Stack direction="row" spacing={2} alignItems="center">
-                    <Box sx={{ p: 1, borderRadius: '50%', bgcolor: 'action.hover' }}>
-                      <TelegramIcon color={employee?.telegram_id ? "primary" : "disabled"} fontSize="small" />
-                    </Box>
-                    <Box>
-                      <Typography variant="caption" color="text.secondary" display="block">
-                        Telegram ID
-                      </Typography>
-                      <Typography variant="body2" fontWeight={500}>
-                        {employee?.telegram_id || "—"}
-                      </Typography>
-                    </Box>
-                  </Stack>
+                      <Divider />
 
-                  <Divider />
+                      <Stack direction="row" spacing={2} alignItems="center">
+                        <Box sx={{ p: 1, borderRadius: '50%', bgcolor: 'action.hover' }}>
+                          <TelegramIcon color={employee?.telegram_id ? "primary" : "disabled"} fontSize="small" />
+                        </Box>
+                        <Box>
+                          <Typography variant="caption" color="text.secondary" display="block">Telegram ID</Typography>
+                          <Typography variant="body2" fontWeight={500}>{employee?.telegram_id || "—"}</Typography>
+                        </Box>
+                      </Stack>
 
-                  {/* Email */}
-                  <Stack direction="row" spacing={2} alignItems="center">
-                    <Box sx={{ p: 1, borderRadius: '50%', bgcolor: 'action.hover' }}>
-                      <EmailOutlined color={displayEmail ? "primary" : "disabled"} fontSize="small" />
-                    </Box>
-                    <Box>
-                      <Typography variant="caption" color="text.secondary" display="block">
-                        Email
-                      </Typography>
-                      <Typography variant="body2" fontWeight={500}>
-                        {displayEmail || "—"}
-                      </Typography>
-                    </Box>
-                  </Stack>
+                      <Divider />
 
-                  <Divider />
+                      <Stack direction="row" spacing={2} alignItems="center">
+                        <Box sx={{ p: 1, borderRadius: '50%', bgcolor: 'action.hover' }}>
+                          <EmailOutlined color={displayEmail ? "primary" : "disabled"} fontSize="small" />
+                        </Box>
+                        <Box>
+                          <Typography variant="caption" color="text.secondary" display="block">Email</Typography>
+                          <Typography variant="body2" fontWeight={500}>{displayEmail || "—"}</Typography>
+                        </Box>
+                      </Stack>
 
-                  {/* Bank Account */}
-                  <Stack direction="row" spacing={2} alignItems="center">
-                    <Box sx={{ p: 1, borderRadius: '50%', bgcolor: 'action.hover' }}>
-                      <CreditCardOutlined color={employee?.bank_account_number ? "primary" : "disabled"} fontSize="small" />
-                    </Box>
-                    <Box>
-                      <Typography variant="caption" color="text.secondary" display="block">
-                        Банковский счет
-                      </Typography>
-                      <Typography variant="body2" fontWeight={500} sx={{ fontFamily: 'monospace' }}>
-                        {employee?.bank_account_number
-                          ? employee.bank_account_number.replace(/(.{4})/g, '$1 ').trim()
-                          : "—"}
-                      </Typography>
-                    </Box>
-                  </Stack>
+                      <Divider />
 
-                  <Divider />
+                      <Stack direction="row" spacing={2} alignItems="center">
+                        <Box sx={{ p: 1, borderRadius: '50%', bgcolor: 'action.hover' }}>
+                          <CreditCardOutlined color={employee?.bank_account_number ? "primary" : "disabled"} fontSize="small" />
+                        </Box>
+                        <Box>
+                          <Typography variant="caption" color="text.secondary" display="block">Банковский счет</Typography>
+                          <Typography variant="body2" fontWeight={500} sx={{ fontFamily: 'monospace' }}>
+                            {employee?.bank_account_number
+                              ? employee.bank_account_number.replace(/(.{4})/g, '$1 ').trim()
+                              : "—"}
+                          </Typography>
+                        </Box>
+                      </Stack>
 
-                  <Box sx={{ mt: 1 }}>
-                    <PassportPhotoUploader
-                      photos={passportPhotos}
-                      onAddPhoto={(file) => {
-                        setPassportFiles((prev) => [...prev, file]);
-                        const reader = new FileReader();
-                        reader.onload = () => setPassportPhotos((prev) => [...prev, String(reader.result)]);
-                        reader.readAsDataURL(file);
-                      }}
-                      onRemovePhoto={(url) => {
-                        setPassportPhotos((prev) => prev.filter((u) => u !== url));
-                        if (url.startsWith('data:')) {
-                          // Find file by matching data URL? (omitted for brevity, similar to drawers)
-                        } else {
-                          setRemovedPassportUrls((prev) => [...prev, url]);
-                        }
-                      }}
-                      inputId="self-passport-photo-input"
-                    />
-                    {(passportFiles.length > 0 || removedPassportUrls.length > 0) && (
+                      <Divider />
+
+                      <Box sx={{ mt: 1 }}>
+                        <PassportPhotoUploader
+                          photos={passportPhotos}
+                          onAddPhoto={(file) => {
+                            setPassportFiles((prev) => [...prev, file]);
+                            const reader = new FileReader();
+                            reader.onload = () => setPassportPhotos((prev) => [...prev, String(reader.result)]);
+                            reader.readAsDataURL(file);
+                          }}
+                          onRemovePhoto={(url) => {
+                            setPassportPhotos((prev) => prev.filter((u) => u !== url));
+                            if (!url.startsWith('data:')) setRemovedPassportUrls((prev) => [...prev, url]);
+                          }}
+                          inputId="self-passport-photo-input"
+                        />
+                        {(passportFiles.length > 0 || removedPassportUrls.length > 0) && (
+                          <Button
+                            startIcon={busy ? <CircularProgress size={16} /> : <SaveIcon />}
+                            variant="contained"
+                            disabled={busy}
+                            onClick={handleSavePassport}
+                            sx={{ mt: 2, borderRadius: 24, px: 4, width: '100%' }}
+                          >
+                            Сохранить изменения
+                          </Button>
+                        )}
+                      </Box>
+                    </Stack>
+
+                    <Stack direction="row" spacing={1} sx={{ mt: 3, width: '100%' }}>
                       <Button
-                        startIcon={busy ? <CircularProgress size={16} /> : <SaveIcon />}
-                        variant="contained"
-                        disabled={busy}
-                        onClick={handleSavePassport}
-                        sx={{ mt: 2, borderRadius: 24, px: 4, width: '100%' }}
+                        variant="outlined"
+                        startIcon={<EditOutlined />}
+                        onClick={handleEnterEdit}
+                        sx={{ borderRadius: 24, flex: 1 }}
                       >
-                        Сохранить изменения
+                        Редактировать
                       </Button>
-                    )}
-                  </Box>
+                      <Button
+                        variant="outlined"
+                        onClick={handleClose}
+                        sx={{ borderRadius: 24, flex: 1 }}
+                      >
+                        Закрыть
+                      </Button>
+                    </Stack>
+                  </>
+                ) : (
+                  /* ── РЕЖИМ РЕДАКТИРОВАНИЯ ── */
+                  <>
+                    <Box sx={{ textAlign: "center", mb: 1 }}>
+                      <Typography variant="h6" fontWeight="700">Редактирование профиля</Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Роль изменить нельзя — обратитесь к администратору
+                      </Typography>
+                    </Box>
 
-                </Stack>
+                    <Stack spacing={2} sx={{ width: '100%' }}>
+                      <Stack spacing={0.5}>
+                        <Typography variant="caption" color="text.secondary" fontWeight={600}>ФИО *</Typography>
+                        <TextField
+                          value={editFullName}
+                          onChange={(e) => { setEditFullName(e.target.value); setEditNameError(""); }}
+                          fullWidth
+                          size="small"
+                          error={Boolean(editNameError)}
+                          helperText={editNameError}
+                          placeholder="Введите ФИО"
+                        />
+                      </Stack>
 
-                <Button
-                  variant="outlined"
-                  onClick={() => setProfileOpen(false)}
-                  sx={{ mt: 3, borderRadius: 24, px: 4, width: '100%' }}
-                >
-                  Закрыть
-                </Button>
+                      <Stack spacing={0.5}>
+                        <Typography variant="caption" color="text.secondary" fontWeight={600}>Телефон</Typography>
+                        <TextField
+                          value={editPhone}
+                          onChange={(e) => {
+                            const maxLen = getPhoneLocalMaxLength(editPhoneCode);
+                            setEditPhone(e.target.value.replace(/[^\d]/g, "").slice(0, maxLen));
+                          }}
+                          fullWidth
+                          size="small"
+                          placeholder="XXX XXX XXX"
+                          InputProps={{
+                            startAdornment: (
+                              <InputAdornment position="start" sx={{ mr: 1, ml: "-14px" }}>
+                                <PhoneCountryCodeSelect value={editPhoneCode} onChange={setEditPhoneCode} />
+                              </InputAdornment>
+                            ),
+                          }}
+                          inputProps={{ inputMode: "tel", pattern: "[0-9]*" }}
+                        />
+                      </Stack>
+
+                      <Stack spacing={0.5}>
+                        <Typography variant="caption" color="text.secondary" fontWeight={600}>Email</Typography>
+                        <TextField
+                          value={editEmail}
+                          onChange={(e) => setEditEmail(e.target.value)}
+                          fullWidth
+                          size="small"
+                          type="email"
+                          placeholder="example@mail.com"
+                        />
+                      </Stack>
+
+                      <Stack spacing={0.5}>
+                        <Typography variant="caption" color="text.secondary" fontWeight={600}>Telegram ID</Typography>
+                        <TextField
+                          value={editTelegram}
+                          onChange={(e) => setEditTelegram(e.target.value.replace(/[^0-9]/g, ""))}
+                          fullWidth
+                          size="small"
+                          placeholder="Только цифры"
+                          inputProps={{ inputMode: "numeric" }}
+                        />
+                      </Stack>
+
+                      <Stack spacing={0.5}>
+                        <Typography variant="caption" color="text.secondary" fontWeight={600}>Банковский счёт</Typography>
+                        <TextField
+                          value={editBank}
+                          onChange={(e) => setEditBank(e.target.value.replace(/[^0-9]/g, "").slice(0, 16))}
+                          fullWidth
+                          size="small"
+                          placeholder="16 цифр"
+                          inputProps={{ inputMode: "numeric" }}
+                          helperText={`${editBank.length}/16`}
+                          InputProps={{
+                            startAdornment: (
+                              <InputAdornment position="start">
+                                <CreditCardOutlined fontSize="small" color="action" />
+                              </InputAdornment>
+                            ),
+                          }}
+                        />
+                      </Stack>
+                    </Stack>
+
+                    <Stack direction="row" spacing={1} sx={{ mt: 3, width: '100%' }}>
+                      <Button
+                        variant="contained"
+                        startIcon={busy ? <CircularProgress size={16} /> : <SaveIcon />}
+                        onClick={handleSaveProfile}
+                        disabled={busy}
+                        sx={{ borderRadius: 24, flex: 1 }}
+                      >
+                        Сохранить
+                      </Button>
+                      <Button
+                        variant="outlined"
+                        startIcon={<CloseOutlined />}
+                        onClick={handleCancelEdit}
+                        disabled={busy}
+                        sx={{ borderRadius: 24, flex: 1 }}
+                      >
+                        Отмена
+                      </Button>
+                    </Stack>
+                  </>
+                )}
               </Box>
             </DialogContent>
           </Dialog>
-
-
         </Stack>
       </Toolbar>
     </AppBar>
   );
 };
-

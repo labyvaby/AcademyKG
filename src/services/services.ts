@@ -183,7 +183,7 @@ export const updateService = async (id: string | number, data: UpdateServiceData
   if (data.durationMinutes != null) {
     fd.append("durationMinutes", String(data.durationMinutes));
     fd.append("duration_minutes", String(data.durationMinutes));
-  } else if (data.durationMinutes === null) {
+  } else {
     fd.append("durationMinutes", "");
     fd.append("duration_minutes", "");
   }
@@ -196,6 +196,26 @@ export const updateService = async (id: string | number, data: UpdateServiceData
     method: "PATCH",
     body: fd,
   });
+
+  // API может вернуть 204 No Content — в таком случае grузим актуальные данные отдельным GET
+  if (res === undefined || res === null) {
+    try {
+      const getRes: any = await apiFetch(`/api/v1/services/${id}/`);
+      const item = getRes?.data ?? getRes;
+      return toRow(item);
+    } catch {
+      // Если GET тоже упал — возвращаем то что отправили
+      return toRow({
+        id: String(id),
+        name: data.name,
+        priceSom: data.priceSom,
+        isActive: data.isActive,
+        isGroup: data.isGroup,
+        maxParticipants: data.maxParticipants,
+        durationMinutes: data.durationMinutes,
+      });
+    }
+  }
 
   const item = res?.data ?? res;
   return toRow(item);
