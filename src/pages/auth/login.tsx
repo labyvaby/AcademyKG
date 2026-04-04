@@ -10,7 +10,6 @@ import {
   Alert,
   InputAdornment,
   CircularProgress,
-  Fade,
   Tabs,
   Tab,
   IconButton,
@@ -37,18 +36,18 @@ const LOCKOUT_MS = 5 * 60 * 1000; // 5 минут
 
 function getFailState(): { count: number; lockedUntil: number } {
   try {
-    const raw = sessionStorage.getItem("login_fail_state");
+    const raw = localStorage.getItem("login_fail_state");
     if (raw) return JSON.parse(raw);
   } catch { /* ignore */ }
   return { count: 0, lockedUntil: 0 };
 }
 
 function setFailState(count: number, lockedUntil: number) {
-  sessionStorage.setItem("login_fail_state", JSON.stringify({ count, lockedUntil }));
+  localStorage.setItem("login_fail_state", JSON.stringify({ count, lockedUntil }));
 }
 
 function clearFailState() {
-  sessionStorage.removeItem("login_fail_state");
+  localStorage.removeItem("login_fail_state");
 }
 
 const LoginPage: React.FC = () => {
@@ -183,9 +182,11 @@ const LoginPage: React.FC = () => {
     try {
       logout(); // Clean start
       await verifySmsCode(fullPhone, otpCode.trim());
+      handleSuccessfulLogin();
       await refetchPermissions();
       navigate(redirectTo, { replace: true });
     } catch (err) {
+      handleFailedAttempt();
       setErrorMsg(getErrorMessage(err));
     } finally {
       setLoading(false);

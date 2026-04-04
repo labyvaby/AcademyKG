@@ -19,6 +19,8 @@ import {
   getPhoneLocalMaxLength,
   type PhoneCountryCode,
 } from "../../../utility/phone";
+import { usePermissions } from "../../../hooks/usePermissions";
+import { PERMISSIONS } from "../../../constants/permissions";
 
 export type AddEmployeeDrawerProps = {
   open: boolean;
@@ -27,12 +29,14 @@ export type AddEmployeeDrawerProps = {
 };
 
 type RoleRow = { id: string; name: string; display_name: string };
+type BranchRow = { id: string; name: string; organizationId: string };
 
 // Роли загружаются из API через fetchRoles() — fallback пустой, т.к. id должны быть UUID
 const FALLBACK_ROLES: RoleRow[] = [];
 
 const AddEmployeeDrawer: React.FC<AddEmployeeDrawerProps> = ({ open, onClose, onCreated }) => {
   const { open: notify } = useNotification();
+  const { hasPermission } = usePermissions();
 
   const [fullName, setFullName] = React.useState("");
   const [phone, setPhone] = React.useState("");
@@ -58,9 +62,11 @@ const AddEmployeeDrawer: React.FC<AddEmployeeDrawerProps> = ({ open, onClose, on
   const [specializationId, setSpecializationId] = React.useState("");
   const [inn, setInn] = React.useState("");
   const [branchId, setBranchId] = React.useState("");
-  const [branches, setBranches] = React.useState<{ id: string; name: string }[]>([]);
+  const [organizationId, setOrganizationId] = React.useState("");
+  const [branches, setBranches] = React.useState<BranchRow[]>([]);
 
   const selectedRole = roles.find(r => r.id === roleId);
+  const canManageRoles = hasPermission(PERMISSIONS.APP_SETTINGS_UPDATE);
 
   React.useEffect(() => {
     if (!open) {
@@ -70,7 +76,7 @@ const AddEmployeeDrawer: React.FC<AddEmployeeDrawerProps> = ({ open, onClose, on
       setTelegramId(""); setEmail(""); setEmailErrorMsg("");
       setSelectedServices([]);
       setNickname(""); setPassportPhotos([]); setPassportFiles([]); setBusy(false);
-      setBranchId("");
+      setBranchId(""); setOrganizationId("");
     }
   }, [open]);
 
@@ -90,12 +96,17 @@ const AddEmployeeDrawer: React.FC<AddEmployeeDrawerProps> = ({ open, onClose, on
           setServices(Array.from(new Map(srvItems.map(s => [s.id, s])).values()));
           setSpecializations(specs);
           setRoles(apiRoles.length > 0 ? apiRoles : FALLBACK_ROLES);
-          const mappedBranches = branchesRes.map((b: any) => ({ id: String(b.id ?? b.uuid ?? ""), name: b.name ?? b.displayName ?? "" }));
+          const mappedBranches = branchesRes.map((b: any) => ({
+            id: String(b.id ?? b.uuid ?? ""),
+            name: b.name ?? b.displayName ?? "",
+            organizationId: String(b.organization?.id ?? b.organizationId ?? b.organization ?? ""),
+          }));
           setBranches(mappedBranches);
           // Подставляем текущий выбранный филиал по умолчанию
           const activeBranchId = getBranchFilter();
-          if (activeBranchId && mappedBranches.some((b: { id: string }) => b.id === activeBranchId)) {
+          if (activeBranchId && mappedBranches.some((b) => b.id === activeBranchId)) {
             setBranchId(activeBranchId);
+            setOrganizationId(mappedBranches.find((b) => b.id === activeBranchId)?.organizationId ?? "");
           }
         }
       } catch {
@@ -114,11 +125,14 @@ const AddEmployeeDrawer: React.FC<AddEmployeeDrawerProps> = ({ open, onClose, on
   };
 
   const handleSubmit = async () => {
+    const fullNameTrim = fullName.trim();
     const maxLen = getPhoneLocalMaxLength(phoneCountryCode);
+    if (!fullNameTrim) { notify?.({ type: "error", message: "Введите ФИО сотрудника" }); return; }
     if (phone.trim().length > 0 && phone.trim().length !== maxLen) { setPhoneError(true); return; }
     if (emailErrorMsg) return;
     if (!roleId) { notify?.({ type: "error", message: "Выберите роль сотрудника" }); return; }
     if (!branchId) { notify?.({ type: "error", message: "Выберите филиал сотрудника" }); return; }
+    if (!organizationId) { notify?.({ type: "error", message: "Для выбранного филиала не найдена организация" }); return; }
     if ((selectedRole?.name === 'specialist') && !specializationId) {
       notify?.({ type: "error", message: "Выберите специализацию" }); return;
     }
@@ -128,14 +142,15 @@ const AddEmployeeDrawer: React.FC<AddEmployeeDrawerProps> = ({ open, onClose, on
       const fullPhone = composePhone(phoneCountryCode, phone);
 
       const payload: Record<string, unknown> = {
-        fullName: fullName.trim(),
+        fullName: fullNameTrim,
         role: roleId || undefined,
         status,
+        organization: organizationId,
+        branch: branchId,
       };
 
       if (fullPhone) payload.userPhoneNumber = fullPhone;
       if (email.trim()) payload.userEmail = email.trim();
-      if (branchId) payload.branch = branchId;
       if (birthDate) payload.birthDate = birthDate;
       if (telegramId.trim()) payload.telegramId = telegramId.trim();
       if (bankAccountNumber.trim()) payload.bankAccountNumber = bankAccountNumber.trim();
@@ -143,11 +158,11 @@ const AddEmployeeDrawer: React.FC<AddEmployeeDrawerProps> = ({ open, onClose, on
       if (nickname.trim()) payload.nickname = nickname.trim();
 
       if ((selectedRole?.name === 'specialist') && specializationId) {
-        payload.specialization_ids = [specializationId];
+        payload.specializationIds = [specializationId];
       }
 
       if (selectedServices.length > 0) {
-        payload.service_ids = selectedServices.map(s => s.id);
+        payload.serviceIds = selectedServices.map(s => s.id);
       }
 
       const created: any = await employeeFormUtils.createEmployeeApi(payload);
@@ -230,6 +245,7 @@ const AddEmployeeDrawer: React.FC<AddEmployeeDrawerProps> = ({ open, onClose, on
           <TextField select value={roleId}
             onChange={e => { setRoleId(e.target.value); const r = roles.find(x => x.id === e.target.value); if (r?.name !== 'specialist') setSpecializationId(""); }}
             fullWidth required
+            helperText={canManageRoles ? "" : "Роль назначается в рамках ваших прав доступа"}
           >
             {roles.map(r => <MenuItem key={r.id} value={r.id}>{r.display_name || r.name}</MenuItem>)}
           </TextField>
@@ -237,7 +253,17 @@ const AddEmployeeDrawer: React.FC<AddEmployeeDrawerProps> = ({ open, onClose, on
 
         <Stack spacing={0.5}>
           <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>Филиал *</Typography>
-          <TextField select value={branchId} onChange={e => setBranchId(e.target.value)} fullWidth required>
+          <TextField
+            select
+            value={branchId}
+            onChange={e => {
+              const nextBranchId = e.target.value;
+              setBranchId(nextBranchId);
+              setOrganizationId(branches.find((b) => b.id === nextBranchId)?.organizationId ?? "");
+            }}
+            fullWidth
+            required
+          >
             {branches.map(b => <MenuItem key={b.id} value={b.id}>{b.name}</MenuItem>)}
           </TextField>
         </Stack>

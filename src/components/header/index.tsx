@@ -45,9 +45,7 @@ import PassportPhotoUploader from "../../features/employees/components/PassportP
 import { useNotification } from "@refinedev/core";
 import SaveIcon from "@mui/icons-material/Save";
 import { usePermissions, refetchPermissions } from "../../hooks/usePermissions";
-import { updateEmployeeApi } from "../../features/employees/hooks/useEmployeesPage";
 import {
-  composePhone,
   parsePhone,
   DEFAULT_PHONE_COUNTRY_CODE,
   getPhoneLocalMaxLength,
@@ -195,34 +193,25 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
       setEditNameError("Введите ФИО");
       return;
     }
-    if (/[A-Za-z]/.test(nameTrim)) {
-      setEditNameError("ФИО должно быть на кириллице");
-      return;
-    }
     setEditNameError("");
 
-    const fullPhone = composePhone(editPhoneCode, editPhone);
     const payload: Record<string, unknown> = {
       fullName: nameTrim,
-      full_name: nameTrim,
+      email: editEmail.trim() || null,
     };
-    if (fullPhone) payload.userPhoneNumber = fullPhone;
-    if (editEmail.trim()) payload.userEmail = editEmail.trim();
-    if (editTelegram.trim()) payload.telegramId = editTelegram.trim();
-    if (editBank.trim()) payload.bankAccountNumber = editBank.trim();
 
     try {
       setBusy(true);
-      await updateEmployeeApi(String(empFromPerms.id), payload);
+      await apiFetch("/api/v1/users/me/", {
+        method: "PATCH",
+        body: JSON.stringify(payload),
+      });
 
       // Обновляем локальное состояние
       setEmployee((prev) => prev ? {
         ...prev,
         full_name: nameTrim,
-        phone: fullPhone || prev.phone,
         email: editEmail.trim() || prev.email,
-        telegram_id: editTelegram.trim() || prev.telegram_id,
-        bank_account_number: editBank.trim() || prev.bank_account_number,
       } : prev);
 
       notify?.({ type: "success", message: "Профиль обновлён" });
@@ -742,7 +731,9 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
                           }}
                           fullWidth
                           size="small"
+                          disabled
                           placeholder="XXX XXX XXX"
+                          helperText="Контактные данные обновляются через HR-модуль"
                           InputProps={{
                             startAdornment: (
                               <InputAdornment position="start" sx={{ mr: 1, ml: "-14px" }}>
@@ -773,6 +764,7 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
                           onChange={(e) => setEditTelegram(e.target.value.replace(/[^0-9]/g, ""))}
                           fullWidth
                           size="small"
+                          disabled
                           placeholder="Только цифры"
                           inputProps={{ inputMode: "numeric" }}
                         />
@@ -785,9 +777,10 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
                           onChange={(e) => setEditBank(e.target.value.replace(/[^0-9]/g, "").slice(0, 16))}
                           fullWidth
                           size="small"
+                          disabled
                           placeholder="16 цифр"
                           inputProps={{ inputMode: "numeric" }}
-                          helperText={`${editBank.length}/16`}
+                          helperText="Редактирование банковских реквизитов ограничено"
                           InputProps={{
                             startAdornment: (
                               <InputAdornment position="start">

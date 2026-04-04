@@ -8,6 +8,69 @@ export const getBranchFilter = () => _activeBranchId;
 
 const TOKEN_KEY = "academy_access_token";
 const REFRESH_KEY = "academy_refresh_token";
+const SESSION_STARTED_AT_KEY = "academy_session_started_at";
+const LOGOUT_AT_KEY = "academy_logout_at";
+
+type ApiError = Error & { status?: number; retryAfterSeconds?: number };
+
+const CLIENT_RATE_LIMITS = {
+  auth: { windowMs: 5 * 60 * 1000, max: 5 },
+  general: { windowMs: 3_000, max: 12 },
+} as const;
+
+const requestHistory = new Map<string, number[]>();
+
+function createApiError(detail: string, status?: number, retryAfterSeconds?: number): ApiError {
+  const err = new Error(detail) as ApiError;
+  if (status !== undefined) err.status = status;
+  if (retryAfterSeconds !== undefined) err.retryAfterSeconds = retryAfterSeconds;
+  return err;
+}
+
+function isAuthPath(path: string): boolean {
+  return path.startsWith("/api/v1/auth/");
+}
+
+function getRateLimitKey(path: string, method: string): string {
+  return `${method}:${path.split("?")[0]}`;
+}
+
+function enforceClientRateLimit(path: string, method: string): void {
+  const { windowMs, max } = isAuthPath(path) ? CLIENT_RATE_LIMITS.auth : CLIENT_RATE_LIMITS.general;
+  const key = getRateLimitKey(path, method);
+  const now = Date.now();
+  const active = (requestHistory.get(key) ?? []).filter((ts) => now - ts < windowMs);
+
+  if (active.length >= max) {
+    const retryAfterSeconds = Math.max(1, Math.ceil((windowMs - (now - active[0])) / 1000));
+    throw createApiError(
+      `Слишком много запросов. Повторите попытку через ${retryAfterSeconds} сек.`,
+      429,
+      retryAfterSeconds,
+    );
+  }
+
+  active.push(now);
+  requestHistory.set(key, active);
+}
+
+function getSessionStartedAt(): number {
+  const raw = localStorage.getItem(SESSION_STARTED_AT_KEY);
+  const value = raw ? Number(raw) : 0;
+  return Number.isFinite(value) ? value : 0;
+}
+
+function getLogoutAt(): number {
+  const raw = localStorage.getItem(LOGOUT_AT_KEY);
+  const value = raw ? Number(raw) : 0;
+  return Number.isFinite(value) ? value : 0;
+}
+
+function isClientSessionRevoked(): boolean {
+  const sessionStartedAt = getSessionStartedAt();
+  const logoutAt = getLogoutAt();
+  return logoutAt > 0 && logoutAt >= sessionStartedAt;
+}
 
 export const tokenStorage = {
   getAccess: () => localStorage.getItem(TOKEN_KEY),
@@ -15,10 +78,13 @@ export const tokenStorage = {
   set: (access: string, refresh: string) => {
     localStorage.setItem(TOKEN_KEY, access);
     localStorage.setItem(REFRESH_KEY, refresh);
+    localStorage.setItem(SESSION_STARTED_AT_KEY, String(Date.now()));
+    localStorage.removeItem(LOGOUT_AT_KEY);
   },
   clear: () => {
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(REFRESH_KEY);
+    localStorage.setItem(LOGOUT_AT_KEY, String(Date.now()));
   },
 };
 
@@ -26,6 +92,11 @@ let isRefreshing = false;
 let refreshQueue: Array<(token: string | null) => void> = [];
 
 async function refreshAccessToken(): Promise<string | null> {
+  if (isClientSessionRevoked()) {
+    tokenStorage.clear();
+    return null;
+  }
+
   const refresh = tokenStorage.getRefresh();
   if (!refresh) return null;
 
@@ -90,6 +161,14 @@ export async function apiFetch<T = unknown>(
   const resolvedPath = injectBranchParam(path, method);
   const url = `${BASE_URL}${resolvedPath}`;
 
+  enforceClientRateLimit(resolvedPath, method);
+
+  if (!skipAuth && isClientSessionRevoked()) {
+    tokenStorage.clear();
+    window.location.href = "/login";
+    throw createApiError("Сессия завершена. Войдите снова.", 401);
+  }
+
   const buildHeaders = (token?: string | null): HeadersInit => {
     const headers: Record<string, string> = {
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -142,6 +221,8 @@ export async function apiFetch<T = unknown>(
 
   if (!response.ok) {
     let errorDetail = `HTTP ${response.status}`;
+    const retryAfterHeader = response.headers.get("Retry-After");
+    const retryAfterSeconds = retryAfterHeader ? Number.parseInt(retryAfterHeader, 10) : undefined;
     try {
       const errJson = await response.json();
       const firstError = errJson?.errors?.[0];
@@ -157,12 +238,14 @@ export async function apiFetch<T = unknown>(
       if (process.env.NODE_ENV === 'development') {
         console.warn(`[apiFetch] 403 Forbidden: ${path}`, errorDetail);
       }
-      const err = new Error(errorDetail) as Error & { status: number };
-      err.status = 403;
-      throw err;
+      throw createApiError(errorDetail, 403);
     }
 
-    throw new Error(errorDetail);
+    if (response.status === 429) {
+      throw createApiError(errorDetail, 429, retryAfterSeconds);
+    }
+
+    throw createApiError(errorDetail, response.status, retryAfterSeconds);
   }
 
   // 204 No Content

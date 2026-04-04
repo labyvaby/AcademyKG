@@ -8,7 +8,6 @@ import CreditCardOutlined from "@mui/icons-material/CreditCardOutlined";
 import DrawerBase from "./DrawerBase";
 import type { EmployesRow, ServiceRow } from "../types";
 import { employeeFormUtils, fetchRoles } from "../hooks/useEmployeesPage";
-import { mapAnyToEmployee } from "../api";
 import ServicePhotoUploader from "../../../components/services/ServicePhotoUploader";
 import PassportPhotoUploader from "./PassportPhotoUploader";
 import { useNotification } from "@refinedev/core";
@@ -23,6 +22,7 @@ import {
 } from "../../../utility/phone";
 import SalarySettings from "./SalarySettings";
 import { usePermissions } from "../../../hooks/usePermissions";
+import { PERMISSIONS } from "../../../constants/permissions";
 
 export type EditEmployeeDrawerProps = {
   record: EmployesRow | null;
@@ -31,6 +31,7 @@ export type EditEmployeeDrawerProps = {
 };
 
 type RoleRow = { id: string; name: string; display_name: string };
+type BranchRow = { id: string; name: string; organizationId: string };
 
 // Роли загружаются из API — fallback пустой, т.к. id должны быть UUID
 const FALLBACK_ROLES: RoleRow[] = [];
@@ -38,7 +39,7 @@ const FALLBACK_ROLES: RoleRow[] = [];
 const EditEmployeeDrawer: React.FC<EditEmployeeDrawerProps> = ({ record, onClose, onUpdated }) => {
   const open = Boolean(record);
   const { open: notify } = useNotification();
-  const { hasRole } = usePermissions();
+  const { hasRole, hasPermission } = usePermissions();
 
   const [fullName, setFullName] = React.useState("");
   const [phone, setPhone] = React.useState("");
@@ -66,9 +67,11 @@ const EditEmployeeDrawer: React.FC<EditEmployeeDrawerProps> = ({ record, onClose
   const [selectedServices, setSelectedServices] = React.useState<ServiceRow[]>([]);
   const [specializations, setSpecializations] = React.useState<{ id: string; name: string }[]>([]);
   const [branchId, setBranchId] = React.useState("");
-  const [branches, setBranches] = React.useState<{ id: string; name: string }[]>([]);
+  const [organizationId, setOrganizationId] = React.useState("");
+  const [branches, setBranches] = React.useState<BranchRow[]>([]);
 
   const selectedRole = roles.find(r => r.id === roleId);
+  const canManageRoles = hasPermission(PERMISSIONS.APP_SETTINGS_UPDATE);
 
   const normalizeDateInput = (input: unknown): string => {
     if (!input || typeof input !== "string") return "";
@@ -89,7 +92,7 @@ const EditEmployeeDrawer: React.FC<EditEmployeeDrawerProps> = ({ record, onClose
       setNickname(""); setEmail(""); setEmailErrorMsg(""); setBusy(false); setInn("");
       setPhotoPreview(null); setServices([]); setSelectedServices([]);
       setPassportPhotos([]); setPassportFiles([]); setRemovedPassportUrls([]);
-      setBranchId("");
+      setBranchId(""); setOrganizationId("");
       return;
     }
 
@@ -134,10 +137,15 @@ const EditEmployeeDrawer: React.FC<EditEmployeeDrawerProps> = ({ record, onClose
         setServices(allSrvUniq);
         setSpecializations(specs);
         setRoles(apiRoles.length > 0 ? apiRoles : FALLBACK_ROLES);
-        setBranches(branchesRes.map((b: any) => ({ id: String(b.id ?? b.uuid ?? ""), name: b.name ?? b.displayName ?? "" })));
+        setBranches(branchesRes.map((b: any) => ({
+          id: String(b.id ?? b.uuid ?? ""),
+          name: b.name ?? b.displayName ?? "",
+          organizationId: String(b.organization?.id ?? b.organizationId ?? b.organization ?? ""),
+        })));
         // Подставляем текущий филиал сотрудника
         const currentBranchId = d?.branch?.id ?? d?.branchId ?? "";
         if (currentBranchId) setBranchId(String(currentBranchId));
+        setOrganizationId(String(d?.organization?.id ?? d?.organizationId ?? d?.organization ?? ""));
 
         // Специализации
         const specList: any[] = Array.isArray(d?.specializations) ? d.specializations : [];
@@ -169,19 +177,12 @@ const EditEmployeeDrawer: React.FC<EditEmployeeDrawerProps> = ({ record, onClose
     if (!record) return;
     const fullNameTrim = fullName.trim();
     if (!fullNameTrim) { notify?.({ type: "error", message: "Введите ФИО сотрудника" }); return; }
-    if (/[A-Za-z]/.test(fullNameTrim)) {
-      notify?.({
-        type: "error",
-        message: "ФИО сотрудника должно быть на кириллице",
-        description: "Латиница в этом поле не допускается. Это предотвращает ошибку сохранения 400.",
-      });
-      return;
-    }
     const maxLen = getPhoneLocalMaxLength(phoneCountryCode);
     if (phone.trim().length > 0 && phone.trim().length !== maxLen) { setPhoneError(true); return; }
     if (emailErrorMsg) return;
     if (!branchId) { notify?.({ type: "error", message: "Выберите филиал сотрудника" }); return; }
     if (!roleId) { notify?.({ type: "error", message: "Выберите роль сотрудника" }); return; }
+    if (!organizationId) { notify?.({ type: "error", message: "Для выбранного филиала не найдена организация" }); return; }
     if ((selectedRole?.name === 'specialist') && !specializationId) {
       notify?.({ type: "error", message: "Выберите специализацию" }); return;
     }
@@ -192,15 +193,16 @@ const EditEmployeeDrawer: React.FC<EditEmployeeDrawerProps> = ({ record, onClose
 
       const payload: Record<string, unknown> = {
         fullName: fullNameTrim || undefined,
-        full_name: fullNameTrim || undefined,
         status,
-        role: roleId || undefined,
+        organization: organizationId,
+        branch: branchId,
       };
+
+      if (canManageRoles) payload.role = roleId || undefined;
 
       if (fullPhone) payload.userPhoneNumber = fullPhone;
       if (email.trim()) payload.userEmail = email.trim();
       if (birthDate) payload.birthDate = birthDate;
-      if (branchId) payload.branch = branchId;
       if (telegramId.trim()) payload.telegramId = telegramId.trim();
       if (bankAccountNumber.trim()) payload.bankAccountNumber = bankAccountNumber.trim();
       if (inn.trim()) payload.inn = inn.trim();
@@ -208,12 +210,12 @@ const EditEmployeeDrawer: React.FC<EditEmployeeDrawerProps> = ({ record, onClose
 
       // Отправляем специализации только если выбран врач или специалист
       if ((selectedRole?.name === 'specialist') && specializationId) {
-        payload.specialization_ids = [specializationId];
+        payload.specializationIds = [specializationId];
       }
 
       // Услуги отправляем только если они выбраны
       if (selectedServices.length > 0) {
-        payload.service_ids = selectedServices.map(s => s.id);
+        payload.serviceIds = selectedServices.map(s => s.id);
       }
 
       await employeeFormUtils.updateEmployeeApi(String(record.id), payload);
@@ -330,6 +332,8 @@ const EditEmployeeDrawer: React.FC<EditEmployeeDrawerProps> = ({ record, onClose
           <TextField select value={roleId}
             onChange={e => { setRoleId(e.target.value); const r = roles.find(x => x.id === e.target.value); if (r?.name !== 'specialist') setSpecializationId(""); }}
             fullWidth required
+            disabled={!canManageRoles}
+            helperText={canManageRoles ? "" : "Изменение роли доступно только администраторам"}
           >
             {roles.map(r => <MenuItem key={r.id} value={r.id}>{r.display_name || r.name}</MenuItem>)}
           </TextField>
@@ -337,7 +341,18 @@ const EditEmployeeDrawer: React.FC<EditEmployeeDrawerProps> = ({ record, onClose
 
         <Stack spacing={0.5}>
           <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>Филиал *</Typography>
-          <TextField select value={branchId} onChange={e => setBranchId(e.target.value)} fullWidth required>
+          <TextField
+            select
+            value={branchId}
+            onChange={e => {
+              const nextBranchId = e.target.value;
+              setBranchId(nextBranchId);
+              const branch = branches.find((b) => b.id === nextBranchId);
+              setOrganizationId(branch?.organizationId ?? organizationId);
+            }}
+            fullWidth
+            required
+          >
             {branches.map(b => <MenuItem key={b.id} value={b.id}>{b.name}</MenuItem>)}
           </TextField>
         </Stack>

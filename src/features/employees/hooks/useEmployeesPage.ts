@@ -13,6 +13,24 @@ import { fetchSellableServices } from "../../../services/services";
 import { useSimplePageCache } from "../../../hooks/useSimplePageCache";
 
 const PAGE_SIZE = 30;
+const EMPLOYEE_WRITE_FIELDS = new Set([
+  "fullName",
+  "inn",
+  "nickname",
+  "birthDate",
+  "photoUrl",
+  "telegramId",
+  "bankAccountNumber",
+  "status",
+  "role",
+  "authUser",
+  "organization",
+  "branch",
+  "specializationIds",
+  "serviceIds",
+  "userEmail",
+  "userPhoneNumber",
+]);
 
 function getErrorMessage(error: unknown): string {
   if (error instanceof Error) return error.message;
@@ -198,22 +216,35 @@ export async function fetchRoles(): Promise<{ id: string; name: string; display_
   }
 }
 
+function sanitizeEmployeeWritePayload(payload: Record<string, unknown>): Record<string, unknown> {
+  return Object.fromEntries(
+    Object.entries(payload).filter(([key, value]) => {
+      if (!EMPLOYEE_WRITE_FIELDS.has(key)) return false;
+      if (value === undefined) return false;
+      if (typeof value === "string" && !value.trim()) return false;
+      return !(Array.isArray(value) && value.length === 0);
+    }),
+  );
+}
+
 // Создать сотрудника через REST API
 export async function createEmployeeApi(payload: Record<string, unknown>): Promise<any> {
-  console.log("[createEmployeeApi] payload:", JSON.stringify(payload, null, 2));
+  const safePayload = sanitizeEmployeeWritePayload(payload);
+  console.log("[createEmployeeApi] payload:", JSON.stringify(safePayload, null, 2));
   const res = await apiFetch("/api/v1/employees/", {
     method: "POST",
-    body: JSON.stringify(payload),
+    body: JSON.stringify(safePayload),
   });
   return (res as any)?.data ?? res;
 }
 
 // Обновить сотрудника через REST API
 export async function updateEmployeeApi(id: string, payload: Record<string, unknown>): Promise<any> {
-  console.log("[updateEmployeeApi] PATCH", id, JSON.stringify(payload, null, 2));
+  const safePayload = sanitizeEmployeeWritePayload(payload);
+  console.log("[updateEmployeeApi] PATCH", id, JSON.stringify(safePayload, null, 2));
   const res = await apiFetch(`/api/v1/employees/${id}/`, {
     method: "PATCH",
-    body: JSON.stringify(payload),
+    body: JSON.stringify(safePayload),
   });
   console.log("[updateEmployeeApi] response:", res);
   return (res as any)?.data ?? res;

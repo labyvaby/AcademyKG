@@ -1054,6 +1054,24 @@ export const HomeAddAppointmentDrawer: React.FC<
     trim: true,
   });
 
+  const selectedDoctorId = serviceRows[0]?.doctorId ?? "";
+  const servicesForSelectedDoctor = selectedDoctorId ? employeeServicesCache[selectedDoctorId] : undefined;
+  const serviceOptions = servicesForSelectedDoctor ?? servicesOpts;
+  const isDoctorServicesEmpty = Boolean(selectedDoctorId) && Array.isArray(servicesForSelectedDoctor) && servicesForSelectedDoctor.length === 0;
+  const doctorNoOptionsText = doctorsLoading
+    ? "Загрузка тренеров..."
+    : "Нет доступных тренеров. Добавьте тренера в разделе сотрудников.";
+  const serviceNoOptionsText = servicesLoading
+    ? "Загрузка услуг..."
+    : isDoctorServicesEmpty
+      ? "Для выбранного тренера нет услуг. Добавьте услугу в разделе «Услуги»."
+      : "Нет доступных услуг. Добавьте услугу в разделе «Услуги».";
+  const serviceHelperText = touched && !serviceRows[0]?.serviceId
+    ? "Выберите услугу"
+    : isDoctorServicesEmpty
+      ? "Для выбранного тренера нет услуг. Добавьте услугу в разделе «Услуги»."
+      : "";
+
   return (
     <>
       <Drawer
@@ -1262,6 +1280,7 @@ export const HomeAddAppointmentDrawer: React.FC<
                 disabled={isWorkplaceNurse}
                 options={doctorsOpts}
                 loading={doctorsLoading}
+                noOptionsText={doctorNoOptionsText}
                 value={doctorsOpts.find((d) => d.id === serviceRows[0]?.doctorId) || null}
                 onChange={(_, v) => {
                   const updated = [...serviceRows];
@@ -1320,18 +1339,10 @@ export const HomeAddAppointmentDrawer: React.FC<
               </Typography>
               <Autocomplete
                 fullWidth
-                options={
-                  serviceRows[0]?.doctorId && employeeServicesCache[serviceRows[0].doctorId]
-                    ? employeeServicesCache[serviceRows[0].doctorId]
-                    : servicesOpts
-                }
+                options={serviceOptions}
                 loading={servicesLoading}
-                value={
-                  (serviceRows[0]?.doctorId && employeeServicesCache[serviceRows[0].doctorId]
-                    ? employeeServicesCache[serviceRows[0].doctorId]
-                    : servicesOpts
-                  ).find((s) => s.id === serviceRows[0]?.serviceId) || null
-                }
+                noOptionsText={serviceNoOptionsText}
+                value={serviceOptions.find((s) => s.id === serviceRows[0]?.serviceId) || null}
                 onChange={(_, v) => {
                   const updated = [...serviceRows];
                   updated[0] = { ...updated[0], serviceId: v?.id || "" };
@@ -1361,7 +1372,7 @@ export const HomeAddAppointmentDrawer: React.FC<
                     size="small"
                     fullWidth
                     error={touched && !serviceRows[0]?.serviceId}
-                    helperText={touched && !serviceRows[0]?.serviceId ? "Выберите услугу" : ""}
+                    helperText={serviceHelperText}
                   />
                 )}
               />
