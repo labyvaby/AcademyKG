@@ -226,7 +226,7 @@ const SidebarContainer: React.FC<React.PropsWithChildren<{ stickyTop?: React.Rea
 
 // Mobile header with logo (< 768px - мобильные и планшеты)
 const MobileSidebarHeader: React.FC = () => {
-  const { mobileOpen } = useMobileSidebar();
+  const { mobileOpen, setMobileOpen } = useMobileSidebar();
 
   return (
     <Box
@@ -242,29 +242,31 @@ const MobileSidebarHeader: React.FC = () => {
         transition: "all 400ms cubic-bezier(0.4, 0, 0.2, 1)",
       }}
     >
-      <Stack direction="row" alignItems="center" spacing={1.5}>
-        <Box
-          component="img"
-          src={appLogo}
-          alt="Academy KG"
-          sx={{
-            height: 36,
-            width: "auto",
-          }}
-        />
-        <Typography
-          variant="h5"
-          sx={{
-            fontWeight: 800,
-            letterSpacing: "-0.5px",
-            background: "linear-gradient(45deg, #1e3c72 0%, #2a5298 100%)",
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent",
-          }}
-        >
-          Academy<span style={{ fontWeight: 400 }}>KG</span>
-        </Typography>
-      </Stack>
+      <RouterLink to="/home" onClick={() => setMobileOpen(false)} style={{ textDecoration: "none" }}>
+        <Stack direction="row" alignItems="center" spacing={1.5}>
+          <Box
+            component="img"
+            src={appLogo}
+            alt="Academy KG"
+            sx={{
+              height: 36,
+              width: "auto",
+            }}
+          />
+          <Typography
+            variant="h5"
+            sx={{
+              fontWeight: 800,
+              letterSpacing: "-0.5px",
+              background: "linear-gradient(45deg, #1e3c72 0%, #2a5298 100%)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+            }}
+          >
+            Academy<span style={{ fontWeight: 400 }}>KG</span>
+          </Typography>
+        </Stack>
+      </RouterLink>
     </Box>
   );
 };
@@ -297,31 +299,33 @@ const DesktopSidebarHeader: React.FC = () => {
           overflow: "hidden",
         }}
       >
-        <Stack direction="row" alignItems="center" spacing={1}>
-          <Box
-            component="img"
-            src={appLogo}
-            alt="Academy KG"
-            sx={{
-              height: 28,
-              width: "auto",
-            }}
-          />
-          <Typography
-            variant="h6"
-            sx={{
-              fontWeight: 850,
-              fontSize: "1.1rem",
-              letterSpacing: "-0.4px",
-              background: "linear-gradient(45deg, #1e3c72 0%, #2a5298 100%)",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-              whiteSpace: "nowrap"
-            }}
-          >
-            Academy<span style={{ fontWeight: 450 }}>KG</span>
-          </Typography>
-        </Stack>
+        <RouterLink to="/home" style={{ textDecoration: "none" }}>
+          <Stack direction="row" alignItems="center" spacing={1}>
+            <Box
+              component="img"
+              src={appLogo}
+              alt="Academy KG"
+              sx={{
+                height: 28,
+                width: "auto",
+              }}
+            />
+            <Typography
+              variant="h6"
+              sx={{
+                fontWeight: 850,
+                fontSize: "1.1rem",
+                letterSpacing: "-0.4px",
+                background: "linear-gradient(45deg, #1e3c72 0%, #2a5298 100%)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                whiteSpace: "nowrap"
+              }}
+            >
+              Academy<span style={{ fontWeight: 450 }}>KG</span>
+            </Typography>
+          </Stack>
+        </RouterLink>
       </Box>
 
       {/* Кнопка бургера - всегда видна */}

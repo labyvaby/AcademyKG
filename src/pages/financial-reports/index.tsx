@@ -16,7 +16,10 @@ import {
     CardContent,
     alpha,
     CircularProgress,
-    Avatar
+    Avatar,
+    Button,
+    ButtonGroup,
+    Tooltip,
 } from "@mui/material";
 import { useNotification } from "@refinedev/core";
 import AssessmentOutlined from "@mui/icons-material/AssessmentOutlined";
@@ -25,6 +28,8 @@ import CreditCardIcon from '@mui/icons-material/CreditCard';
 import WalletIcon from '@mui/icons-material/Wallet';
 import BusinessCenterOutlined from '@mui/icons-material/BusinessCenterOutlined';
 import ReceiptLongOutlined from '@mui/icons-material/ReceiptLongOutlined';
+import FileDownloadOutlined from '@mui/icons-material/FileDownloadOutlined';
+import PrintOutlined from '@mui/icons-material/PrintOutlined';
 
 import { PageHeader, MonthNavigation } from "../../components/ui";
 import { usePageTitle } from "../../hooks/usePageTitle";
@@ -100,6 +105,37 @@ const FinancialReportsPage: React.FC = () => {
 
     const { summaryCards = [], displayDays = [], totals = {} } = reportData || {};
 
+    const monthLabel = dayjs(selectedDate).format('YYYY-MM');
+
+    const exportCSV = () => {
+        const BOM = '\uFEFF';
+        const headers = ['Дата', 'Приемы', 'Процедуры', 'Услуги', 'Товары', 'Скидки', 'Наличные', 'Безнал', 'Долг'];
+        const rows = displayDays.map((d: DailyFinancialData) => [
+            dayjs(d.date).format('DD.MM.YYYY'),
+            d.appointmentsCount,
+            d.proceduresCount,
+            d.servicesSum,
+            d.productsSum,
+            d.discountSum,
+            d.cashSum,
+            d.cardSum,
+            d.debtSum,
+        ]);
+        rows.push(['ИТОГО', totals.appointmentsCount || 0, totals.proceduresCount || 0, totals.servicesSum || 0, totals.productsSum || 0, totals.discountSum || 0, totals.cashSum || 0, totals.cardSum || 0, totals.debtSum || 0]);
+        const csv = BOM + [headers, ...rows].map(r => r.join(';')).join('\n');
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `financial-report-${monthLabel}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+    };
+
+    const exportPrint = () => {
+        window.print();
+    };
+
     return (
         <Box sx={{ height: "100%", display: "flex", flexDirection: "column", overflow: "auto" }}>
             <PageHeader
@@ -110,6 +146,36 @@ const FinancialReportsPage: React.FC = () => {
             />
 
             <Box sx={(theme) => ({ px: theme.appLayout.page.paddingX, pb: theme.appLayout.page.paddingY, flex: 1, display: 'flex', flexDirection: 'column' })}>
+                <Stack direction="row" justifyContent="flex-end" spacing={1} sx={{ mb: 1.5, flexShrink: 0 }}>
+                    <Tooltip title="Экспорт в Excel (CSV)">
+                        <span>
+                            <Button
+                                variant="outlined"
+                                size="small"
+                                startIcon={<FileDownloadOutlined />}
+                                onClick={exportCSV}
+                                disabled={!reportData || displayDays.length === 0}
+                                sx={{ borderRadius: 2 }}
+                            >
+                                Excel
+                            </Button>
+                        </span>
+                    </Tooltip>
+                    <Tooltip title="Печать / Сохранить как PDF">
+                        <span>
+                            <Button
+                                variant="outlined"
+                                size="small"
+                                startIcon={<PrintOutlined />}
+                                onClick={exportPrint}
+                                disabled={!reportData || displayDays.length === 0}
+                                sx={{ borderRadius: 2 }}
+                            >
+                                PDF
+                            </Button>
+                        </span>
+                    </Tooltip>
+                </Stack>
                 <Stack spacing={{ xs: 1.5, md: 3 }} sx={{ flex: 1, minHeight: 0 }}>
                     
                     {/* Summary Cards */}

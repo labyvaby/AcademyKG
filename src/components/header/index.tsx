@@ -7,6 +7,11 @@ import CreditCardOutlined from "@mui/icons-material/CreditCardOutlined";
 import CorporateFareOutlined from "@mui/icons-material/CorporateFareOutlined";
 import EditOutlined from "@mui/icons-material/EditOutlined";
 import CloseOutlined from "@mui/icons-material/CloseOutlined";
+import LockOutlined from "@mui/icons-material/LockOutlined";
+import VisibilityOutlined from "@mui/icons-material/VisibilityOutlined";
+import VisibilityOffOutlined from "@mui/icons-material/VisibilityOffOutlined";
+import ArrowBackOutlined from "@mui/icons-material/ArrowBackOutlined";
+import Alert from "@mui/material/Alert";
 import appIcon from "../../assets/img/icon_2.png";
 
 import AppBar from "@mui/material/AppBar";
@@ -39,7 +44,7 @@ import { Employee } from "../../features/employees/types";
 import PassportPhotoUploader from "../../features/employees/components/PassportPhotoUploader";
 import { useNotification } from "@refinedev/core";
 import SaveIcon from "@mui/icons-material/Save";
-import { usePermissions } from "../../hooks/usePermissions";
+import { usePermissions, refetchPermissions } from "../../hooks/usePermissions";
 import { updateEmployeeApi } from "../../features/employees/hooks/useEmployeesPage";
 import {
   composePhone,
@@ -77,6 +82,15 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
   const [editTelegram, setEditTelegram] = React.useState("");
   const [editBank, setEditBank] = React.useState("");
   const [editNameError, setEditNameError] = React.useState("");
+
+  // Смена пароля
+  const [changePasswordMode, setChangePasswordMode] = React.useState(false);
+  const [oldPassword, setOldPassword] = React.useState("");
+  const [newPassword, setNewPassword] = React.useState("");
+  const [confirmPassword, setConfirmPassword] = React.useState("");
+  const [showOldPassword, setShowOldPassword] = React.useState(false);
+  const [showNewPassword, setShowNewPassword] = React.useState(false);
+  const [passwordError, setPasswordError] = React.useState("");
 
   const { employee: empFromPerms, isSuperAdmin } = usePermissions();
   const isSuper = isSuperAdmin();
@@ -129,6 +143,30 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
     setProfileOpen(false);
     setEditMode(false);
     setEditNameError("");
+    setChangePasswordMode(false);
+    setOldPassword(""); setNewPassword(""); setConfirmPassword(""); setPasswordError("");
+  };
+
+  const handleChangePassword = async () => {
+    setPasswordError("");
+    if (!oldPassword.trim()) { setPasswordError("Введите текущий пароль"); return; }
+    if (newPassword.length < 8) { setPasswordError("Новый пароль должен быть не менее 8 символов"); return; }
+    if (newPassword !== confirmPassword) { setPasswordError("Пароли не совпадают"); return; }
+    try {
+      setBusy(true);
+      await apiFetch("/api/v1/auth/change-password/", {
+        method: "POST",
+        body: JSON.stringify({ oldPassword: oldPassword.trim(), newPassword: newPassword.trim(), newPasswordConfirm: confirmPassword.trim() }),
+      });
+      notify?.({ type: "success", message: "Пароль успешно изменён" });
+      setChangePasswordMode(false);
+      setOldPassword(""); setNewPassword(""); setConfirmPassword("");
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setPasswordError(msg || "Не удалось изменить пароль");
+    } finally {
+      setBusy(false);
+    }
   };
 
   // Заполняем поля при переходе в режим редактирования
@@ -189,6 +227,8 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
 
       notify?.({ type: "success", message: "Профиль обновлён" });
       setEditMode(false);
+      // Принудительно обновляем глобальный кэш: сайдбар и хедер получат новое имя
+      void refetchPermissions();
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       notify?.({ type: "error", message: "Не удалось сохранить профиль", description: msg });
@@ -424,7 +464,7 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
           {/* Диалог профиля */}
           <Dialog
             open={profileOpen}
-            onClose={handleClose}
+            onClose={busy ? undefined : handleClose}
             maxWidth="xs"
             fullWidth
             PaperProps={{
@@ -570,10 +610,101 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
                       </Button>
                       <Button
                         variant="outlined"
-                        onClick={handleClose}
+                        startIcon={<LockOutlined />}
+                        onClick={() => setChangePasswordMode(true)}
                         sx={{ borderRadius: 24, flex: 1 }}
                       >
-                        Закрыть
+                        Пароль
+                      </Button>
+                    </Stack>
+                    <Button
+                      variant="text"
+                      onClick={handleClose}
+                      sx={{ borderRadius: 24, mt: 1, width: '100%' }}
+                    >
+                      Закрыть
+                    </Button>
+                  </>
+                ) : changePasswordMode ? (
+                  /* ── СМЕНА ПАРОЛЯ ── */
+                  <>
+                    <Box sx={{ textAlign: "center", mb: 2 }}>
+                      <Typography variant="h6" fontWeight="700">Смена пароля</Typography>
+                    </Box>
+                    <Stack spacing={2} sx={{ width: '100%' }}>
+                      {passwordError && <Alert severity="error" sx={{ borderRadius: 2 }}>{passwordError}</Alert>}
+                      <Stack spacing={0.5}>
+                        <Typography variant="caption" color="text.secondary" fontWeight={600}>Текущий пароль *</Typography>
+                        <TextField
+                          value={oldPassword}
+                          onChange={(e) => setOldPassword(e.target.value)}
+                          fullWidth
+                          size="small"
+                          type={showOldPassword ? "text" : "password"}
+                          placeholder="••••••••"
+                          InputProps={{
+                            endAdornment: (
+                              <InputAdornment position="end">
+                                <IconButton size="small" onClick={() => setShowOldPassword(!showOldPassword)}>
+                                  {showOldPassword ? <VisibilityOffOutlined fontSize="small" /> : <VisibilityOutlined fontSize="small" />}
+                                </IconButton>
+                              </InputAdornment>
+                            ),
+                          }}
+                        />
+                      </Stack>
+                      <Stack spacing={0.5}>
+                        <Typography variant="caption" color="text.secondary" fontWeight={600}>Новый пароль *</Typography>
+                        <TextField
+                          value={newPassword}
+                          onChange={(e) => setNewPassword(e.target.value)}
+                          fullWidth
+                          size="small"
+                          type={showNewPassword ? "text" : "password"}
+                          placeholder="Минимум 8 символов"
+                          InputProps={{
+                            endAdornment: (
+                              <InputAdornment position="end">
+                                <IconButton size="small" onClick={() => setShowNewPassword(!showNewPassword)}>
+                                  {showNewPassword ? <VisibilityOffOutlined fontSize="small" /> : <VisibilityOutlined fontSize="small" />}
+                                </IconButton>
+                              </InputAdornment>
+                            ),
+                          }}
+                        />
+                      </Stack>
+                      <Stack spacing={0.5}>
+                        <Typography variant="caption" color="text.secondary" fontWeight={600}>Повторите новый пароль *</Typography>
+                        <TextField
+                          value={confirmPassword}
+                          onChange={(e) => setConfirmPassword(e.target.value)}
+                          fullWidth
+                          size="small"
+                          type="password"
+                          placeholder="••••••••"
+                          error={!!confirmPassword && confirmPassword !== newPassword}
+                          helperText={confirmPassword && confirmPassword !== newPassword ? "Пароли не совпадают" : ""}
+                        />
+                      </Stack>
+                    </Stack>
+                    <Stack direction="row" spacing={1} sx={{ mt: 3, width: '100%' }}>
+                      <Button
+                        variant="contained"
+                        startIcon={busy ? <CircularProgress size={16} /> : <LockOutlined />}
+                        onClick={handleChangePassword}
+                        disabled={busy}
+                        sx={{ borderRadius: 24, flex: 1 }}
+                      >
+                        Сохранить пароль
+                      </Button>
+                      <Button
+                        variant="outlined"
+                        startIcon={<ArrowBackOutlined />}
+                        onClick={() => { setChangePasswordMode(false); setOldPassword(""); setNewPassword(""); setConfirmPassword(""); setPasswordError(""); }}
+                        disabled={busy}
+                        sx={{ borderRadius: 24, flex: 1 }}
+                      >
+                        Назад
                       </Button>
                     </Stack>
                   </>

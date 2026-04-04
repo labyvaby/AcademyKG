@@ -14,11 +14,15 @@ import {
     alpha,
     CircularProgress,
     Skeleton,
+    Button,
+    Tooltip,
 } from "@mui/material";
 import { useNotification } from "@refinedev/core";
 import ReportProblemIcon from '@mui/icons-material/ReportProblem';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
+import FileDownloadOutlined from '@mui/icons-material/FileDownloadOutlined';
+import PrintOutlined from '@mui/icons-material/PrintOutlined';
 
 import { PageHeader, MonthNavigation } from "../../components/ui";
 import { usePageTitle } from "../../hooks/usePageTitle";
@@ -73,6 +77,38 @@ const SalaryReportsPage: React.FC = () => {
 
     const { groups = [], totals = {} as any, summary = {} as any } = reportData || {};
 
+    const monthLabel = dayjs(selectedDate).format('YYYY-MM');
+
+    const exportCSV = () => {
+        const BOM = '\uFEFF';
+        const lines: string[] = [];
+        lines.push(['Сотрудник', 'Группа', 'День (ч)', 'Ночь (ч)', 'Оплаченные приемы', '% ЗП', 'Оклад', 'Аванс', 'К выплате'].join(';'));
+        groups.forEach((group: PayrollGroup) => {
+            group.rows.forEach((row) => {
+                lines.push([
+                    row.fullName,
+                    group.title,
+                    row.dayHours ?? 0,
+                    row.nightHours ?? 0,
+                    row.paidAppointmentsCount ?? 0,
+                    row.percentSum ?? 0,
+                    row.fixedSum ?? 0,
+                    row.expensesSum ?? 0,
+                    row.netSalary ?? 0,
+                ].join(';'));
+            });
+        });
+        lines.push(['ИТОГО', '', '', '', '', '', '', totals.expensesSum || 0, totals.netSalary || 0].join(';'));
+        const csv = BOM + lines.join('\n');
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `salary-report-${monthLabel}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+    };
+
     return (
         <Box sx={{ height: "100%", display: "flex", flexDirection: "column", overflow: "hidden" }}>
             <PageHeader
@@ -92,6 +128,36 @@ const SalaryReportsPage: React.FC = () => {
                 overflowY: 'auto',
                 minHeight: 0
             })}>
+                <Stack direction="row" justifyContent="flex-end" spacing={1} sx={{ mb: 1.5, flexShrink: 0 }}>
+                    <Tooltip title="Экспорт в Excel (CSV)">
+                        <span>
+                            <Button
+                                variant="outlined"
+                                size="small"
+                                startIcon={<FileDownloadOutlined />}
+                                onClick={exportCSV}
+                                disabled={!reportData || groups.length === 0}
+                                sx={{ borderRadius: 2 }}
+                            >
+                                Excel
+                            </Button>
+                        </span>
+                    </Tooltip>
+                    <Tooltip title="Печать / Сохранить как PDF">
+                        <span>
+                            <Button
+                                variant="outlined"
+                                size="small"
+                                startIcon={<PrintOutlined />}
+                                onClick={() => window.print()}
+                                disabled={!reportData || groups.length === 0}
+                                sx={{ borderRadius: 2 }}
+                            >
+                                PDF
+                            </Button>
+                        </span>
+                    </Tooltip>
+                </Stack>
                 <Stack spacing={{ xs: 2, md: 3 }} sx={{ display: 'flex', flexDirection: 'column' }}>
 
                     {/* Summary Indicators */}

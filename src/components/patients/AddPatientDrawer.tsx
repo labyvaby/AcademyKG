@@ -173,6 +173,7 @@ const AddPatientDrawer: React.FC<Props> = ({ open, onClose, onCreated, initialPh
             message: "Клиент с таким номером уже существует",
             description: `Номер ${fullPhone} уже привязан к клиенту. Откройте существующую карточку.`,
           });
+          setBusy(false);
           return;
         }
       }

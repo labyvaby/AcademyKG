@@ -32,6 +32,25 @@ import {
 import { isAuthenticated, requestSmsCode, verifySmsCode, loginWithEmail, logout } from "../../services/auth";
 import { refetchPermissions } from "../../hooks/usePermissions";
 
+const MAX_ATTEMPTS = 5;
+const LOCKOUT_MS = 5 * 60 * 1000; // 5 минут
+
+function getFailState(): { count: number; lockedUntil: number } {
+  try {
+    const raw = sessionStorage.getItem("login_fail_state");
+    if (raw) return JSON.parse(raw);
+  } catch { /* ignore */ }
+  return { count: 0, lockedUntil: 0 };
+}
+
+function setFailState(count: number, lockedUntil: number) {
+  sessionStorage.setItem("login_fail_state", JSON.stringify({ count, lockedUntil }));
+}
+
+function clearFailState() {
+  sessionStorage.removeItem("login_fail_state");
+}
+
 const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const [params] = useSearchParams();
@@ -46,6 +65,51 @@ const LoginPage: React.FC = () => {
   const [loading, setLoading] = React.useState(false);
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
   const [infoMsg, setInfoMsg] = React.useState<string | null>(null);
+
+  // Brute-force protection state
+  const [failCount, setFailCount] = React.useState(() => getFailState().count);
+  const [lockedUntil, setLockedUntil] = React.useState(() => getFailState().lockedUntil);
+  const [lockCountdown, setLockCountdown] = React.useState(0);
+
+  React.useEffect(() => {
+    if (lockedUntil <= 0) return;
+    const tick = () => {
+      const remaining = Math.ceil((lockedUntil - Date.now()) / 1000);
+      if (remaining <= 0) {
+        setLockCountdown(0);
+        setLockedUntil(0);
+        setFailCount(0);
+        clearFailState();
+      } else {
+        setLockCountdown(remaining);
+      }
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [lockedUntil]);
+
+  const isLocked = lockedUntil > Date.now();
+
+  const handleFailedAttempt = () => {
+    const { count } = getFailState();
+    const newCount = count + 1;
+    if (newCount >= MAX_ATTEMPTS) {
+      const until = Date.now() + LOCKOUT_MS;
+      setFailState(newCount, until);
+      setFailCount(newCount);
+      setLockedUntil(until);
+    } else {
+      setFailState(newCount, 0);
+      setFailCount(newCount);
+    }
+  };
+
+  const handleSuccessfulLogin = () => {
+    clearFailState();
+    setFailCount(0);
+    setLockedUntil(0);
+  };
 
   // Email form state
   const [loginMethod, setLoginMethod] = React.useState<"phone" | "email">("phone");
@@ -130,6 +194,7 @@ const LoginPage: React.FC = () => {
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isLocked) return;
     if (!email.trim() || !password.trim()) {
       setErrorMsg("Введите email и пароль");
       return;
@@ -141,9 +206,11 @@ const LoginPage: React.FC = () => {
     try {
       logout(); // Clean start
       await loginWithEmail(email.trim(), password.trim());
+      handleSuccessfulLogin();
       await refetchPermissions();
       navigate(redirectTo, { replace: true });
     } catch (err) {
+      handleFailedAttempt();
       setErrorMsg(getErrorMessage(err));
     } finally {
       setLoading(false);
@@ -241,7 +308,21 @@ const LoginPage: React.FC = () => {
         </Tabs>
 
         <AnimatePresence mode="wait">
-          {errorMsg && (
+          {isLocked && (
+            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}>
+              <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }}>
+                Слишком много неудачных попыток. Вход заблокирован на {Math.floor(lockCountdown / 60)}:{String(lockCountdown % 60).padStart(2, "0")}
+              </Alert>
+            </motion.div>
+          )}
+          {!isLocked && failCount > 0 && failCount < MAX_ATTEMPTS && (
+            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}>
+              <Alert severity="warning" sx={{ mb: 3, borderRadius: 2 }}>
+                Неверные данные. Осталось попыток: {MAX_ATTEMPTS - failCount}
+              </Alert>
+            </motion.div>
+          )}
+          {!isLocked && errorMsg && (
             <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}>
               <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }}>{errorMsg}</Alert>
             </motion.div>
@@ -312,7 +393,7 @@ const LoginPage: React.FC = () => {
                     type="submit"
                     variant="contained"
                     fullWidth
-                    disabled={loading}
+                    disabled={loading || isLocked}
                     sx={{
                       py: 1.5,
                       borderRadius: "16px",
@@ -404,7 +485,7 @@ const LoginPage: React.FC = () => {
                     }}
                     startIcon={loading ? <CircularProgress size={20} color="inherit" /> : undefined}
                   >
-                    {loading ? "Проверка..." : "Войти"}
+                    {loading ? "Проверка..." : isLocked ? `Заблокировано (${Math.floor(lockCountdown / 60)}:${String(lockCountdown % 60).padStart(2, "0")})` : "Войти"}
                   </Button>
 
                   <Button
@@ -514,7 +595,7 @@ const LoginPage: React.FC = () => {
                   type="submit"
                   variant="contained"
                   fullWidth
-                  disabled={loading}
+                  disabled={loading || isLocked}
                   sx={{
                     py: 1.5,
                     borderRadius: "16px",
@@ -531,7 +612,7 @@ const LoginPage: React.FC = () => {
                   }}
                   startIcon={loading ? <CircularProgress size={20} color="inherit" /> : undefined}
                 >
-                  {loading ? "Вход..." : "Войти"}
+                  {loading ? "Вход..." : isLocked ? `Заблокировано (${Math.floor(lockCountdown / 60)}:${String(lockCountdown % 60).padStart(2, "0")})` : "Войти"}
                 </Button>
               </Stack>
             </motion.div>

@@ -66,12 +66,24 @@ export function usePatientList(options?: UsePatientListOptions) {
     setErrorMsg(null);
 
     try {
+      const qTrim = q.trim();
       const params = new URLSearchParams({
         pageSize: String(PER_PAGE),
         page: String(page + 1),
         ordering: "-createdAt",
       });
-      if (q.trim()) params.set("search", q.trim());
+      if (qTrim) {
+        params.set("search", qTrim);
+        // Если запрос выглядит как ИНН (только цифры, 10+ символов) — добавляем отдельный фильтр
+        if (/^\d{10,14}$/.test(qTrim)) {
+          params.set("inn", qTrim);
+        }
+        // Если запрос выглядит как телефон (только цифры/+, 7+ символов) — добавляем фильтр по телефону
+        const digitsOnly = qTrim.replace(/[^\d]/g, "");
+        if (/^[\d+\-() ]{7,}$/.test(qTrim) && digitsOnly.length >= 7 && !/^\d{10,14}$/.test(qTrim)) {
+          params.set("phone", digitsOnly);
+        }
+      }
 
       const res: any = await apiFetch(`/api/v1/clients/?${params.toString()}`);
       if (ctrl.signal.aborted) return;

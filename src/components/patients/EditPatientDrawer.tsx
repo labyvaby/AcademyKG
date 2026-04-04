@@ -211,19 +211,24 @@ const EditPatientDrawer: React.FC<Props> = ({
       setBusy(true);
       const fullPhone = composePhone(phoneCountryCode, phone);
       if (fullPhone) {
-        const lookup: any = await apiFetch(`/api/v1/clients/?search=${encodeURIComponent(fullPhone)}&pageSize=30`);
-        const candidates: any[] = lookup?.data?.results ?? lookup?.results ?? [];
-        const duplicate = candidates.find((c: any) =>
-          String(c?.id ?? "") !== String(patientId) &&
-          normalizePhoneValue(c?.phone) === normalizePhoneValue(fullPhone)
-        );
-        if (duplicate) {
-          notify?.({
-            type: "error",
-            message: "Клиент с таким номером уже существует",
-            description: `Номер ${fullPhone} уже привязан к другому клиенту.`,
-          });
-          return;
+        try {
+          const lookup: any = await apiFetch(`/api/v1/clients/?search=${encodeURIComponent(fullPhone)}&pageSize=30`);
+          const candidates: any[] = lookup?.data?.results ?? lookup?.results ?? [];
+          const duplicate = candidates.find((c: any) =>
+            String(c?.id ?? "") !== String(patientId) &&
+            normalizePhoneValue(c?.phone) === normalizePhoneValue(fullPhone)
+          );
+          if (duplicate) {
+            notify?.({
+              type: "error",
+              message: "Клиент с таким номером уже существует",
+              description: `Номер ${fullPhone} уже привязан к другому клиенту.`,
+            });
+            setBusy(false);
+            return;
+          }
+        } catch {
+          // Если проверка дубликата не прошла — продолжаем сохранение
         }
       }
 
