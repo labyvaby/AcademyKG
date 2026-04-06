@@ -22,18 +22,14 @@ import {
 } from "@mui/icons-material";
 import dayjs from "dayjs";
 import "dayjs/locale/ru";
-import { apiFetch } from "../../utility/apiClient";
+import { apiFetch, resolveApiUrl } from "../../utility/apiClient";
 import { formatKGS } from "../../utility/format";
 import { getStatusConfig, getStatusChipSx } from "../../config/appointmentStatuses";
 
 dayjs.locale("ru");
 
-const API_BASE = "https://academy.operator.kg";
-
 function resolveUrl(url: string | null | undefined): string | undefined {
-  if (!url) return undefined;
-  if (url.startsWith("http")) return url;
-  return `${API_BASE}${url}`;
+  return resolveApiUrl(url) ?? undefined;
 }
 
 // Интерфейс детальной информации об услуге

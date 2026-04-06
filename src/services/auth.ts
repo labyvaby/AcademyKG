@@ -1,4 +1,4 @@
-import { apiFetch, tokenStorage } from "../utility/apiClient";
+import { API_BASE_URL, apiFetch, tokenStorage } from "../utility/apiClient";
 
 export interface LoginResponse {
   data?: { access?: string; refresh?: string };
@@ -140,7 +140,7 @@ export function logout(): void {
 
   // Инвалидируем сессию на сервере в фоне
   if (access && refresh) {
-    fetch(`${import.meta.env.VITE_API_BASE_URL || "https://academy.operator.kg"}/api/v1/auth/logout/`, {
+    fetch(`${API_BASE_URL}/api/v1/auth/logout/`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

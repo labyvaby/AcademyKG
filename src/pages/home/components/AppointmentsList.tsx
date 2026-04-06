@@ -514,7 +514,7 @@ export const AppointmentsList: React.FC<AppointmentsListProps & { onAddSlot?: (d
           const addedTimes = new Set<string>(); // Prevent duplicates
           docShifts.forEach(shift => {
             const d = shift.shift_date;
-            let startTime = dayjs(`${d}T${shift.start_time}`);
+            const startTime = dayjs(`${d}T${shift.start_time}`);
             const timeKey = startTime.format('HH:mm');
 
             if (!addedTimes.has(timeKey)) {

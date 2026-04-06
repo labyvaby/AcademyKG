@@ -28,7 +28,6 @@ import dayjs from "dayjs";
 import "dayjs/locale/ru";
 import { useEmployees } from "../../hooks/useEmployees";
 // import { fetchEmployees } from "../../services/employees"; // Import fetcher
-import type { EmployeesRow } from "../../pages/expenses/types"; // Import type
 import { roundDateTimeLocalToStep } from "../../utility/time";
 
 type AddExpenseDrawerProps = {

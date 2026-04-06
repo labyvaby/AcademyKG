@@ -7,7 +7,6 @@ import {
   Build as BuildIcon,
   Paid as PaidIcon,
   PieChart as PieChartIcon,
-  PrintOutlined as PrintIcon,
   CardGiftcard as CardGiftcardIcon,
 } from "@mui/icons-material";
 import type { SxProps, Theme } from "@mui/material";

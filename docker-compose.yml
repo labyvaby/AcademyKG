@@ -6,5 +6,5 @@ services:
       dockerfile: Dockerfile
     container_name: mama_frontend_container
     ports:
-      - "5173:5173"
+      - "80:80"
     restart: always

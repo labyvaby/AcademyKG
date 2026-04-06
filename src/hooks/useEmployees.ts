@@ -1,6 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
 import { fetchEmployees } from "../services/employees";
-import type { EmployeesRow } from "../pages/expenses/types";
 
 export function useEmployees(enabled: boolean = true) {
   const { data, isLoading, error } = useQuery({

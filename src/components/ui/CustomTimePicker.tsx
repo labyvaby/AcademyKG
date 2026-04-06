@@ -23,7 +23,6 @@ export function CustomTimePicker(props: CustomTimePickerProps) {
       ampm={false}
       minutesStep={minutesStep ?? 15}
       shouldDisableTime={(value, view) => view === "minutes" && value.minute() % (minutesStep ?? 15) !== 0}
-      // @ts-ignore
       skipDisabled={true}
       open={open}
       onOpen={() => setOpen(true)}
@@ -34,11 +33,10 @@ export function CustomTimePicker(props: CustomTimePickerProps) {
           ...slotProps?.textField,
           onDoubleClick: handleDoubleClick,
         },
-        // @ts-ignore
+        // @ts-expect-error MUI picker types do not expose skipDisabled yet.
         digitalClock: {
           skipDisabled: true,
         },
-        // @ts-ignore
         multiSectionDigitalClock: {
           skipDisabled: true,
         },

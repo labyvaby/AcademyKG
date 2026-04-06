@@ -6,7 +6,6 @@ import {
   ListItem,
   ListItemButton,
   ListItemText,
-  ListItemAvatar, // ✅ Добавлен компонент для обертки аватара
   Avatar,         // ✅ Добавлен компонент аватара
   Stack,
   Typography,

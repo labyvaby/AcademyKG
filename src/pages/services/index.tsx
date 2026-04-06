@@ -25,13 +25,10 @@ import { useNotification, useTranslate } from "@refinedev/core";
 import { usePermissions } from "../../hooks/usePermissions";
 import { PERMISSIONS } from "../../constants/permissions";
 import ServiceQuickViewDrawer from "../../components/services/ServiceQuickViewDrawer";
-
-const API_BASE = "https://academy.operator.kg";
+import { resolveApiUrl } from "../../utility/apiClient";
 
 function resolveImageUrl(url: string | null | undefined): string | null {
-  if (!url) return null;
-  if (url.startsWith("http")) return url;
-  return `${API_BASE}${url}`;
+  return resolveApiUrl(url);
 }
 
 // Нормализация сервисных полей из произвольной схемы

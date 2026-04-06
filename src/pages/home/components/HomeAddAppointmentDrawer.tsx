@@ -1022,7 +1022,7 @@ export const HomeAddAppointmentDrawer: React.FC<
         message: "Прием успешно создан!",
       });
     } catch (e: unknown) {
-      // eslint-disable-next-line no-console
+       
       console.error(e);
       const err =
         (typeof e === "object" && e && "message" in e

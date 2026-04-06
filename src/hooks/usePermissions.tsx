@@ -1,10 +1,9 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { apiFetch } from '../utility/apiClient';
 import { isAuthenticated } from '../services/auth';
-import { tokenStorage } from '../utility/apiClient';
 import type { Role, Permission, UserPermissions, RoleName, PermissionCheck } from '../types/rbac';
 import { type Permission as PermissionString, ALL_PERMISSIONS } from '../constants/permissions';
-import { validatePermissions, auditPermissions, fixSuggestions, type PermissionAuditResult } from '../utils/validatePermissions';
+import { auditPermissions, fixSuggestions, type PermissionAuditResult } from '../utils/validatePermissions';
 
 /** Режим строгого RBAC: ошибка вместо предупреждения при неизвестном пермишене */
 const STRICT_RBAC = true;

@@ -29,7 +29,7 @@ import ZoomInOutlined from "@mui/icons-material/ZoomInOutlined";
 import InsertDriveFileOutlined from "@mui/icons-material/InsertDriveFileOutlined";
 import { useNotification } from "@refinedev/core";
 import PatientPhotoUploader from "./PatientPhotoUploader";
-import { apiFetch } from "../../utility/apiClient";
+import { apiFetch, resolveApiUrl } from "../../utility/apiClient";
 import { PhoneCountryCodeSelect, CustomDatePicker } from "../ui";
 import dayjs from "dayjs";
 import {
@@ -41,21 +41,15 @@ import {
 } from "../../utility/phone";
 import { useHasRole } from "../../hooks/usePermissions";
 
-const API_BASE = "https://academy.operator.kg";
-
 function resolvePhotoUrl(url: string | null | undefined): string | null {
-  if (!url) return null;
-  if (url.startsWith("http")) return url;
-  return `${API_BASE}${url}`;
+  return resolveApiUrl(url);
 }
 
 const normalizePhoneValue = (value: string | null | undefined): string =>
   String(value ?? "").replace(/[^\d+]/g, "");
 
 function resolveFileUrl(url: string | null | undefined): string {
-  if (!url) return "";
-  if (url.startsWith("http")) return url;
-  return `${API_BASE}${url}`;
+  return resolveApiUrl(url) ?? "";
 }
 
 function isImageUrl(url: string): boolean {

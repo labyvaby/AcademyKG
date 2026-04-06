@@ -9,7 +9,6 @@ import {
   List,
   ListItem,
   ListItemText,
-  Button,
 } from "@mui/material";
 import CloseOutlined from "@mui/icons-material/CloseOutlined";
 import { ClientShift } from "../model/types";

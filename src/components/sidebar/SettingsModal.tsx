@@ -9,10 +9,8 @@ import {
   Typography,
 } from "@mui/material";
 import LogoutOutlined from "@mui/icons-material/LogoutOutlined";
-import Brightness4Outlined from "@mui/icons-material/Brightness4Outlined";
 import NotificationsOutlined from "@mui/icons-material/NotificationsOutlined";
 import { logout } from "../../services/auth";
-import { ColorModeContext } from "../../contexts/color-mode";
 import { CanAccess } from "../rbac/CanAccess";
 import { Link as RouterLink } from "react-router";
 
@@ -25,16 +23,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   open,
   onClose,
 }) => {
-  const { mode, setMode } = React.useContext(ColorModeContext);
-
   const handleLogout = () => {
     logout();
     onClose();
     window.location.href = "/login";
-  };
-
-  const handleToggleTheme = () => {
-    setMode();
   };
 
   return (
@@ -55,18 +47,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               Настройка уведомлений
             </Button>
           </CanAccess>
-
-{/* 
-          // Темная тема временно отключена по просьбе пользователя
-          <Button
-            variant="outlined"
-            fullWidth
-            onClick={handleToggleTheme}
-            startIcon={<Brightness4Outlined />}
-          >
-            {mode === "dark" ? "Светлая тема" : "Темная тема"}
-          </Button>
-          */}
 
           <Button
             variant="contained"

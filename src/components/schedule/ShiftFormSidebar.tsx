@@ -5,7 +5,6 @@ import dayjs from "dayjs";
 import ShiftForm from "./ShiftForm";
 import { useEmployees } from "../../hooks/useEmployees";
 // import { fetchEmployees } from "../../services/employees"; // Removed direct fetch
-import type { EmployeesRow } from "../../pages/expenses/types";
 
 type Props = {
   isOpen: boolean;
@@ -21,7 +20,7 @@ const ShiftFormSidebar: React.FC<Props> = ({
   shiftToEdit
 }) => {
   // Загружаем сотрудников через кэшированный хук
-  const { employees, loading } = useEmployees(isOpen);
+  const { employees } = useEmployees(isOpen);
 
   // No manual useEffect needed anymore
 

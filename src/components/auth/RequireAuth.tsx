@@ -1,7 +1,5 @@
 import React from "react";
 import { Navigate, useLocation } from "react-router";
-import LinearProgress from "@mui/material/LinearProgress";
-import Box from "@mui/material/Box";
 import { isAuthenticated } from "../../services/auth";
 
 type Props = {

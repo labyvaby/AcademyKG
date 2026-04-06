@@ -4,5 +4,5 @@ services:
     build: .
     container_name: mama_frontend_dev
     ports:
-      - "5174:5173"
+      - "80:80"
     restart: unless-stopped

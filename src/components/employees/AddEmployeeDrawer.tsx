@@ -104,7 +104,7 @@ const AddEmployeeDrawer: React.FC<Props> = ({ open, onClose, onCreated }) => {
       handleSuccess(data, fio, fullPhone);
 
     } catch (e: unknown) {
-      // eslint-disable-next-line no-console
+       
       console.error(e);
       const message = e instanceof Error ? e.message : String(e);
       alert(

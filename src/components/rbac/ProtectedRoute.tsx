@@ -1,6 +1,8 @@
 import React from 'react';
 import { Navigate } from 'react-router';
 import { useNotification } from "@refinedev/core";
+import LinearProgress from "@mui/material/LinearProgress";
+import Box from "@mui/material/Box";
 import { usePermissions } from '../../hooks/usePermissions';
 import { ROLE_HOME_PAGES, type RoleName } from '../../types/rbac';
 import type { Permission } from '../../constants/permissions';
@@ -43,9 +45,13 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     return <>{children}</>;
   }
 
-  // Ждём загрузки — не блокируем контент
+  // Пока права загружаются, защищенный контент не рендерим.
   if (loading) {
-    return <>{children}</>;
+    return (
+      <Box sx={{ width: "100%" }}>
+        <LinearProgress />
+      </Box>
+    );
   }
 
   const getRedirectPath = () => {

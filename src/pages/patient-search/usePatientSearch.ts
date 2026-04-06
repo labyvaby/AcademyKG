@@ -1,9 +1,8 @@
 import React from "react";
-import { apiFetch } from "../../utility/apiClient";
+import { apiFetch, resolveApiUrl } from "../../utility/apiClient";
 import type { Patient } from "../../types/models";
 
 const PER_PAGE = 30;
-const API_BASE = "https://academy.operator.kg";
 
 function useDebouncedValue<T>(value: T, delay = 100) {
   const [debounced, setDebounced] = React.useState(value);
@@ -22,9 +21,7 @@ interface UsePatientListOptions {
 }
 
 function resolvePhotoUrl(url: string | null | undefined): string | undefined {
-  if (!url) return undefined;
-  if (url.startsWith("http")) return url;
-  return `${API_BASE}${url}`;
+  return resolveApiUrl(url) ?? undefined;
 }
 
 function mapApiPatient(r: Record<string, unknown>): Patient {

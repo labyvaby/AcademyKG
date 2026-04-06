@@ -12,8 +12,6 @@ import {
 import ServiceDetailsForm from "./ServiceDetailsForm";
 import { useNotification } from "@refinedev/core";
 import CloseOutlined from "@mui/icons-material/CloseOutlined";
-import { fetchEmployees } from "../../services/employees";
-import type { EmployeesRow } from "../../pages/expenses/types";
 import type { CreatedService } from "./useAddServiceForm";
 import ServicePhotoUploader from "./ServicePhotoUploader";
 import { updateService } from "../../services/services";
@@ -123,9 +121,6 @@ const EditServiceDrawer: React.FC<Props> = ({ open, onClose, record, onUpdated }
     record.durationMinutes != null ? String(record.durationMinutes) : ""
   );
 
-  const [selectedEmps, setSelectedEmps] = React.useState<EmployeesRow[]>([]);
-  const [employees, setEmployees] = React.useState<EmployeesRow[]>([]);
-  const [loadingEmps, setLoadingEmps] = React.useState(false);
   const [busy, setBusy] = React.useState(false);
   const [touched, setTouched] = React.useState(false);
   const [photoFile, setPhotoFile] = React.useState<File | null>(null);
@@ -160,32 +155,6 @@ const EditServiceDrawer: React.FC<Props> = ({ open, onClose, record, onUpdated }
   );
 
   React.useEffect(() => {
-    let cancelled = false;
-    if (!open) return;
-
-    const load = async () => {
-      try {
-        setLoadingEmps(true);
-        const emps = await fetchEmployees();
-        if (!cancelled) {
-          setEmployees(emps);
-          if (record.employee_id) {
-            const found = emps.filter(e => String(e.id) === String(record.employee_id));
-            setSelectedEmps(found);
-          }
-        }
-      } finally {
-        if (!cancelled) setLoadingEmps(false);
-      }
-    };
-    load();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [open, record.id, record.employee_id]);
-
-  React.useEffect(() => {
     if (!open) {
       setName(record.name);
       setPrice(String(record.price ?? ""));
@@ -194,7 +163,6 @@ const EditServiceDrawer: React.FC<Props> = ({ open, onClose, record, onUpdated }
       setIsGroup(record.isGroup ?? false);
       setMaxParticipants(record.maxParticipants != null ? String(record.maxParticipants) : "");
       setDurationMinutes(record.durationMinutes != null ? String(record.durationMinutes) : "");
-      setSelectedEmps([]);
       setPhotoFile(null);
       setPhotoPreview(record.photo_url ?? null);
       setBusy(false);

@@ -27,7 +27,7 @@ export const ColorModeContextProvider: React.FC<PropsWithChildren> = ({
   // const systemPreference = isSystemPreferenceDark ? "dark" : "light";
   
   // Всегда светлая тема по умолчанию
-  const [mode, setMode] = useState("light");
+  const [mode] = useState("light");
 
   useEffect(() => {
     window.localStorage.setItem("colorMode", mode);

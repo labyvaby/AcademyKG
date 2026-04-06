@@ -1,11 +1,7 @@
-import { apiFetch } from "../utility/apiClient";
-
-const API_BASE = "https://academy.operator.kg";
+import { apiFetch, resolveApiUrl } from "../utility/apiClient";
 
 function resolveUrl(url: string | null | undefined): string | undefined {
-  if (!url) return undefined;
-  if (url.startsWith("http")) return url;
-  return `${API_BASE}${url}`;
+  return resolveApiUrl(url) ?? undefined;
 }
 
 // Frontend DTO used across the app

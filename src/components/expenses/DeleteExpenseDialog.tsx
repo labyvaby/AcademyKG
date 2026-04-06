@@ -53,7 +53,7 @@ export const DeleteExpenseDialog: React.FC<DeleteExpenseDialogProps> = ({
       if (onDeleted) onDeleted(record.id);
       onClose();
     } catch (e: unknown) {
-      // eslint-disable-next-line no-console
+       
       console.error("Delete expense failed:", e);
     } finally {
       setBusy(false);

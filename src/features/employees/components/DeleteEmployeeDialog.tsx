@@ -56,7 +56,7 @@ const DeleteEmployeeDialog: React.FC<DeleteEmployeeDialogProps> = ({ record, onC
       onDeleted(record.id);
       onClose();
     } catch (e) {
-      // eslint-disable-next-line no-console
+       
       console.error("Delete employee failed:", e);
       notify?.({ type: "error", message: "Не удалось удалить сотрудника" });
     } finally {

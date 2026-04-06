@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from "react";
-import { Box, Stack, Typography, IconButton, useTheme } from "@mui/material";
+import { Box, Stack, Typography, IconButton } from "@mui/material";
 import CloseOutlined from "@mui/icons-material/CloseOutlined";
 import dayjs from "dayjs";
 
@@ -14,7 +14,6 @@ export const DateNavigation: React.FC<DateNavigationProps> = ({
     setDate,
     dayCounts = {},
 }) => {
-    const theme = useTheme();
     const scrollContainerRef = useRef<HTMLDivElement>(null);
     const dateRefs = useRef<Map<string, HTMLElement>>(new Map());
 
@@ -164,7 +163,7 @@ export const DateNavigation: React.FC<DateNavigationProps> = ({
                                     </Typography>
                                     {dayCounts[dateStr] > 0 && (
                                         <Box
-                                            sx={(theme) => ({
+                                            sx={{
                                                 minWidth: 18,
                                                 height: 18,
                                                 px: 0.5,
@@ -177,7 +176,7 @@ export const DateNavigation: React.FC<DateNavigationProps> = ({
                                                 fontSize: '0.65rem',
                                                 fontWeight: 'bold',
                                                 flexShrink: 0
-                                            })}
+                                            }}
                                         >
                                             {dayCounts[dateStr]}
                                         </Box>

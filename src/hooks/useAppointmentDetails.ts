@@ -1,7 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '../utility/apiClient';
-import { getCachedDetail, setCachedDetail } from '../utility/appointmentCache';
-import { Appointment, AggregatedAppointmentRow, mapAggregatedRowToAppointment } from '../pages/home/types';
+import { getCachedDetail } from '../utility/appointmentCache';
+import { Appointment, mapAggregatedRowToAppointment } from '../pages/home/types';
 
 export interface AppointmentDetailsData {
     item: Appointment | null;

@@ -20,7 +20,7 @@ export const ROLE_HOME_PAGES: Record<RoleName, string> = {
   superadmin: '/home',
   admin: '/home',
   manager: '/home',
-  specialist: '/doctor',
+  specialist: '/specialist',
   receptionist: '/home',
   registrator: '/home',
   accountant: '/home',

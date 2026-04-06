@@ -22,7 +22,6 @@ import routerProvider, {
 } from "@refinedev/react-router";
 
 import { Outlet, Route, Routes, Navigate } from "react-router";
-import { useLocation, useNavigate } from "react-router";
 
 import { Header } from "./components/header";
 import { Sidebar } from "./components/sidebar";
@@ -39,8 +38,8 @@ import { BranchProvider } from "./contexts/branch-context";
 import { lazy, Suspense, useEffect } from "react";
 import { useAuthIdentitySync } from "./hooks/useAuthIdentitySync";
 import { usePermissions } from "./hooks/usePermissions";
+import { API_BASE_URL } from "./utility/apiClient";
 import dataProvider from "@refinedev/simple-rest";
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "https://academy.operator.kg";
 
 // ОПТИМИЗАЦИЯ: Все страницы загружаются через lazy() для code splitting
 const UnderConstruction = lazy(() =>
@@ -88,8 +87,6 @@ const RootRedirect = () => {
 function App() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
-  const navigate = useNavigate();
-  const location = useLocation();
 
   // Auto-link phone-login UUID to existing employee record on first sign-in
   useAuthIdentitySync();

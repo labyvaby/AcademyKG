@@ -1,13 +1,9 @@
-import { apiFetch, getBranchFilter } from "../utility/apiClient";
+import { apiFetch, getBranchFilter, resolveApiUrl } from "../utility/apiClient";
 import { mapApiExpense } from "../pages/expenses/types";
 import type { Expense } from "../pages/expenses/types";
 
-const API_BASE = "https://academy.operator.kg";
-
 function resolvePhotoUrl(url: string | null | undefined): string | null {
-  if (!url) return null;
-  if (url.startsWith("http")) return url;
-  return `${API_BASE}${url}`;
+  return resolveApiUrl(url);
 }
 
 export const ExpensesService = {

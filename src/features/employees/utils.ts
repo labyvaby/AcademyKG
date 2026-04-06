@@ -166,7 +166,7 @@ export function calculateEmployeeSalary(
         let servicesArr: any[] = [];
 
         if (typeof servicesJSON === 'string') {
-            try { servicesArr = JSON.parse(servicesJSON); } catch (e) { }
+            try { servicesArr = JSON.parse(servicesJSON); } catch { }
         } else if (Array.isArray(servicesJSON)) {
             servicesArr = servicesJSON;
         }

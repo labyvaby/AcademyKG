@@ -14,6 +14,7 @@ import {
   Box,
 } from "@mui/material";
 import PhotoCameraOutlined from "@mui/icons-material/PhotoCameraOutlined";
+import { resolveApiUrl } from "../../utility/apiClient";
 
 export type ServicePhotoUploaderProps = {
   photoFile: File | null;
@@ -22,19 +23,13 @@ export type ServicePhotoUploaderProps = {
   onPickPhoto: (file: File | null) => void;
 };
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || "https://academy.operator.kg";
-
 const ServicePhotoUploader: React.FC<ServicePhotoUploaderProps> = ({
   photoPreview,
   inputId = "add-service-file-input",
   onPickPhoto,
 }) => {
   const displayUrl = React.useMemo(() => {
-    if (!photoPreview) return undefined;
-    if (photoPreview.startsWith("data:") || photoPreview.startsWith("blob:") || photoPreview.startsWith("http")) {
-      return photoPreview;
-    }
-    return `${BASE_URL}${photoPreview}`;
+    return resolveApiUrl(photoPreview) ?? undefined;
   }, [photoPreview]);
 
   return (

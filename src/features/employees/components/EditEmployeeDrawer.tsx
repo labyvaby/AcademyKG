@@ -59,7 +59,7 @@ const EditEmployeeDrawer: React.FC<EditEmployeeDrawerProps> = ({ record, onClose
   const [photoPreview, setPhotoPreview] = React.useState<string | null>(null);
   const [passportPhotos, setPassportPhotos] = React.useState<string[]>([]);
   const [passportFiles, setPassportFiles] = React.useState<File[]>([]);
-  const [removedPassportUrls, setRemovedPassportUrls] = React.useState<string[]>([]);
+  const [, setRemovedPassportUrls] = React.useState<string[]>([]);
   const [specializationId, setSpecializationId] = React.useState("");
   const [salaryRules, setSalaryRules] = React.useState<any>(null);
   const [services, setServices] = React.useState<ServiceRow[]>([]);
@@ -164,7 +164,7 @@ const EditEmployeeDrawer: React.FC<EditEmployeeDrawerProps> = ({ record, onClose
       }
     })();
     return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [record]);
 
   React.useEffect(() => {

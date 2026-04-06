@@ -3,9 +3,7 @@ import {
     Stack,
     Typography,
     Card,
-    CardContent,
     Avatar,
-    Box,
     IconButton,
     Grid,
 } from "@mui/material";

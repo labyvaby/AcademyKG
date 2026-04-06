@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from "react";
-import { Box, Stack, Typography, IconButton, useTheme } from "@mui/material";
+import { Box, Stack, Typography, IconButton } from "@mui/material";
 import CloseOutlined from "@mui/icons-material/CloseOutlined";
 import dayjs from "dayjs";
 
@@ -15,7 +15,6 @@ export const MonthNavigation: React.FC<MonthNavigationProps> = ({
     setDate,
     activeMonths,
 }) => {
-    const theme = useTheme();
     const scrollContainerRef = useRef<HTMLDivElement>(null);
     const monthRefs = useRef<Map<string, HTMLElement>>(new Map());
 
@@ -55,10 +54,8 @@ export const MonthNavigation: React.FC<MonthNavigationProps> = ({
                     e.preventDefault();
                     const startX = e.pageX;
                     const scrollLeft = container.scrollLeft;
-                    let hasMoved = false;
 
                     const handleMouseMove = (moveEvent: MouseEvent) => {
-                        hasMoved = true;
                         const x = moveEvent.pageX;
                         const walk = (startX - x) * 1.5;
                         container.scrollLeft = scrollLeft + walk;

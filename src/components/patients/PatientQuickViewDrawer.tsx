@@ -18,15 +18,13 @@ import {
   Close as CloseIcon,
   Person as PersonIcon,
   Phone as PhoneIcon,
-  Cake as CakeIcon,
   CalendarMonth as CalendarIcon,
   MedicalServices as MedicalServicesIcon,
-  Badge as BadgeIcon,
   Add as AddIcon,
 } from "@mui/icons-material";
 import dayjs from "dayjs";
 import "dayjs/locale/ru";
-import { apiFetch } from "../../utility/apiClient";
+import { apiFetch, resolveApiUrl } from "../../utility/apiClient";
 import { getStatusConfig, getStatusChipSx } from "../../config/appointmentStatuses";
 import { calculateAgeWithMonths } from "../../utility/format";
 
@@ -62,11 +60,8 @@ export interface PatientQuickViewDrawerProps {
   onStartAppointment?: (patientId: string) => void;
 }
 
-const API_BASE = "https://academy.operator.kg";
 function resolveUrl(url: string | null | undefined): string | null {
-  if (!url) return null;
-  if (url.startsWith("http")) return url;
-  return `${API_BASE}${url}`;
+  return resolveApiUrl(url);
 }
 
 export const PatientQuickViewDrawer: React.FC<PatientQuickViewDrawerProps> = ({

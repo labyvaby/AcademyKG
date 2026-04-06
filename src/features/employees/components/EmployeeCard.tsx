@@ -28,7 +28,6 @@ import LocalOfferOutlined from "@mui/icons-material/LocalOfferOutlined";
 import TelegramIcon from "@mui/icons-material/Telegram";
 import EmailOutlined from "@mui/icons-material/EmailOutlined";
 import CreditCardOutlined from "@mui/icons-material/CreditCardOutlined";
-import BadgeOutlined from "@mui/icons-material/BadgeOutlined";
 import WorkOutlined from "@mui/icons-material/WorkOutlined";
 import InsertDriveFileOutlined from "@mui/icons-material/InsertDriveFileOutlined";
 import AttachFileOutlined from "@mui/icons-material/AttachFileOutlined";
@@ -36,17 +35,12 @@ import ZoomInOutlined from "@mui/icons-material/ZoomInOutlined";
 import DeleteOutline from "@mui/icons-material/DeleteOutline";
 import CloseOutlined from "@mui/icons-material/CloseOutlined";
 import AddCircleOutlineOutlined from "@mui/icons-material/AddCircleOutlineOutlined";
-import MedicalServicesOutlined from "@mui/icons-material/MedicalServicesOutlined";
 import type { EmployesRow } from "../types";
 import { formatDateRu } from "../../../utility/format";
-import { apiFetch } from "../../../utility/apiClient";
-
-const API_BASE = "https://academy.operator.kg";
+import { apiFetch, resolveApiUrl } from "../../../utility/apiClient";
 
 function resolveUrl(url: string | null | undefined): string | undefined {
-  if (!url) return undefined;
-  if (url.startsWith("http")) return url;
-  return `${API_BASE}${url}`;
+  return resolveApiUrl(url) ?? undefined;
 }
 
 function isImage(url: string): boolean {

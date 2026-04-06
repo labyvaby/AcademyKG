@@ -70,7 +70,6 @@ export default defineConfig({
       '@mui/material',
       '@refinedev/core',
       '@refinedev/mui',
-      'pdfmake/build/pdfmake',
     ],
   },
 

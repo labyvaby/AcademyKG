@@ -15,7 +15,6 @@ import {
     Tabs,
     Tab,
 } from "@mui/material";
-import { alpha } from "@mui/material/styles";
 import CloseOutlined from "@mui/icons-material/CloseOutlined";
 import PhotoCameraOutlined from "@mui/icons-material/PhotoCameraOutlined";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";

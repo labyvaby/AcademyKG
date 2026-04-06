@@ -25,7 +25,7 @@ import { PERMISSIONS } from "../../constants/permissions";
 
 import { usePatientBalance } from "./usePatientBalance";
 import BalanceTopUpDrawer from "./components/BalanceTopUpDrawer";
-import { apiFetch } from "../../utility/apiClient";
+import { apiFetch, resolveApiUrl } from "../../utility/apiClient";
 
 /**
  * PatientSearchPage
@@ -73,16 +73,11 @@ export const PatientSearchPage: React.FC = () => {
   const [vitals, setVitals] = useState<{ weight?: number | null; height?: number | null; temperature?: number | null } | null>(null);
   const [documents, setDocuments] = useState<PatientDocument[]>([]);
 
-  const API_BASE = "https://academy.operator.kg";
   function resolvePhoto(url: string | null | undefined): string | null {
-    if (!url) return null;
-    if (url.startsWith("http")) return url;
-    return `${API_BASE}${url}`;
+    return resolveApiUrl(url);
   }
   function resolveFileUrl(url: string | null | undefined): string {
-    if (!url) return "";
-    if (url.startsWith("http")) return url;
-    return `${API_BASE}${url}`;
+    return resolveApiUrl(url) ?? "";
   }
 
   const loadClientDetail = React.useCallback(async (id: string) => {
@@ -178,7 +173,7 @@ export const PatientSearchPage: React.FC = () => {
         }))
       : [];
     setDocuments(docs);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   }, [selected, loadClientDetail]);
 
   const handleDeleteDocument = React.useCallback(async (docId: string | number) => {

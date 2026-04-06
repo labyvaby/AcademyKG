@@ -64,7 +64,7 @@ export const LoadAnalyticsPage: React.FC = () => {
 
     const daysCount = useMemo(() => {
         if (!dateRange[0] || !dateRange[1]) return 1;
-        let diff = dateRange[1].diff(dateRange[0], 'day') + 1;
+        const diff = dateRange[1].diff(dateRange[0], 'day') + 1;
         return diff > 0 ? diff : 1;
     }, [dateRange]);
 

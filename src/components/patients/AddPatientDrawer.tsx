@@ -19,7 +19,7 @@ import AttachFileOutlined from "@mui/icons-material/AttachFileOutlined";
 import AddOutlined from "@mui/icons-material/AddOutlined";
 import { useNotification } from "@refinedev/core";
 import PatientPhotoUploader from "./PatientPhotoUploader";
-import { apiFetch, getBranchFilter } from "../../utility/apiClient";
+import { apiFetch, getBranchFilter, resolveApiUrl } from "../../utility/apiClient";
 import { PhoneCountryCodeSelect, CustomDatePicker } from "../ui";
 import dayjs from "dayjs";
 import {
@@ -31,12 +31,8 @@ import {
 } from "../../utility/phone";
 import { useHasRole } from "../../hooks/usePermissions";
 
-const API_BASE = "https://academy.operator.kg";
-
 function resolvePhotoUrl(url: string | null | undefined): string | null {
-  if (!url) return null;
-  if (url.startsWith("http")) return url;
-  return `${API_BASE}${url}`;
+  return resolveApiUrl(url);
 }
 
 const normalizePhoneValue = (value: string | null | undefined): string =>

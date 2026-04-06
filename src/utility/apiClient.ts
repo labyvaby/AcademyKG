@@ -1,4 +1,17 @@
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || "https://academy.operator.kg";
+export const API_BASE_URL = BASE_URL;
+
+export function resolveApiUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  if (
+    url.startsWith("http") ||
+    url.startsWith("data:") ||
+    url.startsWith("blob:")
+  ) {
+    return url;
+  }
+  return `${BASE_URL}${url}`;
+}
 
 // Глобальный фильтр по филиалу для суперадмина.
 // Устанавливается из BranchContext через setBranchFilter().
@@ -191,7 +204,7 @@ export async function apiFetch<T = unknown>(
       headers: buildHeaders(skipAuth ? undefined : token),
     });
 
-  let accessToken = skipAuth ? null : tokenStorage.getAccess();
+  const accessToken = skipAuth ? null : tokenStorage.getAccess();
   let response = await doRequest(accessToken);
 
   // Auto-refresh on 401
