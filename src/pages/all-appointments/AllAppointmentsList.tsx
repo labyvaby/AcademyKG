@@ -29,6 +29,7 @@ import { useActiveMonths } from "../../hooks/useActiveMonths";
 import { PageHeader, AppBottomSheet } from "../../components/ui";
 import { formatDateRu } from "../../utility/format";
 import { apiFetch } from "../../utility/apiClient";
+import { fetchAllPages } from "../../utility/pagination";
 import AppointmentsList from "../home/components/AppointmentsList";
 import AppointmentDetailsCard from "../home/components/AppointmentDetailsCard";
 import { mapAggregatedRowToAppointment, Appointment, AggregatedAppointmentRow } from "../home/types";
@@ -97,10 +98,7 @@ export const AllAppointmentsList: React.FC = () => {
                 params.set("dateTo", lastDay);
             }
 
-            const res = await apiFetch(`/api/v1/appointments/?${params.toString()}`);
-
-            const r = res as any;
-            const data: any[] = r?.data?.results ?? r?.results ?? (Array.isArray(r?.data) ? r.data : null) ?? (Array.isArray(r) ? r : []);
+            const data = await fetchAllPages<any>(`/api/v1/appointments/?${params.toString()}`);
 
             // Группы подгружаются отдельно через useEffect при смене selectedDate
             // Здесь просто маппим обычные приёмы

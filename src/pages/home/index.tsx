@@ -20,6 +20,7 @@ import CloseOutlined from "@mui/icons-material/CloseOutlined";
 import { useTheme } from "@mui/material/styles";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { apiFetch } from "../../utility/apiClient";
+import { fetchAllPages } from "../../utility/pagination";
 // import { formatKGS } from '../../utility/format';
 import { formatDateRu } from "../../utility/format";
 import dayjs from "dayjs";
@@ -172,11 +173,10 @@ export const HomePage: React.FC = () => {
   const { data: dailyAppointments = [], isLoading: dailyLoading, isFetching: dailyFetching, refetch: refetchAppointments } = useQuery<Appointment[]>({
     queryKey: ["appointments", "daily", dailyRange.key],
     queryFn: async () => {
-      const [res, groups]: [any, AppointmentGroup[]] = await Promise.all([
-        apiFetch(`/api/v1/appointments/?ordering=appointmentAt&date=${dailyRange.key}`),
+      const [items, groups]: [AggregatedAppointmentRow[], AppointmentGroup[]] = await Promise.all([
+        fetchAllPages<AggregatedAppointmentRow>(`/api/v1/appointments/?ordering=appointmentAt&date=${dailyRange.key}`),
         fetchGroups(dailyRange.key),
       ]);
-      const items: AggregatedAppointmentRow[] = res?.data?.results ?? res?.results ?? (Array.isArray(res?.data) ? res.data : null) ?? (Array.isArray(res) ? res : []);
       // Collect all participant appointment IDs from groups to exclude them from regular list
       const groupParticipantIds = new Set<string>(
         groups.flatMap(g => g.participants.map(p => p.id))
@@ -223,8 +223,7 @@ export const HomePage: React.FC = () => {
         url += `&employee=${employeeId}`;
       }
 
-      const res: any = await apiFetch(url);
-      return res?.data?.results ?? res?.results ?? res?.data ?? [];
+      return fetchAllPages<any>(url.replace("&pageSize=500", ""));
     },
     staleTime: 10 * 60 * 1000,
     refetchOnWindowFocus: false,
@@ -234,8 +233,7 @@ export const HomePage: React.FC = () => {
     queryKey: ["group-appointments", "counts", rangeKey],
     queryFn: async () => {
       const { dateFrom, dateTo } = rangeParams;
-      const res: any = await apiFetch(`/api/v1/appointment-groups/?dateFrom=${dateFrom}&dateTo=${dateTo}&pageSize=500`);
-      return res?.data?.results ?? res?.results ?? res?.data ?? [];
+      return fetchAllPages<any>(`/api/v1/appointment-groups/?dateFrom=${dateFrom}&dateTo=${dateTo}`);
     },
     staleTime: 10 * 60 * 1000,
     refetchOnWindowFocus: false,

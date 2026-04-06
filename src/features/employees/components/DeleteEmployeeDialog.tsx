@@ -8,6 +8,7 @@ import { useNotification } from "@refinedev/core";
 import { usePermissions } from "../../../hooks/usePermissions";
 import { PERMISSIONS } from "../../../constants/permissions";
 import { apiFetch } from "../../../utility/apiClient";
+import { fetchAllPages } from "../../../utility/pagination";
 import dayjs from "dayjs";
 
 
@@ -32,10 +33,9 @@ const DeleteEmployeeDialog: React.FC<DeleteEmployeeDialogProps> = ({ record, onC
     try {
       setBusy(true);
       const today = dayjs().format("YYYY-MM-DD");
-      const dayRes: any = await apiFetch(`/api/v1/appointments/?date=${today}&pageSize=500`);
-      const dayItems: any[] = dayRes?.data?.results ?? dayRes?.results ?? [];
+      const dayItems = await fetchAllPages<any>(`/api/v1/appointments/?dateFrom=${today}&ordering=appointmentAt`);
       const employeeId = String(record.id);
-      const hasTodayAppointments = dayItems.some((appt: any) => {
+      const hasUpcomingAppointments = dayItems.some((appt: any) => {
         if (String(appt?.doctorId ?? appt?.doctor_id ?? "") === employeeId) return true;
         const services = appt?.services ?? appt?.services_json ?? appt?.servicesJson;
         if (Array.isArray(services)) {
@@ -43,11 +43,11 @@ const DeleteEmployeeDialog: React.FC<DeleteEmployeeDialogProps> = ({ record, onC
         }
         return false;
       });
-      if (hasTodayAppointments) {
+      if (hasUpcomingAppointments) {
         notify?.({
           type: "error",
-          message: "Нельзя удалить активного специалиста",
-          description: "На сотрудника назначены приёмы на сегодня. Перенесите или отмените их перед удалением.",
+          message: "Нельзя удалить сотрудника с назначенными приёмами",
+          description: "На сотрудника назначены текущие или будущие приёмы. Перенесите или отмените их перед удалением.",
         });
         return;
       }

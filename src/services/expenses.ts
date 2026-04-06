@@ -35,6 +35,12 @@ export const ExpensesService = {
     if (expense.name) fd.append("name", expense.name);
     fd.append("cashAmount", String(Number(expense.cash_amount ?? expense.cashAmount) || 0));
     fd.append("cashlessAmount", String(Number(expense.cashless_amount ?? expense.cashlessAmount) || 0));
+    if (expense.created_at ?? expense.createdAt) {
+      fd.append("createdAt", String(expense.created_at ?? expense.createdAt));
+    }
+    if (expense.affects_month ?? expense.affectsMonth) {
+      fd.append("affectsMonth", String(expense.affects_month ?? expense.affectsMonth));
+    }
     if (expense.comment) fd.append("comment", expense.comment);
     if (expense.photo instanceof File) {
       fd.append("photo", expense.photo);
@@ -64,6 +70,12 @@ export const ExpensesService = {
     if (updates.name !== undefined) fd.append("name", updates.name);
     if (updates.cash_amount !== undefined) fd.append("cashAmount", String(Number(updates.cash_amount) || 0));
     if (updates.cashless_amount !== undefined) fd.append("cashlessAmount", String(Number(updates.cashless_amount) || 0));
+    if (updates.created_at ?? updates.createdAt) {
+      fd.append("createdAt", String(updates.created_at ?? updates.createdAt));
+    }
+    if (updates.affects_month ?? updates.affectsMonth) {
+      fd.append("affectsMonth", String(updates.affects_month ?? updates.affectsMonth));
+    }
     if (updates.comment !== undefined) fd.append("comment", updates.comment ?? "");
     if (updates.photo instanceof File) {
       fd.append("photo", updates.photo);

@@ -10,6 +10,7 @@
 
 import type { AppointmentGroup, GroupParticipant, GroupAppointmentStatus } from "../model/types";
 import { apiFetch, getBranchFilter } from "../../../utility/apiClient";
+import { fetchAllPages } from "../../../utility/pagination";
 
 // ── Маппинг из API ответа ──────────────────────────────────────────────────
 
@@ -47,8 +48,7 @@ function toGroup(r: any): AppointmentGroup {
 
 export async function fetchGroups(date: string): Promise<AppointmentGroup[]> {
   try {
-    const res: any = await apiFetch(`/api/v1/appointment-groups/?date=${date}`);
-    const results: any[] = res?.data?.results ?? res?.results ?? [];
+    const results = await fetchAllPages<any>(`/api/v1/appointment-groups/?date=${date}`);
     return results.map(toGroup);
   } catch {
     return [];
@@ -57,8 +57,7 @@ export async function fetchGroups(date: string): Promise<AppointmentGroup[]> {
 
 export async function fetchGroupsByRange(dateFrom: string, dateTo: string): Promise<AppointmentGroup[]> {
   try {
-    const res: any = await apiFetch(`/api/v1/appointment-groups/?dateFrom=${dateFrom}&dateTo=${dateTo}&pageSize=500`);
-    const results: any[] = res?.data?.results ?? res?.results ?? [];
+    const results = await fetchAllPages<any>(`/api/v1/appointment-groups/?dateFrom=${dateFrom}&dateTo=${dateTo}`);
     return results.map(toGroup);
   } catch {
     return [];

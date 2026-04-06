@@ -29,6 +29,7 @@ import ShiftForm from "./ShiftForm";
 // Supabase удален согласно правилу
 import { useConfirmDialog } from "../../hooks/useConfirmDialog";
 import { apiFetch } from "../../utility/apiClient";
+import { fetchAllPages } from "../../utility/pagination";
 import { fetchShifts, createShift, updateShift, deleteShift, Shift as ServiceShift } from "../../services/shifts";
 
 dayjs.extend(isBetween);
@@ -400,7 +401,7 @@ interface ScheduleCalendarProps {
 
 const ScheduleCalendar = React.forwardRef<ScheduleCalendarHandle, ScheduleCalendarProps>((props, ref) => {
   const { isAdmin, isRegistrator, isSpecialist, employeeId } = props;
-  const canManage = isAdmin || isRegistrator || isSpecialist;
+  const canManage = isAdmin || isRegistrator;
   const [currentMonth, setCurrentMonth] = useState(dayjs());
   const today = dayjs();
   const { open: notify } = useNotification();
@@ -449,10 +450,9 @@ const ScheduleCalendar = React.forwardRef<ScheduleCalendarHandle, ScheduleCalend
       // 2. Расписание из /api/v1/employee-schedules/ — грузим весь месяц постранично
       const startDate = currentMonth.startOf('month').subtract(7, 'day').format('YYYY-MM-DD');
       const endDate = currentMonth.endOf('month').add(7, 'day').format('YYYY-MM-DD');
-      const schedRes: any = await apiFetch(
-        `/api/v1/employee-schedules/?pageSize=500&ordering=date`
+      const schedResults = await fetchAllPages<any>(
+        `/api/v1/employee-schedules/?ordering=date`
       );
-      const schedResults: any[] = schedRes?.data?.results ?? schedRes?.results ?? [];
 
       // Фильтруем по диапазону дат на клиенте
       const inRange = schedResults.filter((s: any) => {
@@ -635,9 +635,32 @@ const ScheduleCalendar = React.forwardRef<ScheduleCalendarHandle, ScheduleCalend
   const handleFormSuccess = async (formData: any) => {
     try {
       if (Array.isArray(formData)) {
-        // Пакетное создание (при выборе дней недели)
-        for (const f of formData) {
-          await saveScheduleEntry(f.employes_id, f.startDate, f);
+        const results = await Promise.allSettled(
+          formData.map((f) => saveScheduleEntry(f.employes_id, f.startDate, f))
+        );
+        const failed = results.filter((result) => result.status === "rejected");
+        const succeeded = results.length - failed.length;
+
+        if (succeeded === 0) {
+          throw new Error(
+            failed[0]?.status === "rejected"
+              ? failed[0].reason instanceof Error
+                ? failed[0].reason.message
+                : String(failed[0].reason)
+              : "Не удалось создать смены",
+          );
+        }
+
+        if (failed.length > 0) {
+          notify?.({
+            type: "error",
+            message: `Создано ${succeeded} из ${results.length} смен`,
+            description: failed[0]?.status === "rejected"
+              ? failed[0].reason instanceof Error
+                ? failed[0].reason.message
+                : String(failed[0].reason)
+              : undefined,
+          });
         }
       } else if (editingShift) {
         // Редактирование одной записи
@@ -655,14 +678,40 @@ const ScheduleCalendar = React.forwardRef<ScheduleCalendarHandle, ScheduleCalend
         const start = dayjs(formData.startDate);
         const end = dayjs(formData.endDate);
         const diff = end.diff(start, 'day');
+        const requests: Promise<void>[] = [];
         for (let i = 0; i <= diff; i++) {
           const d = start.add(i, 'day').format('YYYY-MM-DD');
-          await saveScheduleEntry(formData.employes_id, d, formData);
+          requests.push(saveScheduleEntry(formData.employes_id, d, formData));
+        }
+        const results = await Promise.allSettled(requests);
+        const failed = results.filter((result) => result.status === "rejected");
+        const succeeded = results.length - failed.length;
+
+        if (succeeded === 0) {
+          throw new Error(
+            failed[0]?.status === "rejected"
+              ? failed[0].reason instanceof Error
+                ? failed[0].reason.message
+                : String(failed[0].reason)
+              : "Не удалось создать смены",
+          );
+        }
+
+        if (failed.length > 0) {
+          notify?.({
+            type: "error",
+            message: `Создано ${succeeded} из ${results.length} смен`,
+            description: failed[0]?.status === "rejected"
+              ? failed[0].reason instanceof Error
+                ? failed[0].reason.message
+                : String(failed[0].reason)
+              : undefined,
+          });
         }
       }
 
       // Обновляем UI
-      fetchData();
+      await fetchData();
       setDrawerMode("view");
       setEditingShift(null);
 

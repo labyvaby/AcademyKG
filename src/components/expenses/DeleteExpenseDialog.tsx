@@ -15,6 +15,7 @@ import DeleteOutlined from "@mui/icons-material/DeleteOutlined";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import { useTheme } from "@mui/material/styles";
 // import { useDelete, useInvalidate } from "@refinedev/core";
+import { useNotification } from "@refinedev/core";
 import type { Expense } from "../../pages/expenses/types";
 import { ExpensesService } from "../../services/expenses";
 
@@ -39,6 +40,7 @@ export const DeleteExpenseDialog: React.FC<DeleteExpenseDialogProps> = ({
   // Custom Service - Imported at top
 
   const [busy, setBusy] = React.useState(false);
+  const { open: notify } = useNotification();
   const theme = useTheme();
   const fullScreen = useMediaQuery(theme.breakpoints.down("sm"));
 
@@ -53,8 +55,13 @@ export const DeleteExpenseDialog: React.FC<DeleteExpenseDialogProps> = ({
       if (onDeleted) onDeleted(record.id);
       onClose();
     } catch (e: unknown) {
-       
       console.error("Delete expense failed:", e);
+      const message = e instanceof Error ? e.message : "Не удалось удалить расход";
+      notify?.({
+        type: "error",
+        message: "Не удалось удалить расход",
+        description: message,
+      });
     } finally {
       setBusy(false);
     }

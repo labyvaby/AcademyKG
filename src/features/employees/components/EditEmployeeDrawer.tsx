@@ -57,6 +57,7 @@ const EditEmployeeDrawer: React.FC<EditEmployeeDrawerProps> = ({ record, onClose
   const [nickname, setNickname] = React.useState("");
   const [busy, setBusy] = React.useState(false);
   const [photoPreview, setPhotoPreview] = React.useState<string | null>(null);
+  const [photoFile, setPhotoFile] = React.useState<File | null>(null);
   const [passportPhotos, setPassportPhotos] = React.useState<string[]>([]);
   const [passportFiles, setPassportFiles] = React.useState<File[]>([]);
   const [, setRemovedPassportUrls] = React.useState<string[]>([]);
@@ -91,6 +92,7 @@ const EditEmployeeDrawer: React.FC<EditEmployeeDrawerProps> = ({ record, onClose
       setPhoneError(false); setRoleId(""); setSpecializationId(""); setBirthDate("");
       setNickname(""); setEmail(""); setEmailErrorMsg(""); setBusy(false); setInn("");
       setPhotoPreview(null); setServices([]); setSelectedServices([]);
+      setPhotoFile(null);
       setPassportPhotos([]); setPassportFiles([]); setRemovedPassportUrls([]);
       setBranchId(""); setOrganizationId("");
       return;
@@ -102,6 +104,7 @@ const EditEmployeeDrawer: React.FC<EditEmployeeDrawerProps> = ({ record, onClose
     setNickname(record.nickname || "");
     setSalaryRules(record.salary_rules || null);
     setPhotoPreview(record.photo_url ? String(record.photo_url) : null);
+    setPhotoFile(null);
     setPassportPhotos(Array.isArray(record.passport_photos) ? record.passport_photos : []);
     setPassportFiles([]); setRemovedPassportUrls([]);
     setBirthDate(normalizeDateInput(record.birth_date || ""));
@@ -215,16 +218,15 @@ const EditEmployeeDrawer: React.FC<EditEmployeeDrawerProps> = ({ record, onClose
       if (bankAccountNumber.trim()) payload.bankAccountNumber = bankAccountNumber.trim();
       if (inn.trim()) payload.inn = inn.trim();
       if (nickname.trim()) payload.nickname = nickname.trim();
+      if (photoFile) payload.photoUrl = photoFile;
 
       // Отправляем специализации только если выбран врач или специалист
       if ((selectedRole?.name === 'specialist') && specializationId) {
         payload.specializationIds = [specializationId];
       }
 
-      // Услуги отправляем только если они выбраны
-      if (selectedServices.length > 0) {
-        payload.serviceIds = selectedServices.map(s => s.id);
-      }
+      // Для очистки услуг backend должен получить и пустой массив тоже.
+      payload.serviceIds = selectedServices.map(s => s.id);
 
       await employeeFormUtils.updateEmployeeApi(String(record.id), payload);
 
@@ -282,6 +284,7 @@ const EditEmployeeDrawer: React.FC<EditEmployeeDrawerProps> = ({ record, onClose
           <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>Фото</Typography>
           <ServicePhotoUploader photoFile={null} photoPreview={photoPreview} inputId="emp-edit-photo-input"
             onPickPhoto={f => {
+              setPhotoFile(f);
               if (!f) { setPhotoPreview(null); return; }
               const r = new FileReader();
               r.onload = () => setPhotoPreview(String(r.result || ""));

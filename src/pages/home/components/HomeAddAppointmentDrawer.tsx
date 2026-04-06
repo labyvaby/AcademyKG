@@ -736,13 +736,33 @@ export const HomeAddAppointmentDrawer: React.FC<
           });
         });
 
-        try {
-          await Promise.all(requests);
-        } catch (err: any) {
-          notify?.({ type: "error", message: "Ошибка при создании приёмов", description: err?.message || String(err) });
+        const results = await Promise.allSettled(requests);
+        const failed = results.filter((result) => result.status === "rejected");
+        const succeeded = results.length - failed.length;
+
+        if (succeeded === 0) {
+          const firstError = failed[0];
+          notify?.({
+            type: "error",
+            message: "Ошибка при создании приёмов",
+            description: firstError?.status === "rejected"
+              ? firstError.reason?.message || String(firstError.reason)
+              : undefined,
+          });
           setIsSaving(false);
           isSavingRef.current = false;
           return;
+        }
+
+        if (failed.length > 0) {
+          const firstError = failed[0];
+          notify?.({
+            type: "error",
+            message: `Создано ${succeeded} из ${results.length} приёмов`,
+            description: firstError?.status === "rejected"
+              ? firstError.reason?.message || String(firstError.reason)
+              : undefined,
+          });
         }
 
         setPeriodWeekdays([]);
@@ -756,7 +776,9 @@ export const HomeAddAppointmentDrawer: React.FC<
         setTouched(false);
         handleClose();
         onCreated?.();
-        notify?.({ type: "success", message: `Создано ${periodDates.length} приёмов!` });
+        if (failed.length === 0) {
+          notify?.({ type: "success", message: `Создано ${periodDates.length} приёмов!` });
+        }
         return;
       }
 
@@ -804,25 +826,45 @@ export const HomeAddAppointmentDrawer: React.FC<
               return;
             }
           }
-          try {
-            await Promise.all(
-              periodDates.map((date) =>
-                createGroup({
-                  appointmentAt: dayjs(`${date}T${timeStr}:00`).toISOString(),
-                  performerId: firstRow.doctorId,
-                  sellableItemId: firstRow.serviceId,
-                  price: Number(svc?.price ?? 0),
-                  maxParticipants: (svc as any)?.maxParticipants ?? null,
-                  patientIds: groupParticipants.map(p => p.id),
-                  patientNames: groupParticipants.map(p => p.fio ?? p.label ?? ""),
-                })
-              )
-            );
-          } catch (err: any) {
-            notify?.({ type: "error", message: "Ошибка при создании групповых приёмов", description: err?.message });
+          const results = await Promise.allSettled(
+            periodDates.map((date) =>
+              createGroup({
+                appointmentAt: dayjs(`${date}T${timeStr}:00`).toISOString(),
+                performerId: firstRow.doctorId,
+                sellableItemId: firstRow.serviceId,
+                price: Number(svc?.price ?? 0),
+                maxParticipants: (svc as any)?.maxParticipants ?? null,
+                patientIds: groupParticipants.map(p => p.id),
+                patientNames: groupParticipants.map(p => p.fio ?? p.label ?? ""),
+              })
+            )
+          );
+          const failed = results.filter((result) => result.status === "rejected");
+          const succeeded = results.length - failed.length;
+
+          if (succeeded === 0) {
+            const firstError = failed[0];
+            notify?.({
+              type: "error",
+              message: "Ошибка при создании групповых приёмов",
+              description: firstError?.status === "rejected"
+                ? firstError.reason?.message || String(firstError.reason)
+                : undefined,
+            });
             setIsSaving(false);
             isSavingRef.current = false;
             return;
+          }
+
+          if (failed.length > 0) {
+            const firstError = failed[0];
+            notify?.({
+              type: "error",
+              message: `Создано ${succeeded} из ${results.length} групповых занятий`,
+              description: firstError?.status === "rejected"
+                ? firstError.reason?.message || String(firstError.reason)
+                : undefined,
+            });
           }
           setPeriodWeekdays([]);
           setPeriodStartDate(dayjs().format("YYYY-MM-DD"));
@@ -836,7 +878,9 @@ export const HomeAddAppointmentDrawer: React.FC<
           setTouched(false);
           handleClose();
           onCreated?.();
-          notify?.({ type: "success", message: `Создано ${periodDates.length} групповых занятий!` });
+          if (failed.length === 0) {
+            notify?.({ type: "success", message: `Создано ${periodDates.length} групповых занятий!` });
+          }
           return;
         }
 

@@ -104,7 +104,8 @@ export const createProduct = async (productData: CreateProductData) => {
         is_for_sale: 'isForSale',
         is_infusion: 'isInfusion',
         image_url: 'imageUrl',
-        comment: 'comment'
+        comment: 'comment',
+        stock: 'stock'
     };
 
     Object.entries(productData).forEach(([key, value]) => {
@@ -153,7 +154,8 @@ export const updateProduct = async (id: string, productData: UpdateProductData) 
         is_for_sale: 'isForSale',
         is_infusion: 'isInfusion',
         image_url: 'imageUrl',
-        comment: 'comment'
+        comment: 'comment',
+        stock: 'stock'
     };
 
     Object.entries(productData).forEach(([key, value]) => {

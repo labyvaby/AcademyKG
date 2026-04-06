@@ -1,5 +1,6 @@
 import { ClientShift, Client } from "../model/types";
 import { apiFetch } from "../../../utility/apiClient";
+import { fetchAllPages } from "../../../utility/pagination";
 
 // ── Маппинг из API ответа ──────────────────────────────────────────────────
 
@@ -41,8 +42,7 @@ export const clientScheduleApi = {
   /** Загрузить список клиентов */
   fetchClients: async (): Promise<Client[]> => {
     try {
-      const res: any = await apiFetch("/api/v1/clients/?pageSize=500&ordering=fullName");
-      const results: any[] = res?.data?.results ?? res?.results ?? [];
+      const results = await fetchAllPages<any>("/api/v1/clients/?ordering=fullName");
       return results.map(toClient).filter((c) => c.id && c.fullName);
     } catch {
       return [];
@@ -52,10 +52,9 @@ export const clientScheduleApi = {
   /** Загрузить смены клиентов за диапазон дат */
   fetchShifts: async (startDate: string, endDate: string): Promise<ClientShift[]> => {
     try {
-      const res: any = await apiFetch(
-        `/api/v1/client-schedules/?start_date=${startDate}&end_date=${endDate}&pageSize=500`
+      const results = await fetchAllPages<any>(
+        `/api/v1/client-schedules/?start_date=${startDate}&end_date=${endDate}`
       );
-      const results: any[] = res?.data?.results ?? res?.results ?? [];
       return results.map(toShift).filter((s) => s.id && s.date);
     } catch {
       return [];

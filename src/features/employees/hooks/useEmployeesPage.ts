@@ -222,18 +222,49 @@ function sanitizeEmployeeWritePayload(payload: Record<string, unknown>): Record<
       if (!EMPLOYEE_WRITE_FIELDS.has(key)) return false;
       if (value === undefined) return false;
       if (typeof value === "string" && !value.trim()) return false;
-      return !(Array.isArray(value) && value.length === 0);
+      return true;
     }),
   );
+}
+
+function appendFormValue(fd: FormData, key: string, value: unknown): void {
+  if (value instanceof File) {
+    fd.append(key, value);
+    return;
+  }
+
+  if (Array.isArray(value)) {
+    value.forEach((item) => {
+      fd.append(key, String(item));
+    });
+    return;
+  }
+
+  if (value === null) {
+    fd.append(key, "");
+    return;
+  }
+
+  fd.append(key, String(value));
 }
 
 // Создать сотрудника через REST API
 export async function createEmployeeApi(payload: Record<string, unknown>): Promise<any> {
   const safePayload = sanitizeEmployeeWritePayload(payload);
   console.log("[createEmployeeApi] payload:", JSON.stringify(safePayload, null, 2));
+
+  const hasBinary = Object.values(safePayload).some((value) => value instanceof File);
+  const requestBody = hasBinary
+    ? (() => {
+        const fd = new FormData();
+        Object.entries(safePayload).forEach(([key, value]) => appendFormValue(fd, key, value));
+        return fd;
+      })()
+    : JSON.stringify(safePayload);
+
   const res = await apiFetch("/api/v1/employees/", {
     method: "POST",
-    body: JSON.stringify(safePayload),
+    body: requestBody,
   });
   return (res as any)?.data ?? res;
 }
@@ -242,10 +273,26 @@ export async function createEmployeeApi(payload: Record<string, unknown>): Promi
 export async function updateEmployeeApi(id: string, payload: Record<string, unknown>): Promise<any> {
   const safePayload = sanitizeEmployeeWritePayload(payload);
   console.log("[updateEmployeeApi] PATCH", id, JSON.stringify(safePayload, null, 2));
-  const res = await apiFetch(`/api/v1/employees/${id}/`, {
-    method: "PATCH",
-    body: JSON.stringify(safePayload),
-  });
+
+  const { photoUrl, ...jsonPayload } = safePayload;
+  let res: any = null;
+
+  if (Object.keys(jsonPayload).length > 0) {
+    res = await apiFetch(`/api/v1/employees/${id}/`, {
+      method: "PATCH",
+      body: JSON.stringify(jsonPayload),
+    });
+  }
+
+  if (photoUrl instanceof File) {
+    const fd = new FormData();
+    appendFormValue(fd, "photoUrl", photoUrl);
+    res = await apiFetch(`/api/v1/employees/${id}/`, {
+      method: "PATCH",
+      body: fd,
+    });
+  }
+
   console.log("[updateEmployeeApi] response:", res);
   return (res as any)?.data ?? res;
 }

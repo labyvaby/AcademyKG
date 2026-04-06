@@ -1,6 +1,8 @@
 import React from "react";
+import { useNotification } from "@refinedev/core";
 import type { HistoryRow } from "../../types/models";
 import { roundDateTimeLocalToStep } from "../../utility/time";
+import { updatePatientVisit } from "./visitApi";
 
 export type VisitEditFormState = {
   open: boolean;
@@ -33,13 +35,15 @@ const toInputDateTime = (s: string): string => {
   return str.replace(" ", "T");
 };
 
-export function useVisitEditForm(_opts?: Options): VisitEditFormState {
+export function useVisitEditForm(opts?: Options): VisitEditFormState {
+  const { open: notify } = useNotification();
   const [open, setOpen] = React.useState(false);
   const [recordId, setRecordId] = React.useState<string | null>(null);
   const [dateTime, setDateTime] = React.useState("");
   const [doctor, setDoctor] = React.useState("");
   const [service, setService] = React.useState("");
   const [price, setPrice] = React.useState<number | "">("");
+  const [submitting, setSubmitting] = React.useState(false);
 
   const reset = React.useCallback(() => {
     setRecordId(null);
@@ -66,8 +70,38 @@ export function useVisitEditForm(_opts?: Options): VisitEditFormState {
   }, []);
 
   const submit = React.useCallback(async () => {
-    // Not implemented — use appointment edit via API instead
-  }, []);
+    if (!recordId) {
+      notify?.({ type: "error", message: "Не выбран приём для редактирования" });
+      return;
+    }
+    if (!dateTime) {
+      notify?.({ type: "error", message: "Укажите дату и время приёма" });
+      return;
+    }
+    if (!service.trim()) {
+      notify?.({ type: "error", message: "Укажите услугу" });
+      return;
+    }
 
-  return { open, setOpen, recordId, dateTime, setDateTime, doctor, setDoctor, service, setService, price, setPrice, submitting: false, startEdit, submit, reset };
+    try {
+      setSubmitting(true);
+      await updatePatientVisit({
+        appointmentId: recordId,
+        dateTime,
+        doctorInput: doctor,
+        serviceInput: service,
+      });
+      notify?.({ type: "success", message: "Приём обновлён" });
+      setOpen(false);
+      reset();
+      opts?.onSuccess?.();
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "Не удалось обновить приём";
+      notify?.({ type: "error", message: "Ошибка при обновлении приёма", description: message });
+    } finally {
+      setSubmitting(false);
+    }
+  }, [dateTime, doctor, notify, opts, recordId, reset, service]);
+
+  return { open, setOpen, recordId, dateTime, setDateTime, doctor, setDoctor, service, setService, price, setPrice, submitting, startEdit, submit, reset };
 }

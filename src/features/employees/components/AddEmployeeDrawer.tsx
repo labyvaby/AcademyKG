@@ -48,6 +48,7 @@ const AddEmployeeDrawer: React.FC<AddEmployeeDrawerProps> = ({ open, onClose, on
   const [status, setStatus] = React.useState("active");
   const [busy, setBusy] = React.useState(false);
   const [photoPreview, setPhotoPreview] = React.useState<string | null>(null);
+  const [photoFile, setPhotoFile] = React.useState<File | null>(null);
   const [telegramId, setTelegramId] = React.useState("");
   const [email, setEmail] = React.useState("");
   const [emailErrorMsg, setEmailErrorMsg] = React.useState("");
@@ -72,6 +73,7 @@ const AddEmployeeDrawer: React.FC<AddEmployeeDrawerProps> = ({ open, onClose, on
     if (!open) {
       setFullName(""); setPhone(""); setPhoneCountryCode(DEFAULT_PHONE_COUNTRY_CODE);
       setRoleId(""); setSpecializationId(""); setPhotoPreview(null);
+      setPhotoFile(null);
       setBirthDate(""); setStatus("active"); setBankAccountNumber(""); setInn("");
       setTelegramId(""); setEmail(""); setEmailErrorMsg("");
       setSelectedServices([]);
@@ -156,6 +158,7 @@ const AddEmployeeDrawer: React.FC<AddEmployeeDrawerProps> = ({ open, onClose, on
       if (bankAccountNumber.trim()) payload.bankAccountNumber = bankAccountNumber.trim();
       if (inn.trim()) payload.inn = inn.trim();
       if (nickname.trim()) payload.nickname = nickname.trim();
+      if (photoFile) payload.photoUrl = photoFile;
 
       if ((selectedRole?.name === 'specialist') && specializationId) {
         payload.specializationIds = [specializationId];
@@ -200,6 +203,7 @@ const AddEmployeeDrawer: React.FC<AddEmployeeDrawerProps> = ({ open, onClose, on
           <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>Фото</Typography>
           <ServicePhotoUploader photoFile={null} photoPreview={photoPreview} inputId="emp-add-photo-input"
             onPickPhoto={f => {
+              setPhotoFile(f);
               if (!f) { setPhotoPreview(null); return; }
               const r = new FileReader();
               r.onload = () => setPhotoPreview(String(r.result || ""));

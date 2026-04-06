@@ -4,7 +4,7 @@
  */
 
 import React from "react";
-import { apiFetch } from "../../utility/apiClient";
+import { fetchAllPages } from "../../utility/pagination";
 import type { HistoryRow, Patient } from "../../types/models";
 
 const HISTORY_CACHE_PREFIX = "patientSearch.history.v1.";
@@ -30,6 +30,9 @@ function mapAppointmentToHistoryRow(r: any): HistoryRow {
     .map((s: any) => s.sellableItem?.displayName ?? s.sellableItem?.name ?? "")
     .filter(Boolean)
     .join(", ");
+  const singleServiceId = servicesArr.length === 1
+    ? String(servicesArr[0]?.sellableItem?.id ?? servicesArr[0]?.sellableItem ?? "")
+    : "";
 
   return {
     ...r,
@@ -38,7 +41,7 @@ function mapAppointmentToHistoryRow(r: any): HistoryRow {
     "Доктор ФИО": doctorName || undefined,
     "Пациент ФИО": patientName || undefined,
     Услуга: serviceNames || r.serviceNames || r.service_names || undefined,
-    "Услуга ID": undefined,
+    "Услуга ID": singleServiceId || undefined,
     Статус: r.status ?? undefined,
     Стоимость: r.total != null ? Number(r.total) : r.totalAmount != null ? Number(r.totalAmount) : undefined,
     "Итого, сом": r.total != null ? Number(r.total) : r.totalAmount != null ? Number(r.totalAmount) : undefined,
@@ -104,13 +107,11 @@ export function usePatientHistory(selected: Patient | null) {
         }
 
         // Load from REST API
-        const res: any = await apiFetch(
+        const rows = await fetchAllPages<any>(
           `/api/v1/appointments/?patient=${selected.id}&ordering=-appointmentAt`
         );
 
         if (ctrl.signal.aborted) return;
-
-        const rows: any[] = res?.data?.results ?? res?.results ?? [];
 
         const hist: HistoryRow[] = rows
           .map(mapAppointmentToHistoryRow)

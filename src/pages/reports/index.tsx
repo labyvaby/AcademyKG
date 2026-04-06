@@ -32,6 +32,7 @@ import { usePageTitle } from "../../hooks/usePageTitle";
 import { useActiveMonths } from "../../hooks/useActiveMonths";
 import { formatKGS } from "../../utility/format";
 import { apiFetch } from "../../utility/apiClient";
+import { fetchAllPages } from "../../utility/pagination";
 import dayjs from "dayjs";
 import 'dayjs/locale/ru';
 
@@ -90,9 +91,9 @@ const ReportsPage: React.FC = () => {
         try {
             setFinancialLoading(true);
 
-            // Fetch all appointments for the month
-            const res: any = await apiFetch(`/api/v1/appointments/?ordering=-appointmentAt`);
-            const appointments: any[] = res?.data?.results ?? res?.results ?? [];
+            const appointments = await fetchAllPages<any>(
+                `/api/v1/appointments/?ordering=-appointmentAt&dateFrom=${encodeURIComponent(dateFrom)}&dateTo=${encodeURIComponent(dateTo)}`
+            );
 
             const groupedMap = new Map<string, DailyFinancialData>();
             let current = dayjs(dateFrom);

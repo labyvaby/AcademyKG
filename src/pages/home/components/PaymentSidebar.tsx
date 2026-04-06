@@ -121,6 +121,19 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
     const lastInitializedId = React.useRef<string | null>(null);
     const queryClient = useQueryClient();
 
+    const createBalanceTransaction = async (txType: "balance" | "bonuses", amount: number, note: string) => {
+        if (!appointment?.patient_id || amount === 0) return;
+        await apiFetch(`/api/v1/client-balance-transactions/`, {
+            method: "POST",
+            body: JSON.stringify({
+                patient: appointment.patient_id,
+                txType,
+                amount: String(amount),
+                note,
+            }),
+        });
+    };
+
     useEffect(() => {
         if (open && appointment) {
             // Re-initialize every time the sidebar opens (even for the same appointment id)
@@ -238,46 +251,30 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
         }
     };
 
-    // Helper: deduct/refund patient balance/bonuses after successful payment save
-    // prevBalance/prevPoints must be captured BEFORE optimistic update
-    const adjustPatientBalanceIfNeeded = async (prevBalance: number, prevPoints: number) => {
-        if (!appointment?.patient_id) return;
-
-        const diffPoints = pointsUsed - prevPoints;
-        if (diffPoints !== 0) {
-            await apiFetch(`/api/v1/client-balance-transactions/`, {
-                method: "POST",
-                body: JSON.stringify({
-                    patient: appointment.patient_id,
-                    txType: "bonuses",
-                    amount: String(-diffPoints),
-                    note: `Оплата приёма #${appointment.id}`,
-                }),
-            });
-        }
-
-        const diffBalance = balanceUsed - prevBalance;
-        if (diffBalance !== 0) {
-            await apiFetch(`/api/v1/client-balance-transactions/`, {
-                method: "POST",
-                body: JSON.stringify({
-                    patient: appointment.patient_id,
-                    txType: "balance",
-                    amount: String(-diffBalance),
-                    note: `Оплата приёма #${appointment.id}`,
-                }),
-            });
-        }
-
-        reloadBalance();
-    };
-
     const handleSave = async () => {
         if (loading) return;
 
         // Capture prev values BEFORE any optimistic updates
         const prevBalance = appointment.paid_balance || 0;
         const prevPoints = appointment.paid_bonuses || 0;
+        const previousPaymentPayload = {
+            paidCash: Number(appointment.paid_cash || 0),
+            paidCard: Number(appointment.paid_card || 0),
+            paidBalance: Number(appointment.paid_balance || 0),
+            paidBonuses: Number(appointment.paid_bonuses || 0),
+            discount: Number(appointment.discount || 0),
+            debt: Number(appointment.debt || 0),
+            adminComment: appointment.admin_comment || "",
+        };
+        const nextPaymentPayload = {
+            paidCash: cashNum,
+            paidCard: cardNum,
+            paidBalance: balanceUsed,
+            paidBonuses: pointsUsed,
+            discount: discountAmount,
+            debt: debt,
+            adminComment: adminComment,
+        };
 
         // Optimistic Updates
         const prevDetails = queryClient.getQueryData<any>(['appointment-details', appointment.id]);
@@ -305,24 +302,35 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
             if (!Array.isArray(old)) return old;
             return old.map(a => a.id === appointment.id ? { ...a, ...updates } : a);
         });
+        let appointmentSaved = false;
+        const appliedAdjustments: Array<{ txType: "balance" | "bonuses"; amount: number }> = [];
 
         try {
             setLoading(true);
 
             await apiFetch(`/api/v1/appointments/${appointment.id}/`, {
                 method: "PATCH",
-                body: JSON.stringify({
-                    paidCash: cashNum,
-                    paidCard: cardNum,
-                    paidBalance: balanceUsed,
-                    paidBonuses: pointsUsed,
-                    discount: discountAmount,
-                    debt: debt,
-                    adminComment: adminComment,
-                })
+                body: JSON.stringify(nextPaymentPayload)
             });
+            appointmentSaved = true;
 
-            await adjustPatientBalanceIfNeeded(prevBalance, prevPoints);
+            const diffPoints = pointsUsed - prevPoints;
+            const diffBalance = balanceUsed - prevBalance;
+            const paymentNote = `Оплата приёма #${appointment.id}`;
+
+            if (diffPoints !== 0) {
+                const amount = -diffPoints;
+                await createBalanceTransaction("bonuses", amount, paymentNote);
+                appliedAdjustments.push({ txType: "bonuses", amount });
+            }
+
+            if (diffBalance !== 0) {
+                const amount = -diffBalance;
+                await createBalanceTransaction("balance", amount, paymentNote);
+                appliedAdjustments.push({ txType: "balance", amount });
+            }
+
+            reloadBalance();
 
 
             notify?.({
@@ -332,11 +340,46 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
             onSaved();
             onClose();
         } catch (e: unknown) {
+            let rollbackFailed = false;
+            const rollbackErrors: string[] = [];
+
+            if (appointmentSaved && appointment?.id) {
+                const rollbackTasks: Promise<unknown>[] = [];
+
+                // Если PATCH приёма прошёл, компенсируем уже созданные движения по балансу
+                // и возвращаем платёжные поля приёма в исходное состояние.
+                rollbackTasks.push(
+                    apiFetch(`/api/v1/appointments/${appointment.id}/`, {
+                        method: "PATCH",
+                        body: JSON.stringify(previousPaymentPayload),
+                    }),
+                );
+
+                appliedAdjustments.forEach((adjustment) => {
+                    rollbackTasks.push(
+                        createBalanceTransaction(
+                            adjustment.txType,
+                            -adjustment.amount,
+                            `Rollback оплаты приёма #${appointment.id}`,
+                        ),
+                    );
+                });
+
+                const rollbackResults = await Promise.allSettled(rollbackTasks);
+                rollbackResults.forEach((result) => {
+                    if (result.status === "rejected") {
+                        rollbackFailed = true;
+                        rollbackErrors.push(result.reason instanceof Error ? result.reason.message : String(result.reason));
+                    }
+                });
+            }
+
             // Rollback
             if (prevDetails) {
                 queryClient.setQueryData(['appointment-details', appointment.id], prevDetails);
             }
             queryClient.invalidateQueries({ queryKey: ["appointments", "daily"] });
+            reloadBalance();
 
             console.error(e);
             const message =
@@ -346,7 +389,9 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
             notify?.({
                 type: "error",
                 message: "Ошибка при сохранении оплаты",
-                description: message,
+                description: rollbackFailed
+                    ? `${message}. Откат выполнен не полностью: ${rollbackErrors.join("; ")}`
+                    : message,
             });
         } finally {
             setLoading(false);

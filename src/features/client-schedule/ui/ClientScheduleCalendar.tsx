@@ -266,15 +266,21 @@ const ClientScheduleCalendar = React.forwardRef((_, ref) => {
   const handleFormSuccess = async (data: any) => {
     const items: Array<Omit<ClientShift, "id" | "client">> = Array.isArray(data) ? data : [data];
 
-    if (items.length > 1) {
+    if (editingShift && items.length === 1) {
+      await clientScheduleApi.updateShift(editingShift.id, {
+        startTime: items[0].startTime,
+        endTime: items[0].endTime,
+      });
+    } else if (items.length > 1) {
       // Несколько дат — bulk создание
       await clientScheduleApi.createShiftsBulk(items);
     } else {
       await clientScheduleApi.createShift(items[0]);
     }
 
-    fetchData();
+    await fetchData();
     setIsDrawerOpen(false);
+    setEditingShift(null);
   };
 
   const handleDelete = async (id: string) => {
