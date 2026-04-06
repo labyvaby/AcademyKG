@@ -126,11 +126,45 @@ export async function confirmPasswordReset(
 import { clearPermissions } from "../hooks/usePermissions";
 
 /**
- * Выход из аккаунта — удаляем токены локально и сбрасываем права.
+ * Выход из аккаунта.
+ * Инвалидирует сессию на сервере (POST /auth/logout/), затем очищает локальные токены.
+ * Вызов — fire-and-forget: даже если сервер недоступен, локальные токены очищаются.
  */
 export function logout(): void {
+  const access = tokenStorage.getAccess();
+  const refresh = tokenStorage.getRefresh();
+
+  // Сначала чистим локально — UI не должен ждать ответа сервера
   tokenStorage.clear();
   clearPermissions();
+
+  // Инвалидируем сессию на сервере в фоне
+  if (access && refresh) {
+    fetch(`${import.meta.env.VITE_API_BASE_URL || "https://academy.operator.kg"}/api/v1/auth/logout/`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${access}`,
+      },
+      body: JSON.stringify({ refreshToken: refresh }),
+    }).catch(() => { /* игнорируем — токены уже очищены локально */ });
+  }
+}
+
+/**
+ * Смена пароля.
+ * POST /api/v1/auth/change-password/
+ * После успеха refresh-токены инвалидируются на сервере — нужна повторная авторизация.
+ */
+export async function changePassword(
+  oldPassword: string,
+  newPassword: string,
+  passwordConfirm: string
+): Promise<void> {
+  await apiFetch("/api/v1/auth/change-password/", {
+    method: "POST",
+    body: JSON.stringify({ oldPassword, newPassword, passwordConfirm }),
+  });
 }
 
 /**

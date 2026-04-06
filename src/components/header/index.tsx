@@ -45,6 +45,7 @@ import PassportPhotoUploader from "../../features/employees/components/PassportP
 import { useNotification } from "@refinedev/core";
 import SaveIcon from "@mui/icons-material/Save";
 import { usePermissions, refetchPermissions } from "../../hooks/usePermissions";
+import { logout, changePassword } from "../../services/auth";
 import {
   parsePhone,
   DEFAULT_PHONE_COUNTRY_CODE,
@@ -152,17 +153,16 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
     if (newPassword !== confirmPassword) { setPasswordError("Пароли не совпадают"); return; }
     try {
       setBusy(true);
-      await apiFetch("/api/v1/auth/change-password/", {
-        method: "POST",
-        body: JSON.stringify({ oldPassword: oldPassword.trim(), newPassword: newPassword.trim(), newPasswordConfirm: confirmPassword.trim() }),
-      });
-      notify?.({ type: "success", message: "Пароль успешно изменён" });
-      setChangePasswordMode(false);
-      setOldPassword(""); setNewPassword(""); setConfirmPassword("");
+      await changePassword(oldPassword.trim(), newPassword.trim(), confirmPassword.trim());
+      notify?.({ type: "success", message: "Пароль изменён. Выполняется повторный вход..." });
+      // Сервер инвалидировал все refresh-токены — нужна повторная авторизация
+      setTimeout(() => {
+        logout();
+        window.location.href = "/login";
+      }, 1500);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       setPasswordError(msg || "Не удалось изменить пароль");
-    } finally {
       setBusy(false);
     }
   };

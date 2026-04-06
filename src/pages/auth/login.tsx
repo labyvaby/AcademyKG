@@ -130,6 +130,20 @@ const LoginPage: React.FC = () => {
     return "Произошла неизвестная ошибка";
   };
 
+  // Если сервер вернул 429 — применяем серверную блокировку с таймером
+  const handle429FromServer = (err: unknown) => {
+    const e = err as any;
+    if (e?.status === 429) {
+      const retryAfter = e?.retryAfterSeconds ?? 60;
+      const until = Date.now() + retryAfter * 1000;
+      setFailState(MAX_ATTEMPTS, until);
+      setFailCount(MAX_ATTEMPTS);
+      setLockedUntil(until);
+      return true;
+    }
+    return false;
+  };
+
   const handleSendCode = async (e: React.FormEvent) => {
     e.preventDefault();
     const digits = phoneLocal.replace(/[^0-9]/g, "");
@@ -211,7 +225,9 @@ const LoginPage: React.FC = () => {
       await refetchPermissions();
       navigate(redirectTo, { replace: true });
     } catch (err) {
-      handleFailedAttempt();
+      if (!handle429FromServer(err)) {
+        handleFailedAttempt();
+      }
       setErrorMsg(getErrorMessage(err));
     } finally {
       setLoading(false);

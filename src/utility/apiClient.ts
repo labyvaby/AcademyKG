@@ -210,11 +210,17 @@ export async function apiFetch<T = unknown>(
 
       if (newToken) {
         response = await doRequest(newToken);
+        // Если после refresh всё равно 401 — сессия окончательно недействительна
+        if (response.status === 401) {
+          tokenStorage.clear();
+          window.location.href = "/login";
+          throw createApiError("Сессия завершена. Войдите снова.", 401);
+        }
       } else {
-        // Session expired — redirect to login
+        // Refresh провалился — сессия истекла или инвалидирована (logout / смена пароля)
         tokenStorage.clear();
         window.location.href = "/login";
-        throw new Error("Session expired");
+        throw createApiError("Сессия завершена. Войдите снова.", 401);
       }
     }
   }
@@ -242,7 +248,14 @@ export async function apiFetch<T = unknown>(
     }
 
     if (response.status === 429) {
-      throw createApiError(errorDetail, 429, retryAfterSeconds);
+      const friendlyMsg = retryAfterSeconds
+        ? `Слишком много запросов. Повторите через ${retryAfterSeconds} сек.`
+        : "Слишком много запросов. Подождите немного и попробуйте снова.";
+      throw createApiError(
+        errorDetail !== `HTTP ${response.status}` ? errorDetail : friendlyMsg,
+        429,
+        retryAfterSeconds
+      );
     }
 
     throw createApiError(errorDetail, response.status, retryAfterSeconds);

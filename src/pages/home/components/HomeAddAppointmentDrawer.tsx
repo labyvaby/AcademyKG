@@ -976,7 +976,14 @@ export const HomeAddAppointmentDrawer: React.FC<
         delete dayAppointmentsCacheRef.current[visitDate];
 
         const msg = String(err?.message ?? err ?? "").toLowerCase();
-        if (msg.includes("overlap") || msg.includes("conflict") || msg.includes("занят") || msg.includes("пересека")) {
+        const isOverlap =
+          err?.status === 400 && (
+            msg.includes("overlap") || msg.includes("conflict") || msg.includes("занят") ||
+            msg.includes("пересека") || msg.includes("already booked") || msg.includes("time slot")
+          ) ||
+          msg.includes("overlap") || msg.includes("conflict") || msg.includes("занят") || msg.includes("пересека");
+
+        if (isOverlap) {
           notify?.({
             type: "error",
             message: "Конфликт по времени",

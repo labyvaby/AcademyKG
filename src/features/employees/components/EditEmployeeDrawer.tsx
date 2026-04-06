@@ -191,12 +191,20 @@ const EditEmployeeDrawer: React.FC<EditEmployeeDrawerProps> = ({ record, onClose
       setBusy(true);
       const fullPhone = composePhone(phoneCountryCode, phone);
 
+      // Непривилегированные пользователи (specialist, receptionist) не должны
+      // отправлять sensitive-поля: role, status, organization, branch, authUser.
+      // Эти поля отправляем только если есть право на управление настройками.
+      const canEditSensitiveFields = canManageRoles;
+
       const payload: Record<string, unknown> = {
         fullName: fullNameTrim || undefined,
-        status,
-        organization: organizationId,
-        branch: branchId,
       };
+
+      if (canEditSensitiveFields) {
+        payload.status = status;
+        payload.organization = organizationId;
+        payload.branch = branchId;
+      }
 
       if (canManageRoles) payload.role = roleId || undefined;
 
