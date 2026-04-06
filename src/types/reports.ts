@@ -17,11 +17,14 @@ export interface DailyFinancialData {
 }
 
 export interface FinancialSummaryCards {
-    services: { title: string; value: number; color: string };
-    cash: { title: string; value: number; color: string };
-    card: { title: string; value: number; color: string };
-    debt: { title: string; value: number; color: string };
-    [key: string]: any;
+    appointments: number;
+    procedures: number;
+    day: number;
+    night: number;
+    servicesSum: number;
+    productsSum: number;
+    cashAndCardSum: number;
+    debtSum: number;
 }
 
 export interface FinancialReportResponse {
@@ -30,7 +33,7 @@ export interface FinancialReportResponse {
     days: DailyFinancialData[];
     displayDays: DailyFinancialData[];
     totals: Partial<DailyFinancialData>;
-    summaryCards: any[]; // API structure may vary, usually array of card objects
+    summaryCards: FinancialSummaryCards;
 }
 
 export interface PayrollRow {
@@ -80,7 +83,7 @@ export interface PayrollReportResponse {
         warningsCount: number;
         openShiftsCount: number;
         paidOutCount: number;
-        totalNetSalary: number;
+        totalNetSalary?: number;
     };
 }
 

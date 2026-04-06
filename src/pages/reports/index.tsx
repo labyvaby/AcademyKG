@@ -27,29 +27,108 @@ import WalletIcon from '@mui/icons-material/Wallet';
 import AnalyticsOutlined from "@mui/icons-material/AnalyticsOutlined";
 
 import { PageHeader, MonthNavigation } from "../../components/ui";
-import { AppointmentsSummaryCards } from "./components/AppointmentsSummaryCards";
+import { AppointmentsSummaryCards, SummaryCard } from "./components/AppointmentsSummaryCards";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { useActiveMonths } from "../../hooks/useActiveMonths";
 import { formatKGS } from "../../utility/format";
-import { apiFetch } from "../../utility/apiClient";
-import { fetchAllPages } from "../../utility/pagination";
+import { getFinancialReport } from "../../services/reports";
+import { DailyFinancialData, FinancialReportResponse } from "../../types/reports";
 import dayjs from "dayjs";
 import 'dayjs/locale/ru';
 
 dayjs.locale('ru');
 
-interface DailyFinancialData {
-    date: string;
-    services_sum: number;
-    cash_sum: number;
-    card_sum: number;
-    balance_sum: number;
-    bonuses_sum: number;
-    discount_sum: number;
-    debt_sum: number;
-    appointments_count: number;
-    waiting_count: number;
-}
+const toNumber = (value: number | string | null | undefined): number => {
+    const parsed = Number(value ?? 0);
+    return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const normalizeDailyFinancialData = (day: Partial<DailyFinancialData>): DailyFinancialData => ({
+    date: String(day.date ?? ""),
+    servicesSum: toNumber(day.servicesSum),
+    productsSum: toNumber(day.productsSum),
+    cashSum: toNumber(day.cashSum),
+    cardSum: toNumber(day.cardSum),
+    balanceSum: toNumber(day.balanceSum),
+    bonusesSum: toNumber(day.bonusesSum),
+    discountSum: toNumber(day.discountSum),
+    debtSum: toNumber(day.debtSum),
+    appointmentsCount: toNumber(day.appointmentsCount),
+    proceduresCount: toNumber(day.proceduresCount),
+    dayCount: toNumber(day.dayCount),
+    nightCount: toNumber(day.nightCount),
+    waitingCount: toNumber(day.waitingCount),
+    hasActivity: Boolean(day.hasActivity),
+});
+
+const emptyFinancialReport: FinancialReportResponse = {
+    canView: true,
+    month: "",
+    days: [],
+    displayDays: [],
+    totals: {
+        servicesSum: 0,
+        productsSum: 0,
+        cashSum: 0,
+        cardSum: 0,
+        balanceSum: 0,
+        bonusesSum: 0,
+        discountSum: 0,
+        debtSum: 0,
+        appointmentsCount: 0,
+        proceduresCount: 0,
+        dayCount: 0,
+        nightCount: 0,
+        waitingCount: 0,
+        hasActivity: false,
+    },
+    summaryCards: {
+        appointments: 0,
+        procedures: 0,
+        day: 0,
+        night: 0,
+        servicesSum: 0,
+        productsSum: 0,
+        cashAndCardSum: 0,
+        debtSum: 0,
+    },
+};
+
+const normalizeFinancialReport = (report: FinancialReportResponse | null | undefined): FinancialReportResponse => {
+    if (!report) return emptyFinancialReport;
+
+    const normalizedTotals = normalizeDailyFinancialData(report.totals as Record<string, unknown>);
+    return {
+        canView: Boolean(report.canView),
+        month: report.month ?? "",
+        days: Array.isArray(report.days) ? report.days.map((day) => normalizeDailyFinancialData(day)) : [],
+        displayDays: Array.isArray(report.displayDays)
+            ? report.displayDays.map((day) => normalizeDailyFinancialData(day))
+            : [],
+        totals: normalizedTotals,
+        summaryCards: {
+            appointments: toNumber(report.summaryCards?.appointments),
+            procedures: toNumber(report.summaryCards?.procedures),
+            day: toNumber(report.summaryCards?.day),
+            night: toNumber(report.summaryCards?.night),
+            servicesSum: toNumber(report.summaryCards?.servicesSum),
+            productsSum: toNumber(report.summaryCards?.productsSum),
+            cashAndCardSum: toNumber(report.summaryCards?.cashAndCardSum),
+            debtSum: toNumber(report.summaryCards?.debtSum),
+        },
+    };
+};
+
+const getDayRevenue = (day: Partial<DailyFinancialData>): number =>
+    toNumber(day.servicesSum) + toNumber(day.productsSum);
+
+const hasFinancialActivity = (day: Partial<DailyFinancialData>): boolean =>
+    Boolean(day.hasActivity) ||
+    getDayRevenue(day) > 0 ||
+    toNumber(day.discountSum) > 0 ||
+    toNumber(day.debtSum) > 0 ||
+    toNumber(day.appointmentsCount) > 0 ||
+    toNumber(day.waitingCount) > 0;
 
 const ReportsPage: React.FC = () => {
     usePageTitle("Отчеты");
@@ -59,118 +138,90 @@ const ReportsPage: React.FC = () => {
     // Financial State
     const [selectedDate, setSelectedDate] = useState<string>(dayjs().format('YYYY-MM-DD'));
     const [financialLoading, setFinancialLoading] = useState(false);
-    const [dailyData, setDailyData] = useState<DailyFinancialData[]>([]);
+    const [reportData, setReportData] = useState<FinancialReportResponse>(emptyFinancialReport);
     const activeMonths = useActiveMonths('', '');
 
     // Session cache: key = 'YYYY-MM', invalidated on month change
-    const cache = React.useRef(new Map<string, DailyFinancialData[]>());
-
-    const { dateFrom, dateTo } = useMemo(() => {
-        const startOfMonth = dayjs(selectedDate).startOf('month');
-        let endOfMonth = dayjs(selectedDate).endOf('month');
-        const today = dayjs().endOf('day');
-        if (endOfMonth.isAfter(today)) {
-            endOfMonth = today;
-        }
-        return {
-            dateFrom: startOfMonth.toISOString(),
-            dateTo: endOfMonth.toISOString(),
-        };
-    }, [selectedDate]);
+    const cache = React.useRef(new Map<string, FinancialReportResponse>());
+    const month = useMemo(() => dayjs(selectedDate).format('YYYY-MM'), [selectedDate]);
 
     const fetchFinancialData = useCallback(async (forceRefresh = false) => {
-
-        const cacheKey = dayjs(selectedDate).format('YYYY-MM');
+        const cacheKey = month;
 
         if (!forceRefresh && cache.current.has(cacheKey)) {
-            setDailyData(cache.current.get(cacheKey)!);
+            setReportData(cache.current.get(cacheKey)!);
             setFinancialLoading(false);
             return;
         }
 
         try {
             setFinancialLoading(true);
-
-            const appointments = await fetchAllPages<any>(
-                `/api/v1/appointments/?ordering=-appointmentAt&dateFrom=${encodeURIComponent(dateFrom)}&dateTo=${encodeURIComponent(dateTo)}`
-            );
-
-            const groupedMap = new Map<string, DailyFinancialData>();
-            let current = dayjs(dateFrom);
-            const end = dayjs(dateTo);
-            while (current.isBefore(end) || current.isSame(end, 'day')) {
-                const dateStr = current.format('YYYY-MM-DD');
-                groupedMap.set(dateStr, {
-                    date: dateStr,
-                    services_sum: 0, cash_sum: 0, card_sum: 0,
-                    balance_sum: 0, bonuses_sum: 0, discount_sum: 0, debt_sum: 0,
-                    appointments_count: 0, waiting_count: 0,
-                });
-                current = current.add(1, 'day');
-            }
-
-            const fullyPaidStatuses = new Set(["completed", "Оплачено", "Со скидкой", "Частично оплачено", "Бесплатно"]);
-            const waitingStatuses = new Set(["scheduled", "in_progress", "Ожидаем", "Клиент здесь"]);
-
-            appointments.forEach((app: any) => {
-                const at = app.appointmentAt ?? app.appointment_at;
-                if (!at) return;
-                const day = dayjs(at).format('YYYY-MM-DD');
-                if (!groupedMap.has(day)) {
-                    groupedMap.set(day, {
-                        date: day, services_sum: 0, cash_sum: 0, card_sum: 0,
-                        balance_sum: 0, bonuses_sum: 0, discount_sum: 0, debt_sum: 0,
-                        appointments_count: 0, waiting_count: 0,
-                    });
-                }
-                const existing = groupedMap.get(day)!;
-                const isFullyPaid = fullyPaidStatuses.has(app.status);
-                const isWaiting = waitingStatuses.has(app.status);
-
-                if (isFullyPaid) {
-                    existing.services_sum += Number(app.total ?? app.total_amount ?? 0);
-                    existing.cash_sum += Number(app.paidCash ?? app.paid_cash ?? 0);
-                    existing.card_sum += Number(app.paidCard ?? app.paid_card ?? 0);
-                    existing.balance_sum += Number(app.paidBalance ?? app.paid_balance ?? 0);
-                    existing.bonuses_sum += Number(app.paidBonuses ?? app.paid_bonuses ?? 0);
-                    existing.discount_sum += Number(app.discount ?? 0);
-                    existing.debt_sum += Number(app.debt ?? 0);
-                    existing.appointments_count += 1;
-
-                }
-                if (isWaiting) existing.waiting_count += 1;
-            });
-
-            // Сортировка новые к старому
-            const sorted = Array.from(groupedMap.values()).sort((a, b) => b.date.localeCompare(a.date));
-            cache.current.set(cacheKey, sorted);
-            setDailyData(sorted);
+            const res = await getFinancialReport(month);
+            const normalized = normalizeFinancialReport(res?.data);
+            cache.current.set(cacheKey, normalized);
+            setReportData(normalized);
         } catch (e) {
             console.error(e);
             notify?.({ type: "error", message: "Ошибка загрузки финансового отчета" });
         } finally {
             setFinancialLoading(false);
         }
-    }, [dateFrom, dateTo, notify]);
+    }, [month, notify]);
 
     useEffect(() => {
         fetchFinancialData();
     }, [fetchFinancialData]);
 
-    const financialTotals = useMemo(() => {
-        return dailyData.reduce((acc, curr) => {
-            const finalPrice = curr.cash_sum + curr.card_sum + curr.balance_sum + curr.bonuses_sum + curr.debt_sum;
-            return {
-                services: acc.services + finalPrice,
-                cash: acc.cash + curr.cash_sum,
-                card: acc.card + curr.card_sum,
-                discount: acc.discount + curr.discount_sum,
-                debt: acc.debt + curr.debt_sum,
-                appointmentsCount: acc.appointmentsCount + curr.appointments_count,
-                waitingCount: acc.waitingCount + curr.waiting_count,
-            };
-        }, { services: 0, cash: 0, card: 0, discount: 0, debt: 0, appointmentsCount: 0, waitingCount: 0 });
-    }, [dailyData]);
+    const dailyData = useMemo(
+        () => (reportData.displayDays.length > 0 ? reportData.displayDays : reportData.days).slice().sort((a, b) => b.date.localeCompare(a.date)),
+        [reportData],
+    );
+
+    const reportTotals = useMemo(
+        () => normalizeDailyFinancialData(reportData.totals as Record<string, unknown>),
+        [reportData],
+    );
+
+    const summaryCards = useMemo<SummaryCard[]>(() => {
+        const servicesSum = toNumber(reportTotals.servicesSum);
+        const productsSum = toNumber(reportTotals.productsSum);
+        const totalRevenue = servicesSum + productsSum;
+        const appointmentsCount = reportData.summaryCards.appointments || toNumber(reportTotals.appointmentsCount);
+        const proceduresCount = reportData.summaryCards.procedures || toNumber(reportTotals.proceduresCount);
+
+        return [
+            {
+                title: 'Услуги',
+                primaryValue: formatKGS(servicesSum),
+                secondaryText: `${appointmentsCount} записей`,
+                color: 'primary',
+            },
+            {
+                title: 'Товары',
+                primaryValue: formatKGS(productsSum),
+                secondaryText: `${proceduresCount} процедур`,
+                color: 'info',
+            },
+            {
+                title: 'Общая выручка',
+                primaryValue: formatKGS(totalRevenue),
+                secondaryText: 'Услуги + товары',
+                color: 'success',
+            },
+            {
+                title: 'Скидки',
+                primaryValue: formatKGS(reportTotals.discountSum),
+                secondaryText: 'Сумма скидок',
+                color: 'warning',
+            },
+            {
+                title: 'Долги',
+                primaryValue: formatKGS(reportTotals.debtSum),
+                secondaryText: 'Остаток к оплате',
+                color: 'error',
+            },
+        ];
+    }, [reportData, reportTotals]);
 
     return (
         <Box sx={{
@@ -197,20 +248,14 @@ const ReportsPage: React.FC = () => {
             })}>
                 <Stack spacing={3} sx={(theme) => ({ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, pb: { xs: 15, md: theme.appLayout.page.paddingY } })}>
                     <AppointmentsSummaryCards
-                        dateFrom={dateFrom}
-                        dateTo={dateTo}
-                        extraCards={[
-                            { title: 'Записи', primaryValue: `${financialTotals.appointmentsCount}`, secondaryText: 'Оплаченные записи', color: 'primary' as const },
-                            { title: 'Итого услуги', primaryValue: formatKGS(financialTotals.services), secondaryText: 'Сумма по услугам', color: 'primary' as const },
-                            { title: 'Нал + Безнал', primaryValue: formatKGS(financialTotals.cash + financialTotals.card), secondaryText: `Нал: ${formatKGS(financialTotals.cash)} · Безнал: ${formatKGS(financialTotals.card)}`, color: 'success' as const },
-                            { title: 'Долги', primaryValue: formatKGS(financialTotals.debt), secondaryText: 'Не оплачено', color: 'warning' as const },
-                        ]}
+                        cards={summaryCards}
+                        loading={financialLoading}
                     />
 
                     {financialLoading ? <Box sx={{ textAlign: 'center', py: 5, flex: 1 }}><CircularProgress /></Box> : (
                         isMobile ? (
                             <Stack spacing={1.5} sx={{ flex: 1 }}>
-                                {dailyData.filter(d => d.appointments_count > 0).map(day => (
+                                {dailyData.filter(hasFinancialActivity).map(day => (
                                     <Card key={day.date} variant="outlined" sx={{ borderRadius: 3, '&:hover': { borderColor: 'primary.main', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' } }}>
                                         <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
                                             <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 1.5 }}>
@@ -224,7 +269,7 @@ const ReportsPage: React.FC = () => {
                                                 <Box sx={{ flex: 1 }}>
                                                     <Typography variant="subtitle1" fontWeight={800}>{dayjs(day.date).format('DD MMMM')}</Typography>
                                                     <Typography variant="caption" color="text.secondary">
-                                                        {dayjs(day.date).format('dddd')} • Записей: {day.appointments_count}
+                                                        {dayjs(day.date).format('dddd')} • Записей: {day.appointmentsCount}
                                                     </Typography>
                                                 </Box>
                                             </Stack>
@@ -234,35 +279,42 @@ const ReportsPage: React.FC = () => {
                                                     <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                                                         <PaymentsIcon sx={{ fontSize: 14, color: 'primary.main' }} /> Услуги
                                                     </Typography>
-                                                    <Typography variant="subtitle1" fontWeight={800}>{formatKGS(day.cash_sum + day.card_sum + day.balance_sum + day.bonuses_sum + day.debt_sum)}</Typography>
+                                                    <Typography variant="subtitle1" fontWeight={800}>{formatKGS(day.servicesSum)}</Typography>
                                                 </Grid2>
                                                 <Grid2 size={6}>
                                                     <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                                        <WalletIcon sx={{ fontSize: 14, color: 'success.main' }} /> Наличные
+                                                        <WalletIcon sx={{ fontSize: 14, color: 'info.main' }} /> Товары
                                                     </Typography>
-                                                    <Typography variant="subtitle1" color="success.main" fontWeight={800}>{formatKGS(day.cash_sum)}</Typography>
+                                                    <Typography variant="subtitle1" color="info.main" fontWeight={800}>{formatKGS(day.productsSum)}</Typography>
                                                 </Grid2>
                                                 <Grid2 size={6}>
                                                     <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                                        <CreditCardIcon sx={{ fontSize: 14, color: 'info.main' }} /> Безнал
+                                                        <CreditCardIcon sx={{ fontSize: 14, color: 'success.main' }} /> Выручка
                                                     </Typography>
-                                                    <Typography variant="subtitle1" color="info.main" fontWeight={800}>{formatKGS(day.card_sum)}</Typography>
+                                                    <Typography variant="subtitle1" color="success.main" fontWeight={800}>{formatKGS(getDayRevenue(day))}</Typography>
                                                 </Grid2>
-                                                {(day.debt_sum > 0) && (
+                                                {(day.discountSum > 0 || day.debtSum > 0) && (
                                                     <Grid2 size={12}>
-                                                        <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                                            <TrendingDownIcon sx={{ fontSize: 14, color: 'warning.main' }} /> Долг
+                                                        <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, justifyContent: 'space-between' }}>
+                                                            <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
+                                                                <TrendingDownIcon sx={{ fontSize: 14, color: 'warning.main' }} /> Скидка / долг
+                                                            </Box>
                                                         </Typography>
-                                                        <Typography variant="subtitle1" color="warning.main" fontWeight={800}>
-                                                            {formatKGS(day.debt_sum)}
-                                                        </Typography>
+                                                        <Stack direction="row" spacing={2}>
+                                                            <Typography variant="subtitle2" color="warning.main" fontWeight={800}>
+                                                                Скидка: {formatKGS(day.discountSum)}
+                                                            </Typography>
+                                                            <Typography variant="subtitle2" color="error.main" fontWeight={800}>
+                                                                Долг: {formatKGS(day.debtSum)}
+                                                            </Typography>
+                                                        </Stack>
                                                     </Grid2>
                                                 )}
                                             </Grid2>
                                         </CardContent>
                                     </Card>
                                 ))}
-                                {dailyData.filter(d => d.appointments_count > 0).length === 0 && (
+                                {dailyData.filter(hasFinancialActivity).length === 0 && (
                                     <Paper variant="outlined" sx={{ p: 4, textAlign: 'center', borderRadius: 3 }}>
                                         <Typography color="text.secondary">Нет данных за этот период</Typography>
                                     </Paper>
@@ -274,34 +326,36 @@ const ReportsPage: React.FC = () => {
                                     <Table stickyHeader size="small">
                                         <TableHead>
                                             <TableRow>
-                                                {['Дата', 'Записи', 'В ожидании', 'Итого', 'Наличные', 'Безнал', 'Долг'].map(h => <TableCell key={h} align={h === 'Дата' ? 'left' : h === 'Записи' || h === 'В ожидании' ? 'center' : 'right'} sx={{ fontWeight: 800, ...(h === 'В ожидании' ? { color: 'error.main' } : {}) }}>{h}</TableCell>)}
+                                                {['Дата', 'Записи', 'В ожидании', 'Услуги', 'Товары', 'Выручка', 'Скидка', 'Долг'].map(h => <TableCell key={h} align={h === 'Дата' ? 'left' : h === 'Записи' || h === 'В ожидании' ? 'center' : 'right'} sx={{ fontWeight: 800, ...(h === 'В ожидании' ? { color: 'error.main' } : {}) }}>{h}</TableCell>)}
                                             </TableRow>
                                         </TableHead>
                                         <TableBody>
                                             {dailyData.map(day => (
-                                                <TableRow key={day.date} hover sx={{ opacity: day.appointments_count > 0 ? 1 : 0.6 }}>
+                                                <TableRow key={day.date} hover sx={{ opacity: hasFinancialActivity(day) ? 1 : 0.6 }}>
                                                     <TableCell sx={{ fontWeight: 600 }}>{dayjs(day.date).format('DD.MM (ddd)')}</TableCell>
-                                                    <TableCell align="center">{day.appointments_count > 0 ? day.appointments_count : '-'}</TableCell>
+                                                    <TableCell align="center">{day.appointmentsCount > 0 ? day.appointmentsCount : '-'}</TableCell>
                                                     <TableCell align="center" sx={{
-                                                        fontWeight: day.waiting_count > 0 ? 700 : 400,
-                                                        color: (day.waiting_count > 0 && dayjs(day.date).isBefore(dayjs(), 'day')) ? 'error.main' : 'text.secondary'
+                                                        fontWeight: day.waitingCount > 0 ? 700 : 400,
+                                                        color: (day.waitingCount > 0 && dayjs(day.date).isBefore(dayjs(), 'day')) ? 'error.main' : 'text.secondary'
                                                     }}>
-                                                        {day.waiting_count > 0 ? day.waiting_count : '-'}
+                                                        {day.waitingCount > 0 ? day.waitingCount : '-'}
                                                     </TableCell>
-                                                    <TableCell align="right">{formatKGS(day.cash_sum + day.card_sum + day.balance_sum + day.bonuses_sum + day.debt_sum)}</TableCell>
-                                                    <TableCell align="right" sx={{ color: 'success.main', fontWeight: 600 }}>{formatKGS(day.cash_sum)}</TableCell>
-                                                    <TableCell align="right" sx={{ color: 'info.main', fontWeight: 600 }}>{formatKGS(day.card_sum)}</TableCell>
-                                                    <TableCell align="right" sx={{ color: 'warning.main' }}>{day.debt_sum > 0 ? formatKGS(day.debt_sum) : '-'}</TableCell>
+                                                    <TableCell align="right">{formatKGS(day.servicesSum)}</TableCell>
+                                                    <TableCell align="right" sx={{ color: 'info.main', fontWeight: 600 }}>{formatKGS(day.productsSum)}</TableCell>
+                                                    <TableCell align="right" sx={{ color: 'success.main', fontWeight: 600 }}>{formatKGS(getDayRevenue(day))}</TableCell>
+                                                    <TableCell align="right" sx={{ color: 'warning.main' }}>{day.discountSum > 0 ? formatKGS(day.discountSum) : '-'}</TableCell>
+                                                    <TableCell align="right" sx={{ color: 'error.main' }}>{day.debtSum > 0 ? formatKGS(day.debtSum) : '-'}</TableCell>
                                                 </TableRow>
                                             ))}
                                             <TableRow sx={{ bgcolor: alpha(theme.palette.primary.main, 0.05) }}>
                                                 <TableCell sx={{ fontWeight: 800 }}>ИТОГО</TableCell>
-                                                <TableCell align="center" sx={{ fontWeight: 800 }}>{financialTotals.appointmentsCount}</TableCell>
-                                                <TableCell align="center" sx={{ fontWeight: 800, color: 'error.main' }}>{financialTotals.waitingCount > 0 ? financialTotals.waitingCount : '-'}</TableCell>
-                                                <TableCell align="right" sx={{ fontWeight: 800 }}>{formatKGS(financialTotals.services)}</TableCell>
-                                                <TableCell align="right" sx={{ fontWeight: 800, color: 'success.main' }}>{formatKGS(financialTotals.cash)}</TableCell>
-                                                <TableCell align="right" sx={{ fontWeight: 800, color: 'info.main' }}>{formatKGS(financialTotals.card)}</TableCell>
-                                                <TableCell align="right" sx={{ fontWeight: 800, color: 'warning.main' }}>{formatKGS(financialTotals.debt)}</TableCell>
+                                                <TableCell align="center" sx={{ fontWeight: 800 }}>{reportTotals.appointmentsCount}</TableCell>
+                                                <TableCell align="center" sx={{ fontWeight: 800, color: 'error.main' }}>{reportTotals.waitingCount > 0 ? reportTotals.waitingCount : '-'}</TableCell>
+                                                <TableCell align="right" sx={{ fontWeight: 800 }}>{formatKGS(reportTotals.servicesSum)}</TableCell>
+                                                <TableCell align="right" sx={{ fontWeight: 800, color: 'info.main' }}>{formatKGS(reportTotals.productsSum)}</TableCell>
+                                                <TableCell align="right" sx={{ fontWeight: 800, color: 'success.main' }}>{formatKGS(getDayRevenue(reportTotals))}</TableCell>
+                                                <TableCell align="right" sx={{ fontWeight: 800, color: 'warning.main' }}>{formatKGS(reportTotals.discountSum)}</TableCell>
+                                                <TableCell align="right" sx={{ fontWeight: 800, color: 'error.main' }}>{formatKGS(reportTotals.debtSum)}</TableCell>
                                             </TableRow>
                                         </TableBody>
                                     </Table>

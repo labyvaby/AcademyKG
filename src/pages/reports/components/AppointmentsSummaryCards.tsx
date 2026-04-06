@@ -1,20 +1,16 @@
-import React, { useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import React from 'react';
 import {
     Grid2,
     Card,
     CardContent,
     Typography,
-    Skeleton,
     Stack,
     Box,
     alpha,
     useTheme
 } from '@mui/material';
-import { apiFetch } from '../../../utility/apiClient';
-import { formatKGS } from '../../../utility/format';
 
-interface ExtraCard {
+export interface SummaryCard {
     title: string;
     primaryValue: string;
     secondaryText: string;
@@ -22,124 +18,26 @@ interface ExtraCard {
 }
 
 interface AppointmentsSummaryCardsProps {
-    dateFrom: string;
-    dateTo: string;
-    employeeId?: string;
-    appointments?: any[];
-    extraCards?: ExtraCard[];
+    cards: SummaryCard[];
+    loading?: boolean;
 }
 
-// Force Vite HMR reload
 export const AppointmentsSummaryCards: React.FC<AppointmentsSummaryCardsProps> = ({
-    dateFrom,
-    dateTo,
-    employeeId,
-    appointments: providedAppointments,
-    extraCards = [],
+    cards,
+    loading = false,
 }) => {
     const theme = useTheme();
-
-    const { data: fetchedAppointments, isLoading } = useQuery({
-        queryKey: ['appointments-summary', dateFrom, dateTo, employeeId],
-        queryFn: async () => {
-            if (providedAppointments) return providedAppointments;
-            const params = new URLSearchParams();
-            if (employeeId) params.set("specialist", employeeId);
-            const res: any = await apiFetch(`/api/v1/appointments/?${params.toString()}`);
-            return res?.data?.results ?? res?.results ?? [];
-        },
-        enabled: !providedAppointments,
-        staleTime: 5 * 60 * 1000,
-    });
-
-    const appointments = providedAppointments || fetchedAppointments || [];
-
-    const metrics = useMemo(() => {
-        let total = 0;
-        let waiting = 0;
-        let cancelled = 0;
-        let discountedCount = 0;
-        let discountSum = 0;
-        let paidCount = 0;
-        let paidSum = 0;
-
-        appointments.forEach((app: any) => {
-            const isWaiting = app.status === 'Ожидаем' || app.status === 'Клиент здесь';
-            const isCancelled = app.status === 'Отменено' || app.status === 'Клиент не пришел';
-
-            if (!isWaiting && !isCancelled) {
-                total++;
-            }
-
-            if (isWaiting) {
-                waiting++;
-            }
-
-            if (isCancelled) {
-                cancelled++;
-            }
-
-            if (app.status === 'Со скидкой' || app.status === 'Бесплатно') {
-                discountedCount++;
-                discountSum += Number(app.discount || 0);
-            }
-
-            if (app.status === 'Оплачено' || app.status === 'Частично оплачено' || app.status === 'Со скидкой' || app.status === 'Бесплатно' || app.status === 'Завершено') {
-                paidCount++;
-                paidSum += Number(app.paid_cash || 0) + Number(app.paid_card || 0);
-            }
-        });
-
-        return {
-            total,
-            waiting,
-            cancelled,
-            discountedCount,
-            discountSum,
-            paidCount,
-            paidSum
-        };
-    }, [appointments]);
-
-    const baseCards = [
-        {
-            title: 'Оплачено',
-            primaryValue: metrics.paidCount.toString(),
-            secondaryText: `Всего: ${metrics.total} · Отменено: ${metrics.cancelled}`,
-            color: 'success' as const
-        },
-        {
-            title: 'Со скидкой',
-            primaryValue: metrics.discountedCount.toString(),
-            secondaryText: `Сумма скидок: ${formatKGS(metrics.discountSum)}`,
-            color: 'info' as const
-        },
-        {
-            title: 'Ожидание',
-            primaryValue: metrics.waiting.toString(),
-            secondaryText: 'Ожидают или здесь',
-            color: 'warning' as const
-        },
-        {
-            title: 'Отменены',
-            primaryValue: metrics.cancelled.toString(),
-            secondaryText: 'Не пришли или отменены',
-            color: 'error' as const
-        },
-        ...extraCards,
-    ];
-
-    const totalCards = baseCards.length;
+    const totalCards = cards.length;
     // For small counts use equal grid fractions; for large counts use flex
     const useFlex = totalCards > 6;
     const lgSize = useFlex ? undefined : Math.floor(12 / totalCards) as any;
 
-    if (!providedAppointments && isLoading) {
+    if (loading) {
         return (
             <Box sx={{ display: 'flex', gap: { xs: 1, md: 2 }, flexWrap: 'wrap' }}>
                 {Array.from({ length: totalCards }).map((_, i) => (
                     <Box key={i} sx={{ flex: '1 1 140px', minWidth: 0 }}>
-                        <Skeleton variant="rectangular" height={80} sx={{ borderRadius: 3 }} />
+                        <Card variant="outlined" sx={{ borderRadius: 3, height: 80, opacity: 0.5 }} />
                     </Box>
                 ))}
             </Box>
@@ -149,7 +47,7 @@ export const AppointmentsSummaryCards: React.FC<AppointmentsSummaryCardsProps> =
     if (useFlex) {
         return (
             <Box sx={{ display: 'flex', gap: { xs: 1, md: 1.5 }, flexWrap: { xs: 'wrap', lg: 'nowrap' } }}>
-                {baseCards.map((card, idx) => (
+                {cards.map((card, idx) => (
                     <Box key={idx} sx={{ flex: '1 1 0', minWidth: { xs: 'calc(50% - 4px)', lg: 0 } }}>
                         <Card
                             variant="outlined"
@@ -211,7 +109,7 @@ export const AppointmentsSummaryCards: React.FC<AppointmentsSummaryCardsProps> =
 
     return (
         <Grid2 container spacing={{ xs: 1, md: 2 }}>
-            {baseCards.map((card, idx) => (
+            {cards.map((card, idx) => (
                 <Grid2 key={idx} size={{ xs: 6, lg: lgSize }}>
                     <Card
                         variant="outlined"

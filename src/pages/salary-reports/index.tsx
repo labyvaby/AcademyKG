@@ -76,6 +76,7 @@ const SalaryReportsPage: React.FC = () => {
     );
 
     const { groups = [], totals = {} as any, summary = {} as any } = reportData || {};
+    const netSalaryTotal = Number(totals.netSalary ?? 0);
 
     const monthLabel = dayjs(selectedDate).format('YYYY-MM');
 
@@ -195,7 +196,7 @@ const SalaryReportsPage: React.FC = () => {
                                     <Typography fontWeight={800}>KGS</Typography>
                                 </Box>
                                 <Box>
-                                    <Typography variant="h6" fontWeight={800}>{formatKGS(summary.totalNetSalary || 0)}</Typography>
+                                    <Typography variant="h6" fontWeight={800}>{formatKGS(netSalaryTotal)}</Typography>
                                     <Typography variant="caption" color="text.secondary">Итого к выплате</Typography>
                                 </Box>
                             </Stack>
@@ -278,7 +279,7 @@ const SalaryReportsPage: React.FC = () => {
                                     </Box>
                                     <Box textAlign="right">
                                         <Typography variant="caption" color="primary.main">К выплате</Typography>
-                                        <Typography variant="h5" fontWeight={900} color="primary.main">{formatKGS(totals.netSalary)}</Typography>
+                                        <Typography variant="h5" fontWeight={900} color="primary.main">{formatKGS(netSalaryTotal)}</Typography>
                                     </Box>
                                 </Stack>
                             </Stack>

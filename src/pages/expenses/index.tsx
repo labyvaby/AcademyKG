@@ -40,6 +40,7 @@ import { useSimplePageCache } from "../../hooks/useSimplePageCache";
 import { PageHeader, AppBottomSheet } from "../../components/ui";
 import { usePermissions } from "../../hooks/usePermissions";
 import { PERMISSIONS } from "../../constants/permissions";
+import dayjs from "dayjs";
 
 
 
@@ -279,6 +280,50 @@ const ExpensesListPage: React.FC = () => {
     return m;
   }, [employees]);
 
+  const getExpenseCategoryName = React.useCallback((expense: Expense) => {
+    return categoriesMap.get(String(expense.category_id ?? "")) || expense.category || "";
+  }, [categoriesMap]);
+
+  const isPayrollExpense = React.useCallback((expense: Expense) => {
+    const categoryName = getExpenseCategoryName(expense).trim().toLowerCase();
+    return categoryName.includes("аванс") || categoryName.includes("заработная плата") || categoryName.includes("зп");
+  }, [getExpenseCategoryName]);
+
+  const getExpensePeriodDate = React.useCallback((expense: Expense) => {
+    if (isPayrollExpense(expense) && expense.affects_month) {
+      return `${expense.affects_month}-01`;
+    }
+    return expense.created_at || null;
+  }, [isPayrollExpense]);
+
+  const getExpensePeriodYear = React.useCallback((expense: Expense) => {
+    const periodDate = getExpensePeriodDate(expense);
+    return periodDate ? dayjs(periodDate).format("YYYY") : null;
+  }, [getExpensePeriodDate]);
+
+  const getExpensePeriodMonth = React.useCallback((expense: Expense) => {
+    const periodDate = getExpensePeriodDate(expense);
+    return periodDate ? dayjs(periodDate).format("YYYY-MM") : null;
+  }, [getExpensePeriodDate]);
+
+  const getExpenseDayKey = React.useCallback((expense: Expense) => {
+    const periodDate = getExpensePeriodDate(expense);
+    return periodDate ? dayjs(periodDate).format("YYYY-MM-DD") : null;
+  }, [getExpensePeriodDate]);
+
+  const getExpenseSortValue = React.useCallback((expense: Expense) => {
+    const periodDate = getExpensePeriodDate(expense);
+    return periodDate ? dayjs(periodDate).valueOf() : 0;
+  }, [getExpensePeriodDate]);
+
+  const getExpenseDisplayDayLabel = React.useCallback((expense: Expense) => {
+    if (isPayrollExpense(expense) && expense.affects_month) {
+      return `Месяц учета: ${dayjs(`${expense.affects_month}-01`).format("MM.YYYY")}`;
+    }
+    const periodDate = getExpensePeriodDate(expense);
+    return periodDate ? formatDateRu(periodDate) : "Без даты";
+  }, [getExpensePeriodDate, isPayrollExpense]);
+
   // Фильтрация расходов
   const filteredExpenses = React.useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -305,12 +350,12 @@ const ExpensesListPage: React.FC = () => {
     years.add(new Date().getFullYear().toString());
 
     for (const exp of expenses) {
-      if (!exp.created_at) continue;
-      const year = new Date(exp.created_at).getFullYear().toString();
+      const year = getExpensePeriodYear(exp);
+      if (!year) continue;
       years.add(year);
     }
     return Array.from(years).sort((a, b) => b.localeCompare(a));
-  }, [expenses]);
+  }, [expenses, getExpensePeriodYear]);
 
   type MonthOption = {
     value: string;
@@ -331,13 +376,12 @@ const ExpensesListPage: React.FC = () => {
     }
 
     for (const exp of expenses) {
-      if (!exp.created_at) continue;
-      const date = new Date(exp.created_at);
-      const year = date.getFullYear().toString();
+      const year = getExpensePeriodYear(exp);
       if (year !== selectedYear) continue;
 
-      const monthIndex = date.getMonth();
-      const monthKey = `${year}-${String(monthIndex + 1).padStart(2, "0")}`;
+      const monthKey = getExpensePeriodMonth(exp);
+      if (!monthKey) continue;
+      const monthIndex = Number(monthKey.slice(5, 7)) - 1;
       if (!monthMap.has(monthKey)) {
         monthMap.set(monthKey, monthIndex);
       }
@@ -346,7 +390,7 @@ const ExpensesListPage: React.FC = () => {
     return Array.from(monthMap.entries())
       .sort((a, b) => a[0].localeCompare(b[0]))
       .map(([value, monthIndex]) => ({ value, monthIndex }));
-  }, [expenses, selectedYear]);
+  }, [expenses, selectedYear, getExpensePeriodMonth, getExpensePeriodYear]);
 
 
 
@@ -361,20 +405,17 @@ const ExpensesListPage: React.FC = () => {
           if (empName !== selectedEmployeeFilter) return false;
         }
 
-        if (!exp.created_at) return false;
-        const date = new Date(exp.created_at);
-        const year = date.getFullYear().toString();
+        const year = getExpensePeriodYear(exp);
+        if (!year) return false;
 
         if (selectedYear && year !== selectedYear) return false;
 
         if (selectedMonth) {
-          const month = String(date.getMonth() + 1).padStart(2, "0");
-          const yearMonth = `${year}-${month}`;
+          const yearMonth = getExpensePeriodMonth(exp);
           if (yearMonth !== selectedMonth) return false;
 
           if (selectedDate) {
-            const day = String(date.getDate()).padStart(2, "0");
-            const fullDate = `${year}-${month}-${day}`;
+            const fullDate = getExpenseDayKey(exp);
             if (fullDate !== selectedDate) return false;
           }
         }
@@ -384,37 +425,31 @@ const ExpensesListPage: React.FC = () => {
     }
 
     // Сортируем по дате (новые сверху)
-    return [...result].sort((a, b) => (b.created_at || "").localeCompare(a.created_at || ""));
-  }, [filteredExpenses, selectedYear, selectedMonth, selectedDate, selectedEmployeeFilter, employeeNameById]);
+    return [...result].sort((a, b) => getExpenseSortValue(b) - getExpenseSortValue(a));
+  }, [filteredExpenses, selectedYear, selectedMonth, selectedDate, selectedEmployeeFilter, employeeNameById, getExpenseDayKey, getExpensePeriodMonth, getExpensePeriodYear, getExpenseSortValue]);
 
   // Группировка по сотруднику -> дням (для отображения списка подразделов в левой панели)
   const groupedByEmployee = React.useMemo(() => {
     // Группируем по году и месяцу (не учитываем selectedDate для списка дней)
     const expensesForDayList = filteredExpenses.filter((exp) => {
-      if (!exp.created_at) return false;
-      const date = new Date(exp.created_at);
-      const year = date.getFullYear().toString();
+      const year = getExpensePeriodYear(exp);
+      if (!year) return false;
 
       if (selectedYear && year !== selectedYear) return false;
 
       if (selectedMonth) {
-        const month = String(date.getMonth() + 1).padStart(2, "0");
-        const yearMonth = `${year}-${month}`;
+        const yearMonth = getExpensePeriodMonth(exp);
         if (yearMonth !== selectedMonth) return false;
       }
 
       return true;
     });
 
-    const empMap = new Map<string, { employeeName: string, total: number, count: number, days: Map<string, { count: number, total: number }> }>();
+    const empMap = new Map<string, { employeeName: string, total: number, count: number, days: Map<string, { count: number, total: number, label: string }> }>();
 
     for (const exp of expensesForDayList) {
-      if (!exp.created_at) continue;
-      const date = new Date(exp.created_at);
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, "0");
-      const day = String(date.getDate()).padStart(2, "0");
-      const dayKey = `${year}-${month}-${day}`;
+      const dayKey = getExpenseDayKey(exp);
+      if (!dayKey) continue;
 
       const empName = employeeNameById.get(exp.employee_id ?? "") || "Неизвестно";
 
@@ -427,7 +462,7 @@ const ExpensesListPage: React.FC = () => {
       empData.total += exp.total_amount ?? 0;
 
       if (!empData.days.has(dayKey)) {
-        empData.days.set(dayKey, { count: 0, total: 0 });
+        empData.days.set(dayKey, { count: 0, total: 0, label: getExpenseDisplayDayLabel(exp) });
       }
 
       const dayInfo = empData.days.get(dayKey)!;
@@ -441,9 +476,9 @@ const ExpensesListPage: React.FC = () => {
       total: emp.total,
       days: Array.from(emp.days.entries())
         .sort((a, b) => b[0].localeCompare(a[0])) // Descending dates
-        .map(([date, info]) => ({ date, count: info.count, total: info.total }))
+        .map(([date, info]) => ({ date, count: info.count, total: info.total, label: info.label }))
     })).sort((a, b) => a.employeeName.localeCompare(b.employeeName));
-  }, [filteredExpenses, selectedYear, selectedMonth, employeeNameById]);
+  }, [filteredExpenses, selectedYear, selectedMonth, employeeNameById, getExpenseDayKey, getExpenseDisplayDayLabel, getExpensePeriodMonth, getExpensePeriodYear]);
 
   const scrollContainerRef = React.useRef<HTMLDivElement>(null);
   const categoriesScrollRef = React.useRef<HTMLDivElement>(null);
@@ -1015,7 +1050,7 @@ const ExpensesListPage: React.FC = () => {
                                         }}
                                       >
                                         <Typography variant="body2" sx={{ flex: 1, color: "text.secondary" }}>
-                                          {formatDateRu(day.date)}
+                                          {day.label}
                                         </Typography>
                                         <Typography variant="body2" sx={{ fontWeight: 600 }}>
                                           {formatKGS(day.total)}
@@ -1081,7 +1116,7 @@ const ExpensesListPage: React.FC = () => {
                         return periodFilteredExpenses.map((exp) => {
                           const hasCash = (exp.cash_amount ?? 0) > 0;
                           const hasCashless = (exp.cashless_amount ?? 0) > 0;
-                          const dayStr = exp.created_at ? formatDateRu(exp.created_at) : "Без даты";
+                          const dayStr = getExpenseDisplayDayLabel(exp);
 
                           const isNewDay = dayStr !== currentDayStr;
                           if (isNewDay) currentDayStr = dayStr;
@@ -1213,7 +1248,7 @@ const ExpensesListPage: React.FC = () => {
           open={addOpen}
           onClose={() => setAddOpen(false)}
           onCreated={(rec) => {
-            setExpenses((prev) => [rec, ...prev].sort((a, b) => b.created_at.localeCompare(a.created_at)));
+            setExpenses((prev) => [rec, ...prev].sort((a, b) => getExpenseSortValue(b) - getExpenseSortValue(a)));
           }}
         />
 

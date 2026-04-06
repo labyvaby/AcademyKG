@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
     Box,
     Grid2,
@@ -17,10 +17,13 @@ import {
 import { useNotification } from "@refinedev/core";
 import CreditCardIcon from '@mui/icons-material/CreditCard';
 import WalletIcon from '@mui/icons-material/Wallet';
+import TrendingUpIcon from '@mui/icons-material/TrendingUp';
+import TrendingDownIcon from '@mui/icons-material/TrendingDown';
+import AccountBalanceWalletOutlinedIcon from '@mui/icons-material/AccountBalanceWalletOutlined';
 
 import { PageHeader } from "../../components/ui";
 import { usePageTitle } from "../../hooks/usePageTitle";
-import { formatKGS } from "../../utility/format";
+import { formatDateRu, formatKGS } from "../../utility/format";
 import { getCashboxSummary } from "../../services/cashbox";
 import { CashboxSummaryData, CashboxMethod } from "../../types/cashbox";
 import dayjs from "dayjs";
@@ -36,7 +39,7 @@ const CashboxPage: React.FC = () => {
     const [method, setMethod] = useState<CashboxMethod | 'all'>('all');
     const [dateRange] = useState({
         from: dayjs().startOf('month').format('YYYY-MM-DD'),
-        to: dayjs().endOf('month').format('YYYY-MM-DD')
+        to: dayjs().format('YYYY-MM-DD')
     });
 
     const fetchData = useCallback(async () => {
@@ -75,6 +78,7 @@ const CashboxPage: React.FC = () => {
     const renderBigCard = (
         title: string,
         value: string | number,
+        subtitle: string,
         color: 'success' | 'info' | 'primary' | 'warning',
         icon: React.ReactNode
     ) => (
@@ -100,6 +104,9 @@ const CashboxPage: React.FC = () => {
                         </Typography>
                         <Typography variant="h2" fontWeight={900} color={`${color}.main`}>
                             {formatKGS(value)}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                            {subtitle}
                         </Typography>
                     </Box>
                     <Avatar sx={{
@@ -127,6 +134,86 @@ const CashboxPage: React.FC = () => {
         </Card>
     );
 
+    const cards = useMemo(() => {
+        if (!data) return [];
+
+        if (method === 'cash') {
+            return [
+                {
+                    title: "Поступления",
+                    value: Number(data.appointments.cashSum),
+                    subtitle: `${data.counts.appointmentsCount} записей наличными`,
+                    color: 'success' as const,
+                    icon: <TrendingUpIcon />,
+                },
+                {
+                    title: "Расходы",
+                    value: Number(data.expenses.cashSum),
+                    subtitle: `${data.counts.expensesCount} наличных расходов`,
+                    color: 'warning' as const,
+                    icon: <TrendingDownIcon />,
+                },
+                {
+                    title: "Чистый остаток",
+                    value: Number(data.net.cashSum),
+                    subtitle: "Наличные после вычета расходов",
+                    color: 'primary' as const,
+                    icon: <WalletIcon />,
+                },
+            ];
+        }
+
+        if (method === 'card') {
+            return [
+                {
+                    title: "Поступления",
+                    value: Number(data.appointments.cardSum),
+                    subtitle: `${data.counts.appointmentsCount} безналичных оплат`,
+                    color: 'info' as const,
+                    icon: <TrendingUpIcon />,
+                },
+                {
+                    title: "Расходы",
+                    value: Number(data.expenses.cashlessSum),
+                    subtitle: `${data.counts.expensesCount} безналичных расходов`,
+                    color: 'warning' as const,
+                    icon: <TrendingDownIcon />,
+                },
+                {
+                    title: "Чистый остаток",
+                    value: Number(data.net.cardSum),
+                    subtitle: "Безнал после вычета расходов",
+                    color: 'primary' as const,
+                    icon: <CreditCardIcon />,
+                },
+            ];
+        }
+
+        return [
+            {
+                title: "Поступления",
+                value: Number(data.appointments.totalSum),
+                subtitle: `${data.counts.appointmentsCount} записей с оплатой`,
+                color: 'success' as const,
+                icon: <TrendingUpIcon />,
+            },
+            {
+                title: "Расходы",
+                value: Number(data.expenses.totalSum),
+                subtitle: `${data.counts.expensesCount} расходов за период`,
+                color: 'warning' as const,
+                icon: <TrendingDownIcon />,
+            },
+            {
+                title: "Чистый остаток",
+                value: Number(data.net.totalSum),
+                subtitle: "Поступления минус расходы",
+                color: 'primary' as const,
+                icon: <AccountBalanceWalletOutlinedIcon />,
+            },
+        ];
+    }, [data, method]);
+
     return (
         <Box sx={{ height: "100%", display: "flex", flexDirection: "column", overflow: "auto", p: { xs: 2, md: 4 } }}>
             <PageHeader
@@ -136,6 +223,10 @@ const CashboxPage: React.FC = () => {
             />
 
             <Stack spacing={4} sx={{ mt: 3 }}>
+                <Typography variant="body2" color="text.secondary">
+                    Период: {formatDateRu(data?.dateFrom || dateRange.from)} - {formatDateRu(data?.dateTo || dateRange.to)}
+                </Typography>
+
                 {/* Minimal Filters */}
                 <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 4, display: 'inline-flex', alignSelf: 'flex-start', bgcolor: alpha(theme.palette.background.paper, 0.8) }}>
                     <ToggleButtonGroup
@@ -175,27 +266,17 @@ const CashboxPage: React.FC = () => {
                     <Typography variant="h6" color="text.secondary" textAlign="center">Данные отсутствуют</Typography>
                 ) : (
                     <Grid2 container spacing={4}>
-                        {(method === 'all' || method === 'cash') && (
-                            <Grid2 size={{ xs: 12, md: method === 'all' ? 6 : 12 }}>
+                        {cards.map((card) => (
+                            <Grid2 key={card.title} size={{ xs: 12, md: 4 }}>
                                 {renderBigCard(
-                                    "Наличные",
-                                    Number(data.net.cashSum),
-                                    'success',
-                                    <WalletIcon />
+                                    card.title,
+                                    card.value,
+                                    card.subtitle,
+                                    card.color,
+                                    card.icon
                                 )}
                             </Grid2>
-                        )}
-
-                        {(method === 'all' || method === 'card') && (
-                            <Grid2 size={{ xs: 12, md: method === 'all' ? 6 : 12 }}>
-                                {renderBigCard(
-                                    "Безналичные",
-                                    Number(data.net.cardSum),
-                                    'info',
-                                    <CreditCardIcon />
-                                )}
-                            </Grid2>
-                        )}
+                        ))}
                     </Grid2>
                 )}
             </Stack>
