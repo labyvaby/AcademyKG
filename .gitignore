@@ -186,3 +186,4 @@ pids/
 .agent/rules
 .agent/rules/
 .claude/
+.smoke-dev.*
