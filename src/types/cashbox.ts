@@ -21,9 +21,19 @@ export interface CashboxNet {
   totalSum: string;
 }
 
+export interface CashboxAdjustments {
+  refundsSum: string;
+  reversalsSum: string;
+  adjustmentsSum: string;
+  cashNetSum: string;
+  cashlessNetSum: string;
+  totalNetSum: string;
+}
+
 export interface CashboxCounts {
   appointmentsCount: number;
   expensesCount: number;
+  adjustmentsCount: number;
 }
 
 export interface CashboxSummaryData {
@@ -32,6 +42,7 @@ export interface CashboxSummaryData {
   dateTo: string;
   appointments: CashboxAppointments;
   expenses: CashboxExpenses;
+  adjustments: CashboxAdjustments;
   net: CashboxNet;
   counts: CashboxCounts;
 }

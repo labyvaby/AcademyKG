@@ -7,6 +7,7 @@ export const getCashboxSummary = async (params: {
     organization?: string;
     branch?: string;
     method?: 'cash' | 'card';
+    signal?: AbortSignal;
 }): Promise<CashboxSummaryResponse> => {
     const queryParams = new URLSearchParams();
     if (params.dateFrom) queryParams.append("dateFrom", params.dateFrom);
@@ -15,5 +16,8 @@ export const getCashboxSummary = async (params: {
     if (params.branch) queryParams.append("branch", params.branch);
     if (params.method) queryParams.append("method", params.method);
 
-    return apiFetch<CashboxSummaryResponse>(`/api/v1/cashbox/summary/?${queryParams.toString()}`);
+    return apiFetch<CashboxSummaryResponse>(
+        `/api/v1/cashbox/summary/?${queryParams.toString()}`,
+        { signal: params.signal },
+    );
 };

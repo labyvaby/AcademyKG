@@ -26,45 +26,66 @@ import { usePageTitle } from "../../hooks/usePageTitle";
 import { formatDateRu, formatKGS } from "../../utility/format";
 import { getCashboxSummary } from "../../services/cashbox";
 import { CashboxSummaryData, CashboxMethod } from "../../types/cashbox";
+import { useBranchContext } from "../../contexts/branch-context";
 import dayjs from "dayjs";
 
 const CashboxPage: React.FC = () => {
     usePageTitle("Касса");
     const theme = useTheme();
     const { open: notify } = useNotification();
+    const { selectedBranch } = useBranchContext();
 
     // State
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
     const [data, setData] = useState<CashboxSummaryData | null>(null);
     const [method, setMethod] = useState<CashboxMethod | 'all'>('all');
     const [dateRange] = useState({
         from: dayjs().startOf('month').format('YYYY-MM-DD'),
         to: dayjs().format('YYYY-MM-DD')
     });
+    const scopeKey = `${selectedBranch?.id ?? "all"}:${dateRange.from}:${dateRange.to}:${method}`;
+    const [loadedScopeKey, setLoadedScopeKey] = useState<string | null>(null);
 
-    const fetchData = useCallback(async () => {
+    const fetchData = useCallback(async (signal?: AbortSignal) => {
         try {
             setLoading(true);
+            setError(null);
+            setLoadedScopeKey(null);
+            setData(null);
             const res = await getCashboxSummary({
                 dateFrom: dateRange.from,
                 dateTo: dateRange.to,
-                method: method === 'all' ? undefined : method
+                branch: selectedBranch?.id ?? undefined,
+                method: method === 'all' ? undefined : method,
+                signal,
             });
+            if (signal?.aborted) return;
             setData(res.data);
+            setLoadedScopeKey(scopeKey);
         } catch (e: any) {
+            if (signal?.aborted) return;
             console.error(e);
+            const message = e.message || "Ошибка загрузки данных кассы";
+            setError(message);
+            setLoadedScopeKey(null);
             notify?.({
                 type: "error",
-                message: e.message || "Ошибка загрузки данных кассы"
+                message
             });
         } finally {
-            setLoading(false);
+            if (!signal?.aborted) setLoading(false);
         }
-    }, [dateRange, method, notify]);
+    }, [dateRange, method, notify, scopeKey, selectedBranch?.id]);
 
     useEffect(() => {
-        fetchData();
+        const controller = new AbortController();
+        void fetchData(controller.signal);
+        return () => controller.abort();
     }, [fetchData]);
+
+    const visibleData = loadedScopeKey === scopeKey ? data : null;
+    const effectiveLoading = loading || (!error && loadedScopeKey !== scopeKey);
 
     const handleMethodChange = (
         _event: React.MouseEvent<HTMLElement>,
@@ -135,27 +156,34 @@ const CashboxPage: React.FC = () => {
     );
 
     const cards = useMemo(() => {
-        if (!data) return [];
+        if (!visibleData) return [];
 
         if (method === 'cash') {
             return [
                 {
                     title: "Поступления",
-                    value: Number(data.appointments.cashSum),
-                    subtitle: `${data.counts.appointmentsCount} записей наличными`,
+                    value: Number(visibleData.appointments.cashSum),
+                    subtitle: `${visibleData.counts.appointmentsCount} записей наличными`,
                     color: 'success' as const,
                     icon: <TrendingUpIcon />,
                 },
                 {
+                    title: "Корректировки",
+                    value: Number(visibleData.adjustments.cashNetSum),
+                    subtitle: `${visibleData.counts.adjustmentsCount} движений по наличным`,
+                    color: 'info' as const,
+                    icon: <CreditCardIcon />,
+                },
+                {
                     title: "Расходы",
-                    value: Number(data.expenses.cashSum),
-                    subtitle: `${data.counts.expensesCount} наличных расходов`,
+                    value: Number(visibleData.expenses.cashSum),
+                    subtitle: `${visibleData.counts.expensesCount} наличных расходов`,
                     color: 'warning' as const,
                     icon: <TrendingDownIcon />,
                 },
                 {
                     title: "Чистый остаток",
-                    value: Number(data.net.cashSum),
+                    value: Number(visibleData.net.cashSum),
                     subtitle: "Наличные после вычета расходов",
                     color: 'primary' as const,
                     icon: <WalletIcon />,
@@ -167,21 +195,28 @@ const CashboxPage: React.FC = () => {
             return [
                 {
                     title: "Поступления",
-                    value: Number(data.appointments.cardSum),
-                    subtitle: `${data.counts.appointmentsCount} безналичных оплат`,
+                    value: Number(visibleData.appointments.cardSum),
+                    subtitle: `${visibleData.counts.appointmentsCount} безналичных оплат`,
                     color: 'info' as const,
                     icon: <TrendingUpIcon />,
                 },
                 {
+                    title: "Корректировки",
+                    value: Number(visibleData.adjustments.cashlessNetSum),
+                    subtitle: `${visibleData.counts.adjustmentsCount} безналичных корректировок`,
+                    color: 'success' as const,
+                    icon: <WalletIcon />,
+                },
+                {
                     title: "Расходы",
-                    value: Number(data.expenses.cashlessSum),
-                    subtitle: `${data.counts.expensesCount} безналичных расходов`,
+                    value: Number(visibleData.expenses.cashlessSum),
+                    subtitle: `${visibleData.counts.expensesCount} безналичных расходов`,
                     color: 'warning' as const,
                     icon: <TrendingDownIcon />,
                 },
                 {
                     title: "Чистый остаток",
-                    value: Number(data.net.cardSum),
+                    value: Number(visibleData.net.cardSum),
                     subtitle: "Безнал после вычета расходов",
                     color: 'primary' as const,
                     icon: <CreditCardIcon />,
@@ -192,27 +227,34 @@ const CashboxPage: React.FC = () => {
         return [
             {
                 title: "Поступления",
-                value: Number(data.appointments.totalSum),
-                subtitle: `${data.counts.appointmentsCount} записей с оплатой`,
+                value: Number(visibleData.appointments.totalSum),
+                subtitle: `${visibleData.counts.appointmentsCount} записей с оплатой`,
                 color: 'success' as const,
                 icon: <TrendingUpIcon />,
             },
             {
+                title: "Корректировки",
+                value: Number(visibleData.adjustments.totalNetSum),
+                subtitle: `${visibleData.counts.adjustmentsCount} финансовых корректировок`,
+                color: 'info' as const,
+                icon: <CreditCardIcon />,
+            },
+            {
                 title: "Расходы",
-                value: Number(data.expenses.totalSum),
-                subtitle: `${data.counts.expensesCount} расходов за период`,
+                value: Number(visibleData.expenses.totalSum),
+                subtitle: `${visibleData.counts.expensesCount} расходов за период`,
                 color: 'warning' as const,
                 icon: <TrendingDownIcon />,
             },
             {
                 title: "Чистый остаток",
-                value: Number(data.net.totalSum),
+                value: Number(visibleData.net.totalSum),
                 subtitle: "Поступления минус расходы",
                 color: 'primary' as const,
                 icon: <AccountBalanceWalletOutlinedIcon />,
             },
         ];
-    }, [data, method]);
+    }, [method, visibleData]);
 
     return (
         <Box sx={{ height: "100%", display: "flex", flexDirection: "column", overflow: "auto", p: { xs: 2, md: 4 } }}>
@@ -224,7 +266,7 @@ const CashboxPage: React.FC = () => {
 
             <Stack spacing={4} sx={{ mt: 3 }}>
                 <Typography variant="body2" color="text.secondary">
-                    Период: {formatDateRu(data?.dateFrom || dateRange.from)} - {formatDateRu(data?.dateTo || dateRange.to)}
+                    Период: {formatDateRu(visibleData?.dateFrom || dateRange.from)} - {formatDateRu(visibleData?.dateTo || dateRange.to)}
                 </Typography>
 
                 {/* Minimal Filters */}
@@ -258,26 +300,73 @@ const CashboxPage: React.FC = () => {
                     </ToggleButtonGroup>
                 </Paper>
 
-                {loading ? (
+                {effectiveLoading ? (
                     <Box sx={{ display: 'flex', justifyContent: 'center', p: 15 }}>
                         <CircularProgress size={60} thickness={4} />
                     </Box>
-                ) : !data ? (
+                ) : error ? (
+                    <Paper
+                        variant="outlined"
+                        sx={{
+                            p: 3,
+                            borderRadius: 3,
+                            borderColor: "error.main",
+                            bgcolor: alpha(theme.palette.error.main, 0.05),
+                        }}
+                    >
+                        <Typography variant="h6" color="error.main" sx={{ fontWeight: 700, mb: 1 }}>
+                            Не удалось загрузить кассовую сводку
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                            {error}
+                        </Typography>
+                    </Paper>
+                ) : !visibleData ? (
                     <Typography variant="h6" color="text.secondary" textAlign="center">Данные отсутствуют</Typography>
                 ) : (
-                    <Grid2 container spacing={4}>
-                        {cards.map((card) => (
-                            <Grid2 key={card.title} size={{ xs: 12, md: 4 }}>
-                                {renderBigCard(
-                                    card.title,
-                                    card.value,
-                                    card.subtitle,
-                                    card.color,
-                                    card.icon
-                                )}
-                            </Grid2>
-                        ))}
-                    </Grid2>
+                    <Stack spacing={3}>
+                        <Grid2 container spacing={4}>
+                            {cards.map((card) => (
+                                <Grid2 key={card.title} size={{ xs: 12, md: method === 'all' ? 3 : 3 }}>
+                                    {renderBigCard(
+                                        card.title,
+                                        card.value,
+                                        card.subtitle,
+                                        card.color,
+                                        card.icon
+                                    )}
+                                </Grid2>
+                            ))}
+                        </Grid2>
+                        <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 3 }}>
+                            <Stack spacing={1.5}>
+                                <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                                    Детализация денежных потоков
+                                </Typography>
+                                <Grid2 container spacing={2}>
+                                    <Grid2 size={{ xs: 12, md: 4 }}>
+                                        <Typography variant="caption" color="text.secondary">Оплаты по приёмам</Typography>
+                                        <Typography variant="body2">Наличные: {formatKGS(visibleData.appointments.cashSum)}</Typography>
+                                        <Typography variant="body2">Карта: {formatKGS(visibleData.appointments.cardSum)}</Typography>
+                                        <Typography variant="body2">Баланс: {formatKGS(visibleData.appointments.balanceSum)}</Typography>
+                                        <Typography variant="body2">Бонусы: {formatKGS(visibleData.appointments.bonusesSum)}</Typography>
+                                    </Grid2>
+                                    <Grid2 size={{ xs: 12, md: 4 }}>
+                                        <Typography variant="caption" color="text.secondary">Корректировки</Typography>
+                                        <Typography variant="body2">Возвраты: {formatKGS(visibleData.adjustments.refundsSum)}</Typography>
+                                        <Typography variant="body2">Сторно: {formatKGS(visibleData.adjustments.reversalsSum)}</Typography>
+                                        <Typography variant="body2">Прочие: {formatKGS(visibleData.adjustments.adjustmentsSum)}</Typography>
+                                    </Grid2>
+                                    <Grid2 size={{ xs: 12, md: 4 }}>
+                                        <Typography variant="caption" color="text.secondary">Net от сервера</Typography>
+                                        <Typography variant="body2">Наличные: {formatKGS(visibleData.net.cashSum)}</Typography>
+                                        <Typography variant="body2">Безнал: {formatKGS(visibleData.net.cardSum)}</Typography>
+                                        <Typography variant="body2" sx={{ fontWeight: 700 }}>Итого: {formatKGS(visibleData.net.totalSum)}</Typography>
+                                    </Grid2>
+                                </Grid2>
+                            </Stack>
+                        </Paper>
+                    </Stack>
                 )}
             </Stack>
         </Box>

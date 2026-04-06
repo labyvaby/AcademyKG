@@ -1,3 +1,18 @@
+export type ExpenseKind = "payroll" | "advance" | "operational" | "other";
+
+export const EXPENSE_KIND_OPTIONS: Array<{ value: ExpenseKind; label: string }> = [
+  { value: "payroll", label: "Зарплата" },
+  { value: "advance", label: "Аванс" },
+  { value: "operational", label: "Операционный" },
+  { value: "other", label: "Другое" },
+];
+
+export const PAYROLL_RELATED_EXPENSE_KINDS = new Set<ExpenseKind>(["payroll", "advance"]);
+
+export function requiresAffectsMonth(kind: ExpenseKind | null | undefined): boolean {
+  return Boolean(kind && PAYROLL_RELATED_EXPENSE_KINDS.has(kind));
+}
+
 export type Expense = {
   id: string | number;
   // employee: nested object in read responses, string ID for write
@@ -14,6 +29,7 @@ export type Expense = {
   photo?: string | File | null;   // public URL or File for upload
   created_at: string;
   updated_at?: string;
+  kind?: ExpenseKind | null;
   affects_month?: string | null;  // YYYY-MM
   branch?: { id: string; name: string } | null;
 };
@@ -29,6 +45,7 @@ export type ExpenseFormValues = {
   category_id?: string | null;    // category UUID (sent to API)
   photo?: string | File | null;
   photoFile?: File | null;
+  kind?: ExpenseKind | null;
   created_at?: string;
   affects_month?: string | null;
 };
@@ -73,6 +90,7 @@ export function mapApiExpense(raw: any): Expense {
     photo: raw.photo ?? null,
     created_at: raw.createdAt ?? raw.created_at ?? "",
     updated_at: raw.updatedAt ?? raw.updated_at ?? undefined,
+    kind: raw.kind ?? null,
     affects_month: raw.affectsMonth ?? raw.affects_month ?? null,
     branch: raw.branch && typeof raw.branch === "object"
       ? { id: raw.branch.id, name: raw.branch.name ?? "" }

@@ -29,9 +29,10 @@ import AnalyticsOutlined from "@mui/icons-material/AnalyticsOutlined";
 import { PageHeader, MonthNavigation } from "../../components/ui";
 import { AppointmentsSummaryCards, SummaryCard } from "./components/AppointmentsSummaryCards";
 import { usePageTitle } from "../../hooks/usePageTitle";
-import { useActiveMonths } from "../../hooks/useActiveMonths";
+import { useAvailableReportMonths } from "../../hooks/useAvailableReportMonths";
 import { formatKGS } from "../../utility/format";
 import { getFinancialReport } from "../../services/reports";
+import { useBranchContext } from "../../contexts/branch-context";
 import { DailyFinancialData, FinancialReportResponse } from "../../types/reports";
 import dayjs from "dayjs";
 import 'dayjs/locale/ru';
@@ -135,59 +136,99 @@ const ReportsPage: React.FC = () => {
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down("lg"));
     const { open: notify } = useNotification();
+    const { selectedBranch } = useBranchContext();
     // Financial State
     const [selectedDate, setSelectedDate] = useState<string>(dayjs().format('YYYY-MM-DD'));
     const [financialLoading, setFinancialLoading] = useState(false);
+    const [financialError, setFinancialError] = useState<string | null>(null);
     const [reportData, setReportData] = useState<FinancialReportResponse>(emptyFinancialReport);
-    const activeMonths = useActiveMonths('', '');
-
-    // Session cache: key = 'YYYY-MM', invalidated on month change
-    const cache = React.useRef(new Map<string, FinancialReportResponse>());
+    const activeMonths = useAvailableReportMonths("financialMonths");
+    const branchKey = selectedBranch?.id ?? "all";
     const month = useMemo(() => dayjs(selectedDate).format('YYYY-MM'), [selectedDate]);
+    const scopeKey = useMemo(() => `${branchKey}:${month}`, [branchKey, month]);
+    const [loadedScopeKey, setLoadedScopeKey] = useState<string | null>(null);
 
-    const fetchFinancialData = useCallback(async (forceRefresh = false) => {
-        const cacheKey = month;
+    // Session cache: key = 'branch:YYYY-MM', invalidated on branch/month change
+    const cache = React.useRef(new Map<string, FinancialReportResponse>());
+
+    const fetchFinancialData = useCallback(async (signal?: AbortSignal, forceRefresh = false) => {
+        const cacheKey = `${branchKey}:${month}`;
 
         if (!forceRefresh && cache.current.has(cacheKey)) {
             setReportData(cache.current.get(cacheKey)!);
+            setLoadedScopeKey(cacheKey);
+            setFinancialError(null);
             setFinancialLoading(false);
             return;
         }
 
         try {
             setFinancialLoading(true);
-            const res = await getFinancialReport(month);
+            setFinancialError(null);
+            setLoadedScopeKey(null);
+            setReportData(emptyFinancialReport);
+            const res = await getFinancialReport(
+                month,
+                selectedBranch?.id ?? undefined,
+                undefined,
+                signal,
+            );
+            if (signal?.aborted) return;
             const normalized = normalizeFinancialReport(res?.data);
             cache.current.set(cacheKey, normalized);
             setReportData(normalized);
+            setLoadedScopeKey(cacheKey);
         } catch (e) {
+            if (signal?.aborted) return;
             console.error(e);
-            notify?.({ type: "error", message: "Ошибка загрузки финансового отчета" });
+            const message = e instanceof Error ? e.message : "Ошибка загрузки финансового отчета";
+            setFinancialError(message);
+            setLoadedScopeKey(null);
+            notify?.({ type: "error", message });
         } finally {
-            setFinancialLoading(false);
+            if (!signal?.aborted) setFinancialLoading(false);
         }
-    }, [month, notify]);
+    }, [branchKey, month, notify, selectedBranch?.id]);
 
     useEffect(() => {
-        fetchFinancialData();
+        const controller = new AbortController();
+        void fetchFinancialData(controller.signal);
+        return () => controller.abort();
     }, [fetchFinancialData]);
 
+    useEffect(() => {
+        if (!activeMonths || activeMonths.size === 0) return;
+        if (activeMonths.has(month)) return;
+
+        const todayMonth = dayjs().format("YYYY-MM");
+        const fallbackMonth = activeMonths.has(todayMonth)
+            ? todayMonth
+            : Array.from(activeMonths).sort((a, b) => a.localeCompare(b)).at(-1);
+
+        if (fallbackMonth) {
+            setSelectedDate(`${fallbackMonth}-01`);
+        }
+    }, [activeMonths, month]);
+
+    const visibleReportData = loadedScopeKey === scopeKey ? reportData : emptyFinancialReport;
+    const effectiveLoading = financialLoading || (!financialError && loadedScopeKey !== scopeKey);
+
     const dailyData = useMemo(
-        () => (reportData.displayDays.length > 0 ? reportData.displayDays : reportData.days).slice().sort((a, b) => b.date.localeCompare(a.date)),
-        [reportData],
+        () => (visibleReportData.displayDays.length > 0 ? visibleReportData.displayDays : visibleReportData.days).slice().sort((a, b) => b.date.localeCompare(a.date)),
+        [visibleReportData],
     );
 
     const reportTotals = useMemo(
-        () => normalizeDailyFinancialData(reportData.totals as Record<string, unknown>),
-        [reportData],
+        () => normalizeDailyFinancialData(visibleReportData.totals as Record<string, unknown>),
+        [visibleReportData],
     );
 
     const summaryCards = useMemo<SummaryCard[]>(() => {
         const servicesSum = toNumber(reportTotals.servicesSum);
         const productsSum = toNumber(reportTotals.productsSum);
         const totalRevenue = servicesSum + productsSum;
-        const appointmentsCount = reportData.summaryCards.appointments || toNumber(reportTotals.appointmentsCount);
-        const proceduresCount = reportData.summaryCards.procedures || toNumber(reportTotals.proceduresCount);
+        const appointmentsCount = visibleReportData.summaryCards.appointments || toNumber(reportTotals.appointmentsCount);
+        const proceduresCount = visibleReportData.summaryCards.procedures || toNumber(reportTotals.proceduresCount);
 
         return [
             {
@@ -221,7 +262,7 @@ const ReportsPage: React.FC = () => {
                 color: 'error',
             },
         ];
-    }, [reportData, reportTotals]);
+    }, [reportTotals, visibleReportData]);
 
     return (
         <Box sx={{
@@ -247,12 +288,31 @@ const ReportsPage: React.FC = () => {
                 minHeight: 0
             })}>
                 <Stack spacing={3} sx={(theme) => ({ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, pb: { xs: 15, md: theme.appLayout.page.paddingY } })}>
-                    <AppointmentsSummaryCards
-                        cards={summaryCards}
-                        loading={financialLoading}
-                    />
+                    {financialError && !financialLoading ? (
+                        <Paper
+                            variant="outlined"
+                            sx={{
+                                p: 3,
+                                borderRadius: 3,
+                                borderColor: "error.main",
+                                bgcolor: alpha(theme.palette.error.main, 0.05),
+                            }}
+                        >
+                            <Typography variant="h6" color="error.main" sx={{ fontWeight: 700, mb: 1 }}>
+                                Не удалось загрузить финансовый отчет
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary">
+                                {financialError}
+                            </Typography>
+                        </Paper>
+                    ) : (
+                        <>
+                            <AppointmentsSummaryCards
+                                cards={summaryCards}
+                                loading={effectiveLoading}
+                            />
 
-                    {financialLoading ? <Box sx={{ textAlign: 'center', py: 5, flex: 1 }}><CircularProgress /></Box> : (
+                            {effectiveLoading ? <Box sx={{ textAlign: 'center', py: 5, flex: 1 }}><CircularProgress /></Box> : (
                         isMobile ? (
                             <Stack spacing={1.5} sx={{ flex: 1 }}>
                                 {dailyData.filter(hasFinancialActivity).map(day => (
@@ -362,6 +422,8 @@ const ReportsPage: React.FC = () => {
                                 </TableContainer>
                             </Paper>
                         )
+                            )}
+                        </>
                     )}
                 </Stack>
             </Box>

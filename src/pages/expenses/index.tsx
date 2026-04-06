@@ -19,6 +19,7 @@ import {
   Collapse,
   Badge,
 } from "@mui/material";
+import { useNotification } from "@refinedev/core";
 import { alpha, useTheme } from "@mui/material/styles";
 import type { Theme } from "@mui/material/styles";
 import { ExpandLess, ExpandMore } from "@mui/icons-material";
@@ -28,18 +29,21 @@ import ReceiptLongOutlined from "@mui/icons-material/ReceiptLongOutlined";
 import AccountBalanceWalletOutlined from "@mui/icons-material/AccountBalanceWalletOutlined";
 import CreditCardOutlined from "@mui/icons-material/CreditCardOutlined";
 import { formatKGS, formatDateRu } from "../../utility/format";
-import type { Expense, EmployeesRow } from "./types";
+import { requiresAffectsMonth, type Expense, type EmployeesRow } from "./types";
 import AddExpenseDrawer from "../../components/expenses/AddExpenseDrawer";
 import EditExpenseDrawer from "../../components/expenses/EditExpenseDrawer";
 import { DeleteExpenseDialog } from "../../components/expenses/DeleteExpenseDialog";
 import { PaymentInfoBlock } from "../../components/ui";
 import { ExpensesService } from "../../services/expenses";
+import { getExpensesMonthlyReport } from "../../services/reports";
 import { fetchEmployees } from "../../services/employees";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { useSimplePageCache } from "../../hooks/useSimplePageCache";
+import { useAvailableReportMonths } from "../../hooks/useAvailableReportMonths";
 import { PageHeader, AppBottomSheet } from "../../components/ui";
 import { usePermissions } from "../../hooks/usePermissions";
 import { PERMISSIONS } from "../../constants/permissions";
+import { useBranchContext } from "../../contexts/branch-context";
 import dayjs from "dayjs";
 
 
@@ -158,13 +162,29 @@ const ExpensesListPage: React.FC = () => {
   usePageTitle("Расходы");
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
+  const { open: notify } = useNotification();
   const { hasPermission, employeeId } = usePermissions();
+  const { selectedBranch } = useBranchContext();
   const hasManageExpenses = hasPermission(PERMISSIONS.EXPENSES_CREATE);
   const canEditExpense = hasPermission(PERMISSIONS.EXPENSES_UPDATE);
   const canDelete = hasPermission(PERMISSIONS.EXPENSES_DELETE);
+  const branchKey = selectedBranch?.id ?? "all";
+  const availableExpenseMonths = useAvailableReportMonths("expensesMonths");
 
 
   const [expenses, setExpenses] = React.useState<Expense[]>([]);
+  const [expensesScopeKey, setExpensesScopeKey] = React.useState<string | null>(null);
+  const [loadError, setLoadError] = React.useState<string | null>(null);
+  const [summaryError, setSummaryError] = React.useState<string | null>(null);
+  const [summaryLoading, setSummaryLoading] = React.useState(false);
+  const [monthlySummary, setMonthlySummary] = React.useState<{
+    totalExpenses: number;
+    payrollExpenses: number;
+    advanceExpenses: number;
+    operationalExpenses: number;
+    cashExpenses: number;
+    cashlessExpenses: number;
+  } | null>(null);
   const [searchQuery, setSearchQuery] = React.useState("");
   const [selectedYear, setSelectedYear] = React.useState<string | null>(() => new Date().getFullYear().toString());
   const [selectedMonth, setSelectedMonth] = React.useState<string | null>(() => {
@@ -179,9 +199,12 @@ const ExpensesListPage: React.FC = () => {
   const [selectedEmployeeFilter, setSelectedEmployeeFilter] = React.useState<string | null>(null);
   const [expandedEmployee, setExpandedEmployee] = React.useState<string | null>(null);
   const [reloadTick, setReloadTick] = React.useState(0);
+  const visibleExpenses = expensesScopeKey === branchKey ? expenses : [];
+  const visibleSelectedExpense = expensesScopeKey === branchKey ? selectedExpense : null;
+  const isScopeLoading = expensesScopeKey !== branchKey && !loadError;
 
   // Кеширование состояния страницы
-  const { restoreState } = useSimplePageCache('expenses-page', {
+  const { restoreState } = useSimplePageCache(`expenses-page:${branchKey}`, {
     expenses,
     searchQuery,
     selectedYear,
@@ -194,11 +217,13 @@ const ExpensesListPage: React.FC = () => {
 
   React.useEffect(() => {
     let cancelled = false;
+    const controller = new AbortController();
 
     // Восстанавливаем состояние из кеша
     const cached = restoreState();
     if (cached) {
       setExpenses(cached.expenses);
+      setExpensesScopeKey(branchKey);
       setSearchQuery(cached.searchQuery);
       setSelectedYear(cached.selectedYear);
       setSelectedMonth(cached.selectedMonth);
@@ -206,27 +231,48 @@ const ExpensesListPage: React.FC = () => {
       setSelectedExpense(cached.selectedExpense);
       setSelectedCategoryId(cached.selectedCategoryId);
       setSelectedEmployeeId(cached.selectedEmployeeId);
-      return; // Пропускаем fetch
+    } else if (expensesScopeKey !== branchKey) {
+      setExpenses([]);
+      setExpensesScopeKey(null);
+      setSearchQuery("");
+      setSelectedYear(new Date().getFullYear().toString());
+      setSelectedMonth(`${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}`);
+      setSelectedDate(null);
+      setSelectedExpense(null);
+      setSelectedCategoryId(null);
+      setSelectedEmployeeId(null);
     }
 
     const fetchExpenses = async () => {
       try {
+        setLoadError(null);
         // If Admin or Registrator -> fetch all (undefined). If not -> fetch associated with employeeId
         const targetEmployeeId = hasManageExpenses ? undefined : employeeId;
-        const data = await ExpensesService.getAll(targetEmployeeId);
+        const data = await ExpensesService.getAll(targetEmployeeId, controller.signal);
         if (!cancelled && data) {
           setExpenses(data);
+          setExpensesScopeKey(branchKey);
         }
       } catch (e) {
+        if (controller.signal.aborted) return;
         console.error("Failed to load expenses", e);
+        if (!cancelled) {
+          const message = e instanceof Error ? e.message : "Не удалось загрузить расходы";
+          setLoadError(message);
+          setExpensesScopeKey(null);
+          notify?.({ type: "error", message });
+        }
       } finally {
         // nothing
       }
     };
     fetchExpenses();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedYear, hasManageExpenses, employeeId, reloadTick]);
+  }, [selectedYear, hasManageExpenses, employeeId, reloadTick, branchKey, expensesScopeKey, notify]);
 
   // Загрузка сотрудников
   const [employees, setEmployees] = React.useState<EmployeesRow[]>([]);
@@ -238,6 +284,7 @@ const ExpensesListPage: React.FC = () => {
     let cancelled = false;
     const loadCategories = async () => {
       try {
+        setCategoriesMap(new Map());
         const { apiFetch } = await import("../../utility/apiClient");
         const res: any = await apiFetch("/api/v1/expense-categories/?pageSize=200");
         const data: any[] = res?.data?.results ?? res?.results ?? [];
@@ -254,12 +301,13 @@ const ExpensesListPage: React.FC = () => {
     };
     loadCategories();
     return () => { cancelled = true; };
-  }, [reloadTick]);
+  }, [branchKey, reloadTick]);
 
   React.useEffect(() => {
     let cancelled = false;
     const load = async () => {
       try {
+        setEmployees([]);
         const emps = await fetchEmployees();
         if (!cancelled) setEmployees(emps);
       } catch {
@@ -268,7 +316,7 @@ const ExpensesListPage: React.FC = () => {
     };
     load();
     return () => { cancelled = true; };
-  }, [reloadTick]);
+  }, [branchKey, reloadTick]);
 
 
 
@@ -280,14 +328,54 @@ const ExpensesListPage: React.FC = () => {
     return m;
   }, [employees]);
 
-  const getExpenseCategoryName = React.useCallback((expense: Expense) => {
-    return categoriesMap.get(String(expense.category_id ?? "")) || expense.category || "";
-  }, [categoriesMap]);
+  React.useEffect(() => {
+    if (!selectedMonth) {
+      setMonthlySummary(null);
+      setSummaryError(null);
+      setSummaryLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    const controller = new AbortController();
+
+    const loadSummary = async () => {
+      try {
+        setSummaryLoading(true);
+        setSummaryError(null);
+        const res = await getExpensesMonthlyReport(selectedMonth, selectedBranch?.id ?? undefined, undefined, controller.signal);
+        if (cancelled) return;
+        const totals = res?.data?.totals;
+        setMonthlySummary({
+          totalExpenses: Number(totals?.totalExpenses ?? 0),
+          payrollExpenses: Number(totals?.payrollExpenses ?? 0),
+          advanceExpenses: Number(totals?.advanceExpenses ?? 0),
+          operationalExpenses: Number(totals?.operationalExpenses ?? 0),
+          cashExpenses: Number(totals?.cashExpenses ?? 0),
+          cashlessExpenses: Number(totals?.cashlessExpenses ?? 0),
+        });
+      } catch (error) {
+        if (cancelled || controller.signal.aborted) return;
+        const message = error instanceof Error ? error.message : "Не удалось загрузить итог по расходам";
+        setSummaryError(message);
+        setMonthlySummary(null);
+        notify?.({ type: "error", message });
+      } finally {
+        if (!cancelled) setSummaryLoading(false);
+      }
+    };
+
+    loadSummary();
+
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, [notify, selectedBranch?.id, selectedMonth]);
 
   const isPayrollExpense = React.useCallback((expense: Expense) => {
-    const categoryName = getExpenseCategoryName(expense).trim().toLowerCase();
-    return categoryName.includes("аванс") || categoryName.includes("заработная плата") || categoryName.includes("зп");
-  }, [getExpenseCategoryName]);
+    return requiresAffectsMonth(expense.kind);
+  }, []);
 
   const getExpensePeriodDate = React.useCallback((expense: Expense) => {
     if (isPayrollExpense(expense) && expense.affects_month) {
@@ -327,7 +415,7 @@ const ExpensesListPage: React.FC = () => {
   // Фильтрация расходов
   const filteredExpenses = React.useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
-    return expenses.filter((r: Expense) => {
+    return visibleExpenses.filter((r: Expense) => {
       if (q) {
         const name = (r.name ?? "").toLowerCase();
         const comment = (r.comment ?? "").toLowerCase();
@@ -341,21 +429,47 @@ const ExpensesListPage: React.FC = () => {
       if (selectedEmployeeId && r.employee_id !== selectedEmployeeId) return false;
       return true;
     });
-  }, [expenses, searchQuery, employeeNameById, categoriesMap, selectedCategoryId, selectedEmployeeId]);
+  }, [visibleExpenses, searchQuery, employeeNameById, categoriesMap, selectedCategoryId, selectedEmployeeId]);
 
-  // Получаем список годов из всех расходов (без фильтров), чтобы дропдауны не сбрасывались
+  const fallbackMonths = React.useMemo(() => {
+    const months = new Set<string>();
+    for (const exp of visibleExpenses) {
+      const month = getExpensePeriodMonth(exp);
+      if (month) months.add(month);
+    }
+    return months;
+  }, [getExpensePeriodMonth, visibleExpenses]);
+
+  const expenseMonthsSource = availableExpenseMonths ?? fallbackMonths;
+
+  React.useEffect(() => {
+    if (expenseMonthsSource.size === 0) return;
+    if (selectedMonth && expenseMonthsSource.has(selectedMonth)) return;
+
+    const todayMonth = dayjs().format("YYYY-MM");
+    const fallbackMonth = expenseMonthsSource.has(todayMonth)
+      ? todayMonth
+      : Array.from(expenseMonthsSource).sort((a, b) => a.localeCompare(b)).at(-1);
+
+    if (fallbackMonth) {
+      setSelectedYear(fallbackMonth.slice(0, 4));
+      setSelectedMonth(fallbackMonth);
+      setSelectedDate(null);
+    }
+  }, [expenseMonthsSource, selectedMonth]);
+
+  // Получаем список годов из доступных месяцев, чтобы навигация не зависела от текущего списка.
   const availableYears = React.useMemo(() => {
     const years = new Set<string>();
-    // Добавим текущий год по умолчанию, чтобы он всегда был в списке
     years.add(new Date().getFullYear().toString());
-
-    for (const exp of expenses) {
-      const year = getExpensePeriodYear(exp);
-      if (!year) continue;
-      years.add(year);
+    expenseMonthsSource.forEach((monthKey) => {
+      years.add(monthKey.slice(0, 4));
+    });
+    if (selectedMonth) {
+      years.add(selectedMonth.slice(0, 4));
     }
     return Array.from(years).sort((a, b) => b.localeCompare(a));
-  }, [expenses, getExpensePeriodYear]);
+  }, [expenseMonthsSource, selectedMonth]);
 
   type MonthOption = {
     value: string;
@@ -366,8 +480,6 @@ const ExpensesListPage: React.FC = () => {
     if (!selectedYear) return [];
 
     const monthMap = new Map<string, number>();
-
-    // Добавим текущий месяц по умолчанию, если выбран текущий год
     const currentYear = new Date().getFullYear().toString();
     if (selectedYear === currentYear) {
       const currentMonthIndex = new Date().getMonth();
@@ -375,22 +487,22 @@ const ExpensesListPage: React.FC = () => {
       monthMap.set(currentMonthKey, currentMonthIndex);
     }
 
-    for (const exp of expenses) {
-      const year = getExpensePeriodYear(exp);
-      if (year !== selectedYear) continue;
-
-      const monthKey = getExpensePeriodMonth(exp);
-      if (!monthKey) continue;
+    expenseMonthsSource.forEach((monthKey) => {
+      if (!monthKey.startsWith(`${selectedYear}-`)) return;
       const monthIndex = Number(monthKey.slice(5, 7)) - 1;
       if (!monthMap.has(monthKey)) {
         monthMap.set(monthKey, monthIndex);
       }
+    });
+
+    if (selectedMonth?.startsWith(`${selectedYear}-`)) {
+      monthMap.set(selectedMonth, Number(selectedMonth.slice(5, 7)) - 1);
     }
 
     return Array.from(monthMap.entries())
       .sort((a, b) => a[0].localeCompare(b[0]))
       .map(([value, monthIndex]) => ({ value, monthIndex }));
-  }, [expenses, selectedYear, getExpensePeriodMonth, getExpensePeriodYear]);
+  }, [expenseMonthsSource, selectedMonth, selectedYear]);
 
 
 
@@ -540,6 +652,14 @@ const ExpensesListPage: React.FC = () => {
   // Детальная панель
   const [employeeFullName, setEmployeeFullName] = React.useState<string | null>(null);
 
+  React.useEffect(() => {
+    setSelectedExpense(null);
+    setEmployeeFullName(null);
+    setEditOpen(false);
+    setDeleteOpen(false);
+    setExpandedEmployee(null);
+  }, [branchKey]);
+
   const handleExpenseClick = async (exp: Expense) => {
     setSelectedExpense(exp);
     setEmployeeFullName(null);
@@ -674,6 +794,30 @@ const ExpensesListPage: React.FC = () => {
               </Box>
 
               <Box display="flex" justifyContent="space-between" alignItems="center">
+                <Typography variant="body2" color="text.secondary">Вид расхода</Typography>
+                <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                  {expense.kind === "payroll"
+                    ? "Зарплата"
+                    : expense.kind === "advance"
+                      ? "Аванс"
+                      : expense.kind === "operational"
+                        ? "Операционный"
+                        : expense.kind === "other"
+                          ? "Другое"
+                          : "—"}
+                </Typography>
+              </Box>
+
+              {expense.affects_month && (
+                <Box display="flex" justifyContent="space-between" alignItems="center">
+                  <Typography variant="body2" color="text.secondary">Месяц учета</Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                    {dayjs(`${expense.affects_month}-01`).format("MM.YYYY")}
+                  </Typography>
+                </Box>
+              )}
+
+              <Box display="flex" justifyContent="space-between" alignItems="center">
                 <Typography variant="body2" color="text.secondary">Сотрудник</Typography>
                 <Typography variant="body2" sx={{ fontWeight: 500, textAlign: "right", maxWidth: "60%" }}>
                   {empName}
@@ -786,6 +930,36 @@ const ExpensesListPage: React.FC = () => {
           })}
         >
           <Stack spacing={2}>
+            {isScopeLoading && (
+              <Paper
+                variant="outlined"
+                sx={{
+                  p: 1.5,
+                  borderRadius: 2,
+                  borderColor: "primary.main",
+                  bgcolor: alpha(theme.palette.primary.main, 0.05),
+                }}
+              >
+                <Typography variant="body2" color="primary.main" sx={{ fontWeight: 600 }}>
+                  Загружаем расходы выбранного филиала...
+                </Typography>
+              </Paper>
+            )}
+            {loadError && (
+              <Paper
+                variant="outlined"
+                sx={{
+                  p: 1.5,
+                  borderRadius: 2,
+                  borderColor: "error.main",
+                  bgcolor: alpha(theme.palette.error.main, 0.05),
+                }}
+              >
+                <Typography variant="body2" color="error.main" sx={{ fontWeight: 600 }}>
+                  Не удалось загрузить список расходов: {loadError}
+                </Typography>
+              </Paper>
+            )}
             {/* Чипы категорий */}
             <Box
               ref={categoriesScrollRef}
@@ -987,12 +1161,34 @@ const ExpensesListPage: React.FC = () => {
                         <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, display: 'block', mb: 0.5 }}>
                           Итого за месяц
                         </Typography>
-                        <Stack direction="row" alignItems="center" spacing={1}>
-                          <AccountBalanceWalletOutlined sx={{ color: 'primary.main', fontSize: 20 }} />
-                          <Typography variant="subtitle1" sx={{ fontWeight: 800, color: 'primary.main' }}>
-                            {formatKGS(groupedByEmployee.reduce((sum, emp) => sum + emp.total, 0))}
+                        {summaryLoading ? (
+                          <Typography variant="body2" color="text.secondary">
+                            Загрузка...
                           </Typography>
-                        </Stack>
+                        ) : summaryError ? (
+                          <Typography variant="body2" color="error.main">
+                            {summaryError}
+                          </Typography>
+                        ) : monthlySummary ? (
+                          <Stack spacing={0.75}>
+                            <Stack direction="row" alignItems="center" spacing={1}>
+                              <AccountBalanceWalletOutlined sx={{ color: 'primary.main', fontSize: 20 }} />
+                              <Typography variant="subtitle1" sx={{ fontWeight: 800, color: 'primary.main' }}>
+                                {formatKGS(monthlySummary.totalExpenses)}
+                              </Typography>
+                            </Stack>
+                            <Typography variant="caption" color="text.secondary">
+                              Зарплата: {formatKGS(monthlySummary.payrollExpenses)} • Авансы: {formatKGS(monthlySummary.advanceExpenses)}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              Операционные: {formatKGS(monthlySummary.operationalExpenses)} • Наличные: {formatKGS(monthlySummary.cashExpenses)} • Безнал: {formatKGS(monthlySummary.cashlessExpenses)}
+                            </Typography>
+                          </Stack>
+                        ) : (
+                          <Typography variant="body2" color="text.secondary">
+                            Нет данных за выбранный месяц
+                          </Typography>
+                        )}
                       </Box>
                     )}
 
@@ -1145,7 +1341,7 @@ const ExpensesListPage: React.FC = () => {
                                 sx={{
                                   px: 2,
                                   py: 1.5,
-                                  bgcolor: selectedExpense?.id === exp.id ? "action.selected" : "transparent",
+                                  bgcolor: visibleSelectedExpense?.id === exp.id ? "action.selected" : "transparent",
                                   "&:hover": { bgcolor: "action.hover" },
                                   borderBottom: 1,
                                   borderColor: "divider",
@@ -1224,7 +1420,7 @@ const ExpensesListPage: React.FC = () => {
                     },
                   }}
                 >
-                  <ExpenseDetailCard expense={selectedExpense} />
+                  <ExpenseDetailCard expense={visibleSelectedExpense} />
                 </Box>
               </Grid2>
             )}
@@ -1234,11 +1430,11 @@ const ExpensesListPage: React.FC = () => {
         {/* BOTTOM SHEET (Мобильная карточка) */}
         {isMobile && (
           <AppBottomSheet
-            open={Boolean(selectedExpense)}
+            open={Boolean(visibleSelectedExpense)}
             onClose={() => setSelectedExpense(null)}
           >
             <Box sx={{ p: 2 }}>
-              <ExpenseDetailCard expense={selectedExpense} />
+              <ExpenseDetailCard expense={visibleSelectedExpense} />
             </Box>
           </AppBottomSheet>
         )}
@@ -1248,16 +1444,18 @@ const ExpensesListPage: React.FC = () => {
           open={addOpen}
           onClose={() => setAddOpen(false)}
           onCreated={(rec) => {
+            setExpensesScopeKey(branchKey);
             setExpenses((prev) => [rec, ...prev].sort((a, b) => getExpenseSortValue(b) - getExpenseSortValue(a)));
           }}
         />
 
-        {selectedExpense && (
+        {visibleSelectedExpense && (
           <EditExpenseDrawer
             open={editOpen}
             onClose={() => setEditOpen(false)}
-            record={selectedExpense}
+            record={visibleSelectedExpense}
             onUpdated={(rec) => {
+              setExpensesScopeKey(branchKey);
               setSelectedExpense(rec);
               setExpenses((prev) => prev.map((e) => (e.id === rec.id ? rec : e)));
             }}
@@ -1267,8 +1465,9 @@ const ExpensesListPage: React.FC = () => {
         <DeleteExpenseDialog
           open={deleteOpen}
           onClose={() => setDeleteOpen(false)}
-          record={selectedExpense}
+          record={visibleSelectedExpense}
           onDeleted={(id) => {
+            setExpensesScopeKey(branchKey);
             setSelectedExpense(null);
             setExpenses((prev) => prev.filter((e) => e.id !== id));
           }}

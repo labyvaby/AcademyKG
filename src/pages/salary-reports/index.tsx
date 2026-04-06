@@ -27,12 +27,72 @@ import PrintOutlined from '@mui/icons-material/PrintOutlined';
 import { PageHeader, MonthNavigation } from "../../components/ui";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { usePermissions } from "../../hooks/usePermissions";
-import { useActiveMonths } from "../../hooks/useActiveMonths";
+import { useAvailableReportMonths } from "../../hooks/useAvailableReportMonths";
 import { formatKGS } from "../../utility/format";
 import { getPayrollReport } from "../../services/reports";
 import { PayrollReportResponse, PayrollGroup } from "../../types/reports";
+import { useBranchContext } from "../../contexts/branch-context";
 import dayjs from "dayjs";
 import SalaryReportRow from "./components/SalaryReportRow";
+
+const toNumber = (value: number | string | null | undefined): number => {
+    const parsed = Number(value ?? 0);
+    return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const normalizePayrollReport = (report: PayrollReportResponse | null | undefined): PayrollReportResponse | null => {
+    if (!report) return null;
+
+    return {
+        ...report,
+        groups: Array.isArray(report.groups)
+            ? report.groups.map((group) => ({
+                ...group,
+                rows: Array.isArray(group.rows)
+                    ? group.rows.map((row) => ({
+                        ...row,
+                        dayHours: toNumber(row.dayHours),
+                        nightHours: toNumber(row.nightHours),
+                        paidAppointmentsCount: toNumber(row.paidAppointmentsCount),
+                        distributedAppointmentsCount: toNumber(row.distributedAppointmentsCount),
+                        advancesSum: toNumber(row.advancesSum),
+                        payoutsSum: toNumber(row.payoutsSum),
+                        deductionsSum: toNumber(row.deductionsSum),
+                        expensesSum: toNumber(row.expensesSum),
+                        grossEarnings: toNumber(row.grossEarnings),
+                        netSalary: toNumber(row.netSalary),
+                        percentSum: toNumber(row.percentSum),
+                        fixedSum: toNumber(row.fixedSum),
+                    }))
+                    : [],
+                totals: {
+                    ...group.totals,
+                    advancesSum: toNumber(group.totals?.advancesSum),
+                    payoutsSum: toNumber(group.totals?.payoutsSum),
+                    deductionsSum: toNumber(group.totals?.deductionsSum),
+                    expensesSum: toNumber(group.totals?.expensesSum),
+                    grossEarnings: toNumber(group.totals?.grossEarnings),
+                    netSalary: toNumber(group.totals?.netSalary),
+                },
+            }))
+            : [],
+        totals: {
+            ...report.totals,
+            advancesSum: toNumber(report.totals?.advancesSum),
+            payoutsSum: toNumber(report.totals?.payoutsSum),
+            deductionsSum: toNumber(report.totals?.deductionsSum),
+            expensesSum: toNumber(report.totals?.expensesSum),
+            grossEarnings: toNumber(report.totals?.grossEarnings),
+            netSalary: toNumber(report.totals?.netSalary),
+        },
+        summary: {
+            ...report.summary,
+            warningsCount: toNumber(report.summary?.warningsCount),
+            openShiftsCount: toNumber(report.summary?.openShiftsCount),
+            paidOutCount: toNumber(report.summary?.paidOutCount),
+        },
+    };
+};
 
 const SalaryReportsPage: React.FC = () => {
     usePageTitle("Отчет по ЗП");
@@ -40,50 +100,95 @@ const SalaryReportsPage: React.FC = () => {
     const isMobile = useMediaQuery(theme.breakpoints.down("lg"));
     const { open: notify } = useNotification();
     const { isSuperAdmin, hasRole, loading: permissionsLoading } = usePermissions();
+    const { selectedBranch } = useBranchContext();
 
     const canSeeAll = useMemo(() => isSuperAdmin() || hasRole(['accountant', 'admin', 'manager']), [isSuperAdmin, hasRole]);
 
     // State
     const [selectedDate, setSelectedDate] = useState<string>(dayjs().format('YYYY-MM-DD'));
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
     const [reportData, setReportData] = useState<PayrollReportResponse | null>(null);
-    const activeMonths = useActiveMonths('AppointmentsAggregated', 'appointment_at');
+    const activeMonths = useAvailableReportMonths("payrollMonths");
+    const month = useMemo(() => dayjs(selectedDate).format('YYYY-MM'), [selectedDate]);
+    const branchKey = selectedBranch?.id ?? "all";
+    const scopeKey = `${branchKey}:${month}`;
+    const [loadedScopeKey, setLoadedScopeKey] = useState<string | null>(null);
 
-    const fetchData = useCallback(async () => {
+    const fetchData = useCallback(async (signal?: AbortSignal) => {
         if (permissionsLoading) return;
 
         try {
             setLoading(true);
-            const month = dayjs(selectedDate).format('YYYY-MM');
-            const res = await getPayrollReport(month);
+            setError(null);
+            setLoadedScopeKey(null);
+            setReportData(null);
+            const res = await getPayrollReport(month, selectedBranch?.id ?? undefined, undefined, signal);
+            if (signal?.aborted) return;
             if (res?.data) {
-                setReportData(res.data);
+                setReportData(normalizePayrollReport(res.data));
+                setLoadedScopeKey(scopeKey);
             }
         } catch (e: any) {
+            if (signal?.aborted) return;
             console.error(e);
-            notify?.({ type: "error", message: e.message || "Ошибка загрузки данных зарплаты" });
+            const message = e?.message || "Ошибка загрузки данных зарплаты";
+            setError(message);
+            setLoadedScopeKey(null);
+            notify?.({ type: "error", message });
         } finally {
-            setLoading(false);
+            if (!signal?.aborted) setLoading(false);
         }
-    }, [selectedDate, notify, permissionsLoading]);
+    }, [month, notify, permissionsLoading, scopeKey, selectedBranch?.id]);
 
     useEffect(() => {
-        fetchData();
+        const controller = new AbortController();
+        void fetchData(controller.signal);
+        return () => controller.abort();
     }, [fetchData]);
+
+    useEffect(() => {
+        if (!activeMonths || activeMonths.size === 0) return;
+        if (activeMonths.has(month)) return;
+
+        const todayMonth = dayjs().format("YYYY-MM");
+        const fallbackMonth = activeMonths.has(todayMonth)
+            ? todayMonth
+            : Array.from(activeMonths).sort((a, b) => a.localeCompare(b)).at(-1);
+
+        if (fallbackMonth) {
+            setSelectedDate(`${fallbackMonth}-01`);
+        }
+    }, [activeMonths, month]);
 
     if (permissionsLoading) return (
         <Box sx={{ display: 'flex', justifyContent: 'center', p: 10 }}><CircularProgress /></Box>
     );
 
-    const { groups = [], totals = {} as any, summary = {} as any } = reportData || {};
+    const visibleReportData = loadedScopeKey === scopeKey ? reportData : null;
+    const effectiveLoading = loading || (!error && loadedScopeKey !== scopeKey);
+    const { groups = [], totals = {} as PayrollReportResponse["totals"], summary = {} as PayrollReportResponse["summary"] } = visibleReportData || {};
     const netSalaryTotal = Number(totals.netSalary ?? 0);
 
-    const monthLabel = dayjs(selectedDate).format('YYYY-MM');
+    const monthLabel = month;
 
     const exportCSV = () => {
         const BOM = '\uFEFF';
         const lines: string[] = [];
-        lines.push(['Сотрудник', 'Группа', 'День (ч)', 'Ночь (ч)', 'Оплаченные приемы', '% ЗП', 'Оклад', 'Аванс', 'К выплате'].join(';'));
+        lines.push([
+            'Сотрудник',
+            'Группа',
+            'День (ч)',
+            'Ночь (ч)',
+            'Оплаченные приемы',
+            '% ЗП',
+            'Оклад',
+            'Авансы',
+            'Выплаты',
+            'Удержания',
+            'Всего списано',
+            'К выплате',
+        ].join(';'));
         groups.forEach((group: PayrollGroup) => {
             group.rows.forEach((row) => {
                 lines.push([
@@ -94,12 +199,28 @@ const SalaryReportsPage: React.FC = () => {
                     row.paidAppointmentsCount ?? 0,
                     row.percentSum ?? 0,
                     row.fixedSum ?? 0,
+                    row.advancesSum ?? 0,
+                    row.payoutsSum ?? 0,
+                    row.deductionsSum ?? 0,
                     row.expensesSum ?? 0,
                     row.netSalary ?? 0,
                 ].join(';'));
             });
         });
-        lines.push(['ИТОГО', '', '', '', '', '', '', totals.expensesSum || 0, totals.netSalary || 0].join(';'));
+        lines.push([
+            'ИТОГО',
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
+            totals.advancesSum || 0,
+            totals.payoutsSum || 0,
+            totals.deductionsSum || 0,
+            totals.expensesSum || 0,
+            totals.netSalary || 0,
+        ].join(';'));
         const csv = BOM + lines.join('\n');
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
@@ -137,7 +258,7 @@ const SalaryReportsPage: React.FC = () => {
                                 size="small"
                                 startIcon={<FileDownloadOutlined />}
                                 onClick={exportCSV}
-                                disabled={!reportData || groups.length === 0}
+                                disabled={!visibleReportData || groups.length === 0}
                                 sx={{ borderRadius: 2 }}
                             >
                                 Excel
@@ -151,7 +272,7 @@ const SalaryReportsPage: React.FC = () => {
                                 size="small"
                                 startIcon={<PrintOutlined />}
                                 onClick={() => window.print()}
-                                disabled={!reportData || groups.length === 0}
+                                disabled={!visibleReportData || groups.length === 0}
                                 sx={{ borderRadius: 2 }}
                             >
                                 PDF
@@ -203,7 +324,24 @@ const SalaryReportsPage: React.FC = () => {
                         </Stack>
                     </Paper>
 
-                    {loading ? (
+                    {error && !loading ? (
+                        <Paper
+                            variant="outlined"
+                            sx={{
+                                p: 3,
+                                borderRadius: 3,
+                                borderColor: "error.main",
+                                bgcolor: alpha(theme.palette.error.main, 0.05),
+                            }}
+                        >
+                            <Typography variant="h6" color="error.main" sx={{ fontWeight: 700, mb: 1 }}>
+                                Не удалось загрузить зарплатный отчет
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary">
+                                {error}
+                            </Typography>
+                        </Paper>
+                    ) : effectiveLoading ? (
                         <Stack spacing={2}>
                             {Array.from({ length: 3 }).map((_, i) => (
                                 <Skeleton key={i} variant="rectangular" height={200} sx={{ borderRadius: 3 }} />
@@ -243,6 +381,9 @@ const SalaryReportsPage: React.FC = () => {
                                                     <TableCell align="right" sx={{ fontWeight: 800 }}>ЗП (%)</TableCell>
                                                     <TableCell align="right" sx={{ fontWeight: 800 }}>Оклад</TableCell>
                                                     <TableCell align="right" sx={{ fontWeight: 800, color: 'error.main' }}>Аванс</TableCell>
+                                                    <TableCell align="right" sx={{ fontWeight: 800, color: 'warning.main' }}>Выплаты</TableCell>
+                                                    <TableCell align="right" sx={{ fontWeight: 800 }}>Удерж.</TableCell>
+                                                    <TableCell align="right" sx={{ fontWeight: 800 }}>Списано</TableCell>
                                                     <TableCell align="right" sx={{ fontWeight: 800, color: 'primary.main' }}>К выплате</TableCell>
                                                 </TableRow>
                                             </TableHead>
@@ -252,7 +393,10 @@ const SalaryReportsPage: React.FC = () => {
                                                 ))}
                                                 <TableRow sx={{ bgcolor: alpha(theme.palette.primary.main, 0.02) }}>
                                                     <TableCell colSpan={7} sx={{ fontWeight: 800 }}>ИТОГО {group.title.toUpperCase()}</TableCell>
-                                                    <TableCell align="right" sx={{ fontWeight: 800, color: 'error.main' }}>{formatKGS(group.totals.expensesSum)}</TableCell>
+                                                    <TableCell align="right" sx={{ fontWeight: 800, color: 'error.main' }}>{formatKGS(group.totals.advancesSum)}</TableCell>
+                                                    <TableCell align="right" sx={{ fontWeight: 800, color: 'warning.main' }}>{formatKGS(group.totals.payoutsSum)}</TableCell>
+                                                    <TableCell align="right" sx={{ fontWeight: 800 }}>{formatKGS(group.totals.deductionsSum)}</TableCell>
+                                                    <TableCell align="right" sx={{ fontWeight: 800 }}>{formatKGS(group.totals.expensesSum)}</TableCell>
                                                     <TableCell align="right" sx={{ fontWeight: 800, color: 'primary.main' }}>{formatKGS(group.totals.netSalary)}</TableCell>
                                                 </TableRow>
                                             </TableBody>
@@ -264,18 +408,30 @@ const SalaryReportsPage: React.FC = () => {
                     )}
 
                     {/* Overall Totals */}
-                    {!loading && reportData && (
+                    {!effectiveLoading && visibleReportData && (
                         <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 3, bgcolor: alpha(theme.palette.primary.main, 0.05), border: `2px solid ${alpha(theme.palette.primary.main, 0.1)}` }}>
                             <Stack direction="row" justifyContent="space-between" alignItems="center">
                                 <Typography variant="h6" fontWeight={800}>ОБЩИЙ ИТОГ</Typography>
-                                <Stack direction="row" spacing={4}>
+                                <Stack direction="row" spacing={4} flexWrap="wrap" useFlexGap>
                                     <Box textAlign="right">
                                         <Typography variant="caption" color="text.secondary">Грязная ЗП</Typography>
                                         <Typography variant="h6" fontWeight={700}>{formatKGS(totals.grossEarnings)}</Typography>
                                     </Box>
                                     <Box textAlign="right">
                                         <Typography variant="caption" color="error.main">Авансы</Typography>
-                                        <Typography variant="h6" fontWeight={700} color="error.main">{formatKGS(totals.expensesSum)}</Typography>
+                                        <Typography variant="h6" fontWeight={700} color="error.main">{formatKGS(totals.advancesSum)}</Typography>
+                                    </Box>
+                                    <Box textAlign="right">
+                                        <Typography variant="caption" color="warning.main">Выплаты</Typography>
+                                        <Typography variant="h6" fontWeight={700} color="warning.main">{formatKGS(totals.payoutsSum)}</Typography>
+                                    </Box>
+                                    <Box textAlign="right">
+                                        <Typography variant="caption" color="text.secondary">Удержания</Typography>
+                                        <Typography variant="h6" fontWeight={700}>{formatKGS(totals.deductionsSum)}</Typography>
+                                    </Box>
+                                    <Box textAlign="right">
+                                        <Typography variant="caption" color="text.secondary">Всего списано</Typography>
+                                        <Typography variant="h6" fontWeight={700}>{formatKGS(totals.expensesSum)}</Typography>
                                     </Box>
                                     <Box textAlign="right">
                                         <Typography variant="caption" color="primary.main">К выплате</Typography>

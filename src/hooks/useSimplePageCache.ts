@@ -38,6 +38,12 @@ export function useSimplePageCache<T extends Record<string, unknown>>(
 ) {
   const { getPageState, setPageState, hasPageState } = usePageCache();
   const isRestoredRef = useRef(false);
+  const lastPageKeyRef = useRef(pageKey);
+
+  if (lastPageKeyRef.current !== pageKey) {
+    lastPageKeyRef.current = pageKey;
+    isRestoredRef.current = false;
+  }
 
   // Восстановление состояния
   const restoreState = (): T | null => {

@@ -1,12 +1,31 @@
 import { apiFetch } from "./apiClient";
 
-export async function fetchAllPages<T = any>(path: string, pageSize = 200): Promise<T[]> {
+type FetchAllPagesOptions = {
+  pageSize?: number;
+  signal?: AbortSignal;
+};
+
+export async function fetchAllPages<T = any>(
+  path: string,
+  pageSizeOrOptions: number | FetchAllPagesOptions = 200,
+): Promise<T[]> {
+  const options =
+    typeof pageSizeOrOptions === "number"
+      ? { pageSize: pageSizeOrOptions, signal: undefined }
+      : pageSizeOrOptions;
+  const pageSize = options.pageSize ?? 200;
   const items: T[] = [];
   let page = 1;
 
   while (true) {
+    if (options.signal?.aborted) {
+      throw new DOMException("The operation was aborted.", "AbortError");
+    }
+
     const separator = path.includes("?") ? "&" : "?";
-    const res: any = await apiFetch(`${path}${separator}page=${page}&pageSize=${pageSize}`);
+    const res: any = await apiFetch(`${path}${separator}page=${page}&pageSize=${pageSize}`, {
+      signal: options.signal,
+    });
     const data = res?.data ?? res;
     const results: T[] = Array.isArray(data?.results)
       ? data.results

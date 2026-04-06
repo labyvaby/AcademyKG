@@ -3,13 +3,11 @@ import {
     TableRow,
     TableCell,
     Typography,
-    IconButton,
     Box,
     alpha,
     useTheme,
     Stack,
     Card,
-    Divider,
     Collapse,
     Grid2,
     Tooltip,
@@ -23,10 +21,9 @@ import { PayrollRow } from "../../../types/reports";
 interface SalaryReportRowProps {
     row: PayrollRow;
     isMobile?: boolean;
-    columns?: any; // For desktop columns configuration
 }
 
-const SalaryReportRow: React.FC<SalaryReportRowProps> = ({ row, isMobile, columns }) => {
+const SalaryReportRow: React.FC<SalaryReportRowProps> = ({ row, isMobile }) => {
     const theme = useTheme();
     const [open, setOpen] = useState(false);
 
@@ -84,14 +81,36 @@ const SalaryReportRow: React.FC<SalaryReportRowProps> = ({ row, isMobile, column
                         </Grid2>
                         <Grid2 size={4}>
                             <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.6rem', display: 'block', lineHeight: 1.2 }}>Аванс</Typography>
-                            <Typography sx={{ fontSize: '0.78rem' }} fontWeight={700} color="error.main">{formatKGS(row.expensesSum)}</Typography>
+                            <Typography sx={{ fontSize: '0.78rem' }} fontWeight={700} color="error.main">{formatKGS(row.advancesSum)}</Typography>
                         </Grid2>
                     </Grid2>
                 </Box>
-                {/* 
-                   Note: The new API contract currently doesn't provide daily breakdown. 
-                   If it's added in the future, Collapse content can be implemented here.
-                */}
+                <Collapse in={open} timeout="auto" unmountOnExit>
+                    <Box sx={{ px: 1.25, pb: 1.25 }}>
+                        <Grid2 container spacing={1}>
+                            <Grid2 size={6}>
+                                <Typography variant="caption" color="text.secondary">ЗП (%)</Typography>
+                                <Typography fontWeight={700}>{formatKGS(row.percentSum)}</Typography>
+                            </Grid2>
+                            <Grid2 size={6}>
+                                <Typography variant="caption" color="text.secondary">Оклад</Typography>
+                                <Typography fontWeight={700}>{formatKGS(row.fixedSum)}</Typography>
+                            </Grid2>
+                            <Grid2 size={4}>
+                                <Typography variant="caption" color="text.secondary">Выплаты</Typography>
+                                <Typography fontWeight={700} color="warning.main">{formatKGS(row.payoutsSum)}</Typography>
+                            </Grid2>
+                            <Grid2 size={4}>
+                                <Typography variant="caption" color="text.secondary">Удержания</Typography>
+                                <Typography fontWeight={700}>{formatKGS(row.deductionsSum)}</Typography>
+                            </Grid2>
+                            <Grid2 size={4}>
+                                <Typography variant="caption" color="text.secondary">Списано</Typography>
+                                <Typography fontWeight={700}>{formatKGS(row.expensesSum)}</Typography>
+                            </Grid2>
+                        </Grid2>
+                    </Box>
+                </Collapse>
             </Card>
         );
     }
@@ -123,7 +142,10 @@ const SalaryReportRow: React.FC<SalaryReportRowProps> = ({ row, isMobile, column
             {row.distributedAppointmentsCount !== undefined && <TableCell align="center" sx={{ color: 'info.main', fontWeight: 600 }}>{row.distributedAppointmentsCount}</TableCell>}
             <TableCell align="right">{formatKGS(row.percentSum)}</TableCell>
             <TableCell align="right">{formatKGS(row.fixedSum)}</TableCell>
-            <TableCell align="right" sx={{ color: 'error.main' }}>{formatKGS(row.expensesSum)}</TableCell>
+            <TableCell align="right" sx={{ color: 'error.main' }}>{formatKGS(row.advancesSum)}</TableCell>
+            <TableCell align="right" sx={{ color: 'warning.main' }}>{formatKGS(row.payoutsSum)}</TableCell>
+            <TableCell align="right">{formatKGS(row.deductionsSum)}</TableCell>
+            <TableCell align="right">{formatKGS(row.expensesSum)}</TableCell>
             <TableCell align="right" sx={{ fontWeight: 800, color: 'primary.main' }}>{formatKGS(row.netSalary)}</TableCell>
         </TableRow>
     );

@@ -1,19 +1,19 @@
 import { apiFetch, getBranchFilter, resolveApiUrl } from "../utility/apiClient";
 import { mapApiExpense } from "../pages/expenses/types";
 import type { Expense } from "../pages/expenses/types";
+import { fetchAllPages } from "../utility/pagination";
 
 function resolvePhotoUrl(url: string | null | undefined): string | null {
   return resolveApiUrl(url);
 }
 
 export const ExpensesService = {
-  async getAll(employeeId?: string | null): Promise<Expense[]> {
+  async getAll(employeeId?: string | null, signal?: AbortSignal): Promise<Expense[]> {
     let url = "/api/v1/expenses/?ordering=-createdAt";
     if (employeeId) {
       url += `&employee=${employeeId}`;
     }
-    const res: any = await apiFetch(url);
-    const data: any[] = res?.data?.results ?? res?.results ?? [];
+    const data = await fetchAllPages<any>(url, { signal });
     return data.map((r) => {
       const e = mapApiExpense(r);
       if (typeof e.photo === "string") e.photo = resolvePhotoUrl(e.photo);
@@ -33,6 +33,7 @@ export const ExpensesService = {
     const branchId = getBranchFilter();
     if (branchId) fd.append("branch", String(branchId));
     if (expense.name) fd.append("name", expense.name);
+    if (expense.kind) fd.append("kind", String(expense.kind));
     fd.append("cashAmount", String(Number(expense.cash_amount ?? expense.cashAmount) || 0));
     fd.append("cashlessAmount", String(Number(expense.cashless_amount ?? expense.cashlessAmount) || 0));
     if (expense.created_at ?? expense.createdAt) {
@@ -68,13 +69,15 @@ export const ExpensesService = {
     fd.append("employee", employeeId ? String(employeeId) : "");
     fd.append("category", categoryId ? String(categoryId) : "");
     if (updates.name !== undefined) fd.append("name", updates.name);
+    if (updates.kind !== undefined) fd.append("kind", updates.kind ? String(updates.kind) : "");
     if (updates.cash_amount !== undefined) fd.append("cashAmount", String(Number(updates.cash_amount) || 0));
     if (updates.cashless_amount !== undefined) fd.append("cashlessAmount", String(Number(updates.cashless_amount) || 0));
     if (updates.created_at ?? updates.createdAt) {
       fd.append("createdAt", String(updates.created_at ?? updates.createdAt));
     }
-    if (updates.affects_month ?? updates.affectsMonth) {
-      fd.append("affectsMonth", String(updates.affects_month ?? updates.affectsMonth));
+    if (updates.affects_month !== undefined || updates.affectsMonth !== undefined) {
+      const affectsMonth = updates.affects_month ?? updates.affectsMonth;
+      fd.append("affectsMonth", affectsMonth ? String(affectsMonth) : "");
     }
     if (updates.comment !== undefined) fd.append("comment", updates.comment ?? "");
     if (updates.photo instanceof File) {

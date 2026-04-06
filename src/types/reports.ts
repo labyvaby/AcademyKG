@@ -44,6 +44,9 @@ export interface PayrollRow {
     nightHours: number;
     paidAppointmentsCount: number;
     distributedAppointmentsCount: number;
+    advancesSum: number;
+    payoutsSum: number;
+    deductionsSum: number;
     expensesSum: number;
     grossEarnings: number;
     netSalary: number;
@@ -62,6 +65,9 @@ export interface PayrollGroup {
     title: string;
     rows: PayrollRow[];
     totals: {
+        advancesSum: number;
+        payoutsSum: number;
+        deductionsSum: number;
         netSalary: number;
         grossEarnings: number;
         expensesSum: number;
@@ -74,6 +80,9 @@ export interface PayrollReportResponse {
     month: string;
     groups: PayrollGroup[];
     totals: {
+        advancesSum: number;
+        payoutsSum: number;
+        deductionsSum: number;
         netSalary: number;
         grossEarnings: number;
         expensesSum: number;
@@ -83,8 +92,47 @@ export interface PayrollReportResponse {
         warningsCount: number;
         openShiftsCount: number;
         paidOutCount: number;
-        totalNetSalary?: number;
     };
+}
+
+export interface ExpensesMonthlyTotals {
+    totalExpenses: number;
+    payrollExpenses: number;
+    advanceExpenses: number;
+    operationalExpenses: number;
+    cashExpenses: number;
+    cashlessExpenses: number;
+}
+
+export interface ExpensesMonthlyCategoryRow {
+    categoryId: string | null;
+    categoryName: string;
+    cashSum: number;
+    cashlessSum: number;
+    totalSum: number;
+    count: number;
+}
+
+export interface ExpensesMonthlyEmployeeRow {
+    employeeId: string | null;
+    employeeName: string;
+    cashSum: number;
+    cashlessSum: number;
+    totalSum: number;
+    count: number;
+}
+
+export interface ExpensesMonthlyReportResponse {
+    month: string;
+    totals: ExpensesMonthlyTotals;
+    byCategory: ExpensesMonthlyCategoryRow[];
+    byEmployee: ExpensesMonthlyEmployeeRow[];
+}
+
+export interface AvailableMonthsResponse {
+    financialMonths: string[];
+    payrollMonths: string[];
+    expensesMonths: string[];
 }
 
 export interface Envelope<T> {
