@@ -29,6 +29,7 @@ import Divider from "@mui/material/Divider";
 import Chip from "@mui/material/Chip";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
+import Menu from "@mui/material/Menu";
 import TextField from "@mui/material/TextField";
 import CircularProgress from "@mui/material/CircularProgress";
 
@@ -94,6 +95,21 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
   const { employee: empFromPerms, isSuperAdmin } = usePermissions();
   const isSuper = isSuperAdmin();
   const { branches, selectedBranch, setSelectedBranch } = useBranchContext();
+  const [branchMenuAnchor, setBranchMenuAnchor] = React.useState<null | HTMLElement>(null);
+
+  const selectedBranchLabel = React.useMemo(() => (
+    selectedBranch?.name ?? "Все филиалы"
+  ), [selectedBranch?.name]);
+
+  const handleSelectBranch = React.useCallback((branchId: string | "all") => {
+    if (branchId === "all") {
+      setSelectedBranch(null);
+    } else {
+      setSelectedBranch(branches.find((branch) => branch.id === branchId) ?? null);
+    }
+    setBranchMenuAnchor(null);
+    setTimeout(() => window.location.reload(), 50);
+  }, [branches, setSelectedBranch]);
 
   React.useEffect(() => {
     if (empFromPerms) {
@@ -265,8 +281,13 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
           gap: { xs: 0.5, sm: 1 },
         }}
       >
-        {/* Левая часть: Бургер-меню + Компактный логотип */}
-        <Stack direction="row" alignItems="center" spacing={{ xs: 0.5, sm: 1 }}>
+        {/* Левая часть: Бургер-меню + логотип + заголовок */}
+        <Stack
+          direction="row"
+          alignItems="center"
+          spacing={{ xs: 0.5, sm: 1 }}
+          sx={{ minWidth: 0, flex: 1 }}
+        >
           <IconButton
             color="inherit"
             onClick={toggle}
@@ -304,46 +325,138 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
                 background: "linear-gradient(45deg, #1e3c72 0%, #2a5298 100%)",
                 WebkitBackgroundClip: "text",
                 WebkitTextFillColor: "transparent",
-                display: { xs: "block", sm: "block" }
+                display: { xs: "none", sm: "block" },
               }}
             >
               Academy<span style={{ fontWeight: 400 }}>KG</span>
             </Typography>
           </Box>
-        </Stack>
-
-        {/* Центр: Заголовок страницы */}
-        <Box sx={{
-          position: "absolute",
-          left: "50%",
-          transform: "translateX(-50%)",
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          pointerEvents: "none",
-          maxWidth: { xs: "50%", md: "60%" },
-        }}>
           <Typography
             variant="subtitle1"
             sx={{
               fontWeight: 700,
-              fontSize: "1.5rem",
+              fontSize: { xs: "1rem", sm: "1.1rem", md: "1.5rem" },
               color: "text.primary",
               whiteSpace: "nowrap",
               overflow: "hidden",
               textOverflow: "ellipsis",
+              minWidth: 0,
+              flex: 1,
+              ml: { xs: 0.25, sm: 0.5, md: 1 },
               opacity: title ? 1 : 0,
               transition: "opacity 0.3s ease",
             }}
           >
             {title}
           </Typography>
-        </Box>
-
-        <Box sx={{ flex: 1 }} />
+        </Stack>
 
         {/* Правая часть: Branch switcher + Refresh + Avatar */}
         <Stack direction="row" alignItems="center" spacing={{ xs: 0.5, sm: 1 }} sx={{ ml: "auto" }}>
+          {isSuper && branches.length > 0 ? (
+            <>
+              <IconButton
+                color="inherit"
+                aria-label={`Выбран филиал: ${selectedBranchLabel}`}
+                onClick={(event) => setBranchMenuAnchor(event.currentTarget)}
+                size="small"
+                sx={{
+                  display: { xs: "inline-flex", md: "none" },
+                  p: { xs: 0.5, sm: 1 },
+                  bgcolor: selectedBranch
+                    ? (theme) => theme.palette.primary.main + "18"
+                    : (theme) => theme.palette.mode === "dark"
+                      ? "rgba(255,255,255,0.08)"
+                      : "rgba(0,0,0,0.04)",
+                  color: selectedBranch ? "primary.main" : "inherit",
+                }}
+              >
+                <CorporateFareOutlined sx={{ fontSize: { xs: 18, sm: 20 } }} />
+              </IconButton>
+
+              <Select
+                size="small"
+                value={selectedBranch?.id ?? "all"}
+                renderValue={(val) => {
+                  const label = val === "all"
+                    ? "Все филиалы"
+                    : branches.find((branch) => branch.id === val)?.name ?? "Все филиалы";
+                  return (
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, minWidth: 0, width: "100%", overflow: "hidden" }}>
+                      <CorporateFareOutlined fontSize="small" sx={{ color: selectedBranch ? "primary.main" : "text.secondary", flexShrink: 0 }} />
+                      <Box
+                        component="span"
+                        sx={{
+                          fontSize: "0.8rem",
+                          lineHeight: 1.2,
+                          flex: 1,
+                          minWidth: 0,
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                          display: "block",
+                        }}
+                      >
+                        {label}
+                      </Box>
+                    </Box>
+                  );
+                }}
+                onChange={(e) => handleSelectBranch(String(e.target.value) as string | "all")}
+                sx={{
+                  display: { xs: "none", md: "block" },
+                  height: 34,
+                  minWidth: 130,
+                  maxWidth: 190,
+                  bgcolor: selectedBranch ? (theme) => theme.palette.primary.main + "18" : "transparent",
+                  "& .MuiOutlinedInput-notchedOutline": { borderColor: selectedBranch ? "primary.main" : "divider" },
+                  "& .MuiSelect-select, & .MuiSelect-select.MuiInputBase-input, & .MuiOutlinedInput-input.MuiSelect-select": {
+                    display: "flex !important",
+                    alignItems: "center !important",
+                    boxSizing: "border-box",
+                    paddingTop: "0 !important",
+                    paddingBottom: "0 !important",
+                    paddingLeft: "10px !important",
+                    paddingRight: "32px !important",
+                    height: "100% !important",
+                    minHeight: "unset !important",
+                    lineHeight: "normal !important",
+                    overflow: "hidden",
+                  },
+                }}
+              >
+                <MenuItem value="all">Все филиалы</MenuItem>
+                {branches.map((branch) => (
+                  <MenuItem key={branch.id} value={branch.id}>{branch.name}</MenuItem>
+                ))}
+              </Select>
+
+              <Menu
+                anchorEl={branchMenuAnchor}
+                open={Boolean(branchMenuAnchor)}
+                onClose={() => setBranchMenuAnchor(null)}
+                anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+                transformOrigin={{ vertical: "top", horizontal: "right" }}
+              >
+                <MenuItem
+                  selected={!selectedBranch}
+                  onClick={() => handleSelectBranch("all")}
+                >
+                  Все филиалы
+                </MenuItem>
+                {branches.map((branch) => (
+                  <MenuItem
+                    key={branch.id}
+                    selected={selectedBranch?.id === branch.id}
+                    onClick={() => handleSelectBranch(branch.id)}
+                  >
+                    {branch.name}
+                  </MenuItem>
+                ))}
+              </Menu>
+            </>
+          ) : null}
+
           <IconButton
             color="inherit"
             onClick={() => {
@@ -373,14 +486,13 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
             <Stack
               direction="row"
               alignItems="center"
-              spacing={1}
               onClick={() => setProfileOpen(true)}
               sx={{
                 cursor: "pointer",
                 ml: 0.5,
                 borderRadius: 24,
-                pr: { xs: 0, md: 1.5 },
-                py: 0.5,
+                pr: { xs: 0, md: 0.5 },
+                py: 0.25,
                 transition: 'background-color 0.2s',
                 '&:hover': {
                   bgcolor: (theme) => theme.palette.mode === 'dark'
@@ -394,59 +506,6 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
                 alt={displayName}
                 sx={{ width: { xs: 28, sm: 32, md: 36 }, height: { xs: 28, sm: 32, md: 36 } }}
               />
-              {isSuper && branches.length > 0 ? (
-                <Select
-                  size="small"
-                  value={selectedBranch?.id ?? "all"}
-                  renderValue={(val) => {
-                    const selectedLabel = val === "all"
-                      ? "Все филиалы"
-                      : branches.find((b) => b.id === val)?.name ?? "Все филиалы";
-                    return (
-                      <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, minWidth: 0, width: "100%", overflow: "hidden" }}>
-                        <CorporateFareOutlined fontSize="small" sx={{ color: selectedBranch ? "primary.main" : "text.secondary", flexShrink: 0, alignSelf: "center" }} />
-                        <Box component="span" sx={{ fontSize: "0.8rem", lineHeight: 1.2, flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "block" }}>
-                          {selectedLabel}
-                        </Box>
-                      </Box>
-                    );
-                  }}
-                  onClick={(e) => e.stopPropagation()}
-                  onChange={(e) => {
-                    e.stopPropagation();
-                    const val = e.target.value;
-                    if (val === "all") setSelectedBranch(null);
-                    else setSelectedBranch(branches.find((b) => b.id === val) ?? null);
-                    setTimeout(() => window.location.reload(), 50);
-                  }}
-                  sx={{
-                    display: { xs: "none", md: "block" },
-                    height: 34,
-                    minWidth: 130,
-                    maxWidth: 180,
-                    bgcolor: selectedBranch ? (theme) => theme.palette.primary.main + "18" : "transparent",
-                    "& .MuiOutlinedInput-notchedOutline": { borderColor: selectedBranch ? "primary.main" : "divider" },
-                    "& .MuiSelect-select, & .MuiSelect-select.MuiInputBase-input, & .MuiOutlinedInput-input.MuiSelect-select": {
-                      display: "flex !important",
-                      alignItems: "center !important",
-                      boxSizing: "border-box",
-                      paddingTop: "0 !important",
-                      paddingBottom: "0 !important",
-                      paddingLeft: "10px !important",
-                      paddingRight: "32px !important",
-                      height: "100% !important",
-                      minHeight: "unset !important",
-                      lineHeight: "normal !important",
-                      overflow: "hidden",
-                    },
-                  }}
-                >
-                  <MenuItem value="all">Все филиалы</MenuItem>
-                  {branches.map((b) => (
-                    <MenuItem key={b.id} value={b.id}>{b.name}</MenuItem>
-                  ))}
-                </Select>
-              ) : null}
             </Stack>
           )}
 

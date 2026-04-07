@@ -19,7 +19,6 @@ import {
   List,
   ListItem,
   ListItemText,
-  ListItemSecondaryAction,
   MenuItem,
 } from "@mui/material";
 import AddOutlined from "@mui/icons-material/AddOutlined";
@@ -285,7 +284,7 @@ const BranchManagePage: React.FC = () => {
           {/* Шапка */}
           <Box sx={{ p: 2, borderBottom: 1, borderColor: "divider" }}>
             <Stack direction={{ xs: "column", sm: "row" }} alignItems={{ sm: "center" }} justifyContent="space-between" gap={2}>
-              <Stack direction="row" alignItems="center" gap={1}>
+              <Stack direction="row" alignItems="center" gap={1} flexWrap="wrap">
                 <BusinessOutlined color="primary" />
                 <Typography variant="h6" fontWeight={700}>Управление филиалами</Typography>
                 {!loading && (
@@ -293,7 +292,12 @@ const BranchManagePage: React.FC = () => {
                 )}
               </Stack>
 
-              <Stack direction="row" gap={1} alignItems="center">
+              <Stack
+                direction={{ xs: "column", sm: "row" }}
+                gap={1}
+                alignItems={{ xs: "stretch", sm: "center" }}
+                sx={{ width: { xs: "100%", sm: "auto" } }}
+              >
                 <TextField
                   size="small"
                   placeholder="Поиск филиала..."
@@ -306,12 +310,13 @@ const BranchManagePage: React.FC = () => {
                       </InputAdornment>
                     ),
                   }}
-                  sx={{ minWidth: 200 }}
+                  sx={{ minWidth: { sm: 220 }, width: { xs: "100%", sm: "auto" } }}
                 />
                 <Button
                   variant="contained"
                   startIcon={<AddOutlined />}
                   onClick={() => { setEditTarget(null); setFormOpen(true); }}
+                  sx={{ width: { xs: "100%", sm: "auto" } }}
                 >
                   Добавить
                 </Button>
@@ -346,13 +351,18 @@ const BranchManagePage: React.FC = () => {
                       sx={{
                         py: 1.5,
                         px: 2,
+                        display: "flex",
+                        flexDirection: { xs: "column", sm: "row" },
+                        alignItems: { xs: "stretch", sm: "center" },
+                        gap: { xs: 1.5, sm: 2 },
                         transition: "background-color 0.15s",
                         "&:hover": { bgcolor: "action.hover" },
                       }}
                     >
                       <ListItemText
+                        sx={{ my: 0, mr: 0 }}
                         primary={
-                          <Stack direction="row" alignItems="center" gap={1}>
+                          <Stack direction="row" alignItems="center" gap={1} flexWrap="wrap">
                             <Typography variant="body1" fontWeight={500}>{branch.name}</Typography>
                             {branch.organizationName && (
                               <Chip label={branch.organizationName} size="small" variant="outlined" sx={{ height: 20, fontSize: "0.7rem" }} />
@@ -368,27 +378,30 @@ const BranchManagePage: React.FC = () => {
                           ) : null
                         }
                       />
-                      <ListItemSecondaryAction>
-                        <Stack direction="row" gap={0.5}>
-                          <Tooltip title="Редактировать">
-                            <IconButton
-                              size="small"
-                              onClick={() => { setEditTarget(branch); setFormOpen(true); }}
-                            >
-                              <EditOutlined fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
-                          <Tooltip title="Удалить">
-                            <IconButton
-                              size="small"
-                              color="error"
-                              onClick={() => setDeleteTarget(branch)}
-                            >
-                              <DeleteOutlined fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
-                        </Stack>
-                      </ListItemSecondaryAction>
+                      <Stack
+                        direction="row"
+                        gap={0.5}
+                        justifyContent={{ xs: "flex-end", sm: "flex-start" }}
+                        sx={{ ml: { sm: "auto" } }}
+                      >
+                        <Tooltip title="Редактировать">
+                          <IconButton
+                            size="small"
+                            onClick={() => { setEditTarget(branch); setFormOpen(true); }}
+                          >
+                            <EditOutlined fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Удалить">
+                          <IconButton
+                            size="small"
+                            color="error"
+                            onClick={() => setDeleteTarget(branch)}
+                          >
+                            <DeleteOutlined fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      </Stack>
                     </ListItem>
                   </React.Fragment>
                 ))}

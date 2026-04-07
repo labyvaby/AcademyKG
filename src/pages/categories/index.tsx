@@ -21,7 +21,6 @@ import {
   List,
   ListItem,
   ListItemText,
-  ListItemSecondaryAction,
 } from "@mui/material";
 import AddOutlined from "@mui/icons-material/AddOutlined";
 import EditOutlined from "@mui/icons-material/EditOutlined";
@@ -251,7 +250,7 @@ const CategoriesPage: React.FC = () => {
           {/* Шапка */}
           <Box sx={{ p: 2, borderBottom: 1, borderColor: "divider" }}>
             <Stack direction={{ xs: "column", sm: "row" }} alignItems={{ sm: "center" }} justifyContent="space-between" gap={2}>
-              <Stack direction="row" alignItems="center" gap={1}>
+              <Stack direction="row" alignItems="center" gap={1} flexWrap="wrap">
                 <CategoryOutlined color="primary" />
                 <Typography variant="h6" fontWeight={700}>Категории расходов</Typography>
                 {!loading && (
@@ -259,7 +258,12 @@ const CategoriesPage: React.FC = () => {
                 )}
               </Stack>
 
-              <Stack direction="row" gap={1} alignItems="center">
+              <Stack
+                direction={{ xs: "column", sm: "row" }}
+                gap={1}
+                alignItems={{ xs: "stretch", sm: "center" }}
+                sx={{ width: { xs: "100%", sm: "auto" } }}
+              >
                 <TextField
                   size="small"
                   placeholder="Поиск категории..."
@@ -272,12 +276,13 @@ const CategoriesPage: React.FC = () => {
                       </InputAdornment>
                     ),
                   }}
-                  sx={{ minWidth: 200 }}
+                  sx={{ minWidth: { sm: 220 }, width: { xs: "100%", sm: "auto" } }}
                 />
                 <Button
                   variant="contained"
                   startIcon={<AddOutlined />}
                   onClick={() => { setEditTarget(null); setFormOpen(true); }}
+                  sx={{ width: { xs: "100%", sm: "auto" } }}
                 >
                   Добавить
                 </Button>
@@ -312,13 +317,18 @@ const CategoriesPage: React.FC = () => {
                       sx={{
                         py: 1.5,
                         px: 2,
+                        display: "flex",
+                        flexDirection: { xs: "column", sm: "row" },
+                        alignItems: { xs: "stretch", sm: "center" },
+                        gap: { xs: 1.5, sm: 2 },
                         transition: "background-color 0.15s",
                         "&:hover": { bgcolor: "action.hover" },
                       }}
                     >
                       <ListItemText
+                        sx={{ my: 0, mr: 0 }}
                         primary={
-                          <Stack direction="row" alignItems="center" gap={1}>
+                          <Stack direction="row" alignItems="center" gap={1} flexWrap="wrap">
                             <Typography variant="body1" fontWeight={500}>{cat.name}</Typography>
                             <Chip
                               label={cat.isActive ? "Активна" : "Неактивна"}
@@ -330,27 +340,30 @@ const CategoriesPage: React.FC = () => {
                           </Stack>
                         }
                       />
-                      <ListItemSecondaryAction>
-                        <Stack direction="row" gap={0.5}>
-                          <Tooltip title="Редактировать">
-                            <IconButton
-                              size="small"
-                              onClick={() => { setEditTarget(cat); setFormOpen(true); }}
-                            >
-                              <EditOutlined fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
-                          <Tooltip title="Удалить">
-                            <IconButton
-                              size="small"
-                              color="error"
-                              onClick={() => setDeleteTarget(cat)}
-                            >
-                              <DeleteOutlined fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
-                        </Stack>
-                      </ListItemSecondaryAction>
+                      <Stack
+                        direction="row"
+                        gap={0.5}
+                        justifyContent={{ xs: "flex-end", sm: "flex-start" }}
+                        sx={{ ml: { sm: "auto" } }}
+                      >
+                        <Tooltip title="Редактировать">
+                          <IconButton
+                            size="small"
+                            onClick={() => { setEditTarget(cat); setFormOpen(true); }}
+                          >
+                            <EditOutlined fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Удалить">
+                          <IconButton
+                            size="small"
+                            color="error"
+                            onClick={() => setDeleteTarget(cat)}
+                          >
+                            <DeleteOutlined fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      </Stack>
                     </ListItem>
                   </React.Fragment>
                 ))}
