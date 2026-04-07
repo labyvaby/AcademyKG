@@ -13,6 +13,7 @@ import {
   FormControlLabel,
   Switch,
   Chip,
+  MenuItem,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -39,7 +40,8 @@ import {
   getPhoneLocalMaxLength,
   type PhoneCountryCode,
 } from "../../utility/phone";
-import { useHasRole } from "../../hooks/usePermissions";
+import { useHasRole, usePermissions } from "../../hooks/usePermissions";
+import { getBranchFilter } from "../../utility/apiClient";
 
 function resolvePhotoUrl(url: string | null | undefined): string | null {
   return resolveApiUrl(url);
@@ -103,6 +105,11 @@ const EditPatientDrawer: React.FC<Props> = ({
   const [touched, setTouched] = React.useState(false);
 
   const canManageBlacklist = useHasRole(["superadmin", "admin", "receptionist", "registrator"]);
+  const { employee } = usePermissions();
+  const [branches, setBranches] = React.useState<{ id: string; name: string; organizationId: string; organizationName: string }[]>([]);
+  const [organizations, setOrganizations] = React.useState<{ id: string; name: string }[]>([]);
+  const [selectedOrganizationId, setSelectedOrganizationId] = React.useState("");
+  const [selectedBranchId, setSelectedBranchId] = React.useState("");
 
   const [photoFile, setPhotoFile] = React.useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = React.useState<string | null>(null);
@@ -119,6 +126,32 @@ const EditPatientDrawer: React.FC<Props> = ({
 
   const showSnack = (message: string, severity: "success" | "error" = "success") =>
     setSnack({ open: true, message, severity });
+
+  React.useEffect(() => {
+    if (!open) return;
+    apiFetch("/api/v1/branches/?pageSize=200&ordering=name")
+      .then((r: any) => {
+        const list: any[] = r?.data?.results ?? r?.results ?? r?.data ?? [];
+        const mappedBranches = list.map((b: any) => ({
+          id: String(b.id ?? ""),
+          name: String(b.name ?? ""),
+          organizationId: String(b.organization?.id ?? b.organizationId ?? b.organization ?? ""),
+          organizationName: String(b.organization?.name ?? b.organizationName ?? ""),
+        }));
+        setBranches(mappedBranches);
+        const orgMap = new Map<string, { id: string; name: string }>();
+        mappedBranches.forEach((branch) => {
+          if (branch.organizationId && !orgMap.has(branch.organizationId)) {
+            orgMap.set(branch.organizationId, {
+              id: branch.organizationId,
+              name: branch.organizationName || `Организация ${branch.organizationId}`,
+            });
+          }
+        });
+        setOrganizations(Array.from(orgMap.values()));
+      })
+      .catch(() => {});
+  }, [open]);
 
   // Load current client data from REST API on open
   React.useEffect(() => {
@@ -167,6 +200,16 @@ const EditPatientDrawer: React.FC<Props> = ({
         setRemovePhoto(false);
         setTouched(false);
         setNewDocFiles([]);
+        const currentBranchId = String(data?.branch?.id ?? data?.branchId ?? data?.branch ?? "");
+        const currentOrganizationId = String(
+          data?.organization?.id ??
+          data?.organizationId ??
+          data?.organization ??
+          data?.branch?.organization?.id ??
+          ""
+        );
+        setSelectedBranchId(currentBranchId);
+        setSelectedOrganizationId(currentOrganizationId);
 
         // Документы из клиента
         const docs: ExistingDoc[] = Array.isArray(data?.documents)
@@ -188,6 +231,30 @@ const EditPatientDrawer: React.FC<Props> = ({
     return () => { cancelled = true; };
   }, [open, patientId, initialPhoto, notify]);
 
+  React.useEffect(() => {
+    if (!open || branches.length === 0) return;
+    const employeeBranchId = String(
+      employee?.branch?.id ?? employee?.branch ?? employee?.branchId ?? ""
+    );
+    const preferredBranchId =
+      selectedBranchId ||
+      getBranchFilter() ||
+      employeeBranchId ||
+      branches[0]?.id ||
+      "";
+    const preferredBranch =
+      branches.find((branch) => branch.id === preferredBranchId) ??
+      branches[0];
+    if (!preferredBranch) return;
+    setSelectedBranchId(preferredBranchId);
+    setSelectedOrganizationId((current) => current || preferredBranch.organizationId);
+  }, [open, branches, employee, selectedBranchId]);
+
+  const availableBranches = React.useMemo(
+    () => branches.filter((branch) => branch.organizationId === selectedOrganizationId),
+    [branches, selectedOrganizationId],
+  );
+
   const handleSubmit = async () => {
     setTouched(true);
     const fioTrim = fio.trim();
@@ -197,6 +264,10 @@ const EditPatientDrawer: React.FC<Props> = ({
     }
     if (isBlacklisted && !blacklistReason.trim()) {
       notify?.({ type: "error", message: "Укажите причину добавления в черный список" });
+      return;
+    }
+    if (!selectedOrganizationId || !selectedBranchId) {
+      notify?.({ type: "error", message: "Выберите организацию и филиал" });
       return;
     }
     if (!patientId) return;
@@ -245,6 +316,9 @@ const EditPatientDrawer: React.FC<Props> = ({
       } else if (removePhoto) {
         fd.append("photoUrl", "");
       }
+
+      fd.append("branch", selectedBranchId);
+      fd.append("organization", selectedOrganizationId);
 
       const res: any = await apiFetch(`/api/v1/clients/${patientId}/`, {
         method: "PATCH",
@@ -448,6 +522,53 @@ const EditPatientDrawer: React.FC<Props> = ({
                   placeholder="14 цифр"
                   inputProps={{ inputMode: "numeric", pattern: "[0-9]*", maxLength: 14 }}
                 />
+              </Stack>
+
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+                <Stack spacing={0.5} flex={1}>
+                  <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
+                    Организация
+                  </Typography>
+                  <TextField
+                    select
+                    fullWidth
+                    value={selectedOrganizationId}
+                    onChange={(e) => {
+                      const nextOrgId = e.target.value;
+                      setSelectedOrganizationId(nextOrgId);
+                      const firstBranch = branches.find((branch) => branch.organizationId === nextOrgId);
+                      setSelectedBranchId(firstBranch?.id ?? "");
+                    }}
+                    disabled={organizations.length === 0}
+                    helperText={organizations.length === 0 ? "Нет доступных организаций" : ""}
+                  >
+                    {organizations.map((organization) => (
+                      <MenuItem key={organization.id} value={organization.id}>
+                        {organization.name}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                </Stack>
+
+                <Stack spacing={0.5} flex={1}>
+                  <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
+                    Филиал
+                  </Typography>
+                  <TextField
+                    select
+                    fullWidth
+                    value={selectedBranchId}
+                    onChange={(e) => setSelectedBranchId(e.target.value)}
+                    disabled={availableBranches.length === 0}
+                    helperText={selectedOrganizationId && availableBranches.length === 0 ? "Нет филиалов для выбранной организации" : ""}
+                  >
+                    {availableBranches.map((branch) => (
+                      <MenuItem key={branch.id} value={branch.id}>
+                        {branch.name}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                </Stack>
               </Stack>
 
               {/* Ответственные лица */}
@@ -695,7 +816,11 @@ const EditPatientDrawer: React.FC<Props> = ({
               <Button onClick={onClose} disabled={busy}>
                 Отмена
               </Button>
-              <Button variant="contained" onClick={handleSubmit} disabled={busy || !fio.trim()}>
+              <Button
+                variant="contained"
+                onClick={handleSubmit}
+                disabled={busy || !fio.trim() || !selectedOrganizationId || !selectedBranchId}
+              >
                 {busy ? (
                   <Stack direction="row" alignItems="center" spacing={1}>
                     <CircularProgress size={18} />
