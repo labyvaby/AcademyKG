@@ -71,5 +71,21 @@
   "overrides": {
     "react": "18.3.1",
     "react-dom": "18.3.1"
-  }
+  },
+  "description": "",
+  "main": "eslint.config.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/labyvaby/AcademyKG.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/labyvaby/AcademyKG/issues"
+  },
+  "homepage": "https://github.com/labyvaby/AcademyKG#readme"
 }
