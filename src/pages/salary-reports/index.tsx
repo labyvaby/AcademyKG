@@ -35,6 +35,16 @@ import { useBranchContext } from "../../contexts/branch-context";
 import dayjs from "dayjs";
 import SalaryReportRow from "./components/SalaryReportRow";
 
+// Гармоничная палитра
+const C = {
+    day: '#3B82F6',
+    night: '#8B5CF6',
+    advance: '#F59E0B',
+    payout: '#10B981',
+    deduction: '#EF4444',
+    net: '#0EA5E9',
+};
+
 const toNumber = (value: number | string | null | undefined): number => {
     const parsed = Number(value ?? 0);
     return Number.isFinite(parsed) ? parsed : 0;
@@ -99,10 +109,9 @@ const SalaryReportsPage: React.FC = () => {
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down("lg"));
     const { open: notify } = useNotification();
-    const { isSuperAdmin, hasRole, loading: permissionsLoading } = usePermissions();
+    const { loading: permissionsLoading } = usePermissions();
     const { selectedBranch } = useBranchContext();
 
-    const canSeeAll = useMemo(() => isSuperAdmin() || hasRole(['accountant', 'admin', 'manager']), [isSuperAdmin, hasRole]);
 
     // State
     const [selectedDate, setSelectedDate] = useState<string>(dayjs().format('YYYY-MM-DD'));
@@ -283,42 +292,42 @@ const SalaryReportsPage: React.FC = () => {
                 <Stack spacing={{ xs: 2, md: 3 }} sx={{ display: 'flex', flexDirection: 'column' }}>
 
                     {/* Summary Indicators */}
-                    <Paper variant="outlined" sx={{ p: 2, borderRadius: 3, bgcolor: alpha(theme.palette.background.paper, 0.5) }}>
-                        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={3} justifyContent="space-around">
+                    <Paper variant="outlined" sx={{ p: 2, borderRadius: 2.5, bgcolor: alpha(theme.palette.background.paper, 0.6), borderColor: alpha(theme.palette.divider, 0.6) }}>
+                        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} divider={<Box sx={{ width: '1px', bgcolor: 'divider', display: { xs: 'none', sm: 'block' } }} />} justifyContent="space-around" alignItems="center">
                             <Stack direction="row" spacing={1.5} alignItems="center">
-                                <Box sx={{ p: 1, borderRadius: 2, bgcolor: alpha(theme.palette.error.main, 0.1), color: 'error.main', display: 'flex' }}>
-                                    <ReportProblemIcon />
+                                <Box sx={{ p: 0.875, borderRadius: 1.5, bgcolor: alpha(C.advance, 0.1), color: C.advance, display: 'flex' }}>
+                                    <ReportProblemIcon sx={{ fontSize: '1.1rem' }} />
                                 </Box>
                                 <Box>
-                                    <Typography variant="h6" fontWeight={800}>{summary.warningsCount || 0}</Typography>
-                                    <Typography variant="caption" color="text.secondary">Предупреждений</Typography>
+                                    <Typography variant="h6" fontWeight={800} sx={{ lineHeight: 1.1 }}>{summary.warningsCount || 0}</Typography>
+                                    <Typography variant="caption" color="text.disabled">Предупреждений</Typography>
                                 </Box>
                             </Stack>
                             <Stack direction="row" spacing={1.5} alignItems="center">
-                                <Box sx={{ p: 1, borderRadius: 2, bgcolor: alpha(theme.palette.info.main, 0.1), color: 'info.main', display: 'flex' }}>
-                                    <AccessTimeIcon />
+                                <Box sx={{ p: 0.875, borderRadius: 1.5, bgcolor: alpha(C.night, 0.1), color: C.night, display: 'flex' }}>
+                                    <AccessTimeIcon sx={{ fontSize: '1.1rem' }} />
                                 </Box>
                                 <Box>
-                                    <Typography variant="h6" fontWeight={800}>{summary.openShiftsCount || 0}</Typography>
-                                    <Typography variant="caption" color="text.secondary">Открытых смен</Typography>
+                                    <Typography variant="h6" fontWeight={800} sx={{ lineHeight: 1.1 }}>{summary.openShiftsCount || 0}</Typography>
+                                    <Typography variant="caption" color="text.disabled">Открытых смен</Typography>
                                 </Box>
                             </Stack>
                             <Stack direction="row" spacing={1.5} alignItems="center">
-                                <Box sx={{ p: 1, borderRadius: 2, bgcolor: alpha(theme.palette.success.main, 0.1), color: 'success.main', display: 'flex' }}>
-                                    <CheckCircleOutlineIcon />
+                                <Box sx={{ p: 0.875, borderRadius: 1.5, bgcolor: alpha(C.payout, 0.1), color: C.payout, display: 'flex' }}>
+                                    <CheckCircleOutlineIcon sx={{ fontSize: '1.1rem' }} />
                                 </Box>
                                 <Box>
-                                    <Typography variant="h6" fontWeight={800}>{summary.paidOutCount || 0}</Typography>
-                                    <Typography variant="caption" color="text.secondary">Выплачено</Typography>
+                                    <Typography variant="h6" fontWeight={800} sx={{ lineHeight: 1.1 }}>{summary.paidOutCount || 0}</Typography>
+                                    <Typography variant="caption" color="text.disabled">Выплачено</Typography>
                                 </Box>
                             </Stack>
                             <Stack direction="row" spacing={1.5} alignItems="center">
-                                <Box sx={{ p: 1, borderRadius: 2, bgcolor: alpha(theme.palette.primary.main, 0.1), color: 'primary.main', display: 'flex' }}>
-                                    <Typography fontWeight={800}>KGS</Typography>
+                                <Box sx={{ p: 0.875, borderRadius: 1.5, bgcolor: alpha(C.net, 0.1), color: C.net, display: 'flex', alignItems: 'center', justifyContent: 'center', width: 34, height: 34 }}>
+                                    <Typography fontWeight={800} sx={{ fontSize: '0.7rem', letterSpacing: -0.3 }}>KGS</Typography>
                                 </Box>
                                 <Box>
-                                    <Typography variant="h6" fontWeight={800}>{formatKGS(netSalaryTotal)}</Typography>
-                                    <Typography variant="caption" color="text.secondary">Итого к выплате</Typography>
+                                    <Typography variant="h6" fontWeight={800} sx={{ lineHeight: 1.1, color: C.net }}>{formatKGS(netSalaryTotal)}</Typography>
+                                    <Typography variant="caption" color="text.disabled">Итого к выплате</Typography>
                                 </Box>
                             </Stack>
                         </Stack>
@@ -354,50 +363,50 @@ const SalaryReportsPage: React.FC = () => {
                     ) : (
                         groups.map((group: PayrollGroup) => (
                             <Box key={group.key}>
-                                <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1, px: 1 }}>
-                                    <Typography variant="subtitle2" fontWeight={800} color="primary.main">
+                                <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1, px: 0.5 }}>
+                                    <Typography variant="subtitle2" fontWeight={800} sx={{ color: C.net, fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: 0.5 }}>
                                         {group.title}
                                     </Typography>
-                                    <Typography variant="caption" fontWeight={700}>
-                                        Итого по группе: {formatKGS(group.totals.netSalary)}
+                                    <Typography variant="caption" color="text.disabled" fontWeight={600}>
+                                        Итого: <Box component="span" sx={{ color: C.net, fontWeight: 800 }}>{formatKGS(group.totals.netSalary)}</Box>
                                     </Typography>
                                 </Stack>
                                 {isMobile ? (
                                     <Stack spacing={1}>
                                         {group.rows.map((row) => (
-                                            <SalaryReportRow key={row.employeeId} row={row} isMobile />
+                                            <SalaryReportRow key={row.employeeId} row={row} isMobile month={month} />
                                         ))}
                                     </Stack>
                                 ) : (
-                                    <Paper variant="outlined" sx={{ borderRadius: 3, overflow: 'hidden' }}>
+                                    <Paper variant="outlined" sx={{ borderRadius: 2, overflow: 'hidden', borderColor: alpha(theme.palette.divider, 0.6) }}>
                                         <Table size="small">
                                             <TableHead>
-                                                <TableRow sx={{ bgcolor: alpha(theme.palette.action.hover, 0.5) }}>
-                                                    <TableCell sx={{ fontWeight: 800 }}>Сотрудник</TableCell>
-                                                    <TableCell align="center" sx={{ fontWeight: 800 }}>День (ч)</TableCell>
-                                                    <TableCell align="center" sx={{ fontWeight: 800 }}>Ночь (ч)</TableCell>
-                                                    <TableCell align="center" sx={{ fontWeight: 800 }}>Приемы</TableCell>
-                                                    <TableCell align="center" sx={{ fontWeight: 800, color: 'info.main' }}>Распред.</TableCell>
-                                                    <TableCell align="right" sx={{ fontWeight: 800 }}>ЗП (%)</TableCell>
-                                                    <TableCell align="right" sx={{ fontWeight: 800 }}>Оклад</TableCell>
-                                                    <TableCell align="right" sx={{ fontWeight: 800, color: 'error.main' }}>Аванс</TableCell>
-                                                    <TableCell align="right" sx={{ fontWeight: 800, color: 'warning.main' }}>Выплаты</TableCell>
-                                                    <TableCell align="right" sx={{ fontWeight: 800 }}>Удерж.</TableCell>
-                                                    <TableCell align="right" sx={{ fontWeight: 800 }}>Списано</TableCell>
-                                                    <TableCell align="right" sx={{ fontWeight: 800, color: 'primary.main' }}>К выплате</TableCell>
+                                                <TableRow sx={{ bgcolor: '#E6E6FA' }}>
+                                                    <TableCell sx={{ fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: 0.4, color: 'text.secondary', pl: 1.5 }}>Сотрудник</TableCell>
+                                                    <TableCell align="center" sx={{ fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: 0.4, color: C.day }}>День (ч)</TableCell>
+                                                    <TableCell align="center" sx={{ fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: 0.4, color: C.night }}>Ночь (ч)</TableCell>
+                                                    <TableCell align="center" sx={{ fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: 0.4, color: 'text.secondary' }}>Приемы</TableCell>
+                                                    <TableCell align="center" sx={{ fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: 0.4, color: C.day }}>Распред.</TableCell>
+                                                    <TableCell align="right" sx={{ fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: 0.4, color: 'text.secondary' }}>ЗП (%)</TableCell>
+                                                    <TableCell align="right" sx={{ fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: 0.4, color: 'text.secondary' }}>Оклад</TableCell>
+                                                    <TableCell align="right" sx={{ fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: 0.4, color: C.advance }}>Аванс</TableCell>
+                                                    <TableCell align="right" sx={{ fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: 0.4, color: C.payout }}>Выплаты</TableCell>
+                                                    <TableCell align="right" sx={{ fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: 0.4, color: C.deduction }}>Удерж.</TableCell>
+                                                    <TableCell align="right" sx={{ fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: 0.4, color: 'text.secondary' }}>Списано</TableCell>
+                                                    <TableCell align="right" sx={{ fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: 0.4, color: C.net }}>К выплате</TableCell>
                                                 </TableRow>
                                             </TableHead>
                                             <TableBody>
                                                 {group.rows.map((row) => (
-                                                    <SalaryReportRow key={row.employeeId} row={row} />
+                                                    <SalaryReportRow key={row.employeeId} row={row} month={month} />
                                                 ))}
-                                                <TableRow sx={{ bgcolor: alpha(theme.palette.primary.main, 0.02) }}>
-                                                    <TableCell colSpan={7} sx={{ fontWeight: 800 }}>ИТОГО {group.title.toUpperCase()}</TableCell>
-                                                    <TableCell align="right" sx={{ fontWeight: 800, color: 'error.main' }}>{formatKGS(group.totals.advancesSum)}</TableCell>
-                                                    <TableCell align="right" sx={{ fontWeight: 800, color: 'warning.main' }}>{formatKGS(group.totals.payoutsSum)}</TableCell>
-                                                    <TableCell align="right" sx={{ fontWeight: 800 }}>{formatKGS(group.totals.deductionsSum)}</TableCell>
+                                                <TableRow sx={{ bgcolor: alpha(C.net, 0.04), '& td': { borderTop: `1px solid ${alpha(C.net, 0.15)}` } }}>
+                                                    <TableCell colSpan={7} sx={{ fontWeight: 800, fontSize: '0.75rem', color: 'text.secondary', pl: 1.5 }}>ИТОГО {group.title.toUpperCase()}</TableCell>
+                                                    <TableCell align="right" sx={{ fontWeight: 800, color: C.advance }}>{formatKGS(group.totals.advancesSum)}</TableCell>
+                                                    <TableCell align="right" sx={{ fontWeight: 800, color: C.payout }}>{formatKGS(group.totals.payoutsSum)}</TableCell>
+                                                    <TableCell align="right" sx={{ fontWeight: 800, color: C.deduction }}>{formatKGS(group.totals.deductionsSum)}</TableCell>
                                                     <TableCell align="right" sx={{ fontWeight: 800 }}>{formatKGS(group.totals.expensesSum)}</TableCell>
-                                                    <TableCell align="right" sx={{ fontWeight: 800, color: 'primary.main' }}>{formatKGS(group.totals.netSalary)}</TableCell>
+                                                    <TableCell align="right" sx={{ fontWeight: 800, color: C.net }}>{formatKGS(group.totals.netSalary)}</TableCell>
                                                 </TableRow>
                                             </TableBody>
                                         </Table>
@@ -409,33 +418,35 @@ const SalaryReportsPage: React.FC = () => {
 
                     {/* Overall Totals */}
                     {!effectiveLoading && visibleReportData && (
-                        <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 3, bgcolor: alpha(theme.palette.primary.main, 0.05), border: `2px solid ${alpha(theme.palette.primary.main, 0.1)}` }}>
-                            <Stack direction="row" justifyContent="space-between" alignItems="center">
-                                <Typography variant="h6" fontWeight={800}>ОБЩИЙ ИТОГ</Typography>
-                                <Stack direction="row" spacing={4} flexWrap="wrap" useFlexGap>
+                        <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, bgcolor: alpha(C.net, 0.04), borderColor: alpha(C.net, 0.2) }}>
+                            <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ xs: 'flex-start', sm: 'center' }} gap={2}>
+                                <Typography variant="subtitle2" fontWeight={800} color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: 0.5, fontSize: '0.72rem' }}>
+                                    Общий итог
+                                </Typography>
+                                <Stack direction="row" spacing={3} flexWrap="wrap" useFlexGap alignItems="flex-end">
                                     <Box textAlign="right">
-                                        <Typography variant="caption" color="text.secondary">Грязная ЗП</Typography>
-                                        <Typography variant="h6" fontWeight={700}>{formatKGS(totals.grossEarnings)}</Typography>
+                                        <Typography variant="caption" color="text.disabled" sx={{ display: 'block', mb: 0.1 }}>Грязная ЗП</Typography>
+                                        <Typography variant="body1" fontWeight={700}>{formatKGS(totals.grossEarnings)}</Typography>
                                     </Box>
                                     <Box textAlign="right">
-                                        <Typography variant="caption" color="error.main">Авансы</Typography>
-                                        <Typography variant="h6" fontWeight={700} color="error.main">{formatKGS(totals.advancesSum)}</Typography>
+                                        <Typography variant="caption" sx={{ color: C.advance, display: 'block', mb: 0.1 }}>Авансы</Typography>
+                                        <Typography variant="body1" fontWeight={700} sx={{ color: C.advance }}>{formatKGS(totals.advancesSum)}</Typography>
                                     </Box>
                                     <Box textAlign="right">
-                                        <Typography variant="caption" color="warning.main">Выплаты</Typography>
-                                        <Typography variant="h6" fontWeight={700} color="warning.main">{formatKGS(totals.payoutsSum)}</Typography>
+                                        <Typography variant="caption" sx={{ color: C.payout, display: 'block', mb: 0.1 }}>Выплаты</Typography>
+                                        <Typography variant="body1" fontWeight={700} sx={{ color: C.payout }}>{formatKGS(totals.payoutsSum)}</Typography>
                                     </Box>
                                     <Box textAlign="right">
-                                        <Typography variant="caption" color="text.secondary">Удержания</Typography>
-                                        <Typography variant="h6" fontWeight={700}>{formatKGS(totals.deductionsSum)}</Typography>
+                                        <Typography variant="caption" sx={{ color: C.deduction, display: 'block', mb: 0.1 }}>Удержания</Typography>
+                                        <Typography variant="body1" fontWeight={700} sx={{ color: C.deduction }}>{formatKGS(totals.deductionsSum)}</Typography>
                                     </Box>
                                     <Box textAlign="right">
-                                        <Typography variant="caption" color="text.secondary">Всего списано</Typography>
-                                        <Typography variant="h6" fontWeight={700}>{formatKGS(totals.expensesSum)}</Typography>
+                                        <Typography variant="caption" color="text.disabled" sx={{ display: 'block', mb: 0.1 }}>Всего списано</Typography>
+                                        <Typography variant="body1" fontWeight={700}>{formatKGS(totals.expensesSum)}</Typography>
                                     </Box>
-                                    <Box textAlign="right">
-                                        <Typography variant="caption" color="primary.main">К выплате</Typography>
-                                        <Typography variant="h5" fontWeight={900} color="primary.main">{formatKGS(netSalaryTotal)}</Typography>
+                                    <Box textAlign="right" sx={{ pl: 2, borderLeft: `2px solid ${alpha(C.net, 0.3)}` }}>
+                                        <Typography variant="caption" sx={{ color: C.net, display: 'block', mb: 0.1 }}>К выплате</Typography>
+                                        <Typography variant="h6" fontWeight={900} sx={{ color: C.net }}>{formatKGS(netSalaryTotal)}</Typography>
                                     </Box>
                                 </Stack>
                             </Stack>

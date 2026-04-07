@@ -11,143 +11,334 @@ import {
     Collapse,
     Grid2,
     Tooltip,
+    IconButton,
+    Table,
+    TableHead,
+    TableBody,
+    CircularProgress,
+    Chip,
 } from "@mui/material";
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import ReportProblemIcon from '@mui/icons-material/ReportProblem';
+import WbSunnyOutlinedIcon from '@mui/icons-material/WbSunnyOutlined';
+import NightsStayOutlinedIcon from '@mui/icons-material/NightsStayOutlined';
 import { formatKGS } from "../../../utility/format";
 import { PayrollRow } from "../../../types/reports";
+import { fetchShifts, Shift } from "../../../services/shifts";
+import dayjs from "dayjs";
 
 interface SalaryReportRowProps {
     row: PayrollRow;
     isMobile?: boolean;
+    month: string; // YYYY-MM
 }
 
-const SalaryReportRow: React.FC<SalaryReportRowProps> = ({ row, isMobile }) => {
+// Цветовая палитра — нейтральная и гармоничная
+const COLORS = {
+    day: '#3B82F6',       // синий — дневные часы
+    night: '#8B5CF6',     // фиолетовый — ночные часы
+    advance: '#F59E0B',   // янтарный — аванс
+    payout: '#10B981',    // изумрудный — выплаты
+    deduction: '#EF4444', // красный — удержания
+    netSalary: '#0EA5E9', // голубой — к выплате
+    paid: '#10B981',      // зелёный — выплачено
+};
+
+function calcShiftHours(shift: Shift): number {
+    if (!shift.start_time || !shift.end_time) return 0;
+    const [sh, sm] = shift.start_time.split(':').map(Number);
+    const [eh, em] = shift.end_time.split(':').map(Number);
+    let mins = (eh * 60 + em) - (sh * 60 + sm);
+    if (mins < 0) mins += 24 * 60;
+    return Math.round(mins / 60 * 10) / 10;
+}
+
+const DailyBreakdown: React.FC<{ employeeId: string; month: string }> = ({ employeeId, month }) => {
+    const theme = useTheme();
+    const [shifts, setShifts] = React.useState<Shift[] | null>(null);
+    const [loading, setLoading] = React.useState(true);
+
+    React.useEffect(() => {
+        let cancelled = false;
+        setLoading(true);
+        setShifts(null);
+
+        const start = dayjs(month + '-01');
+        const end = start.endOf('month');
+
+        // Загружаем смены за месяц
+        fetchShifts({ employee: employeeId, startDate: start.format('YYYY-MM-DD'), endDate: end.format('YYYY-MM-DD') })
+            .then((data) => {
+                if (!cancelled) {
+                    // Фильтруем по месяцу на случай если API вернул лишнее
+                    const filtered = data.filter(s => s.shift_date?.startsWith(month));
+                    setShifts(filtered.sort((a, b) => (a.shift_date ?? '').localeCompare(b.shift_date ?? '')));
+                    setLoading(false);
+                }
+            })
+            .catch(() => {
+                if (!cancelled) { setShifts([]); setLoading(false); }
+            });
+
+        return () => { cancelled = true; };
+    }, [employeeId, month]);
+
+    if (loading) {
+        return (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
+                <CircularProgress size={20} thickness={4} />
+            </Box>
+        );
+    }
+
+    if (!shifts || shifts.length === 0) {
+        return (
+            <Box sx={{ py: 1.5, px: 2 }}>
+                <Typography variant="caption" color="text.disabled">Нет данных о сменах за этот месяц</Typography>
+            </Box>
+        );
+    }
+
+    return (
+        <Box sx={{ px: 1, pb: 1 }}>
+            <Table size="small" sx={{ '& td, & th': { fontSize: '0.75rem', py: 0.6, px: 1.5, border: 'none' } }}>
+                <TableHead>
+                    <TableRow sx={{ '& th': { color: 'text.disabled', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, fontSize: '0.65rem' } }}>
+                        <TableCell>Дата</TableCell>
+                        <TableCell align="center">Тип</TableCell>
+                        <TableCell align="center">Начало</TableCell>
+                        <TableCell align="center">Конец</TableCell>
+                        <TableCell align="center">Часов</TableCell>
+                        <TableCell align="center">Статус</TableCell>
+                    </TableRow>
+                </TableHead>
+                <TableBody>
+                    {shifts.map((shift, idx) => {
+                        const hours = calcShiftHours(shift);
+                        const isNight = shift.is_night_shift;
+                        const hasClockIn = !!shift.clock_in;
+                        const hasClockOut = !!shift.clock_out;
+                        const isOpen = hasClockIn && !hasClockOut;
+                        const isClosed = hasClockIn && hasClockOut;
+
+                        return (
+                            <TableRow
+                                key={shift.id}
+                                sx={{
+                                    bgcolor: idx % 2 === 0
+                                        ? alpha(theme.palette.action.hover, 0.3)
+                                        : 'transparent',
+                                    borderRadius: 1,
+                                }}
+                            >
+                                <TableCell sx={{ fontWeight: 600, color: 'text.primary' }}>
+                                    {dayjs(shift.shift_date).format('DD MMM')}
+                                    <Typography component="span" sx={{ ml: 0.5, fontSize: '0.65rem', color: 'text.disabled' }}>
+                                        {dayjs(shift.shift_date).format('dd')}
+                                    </Typography>
+                                </TableCell>
+                                <TableCell align="center">
+                                    {isNight
+                                        ? <NightsStayOutlinedIcon sx={{ fontSize: '0.9rem', color: COLORS.night, verticalAlign: 'middle' }} />
+                                        : <WbSunnyOutlinedIcon sx={{ fontSize: '0.9rem', color: COLORS.day, verticalAlign: 'middle' }} />
+                                    }
+                                </TableCell>
+                                <TableCell align="center" sx={{ color: 'text.secondary' }}>
+                                    {shift.start_time || '—'}
+                                </TableCell>
+                                <TableCell align="center" sx={{ color: 'text.secondary' }}>
+                                    {shift.end_time || '—'}
+                                </TableCell>
+                                <TableCell align="center" sx={{ fontWeight: 700, color: isNight ? COLORS.night : COLORS.day }}>
+                                    {hours > 0 ? `${hours}ч` : '—'}
+                                </TableCell>
+                                <TableCell align="center">
+                                    {isClosed
+                                        ? <Box component="span" sx={{ px: 0.75, py: 0.2, borderRadius: 0.75, bgcolor: alpha(COLORS.paid, 0.12), color: COLORS.paid, fontWeight: 700, fontSize: '0.65rem' }}>Закрыта</Box>
+                                        : isOpen
+                                            ? <Box component="span" sx={{ px: 0.75, py: 0.2, borderRadius: 0.75, bgcolor: alpha(COLORS.advance, 0.12), color: COLORS.advance, fontWeight: 700, fontSize: '0.65rem' }}>Открыта</Box>
+                                            : <Box component="span" sx={{ px: 0.75, py: 0.2, borderRadius: 0.75, bgcolor: alpha(theme.palette.text.disabled, 0.1), color: 'text.disabled', fontWeight: 700, fontSize: '0.65rem' }}>Запланирована</Box>
+                                    }
+                                </TableCell>
+                            </TableRow>
+                        );
+                    })}
+                </TableBody>
+            </Table>
+        </Box>
+    );
+};
+
+const SalaryReportRow: React.FC<SalaryReportRowProps> = ({ row, isMobile, month }) => {
     const theme = useTheme();
     const [open, setOpen] = useState(false);
 
-    const handleToggle = () => {
-        setOpen(!open);
-    };
-
-    const statusColor = row.status?.code === 'green' ? 'success' : row.status?.code === 'red' ? 'error' : 'info';
+    const statusColor = row.status?.code === 'green'
+        ? COLORS.paid
+        : row.status?.code === 'red'
+            ? COLORS.deduction
+            : COLORS.day;
 
     if (isMobile) {
         return (
-            <Card variant="outlined" sx={{ 
-                borderRadius: 1.5, 
-                transition: 'all 0.2s', 
-                boxShadow: open ? '0 4px 12px rgba(0,0,0,0.08)' : 'none', 
-                border: open ? `1px solid ${theme.palette.primary.main}` : `1px solid ${theme.palette.divider}` 
-            }}>
-                <Box sx={{ p: 1.25, cursor: 'pointer' }} onClick={handleToggle}>
-                    <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 0.75 }}>
-                        <Box sx={{ minWidth: 0, flex: 1 }}>
-                            <Stack direction="row" alignItems="center" spacing={1} flexWrap="wrap">
-                                <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: `${statusColor}.main`, flexShrink: 0 }} />
-                                <Typography variant="subtitle2" fontWeight={800} sx={{ fontSize: '0.85rem', color: 'text.primary' }}>
-                                    {row.fullName}
-                                </Typography>
-                                {row.paidOut && (
-                                    <Box sx={{ px: 0.75, py: 0.15, borderRadius: 1, bgcolor: alpha(theme.palette.success.main, 0.12), color: 'success.dark', fontSize: '0.6rem', fontWeight: 700, whiteSpace: 'nowrap' }}>✓ Выплачено</Box>
-                                )}
-                                <Box sx={{ display: 'inline-block', px: 0.75, py: 0.1, borderRadius: 0.75, bgcolor: alpha(theme.palette.primary.main, 0.08) }}>
-                                    <Typography variant="caption" fontWeight={700} color="primary.main" sx={{ fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: 0.3 }}>
-                                        {row.roleName}
-                                    </Typography>
-                                </Box>
-                            </Stack>
-                        </Box>
+            <Card
+                variant="outlined"
+                sx={{
+                    borderRadius: 2,
+                    transition: 'box-shadow 0.2s',
+                    boxShadow: open ? '0 2px 12px rgba(0,0,0,0.07)' : 'none',
+                    border: `1px solid`,
+                    borderColor: open ? alpha(COLORS.netSalary, 0.4) : 'divider',
+                }}
+            >
+                <Box sx={{ p: 1.5, cursor: 'pointer', userSelect: 'none' }} onClick={() => setOpen(v => !v)}>
+                    <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
+                        <Stack direction="row" alignItems="center" spacing={1} sx={{ minWidth: 0, flex: 1 }}>
+                            <Box sx={{ width: 7, height: 7, borderRadius: '50%', bgcolor: statusColor, flexShrink: 0, mt: 0.3 }} />
+                            <Box sx={{ minWidth: 0 }}>
+                                <Typography variant="body2" fontWeight={700} noWrap>{row.fullName}</Typography>
+                                <Stack direction="row" spacing={0.5} alignItems="center" flexWrap="wrap">
+                                    <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.68rem' }}>{row.roleName}</Typography>
+                                    {row.paidOut && (
+                                        <Chip label="Выплачено" size="small" sx={{ height: 16, fontSize: '0.6rem', bgcolor: alpha(COLORS.paid, 0.12), color: COLORS.paid, fontWeight: 700, '& .MuiChip-label': { px: 0.75 } }} />
+                                    )}
+                                </Stack>
+                            </Box>
+                        </Stack>
                         <Stack direction="row" alignItems="center" spacing={0.5}>
-                            <Box sx={{ textAlign: 'right' }}>
-                                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 700, textTransform: 'uppercase', fontSize: '0.55rem', lineHeight: 1.2 }}>К выплате</Typography>
-                                <Typography fontWeight={800} color="primary.main" sx={{ fontSize: '0.95rem', lineHeight: 1.1 }}>
+                            <Box textAlign="right">
+                                <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.6rem', display: 'block' }}>К выплате</Typography>
+                                <Typography fontWeight={800} sx={{ color: COLORS.netSalary, fontSize: '0.95rem', lineHeight: 1.1 }}>
                                     {formatKGS(row.netSalary)}
                                 </Typography>
                             </Box>
-                            {open ? <KeyboardArrowUpIcon sx={{ fontSize: '1rem', color: 'text.disabled' }} /> : <KeyboardArrowDownIcon sx={{ fontSize: '1rem', color: 'text.disabled' }} />}
+                            <Box sx={{ color: 'text.disabled', display: 'flex' }}>
+                                {open ? <KeyboardArrowUpIcon sx={{ fontSize: '1rem' }} /> : <KeyboardArrowDownIcon sx={{ fontSize: '1rem' }} />}
+                            </Box>
                         </Stack>
                     </Stack>
 
-                    <Grid2 container spacing={0.5}>
+                    <Grid2 container spacing={1} sx={{ mt: 1 }}>
                         <Grid2 size={4}>
-                            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.6rem', display: 'block', lineHeight: 1.2 }}>Часы (Д/Н)</Typography>
-                            <Typography sx={{ fontSize: '0.78rem' }} fontWeight={700}>{row.dayHours} / {row.nightHours}</Typography>
+                            <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.6rem', display: 'block' }}>День / Ночь</Typography>
+                            <Typography sx={{ fontSize: '0.78rem', fontWeight: 700 }}>
+                                <Box component="span" sx={{ color: COLORS.day }}>{row.dayHours}</Box>
+                                <Box component="span" sx={{ color: 'text.disabled', mx: 0.3 }}>/</Box>
+                                <Box component="span" sx={{ color: COLORS.night }}>{row.nightHours}</Box>
+                            </Typography>
                         </Grid2>
                         <Grid2 size={4}>
-                            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.6rem', display: 'block', lineHeight: 1.2 }}>Приемы</Typography>
-                            <Typography sx={{ fontSize: '0.78rem' }} fontWeight={700}>{row.paidAppointmentsCount}</Typography>
+                            <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.6rem', display: 'block' }}>Приемы</Typography>
+                            <Typography sx={{ fontSize: '0.78rem', fontWeight: 700 }}>{row.paidAppointmentsCount}</Typography>
                         </Grid2>
                         <Grid2 size={4}>
-                            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.6rem', display: 'block', lineHeight: 1.2 }}>Аванс</Typography>
-                            <Typography sx={{ fontSize: '0.78rem' }} fontWeight={700} color="error.main">{formatKGS(row.advancesSum)}</Typography>
+                            <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.6rem', display: 'block' }}>Аванс</Typography>
+                            <Typography sx={{ fontSize: '0.78rem', fontWeight: 700, color: COLORS.advance }}>{formatKGS(row.advancesSum)}</Typography>
                         </Grid2>
                     </Grid2>
                 </Box>
+
                 <Collapse in={open} timeout="auto" unmountOnExit>
-                    <Box sx={{ px: 1.25, pb: 1.25 }}>
-                        <Grid2 container spacing={1}>
+                    <Box sx={{ borderTop: `1px solid`, borderColor: 'divider', px: 1.5, pt: 1.25, pb: 0.5 }}>
+                        <Grid2 container spacing={1} sx={{ mb: 1 }}>
                             <Grid2 size={6}>
-                                <Typography variant="caption" color="text.secondary">ЗП (%)</Typography>
-                                <Typography fontWeight={700}>{formatKGS(row.percentSum)}</Typography>
+                                <Typography variant="caption" color="text.disabled">ЗП (%)</Typography>
+                                <Typography fontWeight={700} sx={{ fontSize: '0.85rem' }}>{formatKGS(row.percentSum)}</Typography>
                             </Grid2>
                             <Grid2 size={6}>
-                                <Typography variant="caption" color="text.secondary">Оклад</Typography>
-                                <Typography fontWeight={700}>{formatKGS(row.fixedSum)}</Typography>
+                                <Typography variant="caption" color="text.disabled">Оклад</Typography>
+                                <Typography fontWeight={700} sx={{ fontSize: '0.85rem' }}>{formatKGS(row.fixedSum)}</Typography>
                             </Grid2>
                             <Grid2 size={4}>
-                                <Typography variant="caption" color="text.secondary">Выплаты</Typography>
-                                <Typography fontWeight={700} color="warning.main">{formatKGS(row.payoutsSum)}</Typography>
+                                <Typography variant="caption" color="text.disabled">Выплаты</Typography>
+                                <Typography fontWeight={700} sx={{ fontSize: '0.85rem', color: COLORS.payout }}>{formatKGS(row.payoutsSum)}</Typography>
                             </Grid2>
                             <Grid2 size={4}>
-                                <Typography variant="caption" color="text.secondary">Удержания</Typography>
-                                <Typography fontWeight={700}>{formatKGS(row.deductionsSum)}</Typography>
+                                <Typography variant="caption" color="text.disabled">Удержания</Typography>
+                                <Typography fontWeight={700} sx={{ fontSize: '0.85rem', color: COLORS.deduction }}>{formatKGS(row.deductionsSum)}</Typography>
                             </Grid2>
                             <Grid2 size={4}>
-                                <Typography variant="caption" color="text.secondary">Списано</Typography>
-                                <Typography fontWeight={700}>{formatKGS(row.expensesSum)}</Typography>
+                                <Typography variant="caption" color="text.disabled">Списано</Typography>
+                                <Typography fontWeight={700} sx={{ fontSize: '0.85rem' }}>{formatKGS(row.expensesSum)}</Typography>
                             </Grid2>
                         </Grid2>
+                    </Box>
+                    <Box sx={{ borderTop: `1px dashed`, borderColor: alpha(theme.palette.divider, 0.5), pb: 1 }}>
+                        <Typography variant="caption" color="text.disabled" sx={{ px: 1.5, pt: 1, display: 'block', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, fontSize: '0.6rem' }}>
+                            Смены за месяц
+                        </Typography>
+                        <DailyBreakdown employeeId={row.employeeId} month={month} />
                     </Box>
                 </Collapse>
             </Card>
         );
     }
 
+    // Desktop
     return (
-        <TableRow hover sx={{ '&:last-child td': { border: 0 } }}>
-            <TableCell sx={{ py: 1.5 }}>
-                <Stack direction="row" alignItems="center" spacing={1.5}>
-                    <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: `${statusColor}.main`, flexShrink: 0 }} />
-                    <Box>
-                        <Typography variant="body2" fontWeight={700}>
-                            {row.fullName}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">{row.roleName}</Typography>
-                    </Box>
-                    {row.status?.hasWarning && (
-                        <Tooltip title="Внимание: есть предупреждения по сменам">
-                            <ReportProblemIcon sx={{ color: 'error.main', fontSize: '1rem' }} />
-                        </Tooltip>
-                    )}
-                    {row.paidOut && (
-                        <Box sx={{ px: 0.75, py: 0.2, borderRadius: 1, bgcolor: alpha(theme.palette.success.main, 0.12), color: 'success.dark', fontSize: '0.65rem', fontWeight: 700 }}>✓ Выплачено</Box>
-                    )}
-                </Stack>
-            </TableCell>
-            <TableCell align="center">{row.dayHours}</TableCell>
-            <TableCell align="center">{row.nightHours}</TableCell>
-            <TableCell align="center">{row.paidAppointmentsCount}</TableCell>
-            {row.distributedAppointmentsCount !== undefined && <TableCell align="center" sx={{ color: 'info.main', fontWeight: 600 }}>{row.distributedAppointmentsCount}</TableCell>}
-            <TableCell align="right">{formatKGS(row.percentSum)}</TableCell>
-            <TableCell align="right">{formatKGS(row.fixedSum)}</TableCell>
-            <TableCell align="right" sx={{ color: 'error.main' }}>{formatKGS(row.advancesSum)}</TableCell>
-            <TableCell align="right" sx={{ color: 'warning.main' }}>{formatKGS(row.payoutsSum)}</TableCell>
-            <TableCell align="right">{formatKGS(row.deductionsSum)}</TableCell>
-            <TableCell align="right">{formatKGS(row.expensesSum)}</TableCell>
-            <TableCell align="right" sx={{ fontWeight: 800, color: 'primary.main' }}>{formatKGS(row.netSalary)}</TableCell>
-        </TableRow>
+        <>
+            <TableRow
+                hover
+                onClick={() => setOpen(v => !v)}
+                sx={{
+                    cursor: 'pointer',
+                    '&:last-child td': { border: 0 },
+                    bgcolor: open ? alpha(COLORS.netSalary, 0.03) : 'transparent',
+                    transition: 'background 0.15s',
+                }}
+            >
+                <TableCell sx={{ py: 1.25 }}>
+                    <Stack direction="row" alignItems="center" spacing={1.5}>
+                        <IconButton size="small" sx={{ p: 0.25, color: open ? COLORS.netSalary : 'text.disabled' }}>
+                            {open ? <KeyboardArrowUpIcon fontSize="small" /> : <KeyboardArrowDownIcon fontSize="small" />}
+                        </IconButton>
+                        <Box sx={{ width: 7, height: 7, borderRadius: '50%', bgcolor: statusColor, flexShrink: 0 }} />
+                        <Box>
+                            <Typography variant="body2" fontWeight={700}>{row.fullName}</Typography>
+                            <Typography variant="caption" color="text.disabled">{row.roleName}</Typography>
+                        </Box>
+                        {row.status?.hasWarning && (
+                            <Tooltip title="Есть предупреждения по сменам">
+                                <ReportProblemIcon sx={{ color: COLORS.advance, fontSize: '0.95rem' }} />
+                            </Tooltip>
+                        )}
+                        {row.paidOut && (
+                            <Chip label="Выплачено" size="small" sx={{ height: 18, fontSize: '0.62rem', bgcolor: alpha(COLORS.paid, 0.1), color: COLORS.paid, fontWeight: 700, '& .MuiChip-label': { px: 0.75 } }} />
+                        )}
+                    </Stack>
+                </TableCell>
+                <TableCell align="center">
+                    <Typography variant="body2" fontWeight={600} sx={{ color: COLORS.day }}>{row.dayHours}</Typography>
+                </TableCell>
+                <TableCell align="center">
+                    <Typography variant="body2" fontWeight={600} sx={{ color: COLORS.night }}>{row.nightHours}</Typography>
+                </TableCell>
+                <TableCell align="center">{row.paidAppointmentsCount}</TableCell>
+                {row.distributedAppointmentsCount !== undefined && (
+                    <TableCell align="center" sx={{ color: COLORS.day, fontWeight: 600 }}>{row.distributedAppointmentsCount}</TableCell>
+                )}
+                <TableCell align="right">{formatKGS(row.percentSum)}</TableCell>
+                <TableCell align="right">{formatKGS(row.fixedSum)}</TableCell>
+                <TableCell align="right" sx={{ color: COLORS.advance, fontWeight: 600 }}>{formatKGS(row.advancesSum)}</TableCell>
+                <TableCell align="right" sx={{ color: COLORS.payout, fontWeight: 600 }}>{formatKGS(row.payoutsSum)}</TableCell>
+                <TableCell align="right" sx={{ color: COLORS.deduction, fontWeight: 600 }}>{formatKGS(row.deductionsSum)}</TableCell>
+                <TableCell align="right">{formatKGS(row.expensesSum)}</TableCell>
+                <TableCell align="right" sx={{ fontWeight: 800, color: COLORS.netSalary }}>{formatKGS(row.netSalary)}</TableCell>
+            </TableRow>
+            <TableRow sx={{ '& td': { py: 0, border: 0 } }}>
+                <TableCell colSpan={12} sx={{ p: 0 }}>
+                    <Collapse in={open} timeout="auto" unmountOnExit>
+                        <Box sx={{ bgcolor: alpha(COLORS.netSalary, 0.02), borderBottom: `1px solid`, borderColor: 'divider' }}>
+                            <Typography variant="caption" color="text.disabled" sx={{ px: 3, pt: 1.5, pb: 0.5, display: 'block', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, fontSize: '0.65rem' }}>
+                                Детализация по сменам
+                            </Typography>
+                            <DailyBreakdown employeeId={row.employeeId} month={month} />
+                        </Box>
+                    </Collapse>
+                </TableCell>
+            </TableRow>
+        </>
     );
 };
 

@@ -71,6 +71,8 @@ export const fetchShifts = async (params?: { employee?: string, startDate?: stri
     const queryParams = new URLSearchParams();
     if (params?.employee) queryParams.append("employee", params.employee);
     if (params?.shift_date) queryParams.append("date", params.shift_date);
+    if (params?.startDate) queryParams.append("start_date", params.startDate);
+    if (params?.endDate) queryParams.append("end_date", params.endDate);
     queryParams.append("pageSize", "200");
 
     const res: any = await apiFetch(`/api/v1/employee-schedules/?${queryParams.toString()}`);
