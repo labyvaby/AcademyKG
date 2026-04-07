@@ -187,3 +187,7 @@ pids/
 .agent/rules/
 .claude/
 .smoke-dev.*
+.api
+
+# Local API schemas
+src/api/akademia kg API*.yaml
