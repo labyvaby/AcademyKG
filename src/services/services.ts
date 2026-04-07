@@ -82,10 +82,11 @@ const fetchServicesBase = async (page?: number, pageSize?: number): Promise<{ it
 };
 
 // Для привязки услуг к сотруднику — грузит из /api/v1/sellable-items/?type=service
-// ID из sellable-items нужны для поля serviceIds в EmployeeWriteRequest
+// Используем тот же источник, что и страница "Услуги", чтобы не показывать
+// удаленные/устаревшие записи в форме привязки сотруднику.
 export const fetchSellableServices = async (): Promise<ServiceRow[]> => {
   const results = await fetchAllPages<any>(
-    "/api/v1/sellable-items/?type=service&isActive=true&ordering=displayName&pageSize=200"
+    "/api/v1/services/?ordering=name&pageSize=200"
   );
 
   return Array.from(
@@ -93,13 +94,22 @@ export const fetchSellableServices = async (): Promise<ServiceRow[]> => {
       results
         .filter((item: any) => (item?.isActive ?? item?.is_active ?? true) !== false)
         .map((item: any): [string, ServiceRow] => [
-          String(item.id ?? ""),
+          String(item.sellableItem ?? item.sellable_item ?? item.id ?? ""),
           {
-      id: item.id,
-      name: item.displayName || item.service?.name || item.name || "",
-      price: item.displayPrice ? parseFloat(item.displayPrice) : (item.service?.price ? parseFloat(item.service.price) : undefined),
-      photoUrl: resolveUrl(item.service?.imageUrl ?? item.service?.image_url),
-      is_active: item.isActive ?? true,
+            id: String(item.sellableItem ?? item.sellable_item ?? item.id ?? ""),
+            name: item.name || item.displayName || item.service?.name || "",
+            price:
+              item.price != null
+                ? Number(item.price)
+                : item.priceSom != null
+                  ? Number(item.priceSom)
+                  : item.displayPrice != null
+                    ? Number(item.displayPrice)
+                    : item.service?.price != null
+                      ? Number(item.service.price)
+                      : undefined,
+            photoUrl: resolveUrl(item.imageUrl ?? item.image_url ?? item.service?.imageUrl ?? item.service?.image_url),
+            is_active: item.isActive ?? item.is_active ?? true,
           },
         ])
         .filter(([id, service]) => id && service.name)
