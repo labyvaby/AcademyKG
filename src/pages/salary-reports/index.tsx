@@ -259,79 +259,25 @@ const SalaryReportsPage: React.FC = () => {
                 overflowY: 'auto',
                 minHeight: 0
             })}>
-                <Stack direction="row" justifyContent="flex-end" spacing={1} sx={{ mb: 1.5, flexShrink: 0 }}>
-                    <Tooltip title="Экспорт в Excel (CSV)">
-                        <span>
-                            <Button
-                                variant="outlined"
-                                size="small"
-                                startIcon={<FileDownloadOutlined />}
-                                onClick={exportCSV}
-                                disabled={!visibleReportData || groups.length === 0}
-                                sx={{ borderRadius: 2 }}
-                            >
-                                Excel
-                            </Button>
-                        </span>
-                    </Tooltip>
-                    <Tooltip title="Печать / Сохранить как PDF">
-                        <span>
-                            <Button
-                                variant="outlined"
-                                size="small"
-                                startIcon={<PrintOutlined />}
-                                onClick={() => window.print()}
-                                disabled={!visibleReportData || groups.length === 0}
-                                sx={{ borderRadius: 2 }}
-                            >
-                                PDF
-                            </Button>
-                        </span>
-                    </Tooltip>
-                </Stack>
                 <Stack spacing={{ xs: 2, md: 3 }} sx={{ display: 'flex', flexDirection: 'column' }}>
 
                     {/* Summary Indicators */}
-                    <Paper variant="outlined" sx={{ p: 2, borderRadius: 2.5, bgcolor: alpha(theme.palette.background.paper, 0.6), borderColor: alpha(theme.palette.divider, 0.6) }}>
-                        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} divider={<Box sx={{ width: '1px', bgcolor: 'divider', display: { xs: 'none', sm: 'block' } }} />} justifyContent="space-around" alignItems="center">
-                            <Stack direction="row" spacing={1.5} alignItems="center">
-                                <Box sx={{ p: 0.875, borderRadius: 1.5, bgcolor: alpha(C.advance, 0.1), color: C.advance, display: 'flex' }}>
-                                    <ReportProblemIcon sx={{ fontSize: '1.1rem' }} />
-                                </Box>
-                                <Box>
-                                    <Typography variant="h6" fontWeight={800} sx={{ lineHeight: 1.1 }}>{summary.warningsCount || 0}</Typography>
-                                    <Typography variant="caption" color="text.disabled">Предупреждений</Typography>
-                                </Box>
-                            </Stack>
-                            <Stack direction="row" spacing={1.5} alignItems="center">
-                                <Box sx={{ p: 0.875, borderRadius: 1.5, bgcolor: alpha(C.night, 0.1), color: C.night, display: 'flex' }}>
-                                    <AccessTimeIcon sx={{ fontSize: '1.1rem' }} />
-                                </Box>
-                                <Box>
-                                    <Typography variant="h6" fontWeight={800} sx={{ lineHeight: 1.1 }}>{summary.openShiftsCount || 0}</Typography>
-                                    <Typography variant="caption" color="text.disabled">Открытых смен</Typography>
+                    <Stack direction="row" spacing={1} justifyContent="center" alignItems="center" flexWrap="wrap" useFlexGap sx={{ px: 0.5 }}>
+                        {[
+                            { icon: <ReportProblemIcon sx={{ fontSize: { xs: '0.85rem', md: '1.2rem' } }} />, color: C.advance, value: summary.warningsCount || 0, label: 'Предупр.' },
+                            { icon: <AccessTimeIcon sx={{ fontSize: { xs: '0.85rem', md: '1.2rem' } }} />, color: C.night, value: summary.openShiftsCount || 0, label: 'Откр. смен' },
+                            { icon: <CheckCircleOutlineIcon sx={{ fontSize: { xs: '0.85rem', md: '1.2rem' } }} />, color: C.payout, value: summary.paidOutCount || 0, label: 'Выплачено' },
+                            { icon: <Typography fontWeight={800} sx={{ fontSize: { xs: '0.55rem', md: '0.72rem' }, lineHeight: 1 }}>KGS</Typography>, color: C.net, value: formatKGS(netSalaryTotal), label: 'К выплате' },
+                        ].map((item, i) => (
+                            <Stack key={i} direction="row" spacing={1} alignItems="center" sx={{ minWidth: { xs: 110, md: 160 }, bgcolor: alpha(item.color, 0.05), border: `1px solid ${alpha(item.color, 0.15)}`, borderRadius: 1.5, px: { xs: 1, md: 2 }, py: { xs: 0.75, md: 1.25 } }}>
+                                <Box sx={{ color: item.color, display: 'flex', flexShrink: 0 }}>{item.icon}</Box>
+                                <Box sx={{ minWidth: 0 }}>
+                                    <Typography fontWeight={800} sx={{ fontSize: { xs: '0.85rem', md: '1.1rem' }, lineHeight: 1.1, color: i === 3 ? item.color : 'text.primary' }}>{item.value}</Typography>
+                                    <Typography color="text.disabled" sx={{ fontSize: { xs: '0.6rem', md: '0.72rem' }, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.label}</Typography>
                                 </Box>
                             </Stack>
-                            <Stack direction="row" spacing={1.5} alignItems="center">
-                                <Box sx={{ p: 0.875, borderRadius: 1.5, bgcolor: alpha(C.payout, 0.1), color: C.payout, display: 'flex' }}>
-                                    <CheckCircleOutlineIcon sx={{ fontSize: '1.1rem' }} />
-                                </Box>
-                                <Box>
-                                    <Typography variant="h6" fontWeight={800} sx={{ lineHeight: 1.1 }}>{summary.paidOutCount || 0}</Typography>
-                                    <Typography variant="caption" color="text.disabled">Выплачено</Typography>
-                                </Box>
-                            </Stack>
-                            <Stack direction="row" spacing={1.5} alignItems="center">
-                                <Box sx={{ p: 0.875, borderRadius: 1.5, bgcolor: alpha(C.net, 0.1), color: C.net, display: 'flex', alignItems: 'center', justifyContent: 'center', width: 34, height: 34 }}>
-                                    <Typography fontWeight={800} sx={{ fontSize: '0.7rem', letterSpacing: -0.3 }}>KGS</Typography>
-                                </Box>
-                                <Box>
-                                    <Typography variant="h6" fontWeight={800} sx={{ lineHeight: 1.1, color: C.net }}>{formatKGS(netSalaryTotal)}</Typography>
-                                    <Typography variant="caption" color="text.disabled">Итого к выплате</Typography>
-                                </Box>
-                            </Stack>
-                        </Stack>
-                    </Paper>
+                        ))}
+                    </Stack>
 
                     {error && !loading ? (
                         <Paper
