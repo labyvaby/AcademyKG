@@ -164,7 +164,9 @@ const EmployeeCard: React.FC<EmployeeCardProps> = ({ emp }) => {
   }>({ open: false, message: "", severity: "success" });
 
   // refreshKey меняется когда emp обновляется после редактирования
-  const refreshKey = emp ? `${emp.id}_${emp.phone ?? ""}_${emp.email ?? ""}_${emp.status ?? ""}` : "";
+  const refreshKey = emp
+    ? `${emp.id}_${emp.phone ?? ""}_${emp.email ?? ""}_${emp.status ?? ""}_${emp.updated_at ?? ""}`
+    : "";
 
   React.useEffect(() => {
     if (!emp?.id) {

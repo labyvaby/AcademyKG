@@ -137,7 +137,6 @@ const EditEmployeeDrawer: React.FC<EditEmployeeDrawerProps> = ({ record, onClose
         if (d?.birthDate) setBirthDate(normalizeDateInput(d.birthDate));
 
         const allSrvUniq = Array.from(new Map((allSrv || []).map(s => [String(s.id), s])).values());
-        setServices(allSrvUniq);
         setSpecializations(specs);
         setRoles(apiRoles.length > 0 ? apiRoles : FALLBACK_ROLES);
         setBranches(branchesRes.map((b: any) => ({
@@ -156,11 +155,24 @@ const EditEmployeeDrawer: React.FC<EditEmployeeDrawerProps> = ({ record, onClose
 
         // Услуги из detail
         const empServices: any[] = Array.isArray(d?.services) ? d.services : [];
+        const detailServices = empServices
+          .map((s: any): ServiceRow => ({
+            id: String(s?.sellableItem ?? s?.sellable_item ?? s?.id ?? ""),
+            name: s?.name ?? s?.displayName ?? "",
+            price: s?.priceSom ?? s?.price ?? undefined,
+          }))
+          .filter((s) => s.id && s.name);
+        const mergedServices = Array.from(
+          new Map(
+            [...allSrvUniq, ...detailServices].map((service) => [String(service.id), service])
+          ).values()
+        );
+        setServices(mergedServices);
         if (empServices.length > 0) {
           const empServiceIds = empServices.map((s: any) =>
             typeof s === 'string' ? s : String(s.sellableItem ?? s.sellable_item ?? s.id)
           );
-          setSelectedServices(allSrvUniq.filter(s => empServiceIds.includes(String(s.id))));
+          setSelectedServices(mergedServices.filter(s => empServiceIds.includes(String(s.id))));
         }
       } catch { /* ignore */ } finally {
         if (!cancelled) setServicesLoading(false);
@@ -258,6 +270,7 @@ const EditEmployeeDrawer: React.FC<EditEmployeeDrawerProps> = ({ record, onClose
             telegram_id: d.telegramId ?? record.telegram_id,
             bank_account_number: d.bankAccountNumber ?? record.bank_account_number,
             photo_url: d.photoUrl ?? record.photo_url,
+            updated_at: d.updatedAt ?? d.updated_at ?? new Date().toISOString(),
           } as unknown as EmployesRow;
         }
       } catch { /* используем старые данные */ }

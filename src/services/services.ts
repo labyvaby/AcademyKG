@@ -1,4 +1,5 @@
 import { apiFetch, resolveApiUrl } from "../utility/apiClient";
+import { fetchAllPages } from "../utility/pagination";
 
 function resolveUrl(url: string | null | undefined): string | undefined {
   return resolveApiUrl(url) ?? undefined;
@@ -83,17 +84,27 @@ const fetchServicesBase = async (page?: number, pageSize?: number): Promise<{ it
 // Для привязки услуг к сотруднику — грузит из /api/v1/sellable-items/?type=service
 // ID из sellable-items нужны для поля serviceIds в EmployeeWriteRequest
 export const fetchSellableServices = async (): Promise<ServiceRow[]> => {
-  const res: any = await apiFetch("/api/v1/sellable-items/?type=service&pageSize=200");
-  const results = res?.data?.results ?? res?.results ?? [];
-  return results
-    .map((item: any): ServiceRow => ({
+  const results = await fetchAllPages<any>(
+    "/api/v1/sellable-items/?type=service&isActive=true&ordering=displayName&pageSize=200"
+  );
+
+  return Array.from(
+    new Map(
+      results
+        .filter((item: any) => (item?.isActive ?? item?.is_active ?? true) !== false)
+        .map((item: any): [string, ServiceRow] => [
+          String(item.id ?? ""),
+          {
       id: item.id,
       name: item.displayName || item.service?.name || item.name || "",
       price: item.displayPrice ? parseFloat(item.displayPrice) : (item.service?.price ? parseFloat(item.service.price) : undefined),
       photoUrl: resolveUrl(item.service?.imageUrl ?? item.service?.image_url),
       is_active: item.isActive ?? true,
-    }))
-    .filter((s: ServiceRow) => s.id && s.name);
+          },
+        ])
+        .filter(([id, service]) => id && service.name)
+    ).values()
+  );
 };
 
 export const fetchServices = async (): Promise<ServiceRow[]> => {
