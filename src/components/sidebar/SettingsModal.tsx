@@ -9,10 +9,8 @@ import {
   Typography,
 } from "@mui/material";
 import LogoutOutlined from "@mui/icons-material/LogoutOutlined";
-import NotificationsOutlined from "@mui/icons-material/NotificationsOutlined";
 import { logout } from "../../services/auth";
 import { CanAccess } from "../rbac/CanAccess";
-import { Link as RouterLink } from "react-router";
 
 type SettingsModalProps = {
   open: boolean;
@@ -35,7 +33,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       <Divider />
       <DialogContent sx={{ pb: 3 }}>
         <Stack spacing={2}>
-<CanAccess roles={['superadmin']}>
+          {/* Вход в страницу уведомлений временно отключен. */}
+          {/* <CanAccess roles={['superadmin']}>
             <Button
               variant="outlined"
               fullWidth
@@ -46,7 +45,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             >
               Настройка уведомлений
             </Button>
-          </CanAccess>
+          </CanAccess> */}
 
           <Button
             variant="contained"

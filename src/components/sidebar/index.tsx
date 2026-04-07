@@ -37,7 +37,6 @@ import CalendarMonthOutlined from "@mui/icons-material/CalendarMonthOutlined";
 import MenuOutlined from "@mui/icons-material/MenuOutlined";
 import LogoutOutlined from "@mui/icons-material/LogoutOutlined";
 import HistoryOutlined from "@mui/icons-material/HistoryOutlined";
-import NotificationsOutlined from "@mui/icons-material/NotificationsOutlined";
 import AdminPanelSettingsOutlined from "@mui/icons-material/AdminPanelSettingsOutlined";
 import CategoryOutlined from "@mui/icons-material/CategoryOutlined";
 import BusinessOutlined from "@mui/icons-material/BusinessOutlined";
@@ -404,9 +403,10 @@ const { hasPermission, isSuperAdmin, loading: permissionsLoading } = usePermissi
         {isSuper && (
           <SidebarMenuItem to="/branches" icon={<BusinessOutlined />} label="Управление филиалами" collapsed={siderCollapsed} />
         )}
-        {hasPermission(PERMISSIONS.APP_SETTINGS_UPDATE) && (
+        {/* Вход в страницу уведомлений временно отключен. */}
+        {/* {hasPermission(PERMISSIONS.APP_SETTINGS_UPDATE) && (
           <SidebarMenuItem to="/settings/notifications" icon={<NotificationsOutlined />} label="Уведомления" collapsed={siderCollapsed} />
-        )}
+        )} */}
 
       </List>
     </>
