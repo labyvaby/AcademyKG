@@ -72,6 +72,7 @@ const EditEmployeeDrawer: React.FC<EditEmployeeDrawerProps> = ({ record, onClose
   const [branches, setBranches] = React.useState<BranchRow[]>([]);
 
   const selectedRole = roles.find(r => r.id === roleId);
+  const isTrainerRole = selectedRole?.name === "specialist";
   const canManageRoles = hasPermission(PERMISSIONS.APP_SETTINGS_UPDATE);
 
   const normalizeDateInput = (input: unknown): string => {
@@ -198,7 +199,7 @@ const EditEmployeeDrawer: React.FC<EditEmployeeDrawerProps> = ({ record, onClose
     if (!branchId) { notify?.({ type: "error", message: "Выберите филиал сотрудника" }); return; }
     if (!roleId) { notify?.({ type: "error", message: "Выберите роль сотрудника" }); return; }
     if (!organizationId) { notify?.({ type: "error", message: "Для выбранного филиала не найдена организация" }); return; }
-    if ((selectedRole?.name === 'specialist') && !specializationId) {
+    if (isTrainerRole && !specializationId) {
       notify?.({ type: "error", message: "Выберите специализацию" }); return;
     }
 
@@ -232,13 +233,15 @@ const EditEmployeeDrawer: React.FC<EditEmployeeDrawerProps> = ({ record, onClose
       if (nickname.trim()) payload.nickname = nickname.trim();
       if (photoFile) payload.photoUrl = photoFile;
 
-      // Отправляем специализации только если выбран врач или специалист
-      if ((selectedRole?.name === 'specialist') && specializationId) {
+      // Специализации и услуги привязываются только тренерам.
+      if (isTrainerRole && specializationId) {
         payload.specializationIds = [specializationId];
+      } else if (canManageRoles) {
+        payload.specializationIds = [];
       }
 
-      // Для очистки услуг backend должен получить и пустой массив тоже.
-      payload.serviceIds = selectedServices.map(s => s.id);
+      // Для нетренерских ролей связи по услугам должны быть очищены.
+      payload.serviceIds = isTrainerRole ? selectedServices.map(s => s.id) : [];
 
       await employeeFormUtils.updateEmployeeApi(String(record.id), payload);
 
@@ -354,7 +357,14 @@ const EditEmployeeDrawer: React.FC<EditEmployeeDrawerProps> = ({ record, onClose
         <Stack spacing={0.5}>
           <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>Роль *</Typography>
           <TextField select value={roleId}
-            onChange={e => { setRoleId(e.target.value); const r = roles.find(x => x.id === e.target.value); if (r?.name !== 'specialist') setSpecializationId(""); }}
+            onChange={e => {
+              setRoleId(e.target.value);
+              const r = roles.find(x => x.id === e.target.value);
+              if (r?.name !== "specialist") {
+                setSpecializationId("");
+                setSelectedServices([]);
+              }
+            }}
             fullWidth required
             disabled={!canManageRoles}
             helperText={canManageRoles ? "" : "Изменение роли доступно только администраторам"}
@@ -381,7 +391,7 @@ const EditEmployeeDrawer: React.FC<EditEmployeeDrawerProps> = ({ record, onClose
           </TextField>
         </Stack>
 
-        {(selectedRole?.name === 'specialist') && (
+        {isTrainerRole && (
           <Stack spacing={0.5}>
             <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>Специализация *</Typography>
             <TextField select value={specializationId} onChange={e => setSpecializationId(e.target.value)} fullWidth required>
@@ -406,22 +416,24 @@ const EditEmployeeDrawer: React.FC<EditEmployeeDrawerProps> = ({ record, onClose
           </TextField>
         </Stack>
 
-        <Stack spacing={0.5}>
-          <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>Услуги</Typography>
-          <Autocomplete multiple limitTags={2} loading={servicesLoading} options={services}
-            value={selectedServices} disableCloseOnSelect
-            getOptionLabel={o => typeof o.price === 'number' ? `${o.name} (${o.price} с)` : o.name || ''}
-            isOptionEqualToValue={(o, v) => o.id === v.id}
-            onChange={(_, v) => setSelectedServices(v)}
-            renderOption={(props, option, { selected }) => (
-              <li {...props}>
-                <Checkbox icon={<CheckBoxOutlineBlankIcon fontSize="small" />} checkedIcon={<CheckBoxIcon fontSize="small" />} style={{ marginRight: 8 }} checked={selected} />
-                {option.name} {typeof option.price === 'number' ? `(${option.price} с)` : ""}
-              </li>
-            )}
-            renderInput={params => <TextField {...params} placeholder="Выберите услуги" />}
-          />
-        </Stack>
+        {isTrainerRole && (
+          <Stack spacing={0.5}>
+            <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>Услуги</Typography>
+            <Autocomplete multiple limitTags={2} loading={servicesLoading} options={services}
+              value={selectedServices} disableCloseOnSelect
+              getOptionLabel={o => typeof o.price === 'number' ? `${o.name} (${o.price} с)` : o.name || ''}
+              isOptionEqualToValue={(o, v) => o.id === v.id}
+              onChange={(_, v) => setSelectedServices(v)}
+              renderOption={(props, option, { selected }) => (
+                <li {...props}>
+                  <Checkbox icon={<CheckBoxOutlineBlankIcon fontSize="small" />} checkedIcon={<CheckBoxIcon fontSize="small" />} style={{ marginRight: 8 }} checked={selected} />
+                  {option.name} {typeof option.price === 'number' ? `(${option.price} с)` : ""}
+                </li>
+              )}
+              renderInput={params => <TextField {...params} placeholder="Выберите услуги" />}
+            />
+          </Stack>
+        )}
 
         <Stack spacing={0.5}>
           <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>Telegram ID</Typography>

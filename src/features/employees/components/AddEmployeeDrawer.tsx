@@ -67,6 +67,7 @@ const AddEmployeeDrawer: React.FC<AddEmployeeDrawerProps> = ({ open, onClose, on
   const [branches, setBranches] = React.useState<BranchRow[]>([]);
 
   const selectedRole = roles.find(r => r.id === roleId);
+  const isTrainerRole = selectedRole?.name === "specialist";
   const canManageRoles = hasPermission(PERMISSIONS.APP_SETTINGS_UPDATE);
 
   React.useEffect(() => {
@@ -160,11 +161,11 @@ const AddEmployeeDrawer: React.FC<AddEmployeeDrawerProps> = ({ open, onClose, on
       if (nickname.trim()) payload.nickname = nickname.trim();
       if (photoFile) payload.photoUrl = photoFile;
 
-      if ((selectedRole?.name === 'specialist') && specializationId) {
+      if (isTrainerRole && specializationId) {
         payload.specializationIds = [specializationId];
       }
 
-      if (selectedServices.length > 0) {
+      if (isTrainerRole && selectedServices.length > 0) {
         payload.serviceIds = selectedServices.map(s => s.id);
       }
 
@@ -247,7 +248,14 @@ const AddEmployeeDrawer: React.FC<AddEmployeeDrawerProps> = ({ open, onClose, on
         <Stack spacing={0.5}>
           <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>Роль *</Typography>
           <TextField select value={roleId}
-            onChange={e => { setRoleId(e.target.value); const r = roles.find(x => x.id === e.target.value); if (r?.name !== 'specialist') setSpecializationId(""); }}
+            onChange={e => {
+              setRoleId(e.target.value);
+              const r = roles.find(x => x.id === e.target.value);
+              if (r?.name !== "specialist") {
+                setSpecializationId("");
+                setSelectedServices([]);
+              }
+            }}
             fullWidth required
             helperText={canManageRoles ? "" : "Роль назначается в рамках ваших прав доступа"}
           >
@@ -272,7 +280,7 @@ const AddEmployeeDrawer: React.FC<AddEmployeeDrawerProps> = ({ open, onClose, on
           </TextField>
         </Stack>
 
-        {(selectedRole?.name === 'specialist') && (
+        {isTrainerRole && (
           <Stack spacing={0.5}>
             <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>Специализация *</Typography>
             <TextField select value={specializationId} onChange={e => setSpecializationId(e.target.value)} fullWidth required>
@@ -297,22 +305,24 @@ const AddEmployeeDrawer: React.FC<AddEmployeeDrawerProps> = ({ open, onClose, on
           </TextField>
         </Stack>
 
-        <Stack spacing={0.5}>
-          <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>Услуги</Typography>
-          <Autocomplete multiple limitTags={2} loading={servicesLoading} options={services}
-            value={selectedServices} disableCloseOnSelect
-            getOptionLabel={o => typeof o.price === 'number' ? `${o.name} (${o.price} с)` : o.name || ''}
-            isOptionEqualToValue={(o, v) => o.id === v.id}
-            onChange={(_, v) => setSelectedServices(v)}
-            renderOption={(props, option, { selected }) => (
-              <li {...props}>
-                <Checkbox icon={<CheckBoxOutlineBlankIcon fontSize="small" />} checkedIcon={<CheckBoxIcon fontSize="small" />} style={{ marginRight: 8 }} checked={selected} />
-                {option.name} {typeof option.price === 'number' ? `(${option.price} с)` : ""}
-              </li>
-            )}
-            renderInput={params => <TextField {...params} placeholder="Выберите услуги" />}
-          />
-        </Stack>
+        {isTrainerRole && (
+          <Stack spacing={0.5}>
+            <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>Услуги</Typography>
+            <Autocomplete multiple limitTags={2} loading={servicesLoading} options={services}
+              value={selectedServices} disableCloseOnSelect
+              getOptionLabel={o => typeof o.price === 'number' ? `${o.name} (${o.price} с)` : o.name || ''}
+              isOptionEqualToValue={(o, v) => o.id === v.id}
+              onChange={(_, v) => setSelectedServices(v)}
+              renderOption={(props, option, { selected }) => (
+                <li {...props}>
+                  <Checkbox icon={<CheckBoxOutlineBlankIcon fontSize="small" />} checkedIcon={<CheckBoxIcon fontSize="small" />} style={{ marginRight: 8 }} checked={selected} />
+                  {option.name} {typeof option.price === 'number' ? `(${option.price} с)` : ""}
+                </li>
+              )}
+              renderInput={params => <TextField {...params} placeholder="Выберите услуги" />}
+            />
+          </Stack>
+        )}
 
         <Stack spacing={0.5}>
           <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>Telegram ID</Typography>
