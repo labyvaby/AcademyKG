@@ -57,7 +57,7 @@ export const LoadChart: React.FC<Props> = ({ data }) => {
                 <Tooltip
                     contentStyle={{ borderRadius: 8, border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
                     labelStyle={{ fontWeight: 'bold', color: '#333' }}
-                    formatter={(value: number | undefined) => [value || 0, 'Приемов']}
+                    formatter={(value) => [typeof value === 'number' ? value : Number(value ?? 0), 'Приемов']}
                     labelFormatter={(label) => `Время: ${label}`}
                 />
                 <Area

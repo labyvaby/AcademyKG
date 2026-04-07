@@ -182,6 +182,7 @@ const ExpensesListPage: React.FC = () => {
     payrollExpenses: number;
     advanceExpenses: number;
     operationalExpenses: number;
+    otherExpenses: number;
     cashExpenses: number;
     cashlessExpenses: number;
   } | null>(null);
@@ -346,11 +347,24 @@ const ExpensesListPage: React.FC = () => {
         const res = await getExpensesMonthlyReport(selectedMonth, selectedBranch?.id ?? undefined, undefined, controller.signal);
         if (cancelled) return;
         const totals = res?.data?.totals;
+        const totalExpenses = Number(totals?.totalExpenses ?? 0);
+        const payrollExpenses = Number(totals?.payrollExpenses ?? 0);
+        const advanceExpenses = Number(totals?.advanceExpenses ?? 0);
+        const operationalExpenses = Number(totals?.operationalExpenses ?? 0);
+        const rawOtherExpenses =
+          totals && "otherExpenses" in totals
+            ? Number((totals as { otherExpenses?: number }).otherExpenses ?? 0)
+            : Number.NaN;
+        const otherExpenses = Number.isFinite(rawOtherExpenses)
+          ? rawOtherExpenses
+          : Math.max(0, totalExpenses - payrollExpenses - advanceExpenses - operationalExpenses);
+
         setMonthlySummary({
-          totalExpenses: Number(totals?.totalExpenses ?? 0),
-          payrollExpenses: Number(totals?.payrollExpenses ?? 0),
-          advanceExpenses: Number(totals?.advanceExpenses ?? 0),
-          operationalExpenses: Number(totals?.operationalExpenses ?? 0),
+          totalExpenses,
+          payrollExpenses,
+          advanceExpenses,
+          operationalExpenses,
+          otherExpenses,
           cashExpenses: Number(totals?.cashExpenses ?? 0),
           cashlessExpenses: Number(totals?.cashlessExpenses ?? 0),
         });
@@ -371,7 +385,7 @@ const ExpensesListPage: React.FC = () => {
       cancelled = true;
       controller.abort();
     };
-  }, [notify, selectedBranch?.id, selectedMonth]);
+  }, [notify, reloadTick, selectedBranch?.id, selectedMonth]);
 
   const isPayrollExpense = React.useCallback((expense: Expense) => {
     return requiresAffectsMonth(expense.kind);
@@ -1181,7 +1195,10 @@ const ExpensesListPage: React.FC = () => {
                               Зарплата: {formatKGS(monthlySummary.payrollExpenses)} • Авансы: {formatKGS(monthlySummary.advanceExpenses)}
                             </Typography>
                             <Typography variant="caption" color="text.secondary">
-                              Операционные: {formatKGS(monthlySummary.operationalExpenses)} • Наличные: {formatKGS(monthlySummary.cashExpenses)} • Безнал: {formatKGS(monthlySummary.cashlessExpenses)}
+                              Операционные: {formatKGS(monthlySummary.operationalExpenses)} • Прочие: {formatKGS(monthlySummary.otherExpenses)}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              Наличные: {formatKGS(monthlySummary.cashExpenses)} • Безнал: {formatKGS(monthlySummary.cashlessExpenses)}
                             </Typography>
                           </Stack>
                         ) : (
@@ -1446,6 +1463,7 @@ const ExpensesListPage: React.FC = () => {
           onCreated={(rec) => {
             setExpensesScopeKey(branchKey);
             setExpenses((prev) => [rec, ...prev].sort((a, b) => getExpenseSortValue(b) - getExpenseSortValue(a)));
+            setReloadTick((prev) => prev + 1);
           }}
         />
 
@@ -1458,6 +1476,7 @@ const ExpensesListPage: React.FC = () => {
               setExpensesScopeKey(branchKey);
               setSelectedExpense(rec);
               setExpenses((prev) => prev.map((e) => (e.id === rec.id ? rec : e)));
+              setReloadTick((prev) => prev + 1);
             }}
           />
         )}
@@ -1470,6 +1489,7 @@ const ExpensesListPage: React.FC = () => {
             setExpensesScopeKey(branchKey);
             setSelectedExpense(null);
             setExpenses((prev) => prev.filter((e) => e.id !== id));
+            setReloadTick((prev) => prev + 1);
           }}
         />
       </Box>

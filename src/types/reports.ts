@@ -100,6 +100,7 @@ export interface ExpensesMonthlyTotals {
     payrollExpenses: number;
     advanceExpenses: number;
     operationalExpenses: number;
+    otherExpenses?: number;
     cashExpenses: number;
     cashlessExpenses: number;
 }

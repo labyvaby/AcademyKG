@@ -51,7 +51,6 @@ const ExpensesListPage = lazy(() => import("./pages/expenses"));
 const EmployeesPage = lazy(() => import("./pages/employes"));
 const ServicesPage = lazy(() => import("./pages/services"));
 const ProductsPage = lazy(() => import("./pages/products"));
-const SalesPage = lazy(() => import("./pages/sales"));
 const LoginPage = lazy(() => import("./pages/auth/login"));
 const SchedulePage = lazy(() => import("./pages/SchedulePage"));
 const AccessDeniedPage = lazy(() => import("./pages/AccessDenied"));
@@ -373,16 +372,6 @@ function App() {
                             <ProtectedRoute requiredPermissions={['appointments.read']}>
                               <Suspense fallback={<LinearProgress />}>
                                 <DoctorWorkPage />
-                              </Suspense>
-                            </ProtectedRoute>
-                          }
-                        />
-                        <Route
-                          path="sales"
-                          element={
-                            <ProtectedRoute requiredPermissions={['sales.read']}>
-                              <Suspense fallback={<LinearProgress />}>
-                                <SalesPage />
                               </Suspense>
                             </ProtectedRoute>
                           }

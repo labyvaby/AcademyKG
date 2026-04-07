@@ -329,17 +329,12 @@ export const AddExpenseDrawer: React.FC<AddExpenseDrawerProps> = ({
                 value={values.kind ?? ""}
                 onChange={(e) => {
                   const nextKind = e.target.value || null;
-                  const employeeName = employees.find((emp) => emp.id === values.employee_id)?.full_name || "";
-                  const baseName = values.category?.trim() || values.name.trim();
                   setValues((s) => ({
                     ...s,
                     kind: nextKind as ExpenseFormValues["kind"],
                     affects_month: requiresAffectsMonth(nextKind as ExpenseFormValues["kind"])
                       ? s.affects_month
                       : null,
-                    name: requiresAffectsMonth(nextKind as ExpenseFormValues["kind"]) && s.category && employeeName
-                      ? `${s.category} - ${employeeName}`
-                      : baseName,
                   }));
                 }}
                 error={touched && !values.kind}
@@ -373,18 +368,13 @@ export const AddExpenseDrawer: React.FC<AddExpenseDrawerProps> = ({
                   const emp = employees.find((e) => e.id === values.employee_id);
                   const empName = emp?.full_name || "";
 
-                  let newName = values.name;
-                  if (newCategory) {
-                    newName = payrollLike && empName ? `${newCategory} - ${empName}` : newCategory;
-
-                    // date is never auto-changed when selecting a category
-                  }
-
                   setValues((s) => ({
                     ...s,
                     category_id: newValue?.id || null,
                     category: newCategory,
-                    name: newCategory ? newName : s.name
+                    name: !s.name.trim() && payrollLike && newCategory && empName
+                      ? `${newCategory} - ${empName}`
+                      : s.name,
                   }));
                 }}
                 renderInput={(params) => (
@@ -407,11 +397,13 @@ export const AddExpenseDrawer: React.FC<AddExpenseDrawerProps> = ({
                 value={employees.find((e) => e.id === values.employee_id) || null}
                 onChange={(_, newValue) => {
                   const empName = newValue?.full_name || "";
-                  let newName = values.name;
-                  if (payrollLike && values.category && empName) {
-                    newName = `${values.category} - ${empName}`;
-                  }
-                  setValues((s) => ({ ...s, employee_id: newValue?.id || null, name: newName }));
+                  setValues((s) => ({
+                    ...s,
+                    employee_id: newValue?.id || null,
+                    name: !s.name.trim() && payrollLike && s.category && empName
+                      ? `${s.category} - ${empName}`
+                      : s.name,
+                  }));
                 }}
                 renderInput={(params) => (
                   <TextField

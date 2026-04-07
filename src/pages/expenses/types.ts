@@ -78,15 +78,25 @@ export function mapApiExpense(raw: any): Expense {
   const cat = raw.category;
   return {
     id: raw.id ?? raw.id,
-    employee_id: (typeof emp === "object" ? emp?.id : raw.employeeId ?? raw.employee_id) ?? null,
-    employee_name: typeof emp === "object" ? (emp?.fullName ?? emp?.full_name ?? null) : null,
+    employee_id: (
+      typeof emp === "object"
+        ? emp?.id
+        : typeof emp === "string"
+          ? emp
+          : raw.employeeId ?? raw.employee_id
+    ) ?? null,
+    employee_name: typeof emp === "object"
+      ? (emp?.fullName ?? emp?.full_name ?? null)
+      : (raw.employeeName ?? raw.employee_name ?? null),
     name: raw.name ?? "",
     cash_amount: coerceNumber(raw.cashAmount ?? raw.cash_amount),
     cashless_amount: coerceNumber(raw.cashlessAmount ?? raw.cashless_amount),
     total_amount: coerceNumber(raw.totalAmount ?? raw.total_amount),
     comment: raw.comment ?? null,
-    category: typeof cat === "object" ? (cat?.name ?? null) : (raw.categoryName ?? null),
-    category_id: typeof cat === "object" ? (String(cat?.id ?? "") || null) : (raw.categoryId ?? raw.category_id ?? null),
+    category: typeof cat === "object" ? (cat?.name ?? null) : (raw.categoryName ?? raw.category_name ?? null),
+    category_id: typeof cat === "object"
+      ? (String(cat?.id ?? "") || null)
+      : (typeof cat === "string" ? cat : (raw.categoryId ?? raw.category_id ?? null)),
     photo: raw.photo ?? null,
     created_at: raw.createdAt ?? raw.created_at ?? "",
     updated_at: raw.updatedAt ?? raw.updated_at ?? undefined,
@@ -94,6 +104,8 @@ export function mapApiExpense(raw: any): Expense {
     affects_month: raw.affectsMonth ?? raw.affects_month ?? null,
     branch: raw.branch && typeof raw.branch === "object"
       ? { id: raw.branch.id, name: raw.branch.name ?? "" }
-      : null,
+      : typeof raw.branch === "string"
+        ? { id: raw.branch, name: raw.branchName ?? raw.branch_name ?? "" }
+        : null,
   };
 }

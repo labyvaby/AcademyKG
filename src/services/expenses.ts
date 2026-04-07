@@ -91,7 +91,26 @@ export const ExpensesService = {
       body: fd,
     });
     const item = res?.data ?? res;
-    const e = mapApiExpense(item);
+    const normalizedItem = {
+      ...item,
+      id: item?.id ?? id,
+      createdAt: item?.createdAt ?? item?.created_at ?? updates.created_at ?? updates.createdAt,
+      category:
+        typeof item?.category === "string"
+          ? {
+              id: item.category,
+              name: updates.category ?? updates.category_name ?? "",
+            }
+          : item?.category,
+      branch:
+        typeof item?.branch === "string"
+          ? {
+              id: item.branch,
+              name: updates.branch_name ?? "",
+            }
+          : item?.branch,
+    };
+    const e = mapApiExpense(normalizedItem);
     if (typeof e.photo === "string") e.photo = resolvePhotoUrl(e.photo);
     return e;
   },

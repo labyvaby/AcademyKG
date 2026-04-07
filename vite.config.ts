@@ -21,6 +21,10 @@ export default defineConfig({
     host: true
   },
   build: {
+    modulePreload: {
+      polyfill: false,
+    },
+
     // Увеличиваем размер чанка для предупреждения
     chunkSizeWarningLimit: 1000,
 
