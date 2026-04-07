@@ -275,8 +275,17 @@ const AddPatientDrawer: React.FC<Props> = ({ open, onClose, onCreated, initialPh
       });
 
       const data = res?.data ?? res;
+      const createdId = String(
+        data?.id ??
+        data?.client?.id ??
+        data?.patient?.id ??
+        ""
+      ).trim();
+      if (!createdId) {
+        throw new Error("Backend не вернул id созданного клиента");
+      }
       const created: CreatedPatient = {
-        id: String(data.id ?? ""),
+        id: createdId,
         fio: fioTrim,
         phone: fullPhone || null,
         birth_date: birth ? birth.slice(0, 10) : null,

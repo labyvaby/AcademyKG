@@ -86,16 +86,21 @@ export const PatientSearchPage: React.FC = () => {
   }, []);
 
   React.useEffect(() => {
-    if (!selected) {
+    const selectedId = String(selected?.id ?? "").trim();
+    if (!selectedId) {
       setVitals(null);
       setDocuments([]);
       setBalance(null);
       return;
     }
+    // При выборе другого клиента сразу убираем связанные данные предыдущего.
+    setVitals(null);
+    setDocuments([]);
+    setBalance(null);
     let active = true;
     (async () => {
       try {
-        const data = await loadClientDetail(selected.id);
+        const data = await loadClientDetail(selectedId);
         // Enrich selected patient with fresh full data (photo, blacklist_reason, etc.)
         if (active) {
           const patch = {
@@ -108,11 +113,11 @@ export const PatientSearchPage: React.FC = () => {
             blacklist_reason: (data?.blacklistReason as string) ?? null,
           };
           setSelected((prev) => {
-            if (!prev || prev.id !== String(data?.id ?? "")) return prev;
+            if (!prev || prev.id !== selectedId) return prev;
             return { ...prev, ...patch };
           });
           // Обновляем фото и данные в списке клиентов
-          patchPatient(String(data?.id ?? ""), patch);
+          patchPatient(selectedId, patch);
         }
         // Balance
         if (active) {
@@ -148,7 +153,11 @@ export const PatientSearchPage: React.FC = () => {
           } : null);
         }
       } catch {
-        if (active) setVitals(null);
+        if (active) {
+          setVitals(null);
+          setDocuments([]);
+          setBalance(null);
+        }
       }
     })();
     return () => { active = false; };
@@ -449,7 +458,7 @@ export const PatientSearchPage: React.FC = () => {
             phone: p.phone ?? undefined,
             photo: p.photo ?? undefined,
             birth_date: p.birth_date ?? null,
-            inn: null,
+            inn: p.inn ?? null,
             is_blacklisted: p.is_blacklisted ?? null,
             blacklist_reason: p.blacklist_reason ?? null,
           });

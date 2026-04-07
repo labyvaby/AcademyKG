@@ -57,15 +57,16 @@ export function usePatientHistory(selected: Patient | null) {
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
   const [tick, setTick] = React.useState(0);
   const ctrlRef = React.useRef<AbortController | null>(null);
+  const selectedId = String(selected?.id ?? "").trim();
 
   const invalidate = React.useCallback(() => {
-    if (!selected) return;
+    if (!selectedId) return;
     try {
-      localStorage.removeItem(HISTORY_CACHE_PREFIX + selected.id);
+      localStorage.removeItem(HISTORY_CACHE_PREFIX + selectedId);
     } catch {
       // noop
     }
-  }, [selected]);
+  }, [selectedId]);
 
   const reload = React.useCallback(() => {
     setTick((t) => t + 1);
@@ -75,9 +76,11 @@ export function usePatientHistory(selected: Patient | null) {
     const prev = ctrlRef.current;
     if (prev) prev.abort();
 
-    if (!selected) {
-      setHistory([]);
-      setErrorMsg(null);
+    // При смене клиента сразу очищаем чужую историю и сбрасываем состояние.
+    setHistory([]);
+    setErrorMsg(null);
+
+    if (!selectedId) {
       setLoading(false);
       return;
     }
@@ -92,7 +95,7 @@ export function usePatientHistory(selected: Patient | null) {
 
         // Try cache first
         try {
-          const raw = localStorage.getItem(HISTORY_CACHE_PREFIX + selected.id);
+          const raw = localStorage.getItem(HISTORY_CACHE_PREFIX + selectedId);
           if (raw) {
             const parsed = JSON.parse(raw) as HistoryCache;
             // Cache valid for 5 minutes
@@ -108,7 +111,7 @@ export function usePatientHistory(selected: Patient | null) {
 
         // Load from REST API
         const rows = await fetchAllPages<any>(
-          `/api/v1/appointments/?patient=${selected.id}&ordering=-appointmentAt`
+          `/api/v1/appointments/?patient=${selectedId}&ordering=-appointmentAt`
         );
 
         if (ctrl.signal.aborted) return;
@@ -122,7 +125,7 @@ export function usePatientHistory(selected: Patient | null) {
         // Cache result
         try {
           const payload: HistoryCache = { ts: Date.now(), items: hist };
-          localStorage.setItem(HISTORY_CACHE_PREFIX + selected.id, JSON.stringify(payload));
+          localStorage.setItem(HISTORY_CACHE_PREFIX + selectedId, JSON.stringify(payload));
         } catch {
           // ignore
         }
@@ -138,7 +141,7 @@ export function usePatientHistory(selected: Patient | null) {
     return () => {
       if (ctrlRef.current === ctrl) ctrlRef.current.abort();
     };
-  }, [selected, tick]);
+  }, [selectedId, tick]);
 
   return {
     history,
