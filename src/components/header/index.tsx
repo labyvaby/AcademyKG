@@ -23,6 +23,7 @@ import Stack from "@mui/material/Stack";
 import Toolbar from "@mui/material/Toolbar";
 import Typography from "@mui/material/Typography";
 import Button from "@mui/material/Button";
+import useMediaQuery from "@mui/material/useMediaQuery";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import Divider from "@mui/material/Divider";
@@ -32,6 +33,7 @@ import MenuItem from "@mui/material/MenuItem";
 import Menu from "@mui/material/Menu";
 import TextField from "@mui/material/TextField";
 import CircularProgress from "@mui/material/CircularProgress";
+import { alpha, useTheme } from "@mui/material/styles";
 
 import { RefineThemedLayoutHeaderProps } from "@refinedev/mui";
 import React from "react";
@@ -96,6 +98,9 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
   const isSuper = isSuperAdmin();
   const { branches, selectedBranch, setSelectedBranch } = useBranchContext();
   const [branchMenuAnchor, setBranchMenuAnchor] = React.useState<null | HTMLElement>(null);
+  const theme = useTheme();
+  const isTabletHeader = useMediaQuery(theme.breakpoints.down(900));
+  const isCompactHeader = useMediaQuery(theme.breakpoints.down(640));
 
   const selectedBranchLabel = React.useMemo(() => (
     selectedBranch?.name ?? "Все филиалы"
@@ -279,6 +284,9 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
           minHeight: { xs: 56, sm: 64 },
           px: { xs: 1, sm: 2 },
           gap: { xs: 0.5, sm: 1 },
+          flexWrap: isTabletHeader ? "wrap" : "nowrap",
+          alignItems: isTabletHeader ? "flex-start" : "center",
+          py: isTabletHeader ? 1 : 0,
         }}
       >
         {/* Левая часть: Бургер-меню + логотип + заголовок */}
@@ -307,7 +315,7 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
               display: { xs: "flex", md: "none" },
               alignItems: "center",
               gap: 1,
-              '@media (min-width: 750px)': { display: "none" },
+              minWidth: 0,
             }}
           >
             <Box
@@ -325,34 +333,42 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
                 background: "linear-gradient(45deg, #1e3c72 0%, #2a5298 100%)",
                 WebkitBackgroundClip: "text",
                 WebkitTextFillColor: "transparent",
-                display: { xs: "none", sm: "block" },
+                display: isCompactHeader ? "none" : { xs: "none", sm: "block" },
+                flexShrink: 0,
               }}
             >
               Academy<span style={{ fontWeight: 400 }}>KG</span>
             </Typography>
           </Box>
-          <Typography
-            variant="subtitle1"
-            sx={{
-              fontWeight: 700,
-              fontSize: { xs: "1rem", sm: "1.1rem", md: "1.5rem" },
-              color: "text.primary",
-              whiteSpace: "nowrap",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              minWidth: 0,
-              flex: 1,
-              ml: { xs: 0.25, sm: 0.5, md: 1 },
-              opacity: title ? 1 : 0,
-              transition: "opacity 0.3s ease",
-            }}
-          >
-            {title}
-          </Typography>
+          {!isTabletHeader && (
+            <Typography
+              variant="subtitle1"
+              sx={{
+                fontWeight: 700,
+                fontSize: { md: "1.1rem", lg: "1.5rem" },
+                color: "text.primary",
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                minWidth: 0,
+                flex: 1,
+                ml: { md: 0.5, lg: 1 },
+                opacity: title ? 1 : 0,
+                transition: "opacity 0.3s ease",
+              }}
+            >
+              {title}
+            </Typography>
+          )}
         </Stack>
 
         {/* Правая часть: Branch switcher + Refresh + Avatar */}
-        <Stack direction="row" alignItems="center" spacing={{ xs: 0.5, sm: 1 }} sx={{ ml: "auto" }}>
+        <Stack
+          direction="row"
+          alignItems="center"
+          spacing={{ xs: 0.5, sm: 1 }}
+          sx={{ ml: "auto", flexShrink: 0 }}
+        >
           {isSuper && branches.length > 0 ? (
             <>
               <IconButton
@@ -361,7 +377,7 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
                 onClick={(event) => setBranchMenuAnchor(event.currentTarget)}
                 size="small"
                 sx={{
-                  display: { xs: "inline-flex", md: "none" },
+                  display: "none",
                   p: { xs: 0.5, sm: 1 },
                   bgcolor: selectedBranch
                     ? (theme) => theme.palette.primary.main + "18"
@@ -404,7 +420,7 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
                 }}
                 onChange={(e) => handleSelectBranch(String(e.target.value) as string | "all")}
                 sx={{
-                  display: { xs: "none", md: "block" },
+                  display: isTabletHeader ? "none" : "block",
                   height: 34,
                   minWidth: 130,
                   maxWidth: 190,
@@ -877,6 +893,58 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
             </DialogContent>
           </Dialog>
         </Stack>
+
+        {isTabletHeader && (
+          <Box sx={{ width: "100%", pt: 0.75 }}>
+            <Stack spacing={1}>
+              {title ? (
+                <Typography
+                  variant="subtitle1"
+                  sx={{
+                    fontWeight: 700,
+                    fontSize: isCompactHeader ? "1rem" : "1.1rem",
+                    lineHeight: 1.2,
+                    color: "text.primary",
+                    px: 0.5,
+                  }}
+                >
+                  {title}
+                </Typography>
+              ) : null}
+
+              {isSuper && branches.length > 0 ? (
+                <Button
+                  variant="outlined"
+                  color={selectedBranch ? "primary" : "inherit"}
+                  startIcon={<CorporateFareOutlined />}
+                  onClick={(event) => setBranchMenuAnchor(event.currentTarget)}
+                  sx={{
+                    justifyContent: "flex-start",
+                    borderRadius: 3,
+                    minHeight: 42,
+                    px: 1.5,
+                    bgcolor: selectedBranch ? alpha(theme.palette.primary.main, 0.06) : "transparent",
+                    borderColor: selectedBranch ? alpha(theme.palette.primary.main, 0.24) : "divider",
+                    textTransform: "none",
+                    fontWeight: 600,
+                  }}
+                >
+                  <Box
+                    component="span"
+                    sx={{
+                      minWidth: 0,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {selectedBranchLabel}
+                  </Box>
+                </Button>
+              ) : null}
+            </Stack>
+          </Box>
+        )}
       </Toolbar>
     </AppBar>
   );

@@ -21,6 +21,8 @@ import {
   ListItemText,
   MenuItem,
 } from "@mui/material";
+import useMediaQuery from "@mui/material/useMediaQuery";
+import { alpha, useTheme } from "@mui/material/styles";
 import AddOutlined from "@mui/icons-material/AddOutlined";
 import EditOutlined from "@mui/icons-material/EditOutlined";
 import DeleteOutlined from "@mui/icons-material/DeleteOutlined";
@@ -179,6 +181,9 @@ const DeleteDialog: React.FC<DeleteDialogProps> = ({ open, name, busy, onClose, 
 const BranchManagePage: React.FC = () => {
   usePageTitle("Управление филиалами");
   const { open: notify } = useNotification();
+  const theme = useTheme();
+  const isTabletLayout = useMediaQuery(theme.breakpoints.down(900));
+  const isCompactLayout = useMediaQuery(theme.breakpoints.down(640));
 
   const [branches, setBranches] = React.useState<BranchItem[]>([]);
   const [organizations, setOrganizations] = React.useState<Organization[]>([]);
@@ -280,23 +285,65 @@ const BranchManagePage: React.FC = () => {
       <PageHeader title="Управление филиалами" showTitle={false} showSearch={false} />
 
       <Box sx={(t) => ({ px: t.appLayout.page.paddingX, pb: t.appLayout.page.paddingY, flex: 1, display: "flex", flexDirection: "column", minHeight: 0 })}>
-        <Paper elevation={0} variant="outlined" sx={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+        <Paper
+          elevation={0}
+          variant="outlined"
+          sx={{
+            flex: 1,
+            display: "flex",
+            flexDirection: "column",
+            overflow: "hidden",
+            borderRadius: { xs: 3, md: 3 },
+          }}
+        >
           {/* Шапка */}
-          <Box sx={{ p: 2, borderBottom: 1, borderColor: "divider" }}>
-            <Stack direction={{ xs: "column", sm: "row" }} alignItems={{ sm: "center" }} justifyContent="space-between" gap={2}>
-              <Stack direction="row" alignItems="center" gap={1} flexWrap="wrap">
-                <BusinessOutlined color="primary" />
-                <Typography variant="h6" fontWeight={700}>Управление филиалами</Typography>
+          <Box
+            sx={{
+              p: { xs: 1.5, sm: 2 },
+              borderBottom: 1,
+              borderColor: "divider",
+              background: isTabletLayout
+                ? `linear-gradient(180deg, ${alpha(theme.palette.primary.main, 0.04)} 0%, transparent 100%)`
+                : "transparent",
+            }}
+          >
+            <Stack direction="column" gap={{ xs: 1.5, sm: 2 }}>
+              <Stack direction="row" alignItems="flex-start" gap={1.25} flexWrap="nowrap">
+                <Box
+                  sx={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: 2,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    bgcolor: alpha(theme.palette.primary.main, 0.12),
+                    color: "primary.main",
+                    flexShrink: 0,
+                  }}
+                >
+                  <BusinessOutlined fontSize="small" />
+                </Box>
+                <Stack spacing={0.75} minWidth={0}>
+                  <Typography variant="h6" fontWeight={700}>Управление филиалами</Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Создавайте филиалы, редактируйте адреса и распределяйте их по организациям.
+                  </Typography>
+                </Stack>
                 {!loading && (
-                  <Chip label={filtered.length} size="small" sx={{ fontWeight: 600 }} />
+                  <Chip
+                    label={filtered.length}
+                    size="small"
+                    sx={{ fontWeight: 700, alignSelf: "flex-start", ml: "auto" }}
+                  />
                 )}
               </Stack>
 
               <Stack
-                direction={{ xs: "column", sm: "row" }}
+                direction="column"
                 gap={1}
-                alignItems={{ xs: "stretch", sm: "center" }}
-                sx={{ width: { xs: "100%", sm: "auto" } }}
+                alignItems="stretch"
+                sx={{ width: "100%" }}
               >
                 <TextField
                   size="small"
@@ -310,15 +357,26 @@ const BranchManagePage: React.FC = () => {
                       </InputAdornment>
                     ),
                   }}
-                  sx={{ minWidth: { sm: 220 }, width: { xs: "100%", sm: "auto" } }}
+                  sx={{
+                    width: "100%",
+                    "& .MuiInputBase-root": {
+                      borderRadius: 2.5,
+                      bgcolor: "background.paper",
+                    },
+                  }}
                 />
                 <Button
                   variant="contained"
                   startIcon={<AddOutlined />}
                   onClick={() => { setEditTarget(null); setFormOpen(true); }}
-                  sx={{ width: { xs: "100%", sm: "auto" } }}
+                  fullWidth={isTabletLayout}
+                  sx={{
+                    width: "100%",
+                    borderRadius: 2.5,
+                    alignSelf: isTabletLayout ? "stretch" : "flex-start",
+                  }}
                 >
-                  Добавить
+                  {isCompactLayout ? "Добавить филиал" : "Добавить"}
                 </Button>
               </Stack>
             </Stack>
@@ -343,10 +401,10 @@ const BranchManagePage: React.FC = () => {
                 )}
               </Box>
             ) : (
-              <List disablePadding>
+              <List disablePadding sx={{ p: isTabletLayout ? 1.5 : 0 }}>
                 {filtered.map((branch, idx) => (
                   <React.Fragment key={branch.id}>
-                    {idx > 0 && <Divider component="li" />}
+                    {!isTabletLayout && idx > 0 && <Divider component="li" />}
                     <ListItem
                       sx={{
                         py: 1.5,
@@ -355,6 +413,10 @@ const BranchManagePage: React.FC = () => {
                         flexDirection: { xs: "column", sm: "row" },
                         alignItems: { xs: "stretch", sm: "center" },
                         gap: { xs: 1.5, sm: 2 },
+                        mb: isTabletLayout ? 1 : 0,
+                        border: isTabletLayout ? `1px solid ${theme.palette.divider}` : "none",
+                        borderRadius: isTabletLayout ? 2.5 : 0,
+                        bgcolor: isTabletLayout ? alpha(theme.palette.background.paper, 0.92) : "transparent",
                         transition: "background-color 0.15s",
                         "&:hover": { bgcolor: "action.hover" },
                       }}
