@@ -256,7 +256,7 @@ const CategoriesPage: React.FC = () => {
         onSearchChange={setSearch}
         searchPlaceholder="Поиск категории..."
         addButtonText="Добавить категорию"
-        onAdd={() => { setEditTarget(null); setFormOpen(true); }}
+        onAdd={!isTabletLayout ? () => { setEditTarget(null); setFormOpen(true); } : undefined}
       />
 
       <Box sx={(t) => ({ px: t.appLayout.page.paddingX, pb: t.appLayout.page.paddingY, flex: 1, display: "flex", flexDirection: "column", minHeight: 0 })}>

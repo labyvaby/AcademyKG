@@ -290,7 +290,7 @@ const BranchManagePage: React.FC = () => {
         onSearchChange={setSearch}
         searchPlaceholder="Поиск филиала..."
         addButtonText="Добавить филиал"
-        onAdd={() => { setEditTarget(null); setFormOpen(true); }}
+        onAdd={!isTabletLayout ? () => { setEditTarget(null); setFormOpen(true); } : undefined}
       />
 
       <Box sx={(t) => ({ px: t.appLayout.page.paddingX, pb: t.appLayout.page.paddingY, flex: 1, display: "flex", flexDirection: "column", minHeight: 0 })}>
