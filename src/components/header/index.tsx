@@ -287,6 +287,7 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
           flexWrap: isTabletHeader ? "wrap" : "nowrap",
           alignItems: isTabletHeader ? "flex-start" : "center",
           py: isTabletHeader ? 1 : 0,
+          position: "relative",
         }}
       >
         {/* Левая часть: Бургер-меню + логотип + заголовок */}
@@ -340,7 +341,21 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
               Academy<span style={{ fontWeight: 400 }}>KG</span>
             </Typography>
           </Box>
-          {!isTabletHeader && (
+        </Stack>
+
+        {!isTabletHeader && (
+          <Box
+            sx={{
+              position: "absolute",
+              left: "50%",
+              transform: "translateX(-50%)",
+              width: "min(52vw, 720px)",
+              display: "flex",
+              justifyContent: "center",
+              pointerEvents: "none",
+              px: 2,
+            }}
+          >
             <Typography
               variant="subtitle1"
               sx={{
@@ -350,17 +365,16 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
                 whiteSpace: "nowrap",
                 overflow: "hidden",
                 textOverflow: "ellipsis",
-                minWidth: 0,
-                flex: 1,
-                ml: { md: 0.5, lg: 1 },
+                textAlign: "center",
+                width: "100%",
                 opacity: title ? 1 : 0,
                 transition: "opacity 0.3s ease",
               }}
             >
               {title}
             </Typography>
-          )}
-        </Stack>
+          </Box>
+        )}
 
         {/* Правая часть: Branch switcher + Refresh + Avatar */}
         <Stack
@@ -906,6 +920,7 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
                     lineHeight: 1.2,
                     color: "text.primary",
                     px: 0.5,
+                    textAlign: "center",
                   }}
                 >
                   {title}

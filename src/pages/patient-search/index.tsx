@@ -33,6 +33,7 @@ import { apiFetch, resolveApiUrl } from "../../utility/apiClient";
 
 
 export const PatientSearchPage: React.FC = () => {
+  usePageTitle("Поиск клиентов");
   const { hasPermission } = usePermissions();
   const [searchParams, setSearchParams] = useSearchParams();
   const [addInitialPhone, setAddInitialPhone] = React.useState("");

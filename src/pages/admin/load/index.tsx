@@ -7,8 +7,10 @@ import dayjs, { Dayjs } from 'dayjs';
 import { LoadFilters } from './LoadFilters';
 import { LoadChart } from './LoadChart';
 import { LoadSummaryCard } from './LoadSummaryCard';
+import { usePageTitle } from '../../../hooks/usePageTitle';
 
 export const LoadAnalyticsPage: React.FC = () => {
+    usePageTitle("Нагрузка");
     const [selectedEmployees, setSelectedEmployees] = useState<string[]>([]);
     const [dateRange, setDateRange] = useState<[Dayjs | null, Dayjs | null]>([dayjs().startOf('day'), dayjs().endOf('day')]);
 

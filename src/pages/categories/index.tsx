@@ -248,7 +248,16 @@ const CategoriesPage: React.FC = () => {
 
   return (
     <Box sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
-      <PageHeader title="Категории расходов" showTitle={false} showSearch={false} />
+      <PageHeader
+        title="Категории расходов"
+        showTitle={!isTabletLayout}
+        showSearch={!isTabletLayout}
+        searchVal={search}
+        onSearchChange={setSearch}
+        searchPlaceholder="Поиск категории..."
+        addButtonText="Добавить категорию"
+        onAdd={() => { setEditTarget(null); setFormOpen(true); }}
+      />
 
       <Box sx={(t) => ({ px: t.appLayout.page.paddingX, pb: t.appLayout.page.paddingY, flex: 1, display: "flex", flexDirection: "column", minHeight: 0 })}>
         <Paper
@@ -262,97 +271,96 @@ const CategoriesPage: React.FC = () => {
             borderRadius: { xs: 3, md: 3 },
           }}
         >
-          {/* Шапка */}
-          <Box
-            sx={{
-              p: { xs: 1.5, sm: 2 },
-              borderBottom: 1,
-              borderColor: "divider",
-              background: isTabletLayout
-                ? `linear-gradient(180deg, ${alpha(theme.palette.primary.main, 0.04)} 0%, transparent 100%)`
-                : "transparent",
-            }}
-          >
-            <Stack
-              direction="column"
-              justifyContent="space-between"
-              gap={{ xs: 1.5, sm: 2 }}
+          {isTabletLayout && (
+            <Box
+              sx={{
+                p: { xs: 1.5, sm: 2 },
+                borderBottom: 1,
+                borderColor: "divider",
+                background: `linear-gradient(180deg, ${alpha(theme.palette.primary.main, 0.04)} 0%, transparent 100%)`,
+              }}
             >
-              <Stack direction="row" alignItems="flex-start" gap={1.25} flexWrap="nowrap">
-                <Box
-                  sx={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: 2,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    bgcolor: alpha(theme.palette.primary.main, 0.12),
-                    color: "primary.main",
-                    flexShrink: 0,
-                  }}
-                >
-                  <CategoryOutlined fontSize="small" />
-                </Box>
-                <Stack spacing={0.75} minWidth={0}>
-                  <Typography variant={isTabletLayout ? "h6" : "h6"} fontWeight={700}>
-                    Категории расходов
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Управляйте справочником категорий и быстро находите нужные записи.
-                  </Typography>
-                </Stack>
-                {!loading && (
-                  <Chip
-                    label={filtered.length}
-                    size="small"
-                    sx={{ fontWeight: 700, alignSelf: "flex-start", ml: "auto" }}
-                  />
-                )}
-              </Stack>
-
               <Stack
                 direction="column"
-                gap={1}
-                alignItems="stretch"
-                sx={{ width: "100%" }}
+                justifyContent="space-between"
+                gap={{ xs: 1.5, sm: 2 }}
               >
-                <TextField
-                  size="small"
-                  placeholder="Поиск категории..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <SearchOutlined fontSize="small" />
-                      </InputAdornment>
-                    ),
-                  }}
-                  sx={{
-                    width: "100%",
-                    "& .MuiInputBase-root": {
-                      borderRadius: 2.5,
-                      bgcolor: "background.paper",
-                    },
-                  }}
-                />
-                <Button
-                  variant="contained"
-                  startIcon={<AddOutlined />}
-                  onClick={() => { setEditTarget(null); setFormOpen(true); }}
-                  fullWidth={isTabletLayout}
-                  sx={{
-                    width: "100%",
-                    borderRadius: 2.5,
-                    alignSelf: isTabletLayout ? "stretch" : "flex-start",
-                  }}
+                <Stack direction="row" alignItems="flex-start" gap={1.25} flexWrap="nowrap">
+                  <Box
+                    sx={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: 2,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      bgcolor: alpha(theme.palette.primary.main, 0.12),
+                      color: "primary.main",
+                      flexShrink: 0,
+                    }}
+                  >
+                    <CategoryOutlined fontSize="small" />
+                  </Box>
+                  <Stack spacing={0.75} minWidth={0}>
+                    <Typography variant="h6" fontWeight={700}>
+                      Категории расходов
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Управляйте справочником категорий и быстро находите нужные записи.
+                    </Typography>
+                  </Stack>
+                  {!loading && (
+                    <Chip
+                      label={filtered.length}
+                      size="small"
+                      sx={{ fontWeight: 700, alignSelf: "flex-start", ml: "auto" }}
+                    />
+                  )}
+                </Stack>
+
+                <Stack
+                  direction="column"
+                  gap={1}
+                  alignItems="stretch"
+                  sx={{ width: "100%" }}
                 >
-                  {isCompactLayout ? "Добавить категорию" : "Добавить"}
-                </Button>
+                  <TextField
+                    size="small"
+                    placeholder="Поиск категории..."
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <SearchOutlined fontSize="small" />
+                        </InputAdornment>
+                      ),
+                    }}
+                    sx={{
+                      width: "100%",
+                      "& .MuiInputBase-root": {
+                        borderRadius: 2.5,
+                        bgcolor: "background.paper",
+                      },
+                    }}
+                  />
+                  <Button
+                    variant="contained"
+                    startIcon={<AddOutlined />}
+                    onClick={() => { setEditTarget(null); setFormOpen(true); }}
+                    fullWidth={isTabletLayout}
+                    sx={{
+                      width: "100%",
+                      borderRadius: 2.5,
+                      alignSelf: isTabletLayout ? "stretch" : "flex-start",
+                    }}
+                  >
+                    {isCompactLayout ? "Добавить категорию" : "Добавить"}
+                  </Button>
+                </Stack>
               </Stack>
-            </Stack>
-          </Box>
+            </Box>
+          )}
 
           {/* Список */}
           <Box sx={{ flex: 1, overflowY: "auto" }}>

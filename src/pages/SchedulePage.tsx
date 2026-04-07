@@ -14,13 +14,13 @@ import { usePermissions } from "../hooks/usePermissions";
 import { PERMISSIONS } from "../constants/permissions";
 
 const SchedulePage: React.FC = () => {
-  usePageTitle("График");
+  usePageTitle("Расписание");
   const calendarRef = React.useRef<{ openAddShift: () => void }>(null);
 
-  const { hasPermission, employeeId } = usePermissions();
+  const { hasPermission, employeeId, hasRole } = usePermissions();
   const isAdmin = hasPermission(PERMISSIONS.EMPLOYEE_SCHEDULES_UPDATE);
   const isRegistrator = hasPermission(PERMISSIONS.APPOINTMENTS_CREATE);
-  const isSpecialist = hasPermission(PERMISSIONS.APPOINTMENTS_READ);
+  const isSpecialist = hasRole("specialist");
   const canManageSchedule = isAdmin || isRegistrator;
 
   const handleAddShift = () => {
@@ -37,7 +37,7 @@ const SchedulePage: React.FC = () => {
       }}
     >
       <PageHeader
-        title="График Работы Клиники"
+        title="Расписание"
         showTitle={false}
         addButtonText={canManageSchedule ? "Добавить смену" : undefined}
         onAdd={canManageSchedule ? handleAddShift : undefined}

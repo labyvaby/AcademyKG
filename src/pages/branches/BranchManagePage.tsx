@@ -282,7 +282,16 @@ const BranchManagePage: React.FC = () => {
 
   return (
     <Box sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
-      <PageHeader title="Управление филиалами" showTitle={false} showSearch={false} />
+      <PageHeader
+        title="Управление филиалами"
+        showTitle={!isTabletLayout}
+        showSearch={!isTabletLayout}
+        searchVal={search}
+        onSearchChange={setSearch}
+        searchPlaceholder="Поиск филиала..."
+        addButtonText="Добавить филиал"
+        onAdd={() => { setEditTarget(null); setFormOpen(true); }}
+      />
 
       <Box sx={(t) => ({ px: t.appLayout.page.paddingX, pb: t.appLayout.page.paddingY, flex: 1, display: "flex", flexDirection: "column", minHeight: 0 })}>
         <Paper
@@ -296,91 +305,90 @@ const BranchManagePage: React.FC = () => {
             borderRadius: { xs: 3, md: 3 },
           }}
         >
-          {/* Шапка */}
-          <Box
-            sx={{
-              p: { xs: 1.5, sm: 2 },
-              borderBottom: 1,
-              borderColor: "divider",
-              background: isTabletLayout
-                ? `linear-gradient(180deg, ${alpha(theme.palette.primary.main, 0.04)} 0%, transparent 100%)`
-                : "transparent",
-            }}
-          >
-            <Stack direction="column" gap={{ xs: 1.5, sm: 2 }}>
-              <Stack direction="row" alignItems="flex-start" gap={1.25} flexWrap="nowrap">
-                <Box
-                  sx={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: 2,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    bgcolor: alpha(theme.palette.primary.main, 0.12),
-                    color: "primary.main",
-                    flexShrink: 0,
-                  }}
-                >
-                  <BusinessOutlined fontSize="small" />
-                </Box>
-                <Stack spacing={0.75} minWidth={0}>
-                  <Typography variant="h6" fontWeight={700}>Управление филиалами</Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Создавайте филиалы, редактируйте адреса и распределяйте их по организациям.
-                  </Typography>
+          {isTabletLayout && (
+            <Box
+              sx={{
+                p: { xs: 1.5, sm: 2 },
+                borderBottom: 1,
+                borderColor: "divider",
+                background: `linear-gradient(180deg, ${alpha(theme.palette.primary.main, 0.04)} 0%, transparent 100%)`,
+              }}
+            >
+              <Stack direction="column" gap={{ xs: 1.5, sm: 2 }}>
+                <Stack direction="row" alignItems="flex-start" gap={1.25} flexWrap="nowrap">
+                  <Box
+                    sx={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: 2,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      bgcolor: alpha(theme.palette.primary.main, 0.12),
+                      color: "primary.main",
+                      flexShrink: 0,
+                    }}
+                  >
+                    <BusinessOutlined fontSize="small" />
+                  </Box>
+                  <Stack spacing={0.75} minWidth={0}>
+                    <Typography variant="h6" fontWeight={700}>Управление филиалами</Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Создавайте филиалы, редактируйте адреса и распределяйте их по организациям.
+                    </Typography>
+                  </Stack>
+                  {!loading && (
+                    <Chip
+                      label={filtered.length}
+                      size="small"
+                      sx={{ fontWeight: 700, alignSelf: "flex-start", ml: "auto" }}
+                    />
+                  )}
                 </Stack>
-                {!loading && (
-                  <Chip
-                    label={filtered.length}
-                    size="small"
-                    sx={{ fontWeight: 700, alignSelf: "flex-start", ml: "auto" }}
-                  />
-                )}
-              </Stack>
 
-              <Stack
-                direction="column"
-                gap={1}
-                alignItems="stretch"
-                sx={{ width: "100%" }}
-              >
-                <TextField
-                  size="small"
-                  placeholder="Поиск филиала..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <SearchOutlined fontSize="small" />
-                      </InputAdornment>
-                    ),
-                  }}
-                  sx={{
-                    width: "100%",
-                    "& .MuiInputBase-root": {
-                      borderRadius: 2.5,
-                      bgcolor: "background.paper",
-                    },
-                  }}
-                />
-                <Button
-                  variant="contained"
-                  startIcon={<AddOutlined />}
-                  onClick={() => { setEditTarget(null); setFormOpen(true); }}
-                  fullWidth={isTabletLayout}
-                  sx={{
-                    width: "100%",
-                    borderRadius: 2.5,
-                    alignSelf: isTabletLayout ? "stretch" : "flex-start",
-                  }}
+                <Stack
+                  direction="column"
+                  gap={1}
+                  alignItems="stretch"
+                  sx={{ width: "100%" }}
                 >
-                  {isCompactLayout ? "Добавить филиал" : "Добавить"}
-                </Button>
+                  <TextField
+                    size="small"
+                    placeholder="Поиск филиала..."
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <SearchOutlined fontSize="small" />
+                        </InputAdornment>
+                      ),
+                    }}
+                    sx={{
+                      width: "100%",
+                      "& .MuiInputBase-root": {
+                        borderRadius: 2.5,
+                        bgcolor: "background.paper",
+                      },
+                    }}
+                  />
+                  <Button
+                    variant="contained"
+                    startIcon={<AddOutlined />}
+                    onClick={() => { setEditTarget(null); setFormOpen(true); }}
+                    fullWidth={isTabletLayout}
+                    sx={{
+                      width: "100%",
+                      borderRadius: 2.5,
+                      alignSelf: isTabletLayout ? "stretch" : "flex-start",
+                    }}
+                  >
+                    {isCompactLayout ? "Добавить филиал" : "Добавить"}
+                  </Button>
+                </Stack>
               </Stack>
-            </Stack>
-          </Box>
+            </Box>
+          )}
 
           {/* Список */}
           <Box sx={{ flex: 1, overflowY: "auto" }}>
