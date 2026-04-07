@@ -17,7 +17,7 @@ import CreditCardIcon from "@mui/icons-material/CreditCard";
 
 import { PageHeader } from "../../components/ui";
 import { usePageTitle } from "../../hooks/usePageTitle";
-import { formatDateRu, formatKGS } from "../../utility/format";
+import { formatKGS } from "../../utility/format";
 import { getCashboxSummary } from "../../services/cashbox";
 import { CashboxSummaryData } from "../../types/cashbox";
 import { useBranchContext } from "../../contexts/branch-context";
@@ -146,10 +146,6 @@ const CashboxPage: React.FC = () => {
                 })}
             >
                 <Stack spacing={2.5} sx={{ mt: 1 }}>
-                    <Typography variant="body2" color="text.secondary">
-                        Период: {formatDateRu(visibleData?.dateFrom || dateRange.from)} - {formatDateRu(visibleData?.dateTo || dateRange.to)}
-                    </Typography>
-
                     {effectiveLoading ? (
                         <Box sx={{ display: "flex", justifyContent: "center", p: 10 }}>
                             <CircularProgress size={54} thickness={4} />
