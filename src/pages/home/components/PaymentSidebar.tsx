@@ -192,8 +192,8 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
     const cardNum = Number(card || 0);
     const totalPaid = cashNum + cardNum + balanceUsed + pointsUsed;
 
-    // Debt = finalPrice - totalPaid
-    const debt = Math.max(0, finalPrice - totalPaid);
+    // Local preview only. Canonical debt/status comes from backend after save.
+    const previewDebt = Math.max(0, finalPrice - totalPaid);
 
     if (!appointment) return null;
 
@@ -263,7 +263,6 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
             paidBalance: Number(appointment.paid_balance || 0),
             paidBonuses: Number(appointment.paid_bonuses || 0),
             discount: Number(appointment.discount || 0),
-            debt: Number(appointment.debt || 0),
             adminComment: appointment.admin_comment || "",
         };
         const nextPaymentPayload = {
@@ -272,7 +271,6 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
             paidBalance: balanceUsed,
             paidBonuses: pointsUsed,
             discount: discountAmount,
-            debt: debt,
             adminComment: adminComment,
         };
 
@@ -285,7 +283,6 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
             paid_balance: balanceUsed,
             paid_bonuses: pointsUsed,
             discount: discountAmount,
-            debt: debt,
             admin_comment: adminComment,
         };
 
@@ -629,20 +626,24 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
                                 </Typography>
                             </Stack>
 
-                            {/* Статус и Долг */}
+                            {/* Предварительный расчет */}
                             <Stack direction="row" justifyContent="space-between" alignItems="center">
                                 <Typography variant="body2" color="text.secondary">
-                                    Статус
+                                    Предпросмотр
                                 </Typography>
                                 <Chip
-                                    label={debt <= 0 ? "Оплачено" : totalPaid > 0 ? "Частично оплачено" : "Не оплачено"}
+                                    label={previewDebt <= 0 ? "Сумма закрыта" : totalPaid > 0 ? "Частичное покрытие" : "Без оплаты"}
                                     size="small"
-                                    color={debt <= 0 ? "success" : totalPaid > 0 ? "warning" : "default"}
+                                    color={previewDebt <= 0 ? "success" : totalPaid > 0 ? "warning" : "default"}
                                     sx={{ fontWeight: 600 }}
                                 />
                             </Stack>
 
-                            {debt > 0 && (
+                            <Typography variant="caption" color="text.secondary">
+                                Фактические статус и долг вернет сервер после сохранения оплаты.
+                            </Typography>
+
+                            {previewDebt > 0 && (
                                 <Paper
                                     elevation={0}
                                     sx={{
@@ -655,10 +656,10 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
                                 >
                                     <Stack direction="row" justifyContent="space-between" alignItems="center">
                                         <Typography variant="body2" color="error.main" fontWeight={600}>
-                                            Долг
+                                            Предварительный остаток
                                         </Typography>
                                         <Typography variant="h6" color="error.main" fontWeight={700}>
-                                            {debt.toLocaleString()} сом
+                                            {previewDebt.toLocaleString()} сом
                                         </Typography>
                                     </Stack>
                                 </Paper>
@@ -697,7 +698,10 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
                         {loading ? (
                             <CircularProgress size={24} color="inherit" />
                         ) : (
-                            (appointment.paid_cash || 0) > 0 || (appointment.paid_card || 0) > 0
+                            (appointment.paid_cash || 0) > 0 ||
+                            (appointment.paid_card || 0) > 0 ||
+                            (appointment.paid_balance || 0) > 0 ||
+                            (appointment.paid_bonuses || 0) > 0
                                 ? "Обновить оплату"
                                 : "Подтвердить оплату"
                         )}

@@ -23,7 +23,7 @@ import Tooltip from "@mui/material/Tooltip";
 import PrintOutlinedIcon from "@mui/icons-material/PrintOutlined";
 
 import { formatKGS } from "../../../utility/format";
-import { getStatusConfig, getStatusChipSx, normalizeStatus } from "../../../config/appointmentStatuses";
+import { getStatusConfig, getStatusChipSx } from "../../../config/appointmentStatuses";
 import dayjs from "dayjs";
 import { dayjsBishkek } from "../../../utility/dayjsBishkek";
 
@@ -819,11 +819,8 @@ export const AppointmentsList: React.FC<AppointmentsListProps & { onAddSlot?: (d
                       const card = Number(a.paid_card || 0);
                       const balance = Number(a.paid_balance || 0);
                       const bonuses = Number(a.paid_bonuses || 0);
-                      const totalAmount = Number(a.total_amount || a.total_cost || a.estimated_total || 0);
-                      const totalPaid = cash + card + balance + bonuses;
-                      const isPaid = (totalPaid >= totalAmount && totalAmount > 0) || a.status === "Оплачено";
-                      const isCardOnly = card > 0 && cash === 0 && balance === 0 && bonuses === 0;
-                      const paymentStyleStatus = isPaid ? (isCardOnly ? "Оплачено безналом" : "Оплачено") : "Частично оплачено";
+                      const statusConfig = getStatusConfig(a.status);
+                      const hasPaymentBreakdown = cash > 0 || card > 0 || balance > 0 || bonuses > 0;
                       return (
                         <Box
                           key={a.id}
@@ -839,57 +836,20 @@ export const AppointmentsList: React.FC<AppointmentsListProps & { onAddSlot?: (d
                             </Stack>
                             <Stack alignItems="flex-end">
                               <Stack direction="row" alignItems="center" gap={1} flexWrap="wrap" justifyContent="flex-end">
-                                {a.status !== "Завершено" && a.status !== "Оплачено" && a.status !== "Частично оплачено" && (
-                                  <Chip label={getStatusConfig(a.status).label} icon={getStatusConfig(a.status).icon} size="small" sx={getStatusChipSx(a.status)} />
+                                <Chip
+                                  label={statusConfig.label}
+                                  icon={statusConfig.icon}
+                                  size="small"
+                                  sx={getStatusChipSx(a.status)}
+                                />
+                                {hasPaymentBreakdown && (
+                                  <Stack direction="row" alignItems="center" gap={0.25} color="text.secondary">
+                                    {cash > 0 && <PaymentsOutlined sx={{ fontSize: 16 }} />}
+                                    {card > 0 && <CreditCardOutlined sx={{ fontSize: 16 }} />}
+                                    {balance > 0 && <AccountBalanceWalletOutlined sx={{ fontSize: 16 }} />}
+                                    {bonuses > 0 && <CardGiftcardOutlined sx={{ fontSize: 16 }} />}
+                                  </Stack>
                                 )}
-                                {(() => {
-                                  const normSt = normalizeStatus(a.status ?? "").toLowerCase();
-                                  const rawSt = (a.status ?? "").toLowerCase();
-                                  const isCancelled = normSt === "отменено" || normSt === "отменен"
-                                    || rawSt === "cancelled" || rawSt === "canceled"
-                                    || normSt === "клиент не пришел" || normSt === "не пришёл" || normSt === "не пришел"
-                                    || rawSt === "not_came" || rawSt === "no_show" || rawSt === "patient_not_came";
-                                  const isPaidStatus = a.status === "Оплачено" || a.status === "Частично оплачено";
-                                  const debtNum = Number(a.debt ?? totalAmount);
-                                  const cancelledAndPaid = isCancelled && totalAmount > 0 && (totalPaid > 0 || debtNum < totalAmount);
-                                  if (cancelledAndPaid) {
-                                    const labelText = debtNum <= 0 ? "Оплачено" : "Частично оплачено";
-                                    // API не возвращает paid_* в списке — если все 0 но debt=0, показываем fallback иконку
-                                    const hasIcons = cash > 0 || card > 0 || balance > 0 || bonuses > 0;
-                                    return (
-                                      <Chip
-                                        label={
-                                          <Stack direction="row" alignItems="center" gap={0.5}>
-                                            {hasIcons ? (
-                                              <>
-                                                {cash > 0 && <PaymentsOutlined sx={{ fontSize: 16 }} />}
-                                                {card > 0 && <CreditCardOutlined sx={{ fontSize: 16 }} />}
-                                                {balance > 0 && <AccountBalanceWalletOutlined sx={{ fontSize: 16 }} />}
-                                                {bonuses > 0 && <CardGiftcardOutlined sx={{ fontSize: 16 }} />}
-                                              </>
-                                            ) : (
-                                              <PaymentsOutlined sx={{ fontSize: 16 }} />
-                                            )}
-                                            {labelText}
-                                          </Stack>
-                                        }
-                                        size="small"
-                                        sx={getStatusChipSx(labelText)}
-                                      />
-                                    );
-                                  }
-                                  if (isPaidStatus || totalPaid > 0) {
-                                    const labelText = isPaidStatus ? a.status : (totalPaid >= totalAmount && totalAmount > 0 ? "Оплачено" : "Частично оплачено");
-                                    return (
-                                      <Chip
-                                        label={<Stack direction="row" alignItems="center" gap={0.5}>{cash > 0 && <PaymentsOutlined sx={{ fontSize: 16 }} />}{card > 0 && <CreditCardOutlined sx={{ fontSize: 16 }} />}{balance > 0 && <AccountBalanceWalletOutlined sx={{ fontSize: 16 }} />}{bonuses > 0 && <CardGiftcardOutlined sx={{ fontSize: 16 }} />}{labelText}</Stack>}
-                                        size="small"
-                                        sx={getStatusChipSx(paymentStyleStatus)}
-                                      />
-                                    );
-                                  }
-                                  return null;
-                                })()}
                                 {(a.has_conclusion || a.conclusion || (a.diagnosis_data && a.diagnosis_data.length > 0)) && (
                                   <Tooltip title="Есть заключение"><PrintOutlinedIcon sx={{ fontSize: 20, color: "action.active", opacity: 0.8 }} /></Tooltip>
                                 )}

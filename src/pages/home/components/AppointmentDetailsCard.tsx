@@ -471,13 +471,7 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
                     bonuses: Number(item.paid_bonuses || 0),
                     finalTotal: Number(item.total_amount || item.total_cost || item.estimated_total || 0),
                     debt: Number(item.debt || 0),
-                    status: (() => {
-                      const totalPaid = Number(item.paid_cash || 0) + Number(item.paid_card || 0) + Number(item.paid_balance || 0) + Number(item.paid_bonuses || 0);
-                      const debt = Number(item.debt || 0);
-                      if (debt <= 0 && totalPaid > 0) return 'paid';
-                      if (totalPaid > 0) return 'partially_paid';
-                      return 'scheduled';
-                    })(),
+                    status: item.status,
                   }}
                   variant="detailed"
                   showIcons={true}
@@ -804,22 +798,22 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
                     baseTotal: Number(item.total_amount || item.total_cost || item.estimated_total || 0),
                     cash: Number(item.paid_cash || 0),
                     card: Number(item.paid_card || 0),
+                    balance: Number(item.paid_balance || 0),
+                    bonuses: Number(item.paid_bonuses || 0),
                     finalTotal: Number(item.total_amount || item.total_cost || item.estimated_total || 0),
                     debt: Number(item.debt || 0),
-                    status: (() => {
-                      const totalPaid = Number(item.paid_cash || 0) + Number(item.paid_card || 0) + Number(item.paid_balance || 0) + Number(item.paid_bonuses || 0);
-                      const debt = Number(item.debt || 0);
-                      if (debt <= 0 && totalPaid > 0) return 'paid';
-                      if (totalPaid > 0) return 'partially_paid';
-                      return 'scheduled';
-                    })(),
+                    status: item.status,
                   }}
                   variant="detailed"
                   showIcons={true}
                   actionButton={
                     showPaymentAction ? (
                       (() => {
-                        const hasPayment = (item.paid_cash ?? 0) > 0 || (item.paid_card ?? 0) > 0;
+                        const hasPayment =
+                          (item.paid_cash ?? 0) > 0 ||
+                          (item.paid_card ?? 0) > 0 ||
+                          (item.paid_balance ?? 0) > 0 ||
+                          (item.paid_bonuses ?? 0) > 0;
                         return (
                           <Button
                             variant={hasPayment ? "outlined" : "contained"}
