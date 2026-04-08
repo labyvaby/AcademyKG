@@ -22,14 +22,8 @@ import CreditCardOutlined from "@mui/icons-material/CreditCardOutlined";
 import { useNotification } from "@refinedev/core";
 import { apiFetch } from "../../utility/apiClient";
 import { ExpensesService } from "../../services/expenses";
-import {
-  inferExpenseKindFromCategory,
-  requiresAffectsMonth,
-  type Expense,
-  type ExpenseFormValues,
-} from "../../pages/expenses/types";
+import type { Expense, ExpenseFormValues } from "../../pages/expenses/types";
 import { AppCard, CustomDateTimePicker } from "../ui";
-import { useEmployees } from "../../hooks/useEmployees";
 import dayjs from "dayjs";
 
 type EditExpenseDrawerProps = {
@@ -39,118 +33,60 @@ type EditExpenseDrawerProps = {
   onUpdated?: (record: Expense) => void;
 };
 
-type ExpenseCategory = {
-  id: string;
-  name: string;
-  kind?: "payroll" | "advance" | "operational" | "other" | null;
-};
+type ExpenseCategory = { id: string; name: string };
 
-export const EditExpenseDrawer: React.FC<EditExpenseDrawerProps> = ({
-  open,
-  onClose,
-  record,
-  onUpdated,
-}) => {
+export const EditExpenseDrawer: React.FC<EditExpenseDrawerProps> = ({ open, onClose, record, onUpdated }) => {
   const { open: notify } = useNotification();
 
-  const initialValues: ExpenseFormValues = React.useMemo(
-    () => ({
-      employee_id: record.employee_id || null, // Keep existing ID if any, but won't edit
-      name: record.name || "",
-      cash_amount: record.cash_amount || 0,
-      cashless_amount: record.cashless_amount || 0,
-      total_amount: record.total_amount || 0,
-      comment: record.comment || "",
-      category: record.category || "",
-      category_id: record.category_id || null,
-      photo: record.photo || null,
-      photoFile: null,
-      kind: record.kind || null,
-      created_at: record.created_at ? dayjs(record.created_at).format("YYYY-MM-DDTHH:mm") : dayjs().format("YYYY-MM-DDTHH:mm"),
-      affects_month: record.affects_month ?? null,
-    }),
-    [record]
-  );
+  const initialValues = React.useMemo<ExpenseFormValues>(() => ({
+    employee_id: record.employee_id || null,
+    name: record.name || "",
+    cash_amount: record.cash_amount || 0,
+    cashless_amount: record.cashless_amount || 0,
+    total_amount: record.total_amount || 0,
+    comment: record.comment || "",
+    category: record.category || "",
+    category_id: record.category_id || null,
+    photo: record.photo || null,
+    photoFile: null,
+    created_at: record.created_at ? dayjs(record.created_at).format("YYYY-MM-DDTHH:mm") : dayjs().format("YYYY-MM-DDTHH:mm"),
+  }), [record]);
 
   const [values, setValues] = React.useState<ExpenseFormValues>(initialValues);
   const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
   const [busy, setBusy] = React.useState(false);
   const [touched, setTouched] = React.useState(false);
-
   const [categories, setCategories] = React.useState<ExpenseCategory[]>([]);
-  const { employees, loading: loadingEmployees } = useEmployees(open);
-  const selectedCategory = React.useMemo(
-    () => categories.find((category) => category.id === values.category_id) ?? values.category ?? null,
-    [categories, values.category, values.category_id],
-  );
-  const inferredKind = React.useMemo(
-    () => inferExpenseKindFromCategory(selectedCategory),
-    [selectedCategory],
-  );
-  const payrollLike = requiresAffectsMonth(inferredKind);
 
-  // Refine hooks removed
-  // const { mutateAsync: updateAsync } = useUpdate<Expense>();
-  // 
-
-
-  // Custom Expenses Service - Imported at top
-
-
-  // Загрузка категорий при монтировании компонента
   React.useEffect(() => {
     let cancelled = false;
     const load = async () => {
       try {
         const res: any = await apiFetch("/api/v1/expense-categories/?pageSize=200");
         const data = res?.data?.results ?? res?.results ?? [];
-
-        if (Array.isArray(data)) {
-          const cats: ExpenseCategory[] = data.map((c: any) => ({
-            id: String(c.id),
-            name: c.name,
-            kind: c.kind ?? null,
-          }));
-          if (!cancelled) {
-            setCategories(cats);
-          }
+        if (!cancelled && Array.isArray(data)) {
+          setCategories(data.map((c: any) => ({ id: String(c.id), name: c.name })));
         }
-      } catch (e) {
-        console.error("Failed to load categories in EditExpenseDrawer", e);
-      }
+      } catch { /* ignore */ }
     };
     load();
-    return () => {
-      cancelled = true;
-    };
-  }, []); // Загружаем один раз при монтировании
+    return () => { cancelled = true; };
+  }, []);
 
-  // Обновление значений при изменении record
   React.useEffect(() => {
     if (open) {
       setValues(initialValues);
       setTouched(false);
-      if (previewUrl) {
-        URL.revokeObjectURL(previewUrl);
-        setPreviewUrl(null);
-      }
+      if (previewUrl) { URL.revokeObjectURL(previewUrl); setPreviewUrl(null); }
     }
   }, [open, initialValues, previewUrl]);
 
   const handleFileChange = (file: File | null) => {
     setValues((s) => ({ ...s, photoFile: file }));
-    if (file) {
-      setPreviewUrl(URL.createObjectURL(file));
-    } else {
-      setPreviewUrl(null);
-    }
+    setPreviewUrl(file ? URL.createObjectURL(file) : null);
   };
 
-  const computeTotal = () => {
-    const cash = Number(values.cash_amount) || 0;
-    const cashless = Number(values.cashless_amount) || 0;
-    return cash + cashless;
-  };
+  const computeTotal = () => (Number(values.cash_amount) || 0) + (Number(values.cashless_amount) || 0);
 
   const handleSubmit = async () => {
     setTouched(true);
@@ -158,19 +94,10 @@ export const EditExpenseDrawer: React.FC<EditExpenseDrawerProps> = ({
       notify?.({ type: "error", message: "Введите название расхода" });
       return;
     }
-
-    if (payrollLike && !values.affects_month) {
-      notify?.({ type: "error", message: "Для зарплаты и аванса нужно указать месяц учета" });
-      return;
-    }
-
     try {
       setBusy(true);
-
-      const createdAtDate = values.created_at ? dayjs(values.created_at) : dayjs();
-
-      const payload = {
-        employee_id: payrollLike ? values.employee_id || null : null,
+      const updated = await ExpensesService.update(record.id, {
+        employee_id: values.employee_id || null,
         name: values.name.trim(),
         cash_amount: Number(values.cash_amount) || 0,
         cashless_amount: Number(values.cashless_amount) || 0,
@@ -178,18 +105,13 @@ export const EditExpenseDrawer: React.FC<EditExpenseDrawerProps> = ({
         comment: values.comment?.trim() || null,
         category: values.category?.trim() || null,
         category_id: values.category_id || null,
-        photo: values.photoFile || values.photo, // Pass File if selected, otherwise keep URL
-        created_at: createdAtDate.toISOString(),
-        affects_month: payrollLike ? values.affects_month || null : null,
-      };
-
-      const updated = await ExpensesService.update(record.id, payload);
-
+        photo: values.photoFile || values.photo,
+        created_at: (values.created_at ? dayjs(values.created_at) : dayjs()).toISOString(),
+      });
       if (updated && onUpdated) onUpdated(updated);
       notify?.({ type: "success", message: "Расход обновлен" });
       onClose();
-    } catch (e: unknown) {
-      console.error("Update expense failed:", e);
+    } catch {
       notify?.({ type: "error", message: "Не удалось обновить расход" });
     } finally {
       setBusy(false);
@@ -204,293 +126,95 @@ export const EditExpenseDrawer: React.FC<EditExpenseDrawerProps> = ({
       PaperProps={{ sx: { width: { xs: 320, sm: 480, md: 520 }, maxWidth: "100vw", display: "flex", flexDirection: "column" } }}
     >
       <Box sx={{ width: 1, minWidth: 0, height: "100%", display: "flex", flexDirection: "column" }}>
-        <Box
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            px: 2,
-            py: 1,
-          }}
-        >
+        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", px: 2, py: 1 }}>
           <Typography variant="h6">Редактировать расход</Typography>
-          <IconButton onClick={busy ? undefined : onClose} aria-label="Закрыть">
-            <CloseOutlined />
-          </IconButton>
+          <IconButton onClick={busy ? undefined : onClose} aria-label="Закрыть"><CloseOutlined /></IconButton>
         </Box>
         <Divider />
-        <Box
-          sx={{
-            p: 2,
-            flex: 1,
-            overflowY: 'auto',
-            scrollbarWidth: 'none',
-            msOverflowStyle: 'none',
-            '&::-webkit-scrollbar': {
-              display: 'none',
-            },
-          }}
-        >
+        <Box sx={{ p: 2, flex: 1, overflowY: "auto", scrollbarWidth: "none", "&::-webkit-scrollbar": { display: "none" } }}>
           <Stack spacing={3}>
+            {/* Название */}
             <Stack spacing={0.5}>
-              <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
-                Название *
-              </Typography>
-              <TextField
-                value={values.name}
-                onChange={(e) => setValues((s) => ({ ...s, name: e.target.value }))}
-                fullWidth
-                autoFocus
-                placeholder="Введите название расхода"
-                error={touched && !values.name.trim()}
-                helperText={touched && !values.name.trim() ? "Обязательное поле" : ""}
-              />
+              <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>Название *</Typography>
+              <TextField value={values.name} onChange={(e) => setValues((s) => ({ ...s, name: e.target.value }))}
+                fullWidth autoFocus placeholder="Введите название расхода"
+                error={touched && !values.name.trim()} helperText={touched && !values.name.trim() ? "Обязательное поле" : ""} />
             </Stack>
 
+            {/* Дата */}
             <Stack spacing={0.5}>
-              <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
-                Дата и время
-              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>Дата и время</Typography>
               <CustomDateTimePicker
                 value={values.created_at ? dayjs(values.created_at) : null}
-                onChange={(val) => setValues((s) => ({ ...s, created_at: val ? val.format() : '' }))}
-                ampm={false}
-                format="DD.MM.YYYY HH:mm"
-                slotProps={{
-                  textField: {
-                    fullWidth: true,
-                    placeholder: "Укажите дату и время",
-                  },
-                }}
+                onChange={(val) => setValues((s) => ({ ...s, created_at: val ? val.format() : "" }))}
+                ampm={false} format="DD.MM.YYYY HH:mm"
+                slotProps={{ textField: { fullWidth: true, placeholder: "Укажите дату и время" } }}
               />
             </Stack>
 
-            {/* Photo Uploader */}
+            {/* Фото */}
             <Stack spacing={0.5}>
-              <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
-                Фото расхода
-              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>Фото расхода</Typography>
               <AppCard variant="outlined" sx={{ borderStyle: "dashed" }} disableContentPadding>
-                <CardContent
-                  sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 1.5,
-                    py: 2,
-                    cursor: "pointer",
-                  }}
-                  onClick={() => {
-                    const el = document.getElementById("edit-expense-photo-input") as HTMLInputElement | null;
-                    el?.click();
-                  }}
-                >
-                  <Avatar
-                    variant="rounded"
-                    src={previewUrl || (typeof values.photo === 'string' ? values.photo : undefined)}
-                    sx={{ width: 48, height: 48 }}
-                  >
+                <CardContent sx={{ display: "flex", alignItems: "center", gap: 1.5, py: 2, cursor: "pointer" }}
+                  onClick={() => (document.getElementById("edit-expense-photo-input") as HTMLInputElement)?.click()}>
+                  <Avatar variant="rounded" src={previewUrl || (typeof values.photo === "string" ? values.photo : undefined)} sx={{ width: 48, height: 48 }}>
                     <PhotoCameraOutlined />
                   </Avatar>
                   <Box sx={{ flex: 1 }}>
-                    <Typography variant="body2">
-                      {values.photoFile
-                        ? values.photoFile.name
-                        : values.photo
-                          ? "Изображение загружено"
-                          : "Нажмите для выбора изображения"}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      JPG, PNG. Необязательно.
-                    </Typography>
+                    <Typography variant="body2">{values.photoFile ? values.photoFile.name : values.photo ? "Изображение загружено" : "Нажмите для выбора изображения"}</Typography>
+                    <Typography variant="caption" color="text.secondary">JPG, PNG. Необязательно.</Typography>
                   </Box>
-                  <input
-                    id="edit-expense-photo-input"
-                    type="file"
-                    accept="image/*"
-                    style={{ display: "none" }}
-                    onChange={(e) => {
-                      const f = e.target.files?.[0] || null;
-                      handleFileChange(f);
-                    }}
-                  />
+                  <input id="edit-expense-photo-input" type="file" accept="image/*" style={{ display: "none" }}
+                    onChange={(e) => handleFileChange(e.target.files?.[0] || null)} />
                 </CardContent>
               </AppCard>
             </Stack>
 
+            {/* Категория */}
             <Stack spacing={0.5}>
-              <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
-                Категория
-              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>Категория</Typography>
               <Autocomplete
                 options={categories}
-                getOptionLabel={(option) => option.name}
-                isOptionEqualToValue={(option, value) => option.id === value.id}
-                value={
-                  categories.find((c) => c.id === values.category_id) || null
-                }
-                onChange={(_, newValue) => {
-                  const newCategory = newValue?.name || "";
-                  const nextKind = inferExpenseKindFromCategory(newValue ?? newCategory);
-                  const emp = employees.find((e) => e.id === values.employee_id);
-                  const empName = emp?.full_name || "";
-
-                  setValues((s) => ({
-                    ...s,
-                    category_id: newValue?.id || null,
-                    category: newCategory,
-                    employee_id: requiresAffectsMonth(nextKind) ? s.employee_id : null,
-                    affects_month: requiresAffectsMonth(nextKind) ? s.affects_month : null,
-                    name: !s.name.trim() && requiresAffectsMonth(nextKind) && newCategory && empName
-                      ? `${newCategory} - ${empName}`
-                      : s.name,
-                  }));
-                }}
-                renderInput={(params) => (
-                  <TextField {...params} placeholder="Выберите категорию" fullWidth />
-                )}
+                getOptionLabel={(o) => o.name}
+                isOptionEqualToValue={(o, v) => o.id === v.id}
+                value={categories.find((c) => c.id === values.category_id) || null}
+                onChange={(_, v) => setValues((s) => ({ ...s, category_id: v?.id || null, category: v?.name || "" }))}
+                renderInput={(params) => <TextField {...params} placeholder="Выберите категорию" fullWidth />}
                 noOptionsText="Нет категорий"
               />
             </Stack>
 
-            {payrollLike && (
-              <Stack spacing={0.5}>
-                <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
-                  Сотрудник
-                </Typography>
-                <Autocomplete
-                  options={employees}
-                  loading={loadingEmployees}
-                  getOptionLabel={(option) => option.specialization ? `${option.full_name} — ${option.specialization}` : option.full_name || ""}
-                  isOptionEqualToValue={(option, value) => option.id === value.id}
-                  value={employees.find((e) => e.id === values.employee_id) || null}
-                  onChange={(_, newValue) => {
-                    const empName = newValue?.full_name || "";
-                    setValues((s) => ({
-                      ...s,
-                      employee_id: newValue?.id || null,
-                      name: !s.name.trim() && s.category && empName
-                        ? `${s.category} - ${empName}`
-                        : s.name,
-                    }));
-                  }}
-                  renderInput={(params) => (
-                    <TextField
-                      {...params}
-                      placeholder="Выберите сотрудника"
-                      fullWidth
-                      helperText="Выберите сотрудника, к которому относится аванс или заработная плата"
-                    />
-                  )}
-                  noOptionsText="Нет сотрудников"
-                />
-              </Stack>
-            )}
-
-            {payrollLike && (
-              <Stack spacing={0.5}>
-                <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
-                  Месяц учета *
-                </Typography>
-                <TextField
-                  type="month"
-                  fullWidth
-                  value={values.affects_month ?? ""}
-                  onChange={(e) => setValues((s) => ({ ...s, affects_month: e.target.value || null }))}
-                  error={touched && payrollLike && !values.affects_month}
-                  helperText={touched && payrollLike && !values.affects_month ? "Укажите месяц в формате YYYY-MM" : "Месяц, к которому относится зарплата или аванс"}
-                  InputLabelProps={{ shrink: true }}
-                />
-              </Stack>
-            )}
-
-            {/* Payment Card */}
-            <Paper
-              elevation={0}
-              sx={{
-                p: 2.5,
-                bgcolor: (theme) => alpha(theme.palette.primary.main, 0.04),
-                border: "1px solid",
-                borderColor: "divider",
-                borderRadius: 2,
-              }}
-            >
+            {/* Суммы */}
+            <Paper elevation={0} sx={{ p: 2.5, bgcolor: (t) => alpha(t.palette.primary.main, 0.04), border: "1px solid", borderColor: "divider", borderRadius: 2 }}>
               <Stack spacing={2}>
-                {/* Наличные и Безналичные */}
                 <Stack direction="row" spacing={2}>
                   <Stack flex={1} spacing={0.5}>
-                    <Typography variant="caption" color="text.secondary" display="block">
-                      Наличные
-                    </Typography>
-                    <Stack direction="row" alignItems="center" spacing={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1, bgcolor: 'background.paper' }}>
+                    <Typography variant="caption" color="text.secondary" display="block">Наличные</Typography>
+                    <Stack direction="row" alignItems="center" spacing={0} sx={{ border: "1px solid", borderColor: "divider", borderRadius: 1, bgcolor: "background.paper" }}>
                       <Box px={1}><AccountBalanceWalletOutlined color="action" fontSize="small" /></Box>
-                      <TextField
-                        variant="standard"
-                        fullWidth
-                        type="number"
-                        value={values.cash_amount || ""}
-                        onChange={(e) => {
-                          setValues((s) => ({
-                            ...s,
-                            cash_amount: Number(e.target.value) || 0,
-                          }));
-                        }}
+                      <TextField variant="standard" fullWidth type="number" value={values.cash_amount || ""}
+                        onChange={(e) => setValues((s) => ({ ...s, cash_amount: Number(e.target.value) || 0 }))}
                         InputProps={{ disableUnderline: true }}
-                        sx={{
-                          py: 0.5,
-                          '& input[type=number]': {
-                            MozAppearance: 'textfield',
-                          },
-                          '& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button': {
-                            WebkitAppearance: 'none',
-                            margin: 0,
-                          },
-                        }}
-                        placeholder="0"
-                      />
+                        sx={{ py: 0.5, "& input[type=number]": { MozAppearance: "textfield" }, "& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button": { WebkitAppearance: "none", margin: 0 } }}
+                        placeholder="0" />
                     </Stack>
                   </Stack>
-
                   <Stack flex={1} spacing={0.5}>
-                    <Typography variant="caption" color="text.secondary" display="block">
-                      Безналичные
-                    </Typography>
-                    <Stack direction="row" alignItems="center" spacing={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1, bgcolor: 'background.paper' }}>
+                    <Typography variant="caption" color="text.secondary" display="block">Безналичные</Typography>
+                    <Stack direction="row" alignItems="center" spacing={0} sx={{ border: "1px solid", borderColor: "divider", borderRadius: 1, bgcolor: "background.paper" }}>
                       <Box px={1}><CreditCardOutlined color="action" fontSize="small" /></Box>
-                      <TextField
-                        variant="standard"
-                        fullWidth
-                        type="number"
-                        value={values.cashless_amount || ""}
-                        onChange={(e) => {
-                          setValues((s) => ({
-                            ...s,
-                            cashless_amount: Number(e.target.value) || 0,
-                          }));
-                        }}
+                      <TextField variant="standard" fullWidth type="number" value={values.cashless_amount || ""}
+                        onChange={(e) => setValues((s) => ({ ...s, cashless_amount: Number(e.target.value) || 0 }))}
                         InputProps={{ disableUnderline: true }}
-                        sx={{
-                          py: 0.5,
-                          '& input[type=number]': {
-                            MozAppearance: 'textfield',
-                          },
-                          '& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button': {
-                            WebkitAppearance: 'none',
-                            margin: 0,
-                          },
-                        }}
-                        placeholder="0"
-                      />
+                        sx={{ py: 0.5, "& input[type=number]": { MozAppearance: "textfield" }, "& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button": { WebkitAppearance: "none", margin: 0 } }}
+                        placeholder="0" />
                     </Stack>
                   </Stack>
                 </Stack>
-
                 <Divider sx={{ my: 1 }} />
-
-                {/* Итого */}
                 <Stack direction="row" justifyContent="space-between" alignItems="center">
-                  <Typography variant="body2" color="text.secondary" fontWeight={600}>
-                    ИТОГО
-                  </Typography>
+                  <Typography variant="body2" color="text.secondary" fontWeight={600}>ИТОГО</Typography>
                   <Typography variant="h5" fontWeight={700} color="success.main">
                     {new Intl.NumberFormat("ru-RU", { style: "currency", currency: "KGS" }).format(computeTotal())}
                   </Typography>
@@ -498,45 +222,24 @@ export const EditExpenseDrawer: React.FC<EditExpenseDrawerProps> = ({
               </Stack>
             </Paper>
 
+            {/* Комментарий */}
             <Stack spacing={0.5}>
-              <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
-                Комментарий
-              </Typography>
-              <TextField
-                value={values.comment || ""}
-                onChange={(e) => setValues((s) => ({ ...s, comment: e.target.value }))}
-                fullWidth
-                multiline
-                rows={3}
-                placeholder="Добавьте комментарий (необязательно)"
-              />
+              <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>Комментарий</Typography>
+              <TextField value={values.comment || ""} onChange={(e) => setValues((s) => ({ ...s, comment: e.target.value }))}
+                fullWidth multiline rows={3} placeholder="Добавьте комментарий (необязательно)" />
             </Stack>
-
           </Stack>
         </Box>
-        <Box sx={{ p: 2, borderTop: 1, borderColor: 'divider', bgcolor: 'background.paper' }}>
+        <Box sx={{ p: 2, borderTop: 1, borderColor: "divider", bgcolor: "background.paper" }}>
           <Stack direction="row" gap={1} justifyContent="flex-end">
-            <Button onClick={onClose} disabled={busy}>
-              Отмена
-            </Button>
-            <Button
-              variant="contained"
-              onClick={handleSubmit}
-              disabled={busy || !values.name.trim() || (payrollLike && !values.affects_month)}
-            >
-              {busy ? (
-                <Stack direction="row" alignItems="center" spacing={1}>
-                  <CircularProgress size={18} />
-                  <span>Сохранение…</span>
-                </Stack>
-              ) : (
-                "Сохранить"
-              )}
+            <Button onClick={onClose} disabled={busy}>Отмена</Button>
+            <Button variant="contained" onClick={handleSubmit} disabled={busy || !values.name.trim()}>
+              {busy ? <Stack direction="row" alignItems="center" spacing={1}><CircularProgress size={18} /><span>Сохранение…</span></Stack> : "Сохранить"}
             </Button>
           </Stack>
         </Box>
       </Box>
-    </Drawer >
+    </Drawer>
   );
 };
 

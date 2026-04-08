@@ -10,9 +10,7 @@ function resolvePhotoUrl(url: string | null | undefined): string | null {
 export const ExpensesService = {
   async getAll(employeeId?: string | null, signal?: AbortSignal): Promise<Expense[]> {
     let url = "/api/v1/expenses/?ordering=-createdAt";
-    if (employeeId) {
-      url += `&employee=${employeeId}`;
-    }
+    if (employeeId) url += `&employee=${employeeId}`;
     const data = await fetchAllPages<any>(url, { signal });
     return data.map((r) => {
       const e = mapApiExpense(r);
@@ -21,92 +19,69 @@ export const ExpensesService = {
     });
   },
 
-  async create(expense: any): Promise<Expense> {
+  async create(expense: {
+    employee_id?: string | null;
+    category_id?: string | null;
+    category?: string | null;
+    name: string;
+    cash_amount?: number;
+    cashless_amount?: number;
+    total_amount?: number;
+    comment?: string | null;
+    photo?: File | null;
+    created_at?: string;
+  }): Promise<Expense> {
     const fd = new FormData();
-
-    // Map snake_case form fields → camelCase API fields
-    const employeeId = expense.employee_id ?? expense.employeeId ?? null;
-    const categoryId = expense.category_id ?? expense.categoryId ?? null;
-
-    if (employeeId) fd.append("employee", String(employeeId));
-    if (categoryId) fd.append("category", String(categoryId));
     const branchId = getBranchFilter();
     if (branchId) fd.append("branch", String(branchId));
-    if (expense.name) fd.append("name", expense.name);
-    fd.append("cashAmount", String(Number(expense.cash_amount ?? expense.cashAmount) || 0));
-    fd.append("cashlessAmount", String(Number(expense.cashless_amount ?? expense.cashlessAmount) || 0));
-    if (expense.created_at ?? expense.createdAt) {
-      fd.append("createdAt", String(expense.created_at ?? expense.createdAt));
-    }
-    if (expense.affects_month ?? expense.affectsMonth) {
-      fd.append("affectsMonth", String(expense.affects_month ?? expense.affectsMonth));
-    }
+    if (expense.employee_id) fd.append("employee", String(expense.employee_id));
+    if (expense.category_id) fd.append("category", String(expense.category_id));
+    fd.append("name", expense.name);
+    fd.append("cashAmount", String(Number(expense.cash_amount) || 0));
+    fd.append("cashlessAmount", String(Number(expense.cashless_amount) || 0));
+    if (expense.created_at) fd.append("createdAt", expense.created_at);
     if (expense.comment) fd.append("comment", expense.comment);
-    if (expense.photo instanceof File) {
-      fd.append("photo", expense.photo);
-    } else if (expense.photoFile instanceof File) {
-      fd.append("photo", expense.photoFile);
-    }
+    if (expense.photo instanceof File) fd.append("photo", expense.photo);
 
-    const res: any = await apiFetch("/api/v1/expenses/", {
-      method: "POST",
-      body: fd,
-    });
+    const res: any = await apiFetch("/api/v1/expenses/", { method: "POST", body: fd });
     const item = res?.data ?? res;
     const e = mapApiExpense(item);
     if (typeof e.photo === "string") e.photo = resolvePhotoUrl(e.photo);
     return e;
   },
 
-  async update(id: number | string, updates: any): Promise<Expense> {
+  async update(id: number | string, updates: {
+    employee_id?: string | null;
+    category_id?: string | null;
+    category?: string | null;
+    name?: string;
+    cash_amount?: number;
+    cashless_amount?: number;
+    total_amount?: number;
+    comment?: string | null;
+    photo?: File | string | null;
+    created_at?: string;
+  }): Promise<Expense> {
     const fd = new FormData();
-
-    const employeeId = updates.employee_id ?? updates.employeeId ?? null;
-    const categoryId = updates.category_id ?? updates.categoryId ?? null;
-
-    // Always send employee/category (can be empty string to clear)
-    fd.append("employee", employeeId ? String(employeeId) : "");
-    fd.append("category", categoryId ? String(categoryId) : "");
+    fd.append("employee", updates.employee_id ? String(updates.employee_id) : "");
+    fd.append("category", updates.category_id ? String(updates.category_id) : "");
     if (updates.name !== undefined) fd.append("name", updates.name);
     if (updates.cash_amount !== undefined) fd.append("cashAmount", String(Number(updates.cash_amount) || 0));
     if (updates.cashless_amount !== undefined) fd.append("cashlessAmount", String(Number(updates.cashless_amount) || 0));
-    if (updates.created_at ?? updates.createdAt) {
-      fd.append("createdAt", String(updates.created_at ?? updates.createdAt));
-    }
-    if (updates.affects_month !== undefined || updates.affectsMonth !== undefined) {
-      const affectsMonth = updates.affects_month ?? updates.affectsMonth;
-      fd.append("affectsMonth", affectsMonth ? String(affectsMonth) : "");
-    }
+    if (updates.created_at) fd.append("createdAt", updates.created_at);
     if (updates.comment !== undefined) fd.append("comment", updates.comment ?? "");
-    if (updates.photo instanceof File) {
-      fd.append("photo", updates.photo);
-    } else if (updates.photoFile instanceof File) {
-      fd.append("photo", updates.photoFile);
-    }
+    if (updates.photo instanceof File) fd.append("photo", updates.photo);
 
-    const res: any = await apiFetch(`/api/v1/expenses/${id}/`, {
-      method: "PATCH",
-      body: fd,
-    });
+    const res: any = await apiFetch(`/api/v1/expenses/${id}/`, { method: "PATCH", body: fd });
     const item = res?.data ?? res;
     const normalizedItem = {
       ...item,
       id: item?.id ?? id,
-      createdAt: item?.createdAt ?? item?.created_at ?? updates.created_at ?? updates.createdAt,
+      createdAt: item?.createdAt ?? item?.created_at ?? updates.created_at,
       category:
         typeof item?.category === "string"
-          ? {
-              id: item.category,
-              name: updates.category ?? updates.category_name ?? "",
-            }
+          ? { id: item.category, name: updates.category ?? "" }
           : item?.category,
-      branch:
-        typeof item?.branch === "string"
-          ? {
-              id: item.branch,
-              name: updates.branch_name ?? "",
-            }
-          : item?.branch,
     };
     const e = mapApiExpense(normalizedItem);
     if (typeof e.photo === "string") e.photo = resolvePhotoUrl(e.photo);
@@ -114,9 +89,7 @@ export const ExpensesService = {
   },
 
   async delete(id: number | string): Promise<boolean> {
-    await apiFetch(`/api/v1/expenses/${id}/`, {
-      method: "DELETE",
-    });
+    await apiFetch(`/api/v1/expenses/${id}/`, { method: "DELETE" });
     return true;
   },
 };

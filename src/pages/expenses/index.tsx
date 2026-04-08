@@ -18,6 +18,13 @@ import {
   Chip,
   Collapse,
   Badge,
+  Tabs,
+  Tab,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
 } from "@mui/material";
 import { useNotification } from "@refinedev/core";
 import { alpha, useTheme } from "@mui/material/styles";
@@ -27,12 +34,16 @@ import DeleteOutline from "@mui/icons-material/DeleteOutline";
 import EditOutlined from "@mui/icons-material/EditOutlined";
 import ReceiptLongOutlined from "@mui/icons-material/ReceiptLongOutlined";
 import AccountBalanceWalletOutlined from "@mui/icons-material/AccountBalanceWalletOutlined";
+import PaymentsOutlined from "@mui/icons-material/PaymentsOutlined";
 import CreditCardOutlined from "@mui/icons-material/CreditCardOutlined";
 import { formatKGS, formatDateRu } from "../../utility/format";
-import { inferExpenseKindFromCategory, requiresAffectsMonth, type Expense, type EmployeesRow } from "./types";
+import { type Expense, type EmployeesRow, type PayrollTransaction, PAYROLL_KIND_OPTIONS } from "./types";
 import AddExpenseDrawer from "../../components/expenses/AddExpenseDrawer";
 import EditExpenseDrawer from "../../components/expenses/EditExpenseDrawer";
 import { DeleteExpenseDialog } from "../../components/expenses/DeleteExpenseDialog";
+import AddPayrollDrawer from "../../components/expenses/AddPayrollDrawer";
+import EditPayrollDrawer from "../../components/expenses/EditPayrollDrawer";
+import { PayrollTransactionsService } from "../../services/payroll-transactions";
 import { PaymentInfoBlock } from "../../components/ui";
 import { ExpensesService } from "../../services/expenses";
 import { getExpensesMonthlyReport } from "../../services/reports";
@@ -200,6 +211,16 @@ const ExpensesListPage: React.FC = () => {
   const [selectedEmployeeFilter, setSelectedEmployeeFilter] = React.useState<string | null>(null);
   const [expandedEmployee, setExpandedEmployee] = React.useState<string | null>(null);
   const [reloadTick, setReloadTick] = React.useState(0);
+
+  // Tabs state
+  const [activeTab, setActiveTab] = React.useState<"expenses" | "payroll">("expenses");
+  const [payrolls, setPayrolls] = React.useState<PayrollTransaction[]>([]);
+  const [payrollsLoading, setPayrollsLoading] = React.useState(false);
+  const [selectedPayroll, setSelectedPayroll] = React.useState<PayrollTransaction | null>(null);
+  const [addPayrollOpen, setAddPayrollOpen] = React.useState(false);
+  const [editPayrollOpen, setEditPayrollOpen] = React.useState(false);
+  const [deletePayrollOpen, setDeletePayrollOpen] = React.useState(false);
+
   const visibleExpenses = expensesScopeKey === branchKey ? expenses : [];
   const visibleSelectedExpense = expensesScopeKey === branchKey ? selectedExpense : null;
   const isScopeLoading = expensesScopeKey !== branchKey && !loadError;
@@ -319,7 +340,18 @@ const ExpensesListPage: React.FC = () => {
     return () => { cancelled = true; };
   }, [branchKey, reloadTick]);
 
-
+  // Загрузка payroll-транзакций (только когда активна вкладка "payroll")
+  React.useEffect(() => {
+    if (activeTab !== "payroll") return;
+    let cancelled = false;
+    const controller = new AbortController();
+    setPayrollsLoading(true);
+    PayrollTransactionsService.getAll(controller.signal)
+      .then((data) => { if (!cancelled) setPayrolls(data); })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setPayrollsLoading(false); });
+    return () => { cancelled = true; controller.abort(); };
+  }, [activeTab, reloadTick, branchKey]);
 
   const employeeNameById = React.useMemo(() => {
     const m = new Map<string, string>();
@@ -387,16 +419,9 @@ const ExpensesListPage: React.FC = () => {
     };
   }, [notify, reloadTick, selectedBranch?.id, selectedMonth]);
 
-  const isPayrollExpense = React.useCallback((expense: Expense) => {
-    return requiresAffectsMonth(expense.kind);
-  }, []);
-
   const getExpensePeriodDate = React.useCallback((expense: Expense) => {
-    if (isPayrollExpense(expense) && expense.affects_month) {
-      return `${expense.affects_month}-01`;
-    }
     return expense.created_at || null;
-  }, [isPayrollExpense]);
+  }, []);
 
   const getExpensePeriodYear = React.useCallback((expense: Expense) => {
     const periodDate = getExpensePeriodDate(expense);
@@ -419,12 +444,9 @@ const ExpensesListPage: React.FC = () => {
   }, [getExpensePeriodDate]);
 
   const getExpenseDisplayDayLabel = React.useCallback((expense: Expense) => {
-    if (isPayrollExpense(expense) && expense.affects_month) {
-      return `Месяц учета: ${dayjs(`${expense.affects_month}-01`).format("MM.YYYY")}`;
-    }
     const periodDate = getExpensePeriodDate(expense);
     return periodDate ? formatDateRu(periodDate) : "Без даты";
-  }, [getExpensePeriodDate, isPayrollExpense]);
+  }, [getExpensePeriodDate]);
 
   // Фильтрация расходов
   const filteredExpenses = React.useMemo(() => {
@@ -808,30 +830,6 @@ const ExpensesListPage: React.FC = () => {
               </Box>
 
               <Box display="flex" justifyContent="space-between" alignItems="center">
-                <Typography variant="body2" color="text.secondary">Вид расхода</Typography>
-                <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                  {expense.kind === "payroll"
-                    ? "Зарплата"
-                    : expense.kind === "advance"
-                      ? "Аванс"
-                      : expense.kind === "operational"
-                        ? "Операционный"
-                        : expense.kind === "other"
-                          ? "Другое"
-                          : "—"}
-                </Typography>
-              </Box>
-
-              {expense.affects_month && (
-                <Box display="flex" justifyContent="space-between" alignItems="center">
-                  <Typography variant="body2" color="text.secondary">Месяц учета</Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                    {dayjs(`${expense.affects_month}-01`).format("MM.YYYY")}
-                  </Typography>
-                </Box>
-              )}
-
-              <Box display="flex" justifyContent="space-between" alignItems="center">
                 <Typography variant="body2" color="text.secondary">Сотрудник</Typography>
                 <Typography variant="body2" sx={{ fontWeight: 500, textAlign: "right", maxWidth: "60%" }}>
                   {empName}
@@ -920,34 +918,86 @@ const ExpensesListPage: React.FC = () => {
       <PageHeader
         title="Расходы"
         showTitle={false}
-        addButtonText={hasManageExpenses ? "Добавить расход" : undefined}
-        onAdd={hasManageExpenses ? () => setAddOpen(true) : undefined}
+        addButtonText={
+          hasManageExpenses
+            ? activeTab === "payroll"
+              ? "Добавить транзакцию"
+              : "Добавить расход"
+            : undefined
+        }
+        onAdd={
+          hasManageExpenses
+            ? activeTab === "payroll"
+              ? () => setAddPayrollOpen(true)
+              : () => setAddOpen(true)
+            : undefined
+        }
         showSearch
         searchVal={searchQuery}
         onSearchChange={setSearchQuery}
         searchPlaceholder="Поиск..."
         actions={
-          <TextField
-            select
-            size="small"
-            value={selectedCategoryId ?? ""}
-            onChange={(e) => setSelectedCategoryId(e.target.value || null)}
-            sx={{ minWidth: 180 }}
-            SelectProps={{
-              displayEmpty: true,
-              renderValue: (val) => {
-                if (!val) return "Все категории";
-                return categoriesMap.get(val as string) ?? "Все категории";
-              },
-            }}
-          >
-            <MenuItem value="">Все категории</MenuItem>
-            {Array.from(categoriesMap.entries()).map(([id, name]) => (
-              <MenuItem key={id} value={id}>{name}</MenuItem>
-            ))}
-          </TextField>
+          activeTab === "expenses" ? (
+            <TextField
+              select
+              size="small"
+              value={selectedCategoryId ?? ""}
+              onChange={(e) => setSelectedCategoryId(e.target.value || null)}
+              sx={{ minWidth: 180 }}
+              SelectProps={{
+                displayEmpty: true,
+                renderValue: (val) => {
+                  if (!val) return "Все категории";
+                  return categoriesMap.get(val as string) ?? "Все категории";
+                },
+              }}
+            >
+              <MenuItem value="">Все категории</MenuItem>
+              {Array.from(categoriesMap.entries()).map(([id, name]) => (
+                <MenuItem key={id} value={id}>{name}</MenuItem>
+              ))}
+            </TextField>
+          ) : undefined
         }
       />
+
+      {/* ВКЛАДКИ */}
+      <Box sx={{ px: (theme) => theme.appLayout.page.paddingX, borderBottom: 1, borderColor: "divider", bgcolor: "background.paper" }}>
+        <Tabs
+          value={activeTab}
+          onChange={(_, v) => setActiveTab(v)}
+          sx={{
+            minHeight: 44,
+            "& .MuiTabs-indicator": {
+              height: 3,
+              borderRadius: "3px 3px 0 0",
+              background: "linear-gradient(45deg, #1e3c72 0%, #2a5298 100%)",
+            },
+            "& .MuiTab-root": {
+              textTransform: "none",
+              fontWeight: 600,
+              fontSize: "0.9rem",
+              minHeight: 44,
+              px: 2.5,
+              color: "text.secondary",
+              "&.Mui-selected": { color: "primary.main" },
+            },
+          }}
+        >
+          <Tab
+            label="Операционные расходы"
+            value="expenses"
+            icon={<PaymentsOutlined sx={{ fontSize: 18 }} />}
+            iconPosition="start"
+          />
+          <Tab
+            label="Зарплатные транзакции"
+            value="payroll"
+            icon={<AccountBalanceWalletOutlined sx={{ fontSize: 18 }} />}
+            iconPosition="start"
+          />
+        </Tabs>
+      </Box>
 
       <Box
         sx={{
@@ -964,6 +1014,8 @@ const ExpensesListPage: React.FC = () => {
           '&::-webkit-scrollbar': { display: 'none' },
         }}
       >
+        {activeTab === "expenses" && (
+        <React.Fragment>
         <Box
           sx={(theme) => ({
             px: theme.appLayout.page.paddingX,
@@ -1062,7 +1114,7 @@ const ExpensesListPage: React.FC = () => {
                 <Box sx={{ overflowY: "auto", flex: 1, p: 2 }}>
                   <Stack spacing={2}>
                     {/* Фильтр по сотрудникам — только для категорий аванс/зарплата */}
-                    {hasManageExpenses && employees.length > 0 && selectedCategoryId && requiresAffectsMonth(inferExpenseKindFromCategory(categoriesMap.get(selectedCategoryId) ?? null)) && (
+                    {hasManageExpenses && employees.length > 0 && selectedCategoryId && /аванс|зарплат/i.test(categoriesMap.get(selectedCategoryId) ?? "") && (
                       <Stack spacing={0.5}>
                         <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
                           Сотрудник
@@ -1433,6 +1485,82 @@ const ExpensesListPage: React.FC = () => {
             )}
           </Grid2>
         </Box>
+        </React.Fragment>
+        )}
+
+        {/* PAYROLL TAB */}
+        {activeTab === "payroll" && (
+          <Box sx={(theme) => ({ px: theme.appLayout.page.paddingX, flex: 1, display: "flex", flexDirection: "column", minHeight: 0, pt: 2 })}>
+            {payrollsLoading ? (
+              <Typography variant="body2" color="text.secondary" sx={{ p: 2 }}>Загрузка...</Typography>
+            ) : payrolls.length === 0 ? (
+              <Box sx={{ p: 4, textAlign: "center" }}>
+                <Typography variant="body2" color="text.secondary">Нет зарплатных транзакций</Typography>
+              </Box>
+            ) : (
+              <Paper elevation={0} variant="outlined" sx={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+                <Box sx={{ p: 1.5, borderBottom: 1, borderColor: "divider" }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                    Зарплатные транзакции ({payrolls.length})
+                  </Typography>
+                </Box>
+                <Box sx={{ overflowY: "auto", flex: 1 }}>
+                  <List sx={{ py: 0 }}>
+                    {payrolls.map((pt) => {
+                      const kindLabel = PAYROLL_KIND_OPTIONS.find((o) => o.value === pt.kind)?.label ?? pt.kind;
+                      const empName = pt.employee_name || employeeNameById.get(pt.employee_id) || pt.employee_id;
+                      const monthLabel = pt.affects_month
+                        ? dayjs(`${pt.affects_month}-01`).format("MM.YYYY")
+                        : "—";
+                      return (
+                        <ListItemButton
+                          key={pt.id}
+                          sx={{ px: 2, py: 1.5, borderBottom: 1, borderColor: "divider", "&:hover": { bgcolor: "action.hover" } }}
+                          onClick={() => { setSelectedPayroll(pt); }}
+                        >
+                          <Box sx={{ flex: 1, minWidth: 0 }}>
+                            <Typography variant="body1" sx={{ fontWeight: 500 }} noWrap>
+                              {empName}
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary" noWrap>
+                              {kindLabel} • {monthLabel}
+                            </Typography>
+                          </Box>
+                          <Stack direction="row" spacing={0.5} alignItems="center">
+                            <Typography variant="body1" sx={{ fontWeight: 600, mr: 1 }}>
+                              {formatKGS(pt.total_amount ?? 0)}
+                            </Typography>
+                            {canEditExpense && (
+                              <Tooltip title="Изменить">
+                                <IconButton
+                                  size="small"
+                                  onClick={(e) => { e.stopPropagation(); setSelectedPayroll(pt); setEditPayrollOpen(true); }}
+                                >
+                                  <EditOutlined fontSize="small" />
+                                </IconButton>
+                              </Tooltip>
+                            )}
+                            {canDelete && (
+                              <Tooltip title="Удалить">
+                                <IconButton
+                                  size="small"
+                                  onClick={(e) => { e.stopPropagation(); setSelectedPayroll(pt); setDeletePayrollOpen(true); }}
+                                  sx={{ color: "error.main" }}
+                                >
+                                  <DeleteOutline fontSize="small" />
+                                </IconButton>
+                              </Tooltip>
+                            )}
+                          </Stack>
+                        </ListItemButton>
+                      );
+                    })}
+                  </List>
+                </Box>
+              </Paper>
+            )}
+          </Box>
+        )}
 
         {/* BOTTOM SHEET (Мобильная карточка) */}
         {isMobile && (
@@ -1482,6 +1610,59 @@ const ExpensesListPage: React.FC = () => {
             setReloadTick((prev) => prev + 1);
           }}
         />
+
+        {/* PAYROLL DRAWERS */}
+        <AddPayrollDrawer
+          open={addPayrollOpen}
+          onClose={() => setAddPayrollOpen(false)}
+          onCreated={(rec) => {
+            setPayrolls((prev) => [rec, ...prev]);
+            setReloadTick((prev) => prev + 1);
+          }}
+        />
+
+        {selectedPayroll && (
+          <EditPayrollDrawer
+            open={editPayrollOpen}
+            onClose={() => { setEditPayrollOpen(false); }}
+            record={selectedPayroll}
+            onUpdated={(rec) => {
+              setPayrolls((prev) => prev.map((p) => (p.id === rec.id ? rec : p)));
+              setSelectedPayroll(rec);
+              setReloadTick((prev) => prev + 1);
+            }}
+          />
+        )}
+
+        {/* Диалог удаления payroll */}
+        <Dialog open={deletePayrollOpen} onClose={() => setDeletePayrollOpen(false)}>
+          <DialogTitle>Удалить транзакцию?</DialogTitle>
+          <DialogContent>
+            <DialogContentText>
+              Вы уверены, что хотите удалить эту зарплатную транзакцию? Это действие необратимо.
+            </DialogContentText>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setDeletePayrollOpen(false)}>Отмена</Button>
+            <Button
+              color="error"
+              onClick={async () => {
+                if (!selectedPayroll) return;
+                try {
+                  await PayrollTransactionsService.delete(selectedPayroll.id);
+                  setPayrolls((prev) => prev.filter((p) => p.id !== selectedPayroll.id));
+                  setSelectedPayroll(null);
+                  setDeletePayrollOpen(false);
+                  setReloadTick((prev) => prev + 1);
+                } catch (e) {
+                  notify?.({ type: "error", message: "Не удалось удалить транзакцию" });
+                }
+              }}
+            >
+              Удалить
+            </Button>
+          </DialogActions>
+        </Dialog>
       </Box>
     </Box>
   );
