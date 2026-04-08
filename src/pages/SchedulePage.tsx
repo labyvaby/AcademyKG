@@ -30,10 +30,11 @@ const SchedulePage: React.FC = () => {
   return (
     <Box
       sx={{
-        height: "100%",
+        height: { xs: "auto", lg: "100%" },
+        minHeight: { xs: "calc(100dvh - 56px)", sm: "calc(100dvh - 64px)" },
         display: "flex",
         flexDirection: "column",
-        overflow: "hidden"
+        overflow: { xs: "visible", lg: "hidden" }
       }}
     >
       <PageHeader
@@ -43,7 +44,7 @@ const SchedulePage: React.FC = () => {
         onAdd={canManageSchedule ? handleAddShift : undefined}
       />
 
-      <Box sx={(theme) => ({ px: theme.appLayout.page.paddingX, pb: 2, flex: 1, minHeight: 0, overflowY: "auto" })}>
+      <Box sx={(theme) => ({ px: theme.appLayout.page.paddingX, pb: 2, flex: 1, minHeight: 0, overflowY: "auto", WebkitOverflowScrolling: "touch" })}>
         {/* Основной календарь */}
         <ScheduleCalendar
           ref={calendarRef}

@@ -13,7 +13,15 @@ const ClientSchedulePage: React.FC = () => {
   };
 
   return (
-    <Box sx={{ height: "100%", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+    <Box
+      sx={{
+        height: { xs: "auto", lg: "100%" },
+        minHeight: { xs: "calc(100dvh - 56px)", sm: "calc(100dvh - 64px)" },
+        display: "flex",
+        flexDirection: "column",
+        overflow: { xs: "visible", lg: "hidden" },
+      }}
+    >
       <PageHeader
         title="Клиентское расписание"
         showTitle={false}
@@ -21,7 +29,7 @@ const ClientSchedulePage: React.FC = () => {
         onAdd={handleAddShift}
       />
 
-      <Box sx={(theme) => ({ px: theme.appLayout.page.paddingX, pb: 2, flex: 1, minHeight: 0, overflowY: "auto" })}>
+      <Box sx={(theme) => ({ px: theme.appLayout.page.paddingX, pb: 2, flex: 1, minHeight: 0, overflowY: "auto", WebkitOverflowScrolling: "touch" })}>
         <ClientScheduleCalendar ref={calendarRef} />
       </Box>
     </Box>

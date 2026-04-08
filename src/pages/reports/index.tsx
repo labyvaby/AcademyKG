@@ -266,10 +266,11 @@ const ReportsPage: React.FC = () => {
 
     return (
         <Box sx={{
-            height: { xs: "calc(100dvh - 56px)", md: "calc(100vh - 64px)" },
+            height: { xs: "auto", lg: "calc(100vh - 64px)" },
+            minHeight: { xs: "calc(100dvh - 56px)", sm: "calc(100dvh - 64px)" },
             display: "flex",
             flexDirection: "column",
-            overflow: 'hidden'
+            overflow: { xs: "visible", lg: "hidden" }
         }}>
             <PageHeader
                 title="Отчеты"
@@ -285,6 +286,7 @@ const ReportsPage: React.FC = () => {
                 display: 'flex',
                 flexDirection: 'column',
                 overflow: { xs: 'auto', lg: 'hidden' },
+                WebkitOverflowScrolling: "touch",
                 minHeight: 0
             })}>
                 <Stack spacing={3} sx={(theme) => ({ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, pb: { xs: 15, md: theme.appLayout.page.paddingY } })}>

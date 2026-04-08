@@ -154,6 +154,8 @@ export const AppBottomSheet: React.FC<AppBottomSheetProps> = ({
           overflowY: "auto",
           overflowX: "hidden",
           WebkitOverflowScrolling: "touch",
+          overscrollBehaviorY: "contain",
+          touchAction: "pan-y",
         }}
       >
         {children}

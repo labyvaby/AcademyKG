@@ -405,10 +405,11 @@ const ServicesPage: React.FC = () => {
   return (
     <Box
       sx={{
-        height: "100%",
+        height: { xs: "auto", lg: "100%" },
+        minHeight: { xs: "calc(100dvh - 56px)", sm: "calc(100dvh - 64px)" },
         display: "flex",
         flexDirection: "column",
-        overflow: "hidden"
+        overflow: { xs: "visible", lg: "hidden" }
       }}
     >
       <PageHeader
@@ -429,7 +430,7 @@ const ServicesPage: React.FC = () => {
           {/* Removed CardHeader as actions are now in PageHeader */}
           <CardContent
             ref={scrollContainerRef}
-            sx={{ p: 0, flex: 1, minHeight: 0, overflowY: "auto" }}
+            sx={{ p: 0, flex: 1, minHeight: 0, overflowY: "auto", WebkitOverflowScrolling: "touch" }}
           >
             {loading ? (
               <Stack alignItems="center" sx={{ py: 6 }}>

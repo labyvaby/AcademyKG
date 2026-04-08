@@ -302,7 +302,15 @@ export const PatientSearchPage: React.FC = () => {
   ];
 
   return (
-    <Box sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
+    <Box
+      sx={{
+        height: { xs: "auto", lg: "100%" },
+        minHeight: { xs: "calc(100dvh - 56px)", sm: "calc(100dvh - 64px)" },
+        display: "flex",
+        flexDirection: "column",
+        overflow: { xs: "visible", lg: "hidden" },
+      }}
+    >
       <PageHeader
         title="Поиск клиента"
         showTitle={false}
@@ -323,7 +331,7 @@ export const PatientSearchPage: React.FC = () => {
           display: "flex",
           flexDirection: "column",
           minHeight: 0,
-          overflow: "hidden",
+          overflow: { xs: "visible", lg: "hidden" },
         })}
       >
         <Grid container spacing={2} sx={{ flex: 1, minHeight: 0 }}>
@@ -372,7 +380,7 @@ export const PatientSearchPage: React.FC = () => {
                     <Tab label="Карточка" />
                     <Tab label="История" />
                   </Tabs>
-                  <Box sx={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
+                  <Box sx={{ flex: 1, overflowY: "auto", minHeight: 0, WebkitOverflowScrolling: "touch" }}>
                     {tabletTab === 0 && (
                       <PatientCard
                         patient={patientCardProps}

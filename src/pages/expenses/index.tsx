@@ -905,11 +905,11 @@ const ExpensesListPage: React.FC = () => {
   return (
     <Box
       sx={{
-        height: { xs: "calc(100vh - 56px)", md: "auto" },
+        minHeight: { xs: "calc(100dvh - 56px)", sm: "calc(100dvh - 64px)" },
         display: "flex",
         flexDirection: "column",
         boxSizing: "border-box",
-        overflow: "hidden",
+        overflow: { xs: "visible", lg: "hidden" },
       }}
     >
       {/* ШАПКА */}
@@ -953,6 +953,7 @@ const ExpensesListPage: React.FC = () => {
           overflowY: "auto",
           overflowX: "hidden",
           pb: theme.appLayout.page.paddingY,
+          WebkitOverflowScrolling: "touch",
           scrollbarWidth: 'none',
           msOverflowStyle: 'none',
           '&::-webkit-scrollbar': { display: 'none' },

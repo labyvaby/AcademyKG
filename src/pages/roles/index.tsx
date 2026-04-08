@@ -291,12 +291,20 @@ const RolesPage: React.FC = () => {
   }
 
   return (
-    <Box sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
+    <Box
+      sx={{
+        height: { xs: "auto", lg: "100%" },
+        minHeight: { xs: "calc(100dvh - 56px)", sm: "calc(100dvh - 64px)" },
+        display: "flex",
+        flexDirection: "column",
+        overflow: { xs: "visible", lg: "hidden" },
+      }}
+    >
       <PageHeader title="Роли и права доступа" />
-      <Box sx={{ flex: 1, display: "flex", overflow: "hidden" }}>
+      <Box sx={{ flex: 1, display: "flex", flexDirection: { xs: "column", lg: "row" }, overflow: { xs: "visible", lg: "hidden" }, minHeight: 0 }}>
 
         {/* Левая панель */}
-        <Box sx={{ width: 210, flexShrink: 0, borderRight: "1px solid", borderColor: "divider", overflowY: "auto", bgcolor: "background.paper" }}>
+        <Box sx={{ width: { xs: "100%", lg: 210 }, maxHeight: { xs: 240, lg: "none" }, flexShrink: 0, borderRight: { xs: "none", lg: "1px solid" }, borderBottom: { xs: "1px solid", lg: "none" }, borderColor: "divider", overflowY: "auto", WebkitOverflowScrolling: "touch", bgcolor: "background.paper" }}>
           <Typography variant="caption" sx={{ px: 2, pt: 1.5, pb: 0.5, display: "block", fontWeight: 700, color: "text.disabled", textTransform: "uppercase", letterSpacing: 0.8, fontSize: "0.65rem" }}>
             Роли
           </Typography>
@@ -332,7 +340,7 @@ const RolesPage: React.FC = () => {
 
         {/* Правая панель */}
         {selectedRole && (
-          <Box sx={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+          <Box sx={{ flex: 1, display: "flex", flexDirection: "column", overflow: { xs: "visible", lg: "hidden" }, minHeight: 0 }}>
             <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ px: 3, py: 1.5, borderBottom: "1px solid", borderColor: "divider", bgcolor: "background.paper" }}>
               <Stack direction="row" alignItems="center" spacing={1.5}>
                 <AdminPanelSettingsOutlined color="primary" fontSize="small" />
@@ -352,7 +360,7 @@ const RolesPage: React.FC = () => {
               </Button>
             </Stack>
 
-            <Box sx={{ flex: 1, overflowY: "auto", p: 2 }}>
+            <Box sx={{ flex: 1, overflowY: "auto", p: 2, WebkitOverflowScrolling: "touch" }}>
               <Paper variant="outlined" sx={{ overflow: "hidden", borderRadius: 2 }}>
                 <Table size="small" stickyHeader>
                   <TableHead>

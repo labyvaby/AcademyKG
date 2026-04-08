@@ -159,6 +159,11 @@ function App() {
                     height: "100%",
                     overflow: "hidden",
                   },
+                  ".app-page-scroll, [data-scrollable='true']": {
+                    WebkitOverflowScrolling: "touch",
+                    overscrollBehaviorY: "contain",
+                    touchAction: "pan-y",
+                  },
                 }}
               />
 
@@ -271,10 +276,19 @@ function App() {
                                 Header={() => <Header sticky />}
                                 Sider={() => <Sidebar />}
                                 childrenBoxProps={{
+                                  className: "app-page-scroll",
                                   sx: {
                                     p: 1,
-                                    height: { xs: "calc(100dvh - 56px)", sm: "calc(100vh - 64px)" },
-                                    overflow: "hidden",
+                                    height: { xs: "auto", lg: "calc(100vh - 64px)" },
+                                    minHeight: {
+                                      xs: "calc(100dvh - 56px)",
+                                      sm: "calc(100dvh - 64px)",
+                                      lg: "calc(100vh - 64px)",
+                                    },
+                                    display: "flex",
+                                    flexDirection: "column",
+                                    overflowX: "hidden",
+                                    overflowY: { xs: "auto", lg: "hidden" },
                                     position: "relative",
                                   }
                                 }}

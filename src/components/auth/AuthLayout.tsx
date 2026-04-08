@@ -13,12 +13,15 @@ const AuthLayout: React.FC<Props> = ({ children }) => {
     <Box
       sx={{
         position: "relative",
-        minHeight: "100vh",
+        minHeight: "100dvh",
         display: "flex",
-        alignItems: "center",
+        alignItems: { xs: "flex-start", md: "center" },
         justifyContent: "center",
         px: { xs: 2, md: 3 },
-        overflow: "hidden",
+        py: { xs: 4, md: 3 },
+        overflowX: "hidden",
+        overflowY: "auto",
+        WebkitOverflowScrolling: "touch",
         bgcolor: "#000",
       }}
     >

@@ -247,7 +247,15 @@ const CategoriesPage: React.FC = () => {
   );
 
   return (
-    <Box sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
+    <Box
+      sx={{
+        height: { xs: "auto", lg: "100%" },
+        minHeight: { xs: "calc(100dvh - 56px)", sm: "calc(100dvh - 64px)" },
+        display: "flex",
+        flexDirection: "column",
+        overflow: { xs: "visible", lg: "hidden" },
+      }}
+    >
       <PageHeader
         title="Категории расходов"
         showTitle={!isTabletLayout}
@@ -363,7 +371,7 @@ const CategoriesPage: React.FC = () => {
           )}
 
           {/* Список */}
-          <Box sx={{ flex: 1, overflowY: "auto" }}>
+          <Box sx={{ flex: 1, overflowY: "auto", WebkitOverflowScrolling: "touch" }}>
             {loading ? (
               <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", p: 6 }}>
                 <CircularProgress />

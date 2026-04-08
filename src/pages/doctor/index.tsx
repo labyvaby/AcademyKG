@@ -201,12 +201,16 @@ const DoctorWorkPage: React.FC = () => {
         <Box
             sx={(theme) => ({
                 height: {
+                    xs: "auto",
+                    lg: `calc(100dvh - ${theme.appLayout.viewportOffset.home.desktopOffset}px)`,
+                },
+                minHeight: {
                     xs: `calc(100dvh - ${theme.appLayout.viewportOffset.home.mobileOffset}px)`,
-                    md: `calc(100dvh - ${theme.appLayout.viewportOffset.home.desktopOffset}px)`,
+                    sm: `calc(100dvh - ${theme.appLayout.viewportOffset.home.desktopOffset}px)`,
                 },
                 display: "flex",
                 flexDirection: "column",
-                overflow: "hidden",
+                overflow: { xs: "visible", lg: "hidden" },
             })}
         >
             <PageHeader
@@ -256,11 +260,11 @@ const DoctorWorkPage: React.FC = () => {
 
             <Box sx={(theme) => ({
                 flex: 1,
-                overflow: "hidden",
+                overflow: { xs: "visible", lg: "hidden" },
                 px: theme.appLayout.page.paddingX,
             })}>
-                <Grid container spacing={2} sx={{ alignItems: "flex-start", height: "100%", boxSizing: "border-box" }}>
-                    <Grid item xs={12} md={6} sx={{ height: "100%", overflow: "hidden", pr: { md: 1 } }}>
+                <Grid container spacing={2} sx={{ alignItems: "flex-start", height: { xs: "auto", lg: "100%" }, boxSizing: "border-box" }}>
+                    <Grid item xs={12} md={6} sx={{ height: { xs: "auto", lg: "100%" }, overflow: { xs: "visible", lg: "hidden" }, pr: { md: 1 } }}>
                         <AppointmentsList
                             titleDate={ruDateFromInput}
                             loading={isLoading}

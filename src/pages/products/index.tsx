@@ -200,10 +200,11 @@ const ProductsPage: React.FC = () => {
   return (
     <Box
       sx={{
-        height: "100%",
+        height: { xs: "auto", lg: "100%" },
+        minHeight: { xs: "calc(100dvh - 56px)", sm: "calc(100dvh - 64px)" },
         display: "flex",
         flexDirection: "column",
-        // bgcolor: "#F4F6F8",
+        overflow: { xs: "visible", lg: "hidden" },
       }}
     >
       {/* Page Header */}
@@ -218,10 +219,10 @@ const ProductsPage: React.FC = () => {
         searchPlaceholder="Поиск..."
       />
 
-      <Box sx={{ px: 2, pb: 4, pt: 1, flex: 1, overflow: "hidden" }}>
-        <Grid2 container spacing={2} sx={{ height: "100%" }}>
+      <Box sx={{ px: 2, pb: 4, pt: 1, flex: 1, overflow: { xs: "visible", lg: "hidden" } }}>
+        <Grid2 container spacing={2} sx={{ height: { xs: "auto", lg: "100%" } }}>
           {/* Left Column: Product List */}
-          <Grid2 size={{ xs: 12, md: 5 }} sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
+          <Grid2 size={{ xs: 12, md: 5 }} sx={{ height: { xs: "auto", lg: "100%" }, display: "flex", flexDirection: "column" }}>
             <Paper
               elevation={0}
               variant="outlined"
@@ -250,7 +251,7 @@ const ProductsPage: React.FC = () => {
                 </Stack>
               </Stack>
 
-              <Box sx={{ overflowY: "auto", flex: 1 }}>
+              <Box sx={{ overflowY: "auto", flex: 1, WebkitOverflowScrolling: "touch" }}>
                 {loading ? (
                   <Box sx={{ p: 4, textAlign: "center" }}>
                     <CircularProgress size={24} />

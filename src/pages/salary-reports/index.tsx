@@ -241,7 +241,15 @@ const SalaryReportsPage: React.FC = () => {
     };
 
     return (
-        <Box sx={{ height: "100%", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+        <Box
+            sx={{
+                height: { xs: "auto", lg: "100%" },
+                minHeight: { xs: "calc(100dvh - 56px)", sm: "calc(100dvh - 64px)" },
+                display: "flex",
+                flexDirection: "column",
+                overflow: { xs: "visible", lg: "hidden" },
+            }}
+        >
             <PageHeader
                 title="Отчет по зарплате"
                 showTitle={false}
@@ -257,6 +265,7 @@ const SalaryReportsPage: React.FC = () => {
                 display: 'flex',
                 flexDirection: 'column',
                 overflowY: 'auto',
+                WebkitOverflowScrolling: "touch",
                 minHeight: 0
             })}>
                 <Stack spacing={{ xs: 2, md: 3 }} sx={{ display: 'flex', flexDirection: 'column' }}>

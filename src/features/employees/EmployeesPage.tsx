@@ -58,11 +58,12 @@ const EmployeesPage: React.FC = () => {
   return (
     <Box
       sx={{
-        height: "100%",
+        height: { xs: "auto", lg: "100%" },
+        minHeight: { xs: "calc(100dvh - 56px)", sm: "calc(100dvh - 64px)" },
         display: "flex",
         flexDirection: "column",
         boxSizing: "border-box",
-        overflow: "hidden",
+        overflow: { xs: "visible", lg: "hidden" },
       }}
     >
       {/* --- ШАПКА --- */}
@@ -115,14 +116,14 @@ const EmployeesPage: React.FC = () => {
           px: theme.appLayout.page.paddingX,
           pb: theme.appLayout.page.paddingY,
           flex: 1,
-          overflow: "hidden",
+          overflow: { xs: "visible", lg: "hidden" },
           display: "flex",
           flexDirection: "column",
         })}
       >
 
         {/* --- ГРИД С КОЛОНКАМИ --- */}
-        <Grid container spacing={2} sx={{ flex: 1, minHeight: 0, height: 0, overflow: "hidden" }}>
+        <Grid container spacing={2} sx={{ flex: 1, minHeight: 0, height: { xs: "auto", lg: 0 }, overflow: { xs: "visible", lg: "hidden" } }}>
 
           {/* ЛЕВАЯ КОЛОННА (Список) */}
           <Grid
@@ -130,13 +131,13 @@ const EmployeesPage: React.FC = () => {
             xs={12}
             md={6}
             sx={{
-              height: "100%",
+              height: { xs: "auto", lg: "100%" },
               display: "flex",
               flexDirection: "column",
-              overflow: "hidden",
+              overflow: { xs: "visible", lg: "hidden" },
             }}
           >
-            <Box sx={{ height: "100%", overflowY: "auto", pr: 0.5 }}>
+            <Box sx={{ height: { xs: "auto", lg: "100%" }, overflowY: "auto", pr: 0.5, WebkitOverflowScrolling: "touch" }}>
               <EmployeeList
                 items={state.filtered}
                 onSelect={(e) => state.setDetailsOpen(e)}
@@ -171,7 +172,7 @@ const EmployeesPage: React.FC = () => {
                 overflow: { xs: "visible", md: "hidden" },
               }}
             >
-              <Box sx={{ height: "100%", overflowY: "auto", pr: 0.5 }}>
+              <Box sx={{ height: { xs: "auto", lg: "100%" }, overflowY: "auto", pr: 0.5, WebkitOverflowScrolling: "touch" }}>
                 {state.detailsOpen ? (
                   <EmployeeCard emp={state.detailsOpen} allServices={allServices} />
                 ) : (

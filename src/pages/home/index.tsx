@@ -302,16 +302,17 @@ export const HomePage: React.FC = () => {
   return (
     <Box
       sx={(theme) => ({
-        // Высота страницы рассчитывается только через layout-токены темы,
-        // чтобы на всех платформах (desktop, laptop, Android, iOS) поведение
-        // было идентичным и управляемым из единого места.
         height: {
+          xs: "auto",
+          lg: `calc(100dvh - ${theme.appLayout.viewportOffset.home.desktopOffset}px)`,
+        },
+        minHeight: {
           xs: `calc(100dvh - ${theme.appLayout.viewportOffset.home.mobileOffset}px)`,
-          md: `calc(100dvh - ${theme.appLayout.viewportOffset.home.desktopOffset}px)`,
+          sm: `calc(100dvh - ${theme.appLayout.viewportOffset.home.desktopOffset}px)`,
         },
         display: "flex",
         flexDirection: "column",
-        overflow: "hidden",
+        overflow: { xs: "visible", lg: "hidden" },
       })}
     >
       <PageHeader
@@ -335,18 +336,18 @@ export const HomePage: React.FC = () => {
       {/* Columns */}
       <Box sx={(theme) => ({
         flex: 1,
-        overflow: "hidden",
+        overflow: { xs: "visible", lg: "hidden" },
         px: theme.appLayout.page.paddingX,
       })}>
         <Grid container spacing={2} sx={{
           alignItems: "flex-start",
-          height: "100%", // Fit to parent flex
+          height: { xs: "auto", lg: "100%" }, // Fit to parent flex
           boxSizing: "border-box"
         }}>
           {/* Column 1: Appointments List */}
           <Grid item xs={12} md={6} sx={{
-            height: '100%',
-            overflow: 'hidden',
+            height: { xs: "auto", lg: "100%" },
+            overflow: { xs: "visible", lg: "hidden" },
             pr: { md: 1 },
           }}>
             <AppointmentsList
