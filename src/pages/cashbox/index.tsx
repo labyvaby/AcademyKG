@@ -21,7 +21,6 @@ import { formatKGS } from "../../utility/format";
 import { getCashboxSummary } from "../../services/cashbox";
 import { CashboxSummaryData } from "../../types/cashbox";
 import { useBranchContext } from "../../contexts/branch-context";
-import dayjs from "dayjs";
 
 const CashboxPage: React.FC = () => {
     usePageTitle("Касса");
@@ -32,11 +31,7 @@ const CashboxPage: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [data, setData] = useState<CashboxSummaryData | null>(null);
-    const [dateRange] = useState({
-        from: dayjs().startOf("month").format("YYYY-MM-DD"),
-        to: dayjs().format("YYYY-MM-DD"),
-    });
-    const scopeKey = `${selectedBranch?.id ?? "all"}:${dateRange.from}:${dateRange.to}`;
+    const scopeKey = `${selectedBranch?.id ?? "all"}`;
     const [loadedScopeKey, setLoadedScopeKey] = useState<string | null>(null);
 
     const fetchData = useCallback(async (signal?: AbortSignal) => {
@@ -45,8 +40,6 @@ const CashboxPage: React.FC = () => {
             setError(null);
             setLoadedScopeKey(null);
             const res = await getCashboxSummary({
-                dateFrom: dateRange.from,
-                dateTo: dateRange.to,
                 branch: selectedBranch?.id ?? undefined,
                 signal,
             });
@@ -62,7 +55,7 @@ const CashboxPage: React.FC = () => {
         } finally {
             if (!signal?.aborted) setLoading(false);
         }
-    }, [dateRange.from, dateRange.to, notify, scopeKey, selectedBranch?.id]);
+    }, [notify, scopeKey, selectedBranch?.id]);
 
     useEffect(() => {
         const controller = new AbortController();
@@ -76,7 +69,6 @@ const CashboxPage: React.FC = () => {
     const renderCard = (
         title: string,
         value: string | number,
-        subtitle: string,
         color: "success" | "info",
         icon: React.ReactNode,
     ) => (
@@ -110,9 +102,6 @@ const CashboxPage: React.FC = () => {
                             }}
                         >
                             {formatKGS(value)}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                            {subtitle}
                         </Typography>
                     </Box>
                     <Avatar
@@ -177,7 +166,6 @@ const CashboxPage: React.FC = () => {
                                 {renderCard(
                                     "Наличные",
                                     Number(visibleData.net.cashSum),
-                                    "Чистый наличный остаток за выбранный период",
                                     "success",
                                     <WalletIcon />,
                                 )}
@@ -186,7 +174,6 @@ const CashboxPage: React.FC = () => {
                                 {renderCard(
                                     "Безнал",
                                     Number(visibleData.net.cardSum),
-                                    "Чистый безналичный остаток за выбранный период",
                                     "info",
                                     <CreditCardIcon />,
                                 )}
