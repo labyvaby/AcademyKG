@@ -13,6 +13,26 @@ export function requiresAffectsMonth(kind: ExpenseKind | null | undefined): bool
   return Boolean(kind && PAYROLL_RELATED_EXPENSE_KINDS.has(kind));
 }
 
+export function inferExpenseKindFromCategory(
+  category: { name?: string | null; kind?: ExpenseKind | null } | string | null | undefined,
+): ExpenseKind | null {
+  if (!category) return null;
+
+  if (typeof category !== "string" && category.kind) {
+    return category.kind;
+  }
+
+  const normalizedName = String(typeof category === "string" ? category : category.name ?? "")
+    .trim()
+    .toLowerCase();
+
+  if (!normalizedName) return null;
+  if (normalizedName.includes("аванс")) return "advance";
+  if (normalizedName.includes("заработ") || normalizedName.includes("зарплат")) return "payroll";
+
+  return null;
+}
+
 export type Expense = {
   id: string | number;
   // employee: nested object in read responses, string ID for write

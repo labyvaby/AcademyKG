@@ -29,7 +29,7 @@ import ReceiptLongOutlined from "@mui/icons-material/ReceiptLongOutlined";
 import AccountBalanceWalletOutlined from "@mui/icons-material/AccountBalanceWalletOutlined";
 import CreditCardOutlined from "@mui/icons-material/CreditCardOutlined";
 import { formatKGS, formatDateRu } from "../../utility/format";
-import { requiresAffectsMonth, type Expense, type EmployeesRow } from "./types";
+import { inferExpenseKindFromCategory, requiresAffectsMonth, type Expense, type EmployeesRow } from "./types";
 import AddExpenseDrawer from "../../components/expenses/AddExpenseDrawer";
 import EditExpenseDrawer from "../../components/expenses/EditExpenseDrawer";
 import { DeleteExpenseDialog } from "../../components/expenses/DeleteExpenseDialog";
@@ -1056,7 +1056,7 @@ const ExpensesListPage: React.FC = () => {
                 <Box sx={{ overflowY: "auto", flex: 1, p: 2 }}>
                   <Stack spacing={2}>
                     {/* Фильтр по сотрудникам — только для категорий аванс/зарплата */}
-                    {hasManageExpenses && employees.length > 0 && selectedCategoryId && /аванс|зарплат/i.test(categoriesMap.get(selectedCategoryId) ?? "") && (
+                    {hasManageExpenses && employees.length > 0 && selectedCategoryId && requiresAffectsMonth(inferExpenseKindFromCategory(categoriesMap.get(selectedCategoryId) ?? null)) && (
                       <Stack spacing={0.5}>
                         <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
                           Сотрудник

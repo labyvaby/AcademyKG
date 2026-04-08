@@ -13,7 +13,6 @@ import {
   CardContent,
   Avatar,
   Paper,
-  MenuItem,
 } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import CloseOutlined from "@mui/icons-material/CloseOutlined";
@@ -24,7 +23,7 @@ import { useNotification } from "@refinedev/core";
 import { apiFetch } from "../../utility/apiClient";
 import { ExpensesService } from "../../services/expenses";
 import {
-  EXPENSE_KIND_OPTIONS,
+  inferExpenseKindFromCategory,
   requiresAffectsMonth,
   type Expense,
   type ExpenseFormValues,
@@ -43,6 +42,7 @@ type EditExpenseDrawerProps = {
 type ExpenseCategory = {
   id: string;
   name: string;
+  kind?: "payroll" | "advance" | "operational" | "other" | null;
 };
 
 export const EditExpenseDrawer: React.FC<EditExpenseDrawerProps> = ({
@@ -79,7 +79,15 @@ export const EditExpenseDrawer: React.FC<EditExpenseDrawerProps> = ({
 
   const [categories, setCategories] = React.useState<ExpenseCategory[]>([]);
   const { employees, loading: loadingEmployees } = useEmployees(open);
-  const payrollLike = requiresAffectsMonth(values.kind);
+  const selectedCategory = React.useMemo(
+    () => categories.find((category) => category.id === values.category_id) ?? values.category ?? null,
+    [categories, values.category, values.category_id],
+  );
+  const inferredKind = React.useMemo(
+    () => inferExpenseKindFromCategory(selectedCategory),
+    [selectedCategory],
+  );
+  const payrollLike = requiresAffectsMonth(inferredKind);
 
   // Refine hooks removed
   // const { mutateAsync: updateAsync } = useUpdate<Expense>();
@@ -101,6 +109,7 @@ export const EditExpenseDrawer: React.FC<EditExpenseDrawerProps> = ({
           const cats: ExpenseCategory[] = data.map((c: any) => ({
             id: String(c.id),
             name: c.name,
+            kind: c.kind ?? null,
           }));
           if (!cancelled) {
             setCategories(cats);
@@ -150,11 +159,6 @@ export const EditExpenseDrawer: React.FC<EditExpenseDrawerProps> = ({
       return;
     }
 
-    if (!values.kind) {
-      notify?.({ type: "error", message: "Выберите вид расхода" });
-      return;
-    }
-
     if (payrollLike && !values.affects_month) {
       notify?.({ type: "error", message: "Для зарплаты и аванса нужно указать месяц учета" });
       return;
@@ -166,7 +170,7 @@ export const EditExpenseDrawer: React.FC<EditExpenseDrawerProps> = ({
       const createdAtDate = values.created_at ? dayjs(values.created_at) : dayjs();
 
       const payload = {
-        employee_id: values.employee_id || null,
+        employee_id: payrollLike ? values.employee_id || null : null,
         name: values.name.trim(),
         cash_amount: Number(values.cash_amount) || 0,
         cashless_amount: Number(values.cashless_amount) || 0,
@@ -175,7 +179,6 @@ export const EditExpenseDrawer: React.FC<EditExpenseDrawerProps> = ({
         category: values.category?.trim() || null,
         category_id: values.category_id || null,
         photo: values.photoFile || values.photo, // Pass File if selected, otherwise keep URL
-        kind: values.kind,
         created_at: createdAtDate.toISOString(),
         affects_month: payrollLike ? values.affects_month || null : null,
       };
@@ -316,38 +319,6 @@ export const EditExpenseDrawer: React.FC<EditExpenseDrawerProps> = ({
 
             <Stack spacing={0.5}>
               <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
-                Вид расхода *
-              </Typography>
-              <TextField
-                select
-                fullWidth
-                value={values.kind ?? ""}
-                onChange={(e) => {
-                  const nextKind = e.target.value || null;
-                  setValues((s) => ({
-                    ...s,
-                    kind: nextKind as ExpenseFormValues["kind"],
-                    affects_month: requiresAffectsMonth(nextKind as ExpenseFormValues["kind"])
-                      ? s.affects_month
-                      : null,
-                  }));
-                }}
-                error={touched && !values.kind}
-                helperText={touched && !values.kind ? "Обязательное поле" : "Определяет серверную финансовую семантику"}
-              >
-                <MenuItem value="">
-                  <Typography variant="body2" color="text.secondary">Выберите вид</Typography>
-                </MenuItem>
-                {EXPENSE_KIND_OPTIONS.map((option) => (
-                  <MenuItem key={option.value} value={option.value}>
-                    {option.label}
-                  </MenuItem>
-                ))}
-              </TextField>
-            </Stack>
-
-            <Stack spacing={0.5}>
-              <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
                 Категория
               </Typography>
               <Autocomplete
@@ -359,6 +330,7 @@ export const EditExpenseDrawer: React.FC<EditExpenseDrawerProps> = ({
                 }
                 onChange={(_, newValue) => {
                   const newCategory = newValue?.name || "";
+                  const nextKind = inferExpenseKindFromCategory(newValue ?? newCategory);
                   const emp = employees.find((e) => e.id === values.employee_id);
                   const empName = emp?.full_name || "";
 
@@ -366,7 +338,9 @@ export const EditExpenseDrawer: React.FC<EditExpenseDrawerProps> = ({
                     ...s,
                     category_id: newValue?.id || null,
                     category: newCategory,
-                    name: !s.name.trim() && payrollLike && newCategory && empName
+                    employee_id: requiresAffectsMonth(nextKind) ? s.employee_id : null,
+                    affects_month: requiresAffectsMonth(nextKind) ? s.affects_month : null,
+                    name: !s.name.trim() && requiresAffectsMonth(nextKind) && newCategory && empName
                       ? `${newCategory} - ${empName}`
                       : s.name,
                   }));
@@ -404,7 +378,7 @@ export const EditExpenseDrawer: React.FC<EditExpenseDrawerProps> = ({
                       {...params}
                       placeholder="Выберите сотрудника"
                       fullWidth
-                      helperText="Для зарплаты и аванса обычно указывается сотрудник"
+                      helperText="Выберите сотрудника, к которому относится аванс или заработная плата"
                     />
                   )}
                   noOptionsText="Нет сотрудников"
@@ -548,7 +522,7 @@ export const EditExpenseDrawer: React.FC<EditExpenseDrawerProps> = ({
             <Button
               variant="contained"
               onClick={handleSubmit}
-              disabled={busy || !values.name.trim() || !values.kind || (payrollLike && !values.affects_month)}
+              disabled={busy || !values.name.trim() || (payrollLike && !values.affects_month)}
             >
               {busy ? (
                 <Stack direction="row" alignItems="center" spacing={1}>

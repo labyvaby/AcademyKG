@@ -33,7 +33,6 @@ export const ExpensesService = {
     const branchId = getBranchFilter();
     if (branchId) fd.append("branch", String(branchId));
     if (expense.name) fd.append("name", expense.name);
-    if (expense.kind) fd.append("kind", String(expense.kind));
     fd.append("cashAmount", String(Number(expense.cash_amount ?? expense.cashAmount) || 0));
     fd.append("cashlessAmount", String(Number(expense.cashless_amount ?? expense.cashlessAmount) || 0));
     if (expense.created_at ?? expense.createdAt) {
@@ -69,7 +68,6 @@ export const ExpensesService = {
     fd.append("employee", employeeId ? String(employeeId) : "");
     fd.append("category", categoryId ? String(categoryId) : "");
     if (updates.name !== undefined) fd.append("name", updates.name);
-    if (updates.kind !== undefined) fd.append("kind", updates.kind ? String(updates.kind) : "");
     if (updates.cash_amount !== undefined) fd.append("cashAmount", String(Number(updates.cash_amount) || 0));
     if (updates.cashless_amount !== undefined) fd.append("cashlessAmount", String(Number(updates.cashless_amount) || 0));
     if (updates.created_at ?? updates.createdAt) {
