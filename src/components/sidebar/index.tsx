@@ -340,8 +340,7 @@ const DesktopSidebarHeader: React.FC = () => {
 // Extra static sections: mimic the provided design with many items
 const SidebarSecondary: React.FC = () => {
   const { siderCollapsed } = useThemedLayoutContext();
-const { hasPermission, isSuperAdmin, loading: permissionsLoading } = usePermissions();
-  const isSuper = isSuperAdmin();
+  const { hasPermission, loading: permissionsLoading } = usePermissions();
 
   // Во время загрузки прав не показываем элементы меню
   // Это предотвращает "моргание" при переключении вкладок
@@ -400,10 +399,10 @@ const { hasPermission, isSuperAdmin, loading: permissionsLoading } = usePermissi
         {hasPermission(PERMISSIONS.SERVICES_READ) && (
           <SidebarMenuItem to="/services" icon={<MedicalServicesOutlined />} label="Услуги" collapsed={siderCollapsed} />
         )}
-        {isSuper && (
+        {hasPermission(PERMISSIONS.APP_SETTINGS_UPDATE) && (
           <SidebarMenuItem to="/roles" icon={<AdminPanelSettingsOutlined />} label="Роли и права" collapsed={siderCollapsed} />
         )}
-        {isSuper && (
+        {hasPermission(PERMISSIONS.APP_SETTINGS_UPDATE) && (
           <SidebarMenuItem to="/branches" icon={<BusinessOutlined />} label="Управление филиалами" collapsed={siderCollapsed} />
         )}
         {/* Вход в страницу уведомлений временно отключен. */}

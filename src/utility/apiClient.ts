@@ -16,8 +16,17 @@ export function resolveApiUrl(url: string | null | undefined): string | null {
 // Глобальный фильтр по филиалу для суперадмина.
 // Устанавливается из BranchContext через setBranchFilter().
 let _activeBranchId: string | null = null;
+export const BRANCH_FILTER_STORAGE_KEY = "superadmin_selected_branch";
 export const setBranchFilter = (branchId: string | null) => { _activeBranchId = branchId; };
 export const getBranchFilter = () => _activeBranchId;
+export const clearBranchFilter = () => {
+  _activeBranchId = null;
+  try {
+    localStorage.removeItem(BRANCH_FILTER_STORAGE_KEY);
+  } catch {
+    /* ignore */
+  }
+};
 
 const TOKEN_KEY = "academy_access_token";
 const REFRESH_KEY = "academy_refresh_token";

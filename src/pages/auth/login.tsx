@@ -1,6 +1,6 @@
 import React from "react";
 import { useNavigate, useSearchParams } from "react-router";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, type Variants } from "framer-motion";
 import {
   Box,
   Stack,
@@ -53,7 +53,7 @@ function clearFailState() {
 const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const [params] = useSearchParams();
-  const redirectTo = params.get("to") || "/home";
+  const redirectTo = params.get("to") || "/";
 
   const [phoneCountryCode, setPhoneCountryCode] = React.useState<PhoneCountryCode>(DEFAULT_PHONE_COUNTRY_CODE);
   const [phoneLocal, setPhoneLocal] = React.useState("");
@@ -132,7 +132,7 @@ const LoginPage: React.FC = () => {
 
   // Если сервер вернул 429 — применяем серверную блокировку с таймером
   const handle429FromServer = (err: unknown) => {
-    const e = err as any;
+    const e = err as { status?: number; retryAfterSeconds?: number } | null;
     if (e?.status === 429) {
       const retryAfter = e?.retryAfterSeconds ?? 60;
       const until = Date.now() + retryAfter * 1000;
@@ -235,9 +235,9 @@ const LoginPage: React.FC = () => {
   };
 
   // Варианты анимации для Framer Motion
-  const containerVariants = {
+  const containerVariants: Variants = {
     hidden: { opacity: 0, y: 20 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.4, ease: "easeOut" as any } },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.4, ease: "easeOut" } },
     exit: { opacity: 0, x: -20, transition: { duration: 0.2 } }
   };
 

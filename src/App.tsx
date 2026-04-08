@@ -39,6 +39,7 @@ import { lazy, Suspense, useEffect } from "react";
 import { useAuthIdentitySync } from "./hooks/useAuthIdentitySync";
 import { usePermissions } from "./hooks/usePermissions";
 import { API_BASE_URL } from "./utility/apiClient";
+import { getDefaultAuthorizedRoute } from "./utils/permissionHelpers";
 import dataProvider from "@refinedev/simple-rest";
 
 // ОПТИМИЗАЦИЯ: Все страницы загружаются через lazy() для code splitting
@@ -80,9 +81,12 @@ const BranchAwareLayout: React.FC<{ children: React.ReactNode }> = ({ children }
 
 // Вспомогательный компонент для защиты корневого редиректа
 const RootRedirect = () => {
-  const { hasPermission, loading } = usePermissions();
+  const { hasPermission, loading, role } = usePermissions();
   if (loading) return null;
-  const target = hasPermission('reception.read') ? '/home' : '/specialist';
+  const target = getDefaultAuthorizedRoute({
+    hasPermission,
+    roleName: role?.name ?? null,
+  });
   return <Navigate to={target} replace />;
 };
 

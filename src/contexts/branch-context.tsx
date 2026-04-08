@@ -1,9 +1,17 @@
 import React from "react";
-import { apiFetch, setBranchFilter } from "../utility/apiClient";
-
-const STORAGE_KEY = "superadmin_selected_branch";
+import {
+  apiFetch,
+  BRANCH_FILTER_STORAGE_KEY,
+  clearBranchFilter,
+  setBranchFilter,
+} from "../utility/apiClient";
 
 export type BranchOption = { id: string; name: string };
+type BranchApiItem = { id: string | number; name?: string | null };
+type BranchListResponse = {
+  data?: { results?: BranchApiItem[] };
+  results?: BranchApiItem[];
+};
 
 type BranchContextValue = {
   branches: BranchOption[];
@@ -27,8 +35,9 @@ export const BranchProvider: React.FC<{ isSuperAdmin: boolean; children: React.R
 }) => {
   const [branches, setBranches] = React.useState<BranchOption[]>([]);
   const [selectedBranch, setSelectedBranchState] = React.useState<BranchOption | null>(() => {
+    if (!isSuperAdmin) return null;
     try {
-      const saved = localStorage.getItem(STORAGE_KEY);
+      const saved = localStorage.getItem(BRANCH_FILTER_STORAGE_KEY);
       return saved ? JSON.parse(saved) : null;
     } catch {
       return null;
@@ -37,12 +46,16 @@ export const BranchProvider: React.FC<{ isSuperAdmin: boolean; children: React.R
   const [loading, setLoading] = React.useState(false);
 
   React.useEffect(() => {
-    if (!isSuperAdmin) return;
+    if (!isSuperAdmin) {
+      setBranches([]);
+      setLoading(false);
+      return;
+    }
     (async () => {
       try {
         setLoading(true);
-        const res: any = await apiFetch("/api/v1/branches/");
-        const list: any[] = res?.data?.results ?? res?.results ?? [];
+        const res = await apiFetch<BranchListResponse>("/api/v1/branches/");
+        const list = res?.data?.results ?? res?.results ?? [];
         setBranches(list.map((b) => ({ id: String(b.id), name: b.name ?? "" })));
       } catch {
         /* ignore */
@@ -52,21 +65,33 @@ export const BranchProvider: React.FC<{ isSuperAdmin: boolean; children: React.R
     })();
   }, [isSuperAdmin]);
 
+  React.useEffect(() => {
+    if (!isSuperAdmin) {
+      setSelectedBranchState(null);
+      clearBranchFilter();
+      return;
+    }
+
+    try {
+      const saved = localStorage.getItem(BRANCH_FILTER_STORAGE_KEY);
+      const parsed = saved ? (JSON.parse(saved) as BranchOption) : null;
+      setSelectedBranchState(parsed);
+      setBranchFilter(parsed?.id ?? null);
+    } catch {
+      setSelectedBranchState(null);
+      clearBranchFilter();
+    }
+  }, [isSuperAdmin]);
+
   const setSelectedBranch = React.useCallback((branch: BranchOption | null) => {
     setSelectedBranchState(branch);
     setBranchFilter(branch?.id ?? null);
     try {
-      if (branch) localStorage.setItem(STORAGE_KEY, JSON.stringify(branch));
-      else localStorage.removeItem(STORAGE_KEY);
+      if (branch) localStorage.setItem(BRANCH_FILTER_STORAGE_KEY, JSON.stringify(branch));
+      else localStorage.removeItem(BRANCH_FILTER_STORAGE_KEY);
     } catch {
       /* ignore */
     }
-  }, []);
-
-  // Restore filter on mount (localStorage → apiFetch sync)
-  React.useEffect(() => {
-    setBranchFilter(selectedBranch?.id ?? null);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (

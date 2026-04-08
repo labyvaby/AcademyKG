@@ -23,8 +23,8 @@ export const ROLE_HOME_PAGES: Record<RoleName, string> = {
   specialist: '/specialist',
   receptionist: '/home',
   registrator: '/home',
-  accountant: '/home',
-  cashier: '/home',
+  accountant: '/expenses',
+  cashier: '/cashbox',
   owner: '/home',
 };
 
@@ -66,6 +66,7 @@ export interface UserPermissions {
   permissions: Permission[];
   loading: boolean;
   employeeId?: string | null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   employee?: any | null;
   isSuperAdmin?: () => boolean;
   /** @deprecated Использовать hasPermission() или can() вместо ролевых хелперов */

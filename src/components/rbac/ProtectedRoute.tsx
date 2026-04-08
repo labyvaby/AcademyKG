@@ -4,8 +4,9 @@ import { useNotification } from "@refinedev/core";
 import LinearProgress from "@mui/material/LinearProgress";
 import Box from "@mui/material/Box";
 import { usePermissions } from '../../hooks/usePermissions';
-import { ROLE_HOME_PAGES, type RoleName } from '../../types/rbac';
+import { type RoleName } from '../../types/rbac';
 import type { Permission } from '../../constants/permissions';
+import { getDefaultAuthorizedRoute } from '../../utils/permissionHelpers';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -37,7 +38,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   deniedRoles,
   redirectTo = '/home',
 }) => {
-  const { hasAllPermissions, hasRole, loading, role: userRole, isSuperAdmin } = usePermissions();
+  const { hasAllPermissions, hasRole, hasPermission, loading, role: userRole, isSuperAdmin } = usePermissions();
   const { open } = useNotification();
 
   // Superadmin обходит все проверки
@@ -55,11 +56,13 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   }
 
   const getRedirectPath = () => {
-    if (redirectTo !== '/home') return redirectTo;
-    if (userRole?.name && ROLE_HOME_PAGES[userRole.name]) {
-      return ROLE_HOME_PAGES[userRole.name];
+    if (redirectTo !== '/home') {
+      return redirectTo;
     }
-    return '/home';
+    return getDefaultAuthorizedRoute({
+      hasPermission,
+      roleName: userRole?.name ?? null,
+    });
   };
 
   const deny = () => {

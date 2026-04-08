@@ -1,4 +1,4 @@
-import { API_BASE_URL, apiFetch, tokenStorage } from "../utility/apiClient";
+import { API_BASE_URL, apiFetch, clearBranchFilter, tokenStorage } from "../utility/apiClient";
 
 export interface LoginResponse {
   data?: { access?: string; refresh?: string };
@@ -54,8 +54,8 @@ export async function verifySmsCode(
     true
   );
 
-  const access = (res?.data as any)?.accessToken ?? res?.data?.access ?? res?.access ?? "";
-  const refresh = (res?.data as any)?.refreshToken ?? res?.data?.refresh ?? res?.refresh ?? "";
+  const access = res?.data?.accessToken ?? res?.data?.access ?? res?.access ?? "";
+  const refresh = res?.data?.refreshToken ?? res?.data?.refresh ?? res?.refresh ?? "";
 
   if (!access || !refresh) {
     throw new Error("Не удалось получить токены авторизации");
@@ -137,6 +137,7 @@ export function logout(): void {
   // Сначала чистим локально — UI не должен ждать ответа сервера
   tokenStorage.clear();
   clearPermissions();
+  clearBranchFilter();
 
   // Инвалидируем сессию на сервере в фоне
   if (access && refresh) {

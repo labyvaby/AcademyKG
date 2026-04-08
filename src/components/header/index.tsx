@@ -95,6 +95,7 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
   const [passwordError, setPasswordError] = React.useState("");
 
   const { employee: empFromPerms, isSuperAdmin } = usePermissions();
+  const permissionsEmployee = empFromPerms as { photoUrl?: string; fullName?: string } | null;
   const isSuper = isSuperAdmin();
   const { branches, selectedBranch, setSelectedBranch } = useBranchContext();
   const [branchMenuAnchor, setBranchMenuAnchor] = React.useState<null | HTMLElement>(null);
@@ -113,8 +114,8 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
       setSelectedBranch(branches.find((branch) => branch.id === branchId) ?? null);
     }
     setBranchMenuAnchor(null);
-    setTimeout(() => window.location.reload(), 50);
-  }, [branches, setSelectedBranch]);
+    triggerRefresh();
+  }, [branches, setSelectedBranch, triggerRefresh]);
 
   React.useEffect(() => {
     if (empFromPerms) {
@@ -136,9 +137,17 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
     if (!profileOpen) return;
     const empId = empFromPerms?.id;
     if (!empId) return;
-    apiFetch(`/api/v1/employees/${empId}/`)
-      .then((res: any) => {
-        const raw = res?.data ?? res;
+    type EmployeeProfilePayload = {
+      id?: string;
+      role?: { displayName?: string; name?: string } | string | null;
+      roleName?: string;
+      specializations?: Array<{ name?: string | null }>;
+      [key: string]: unknown;
+    };
+
+    apiFetch<{ data?: EmployeeProfilePayload } | EmployeeProfilePayload>(`/api/v1/employees/${empId}/`)
+      .then((res) => {
+        const raw = ((("data" in res ? res.data : undefined) ?? res) as EmployeeProfilePayload);
         if (!raw?.id) return;
         const roleName = typeof raw.role === 'object' ? (raw.role?.displayName ?? raw.role?.name ?? '') : (raw.roleName ?? '');
         if (roleName) setRoleInfo({ name: roleName, display_name: roleName });
@@ -262,8 +271,8 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
     }
   };
 
-  const displayAvatar = employee?.photo_url || (empFromPerms as any)?.photoUrl || identity?.avatar;
-  const displayName = employee?.full_name || (empFromPerms as any)?.fullName || identity?.name || "Пользователь";
+  const displayAvatar = employee?.photo_url || permissionsEmployee?.photoUrl || identity?.avatar;
+  const displayName = employee?.full_name || permissionsEmployee?.fullName || identity?.name || "Пользователь";
   const displayEmail = employee?.email || identity?.email;
   const roleText = roleInfo?.display_name || roleInfo?.name || (employee?.status === 'active' ? "Сотрудник" : "Пользователь");
 
