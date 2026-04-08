@@ -201,16 +201,14 @@ const DoctorWorkPage: React.FC = () => {
         <Box
             sx={(theme) => ({
                 height: {
-                    xs: "auto",
-                    lg: `calc(100dvh - ${theme.appLayout.viewportOffset.home.desktopOffset}px)`,
-                },
-                minHeight: {
                     xs: `calc(100dvh - ${theme.appLayout.viewportOffset.home.mobileOffset}px)`,
                     sm: `calc(100dvh - ${theme.appLayout.viewportOffset.home.desktopOffset}px)`,
+                    lg: `calc(100dvh - ${theme.appLayout.viewportOffset.home.desktopOffset}px)`,
                 },
                 display: "flex",
                 flexDirection: "column",
-                overflow: { xs: "visible", lg: "hidden" },
+                boxSizing: "border-box",
+                overflow: "hidden",
             })}
         >
             <PageHeader
@@ -260,11 +258,14 @@ const DoctorWorkPage: React.FC = () => {
 
             <Box sx={(theme) => ({
                 flex: 1,
-                overflow: { xs: "visible", lg: "hidden" },
+                minHeight: 0,
+                display: "flex",
+                flexDirection: "column",
+                overflow: "hidden",
                 px: theme.appLayout.page.paddingX,
             })}>
-                <Grid container spacing={2} sx={{ alignItems: "flex-start", height: { xs: "auto", lg: "100%" }, boxSizing: "border-box" }}>
-                    <Grid item xs={12} md={6} sx={{ height: { xs: "auto", lg: "100%" }, overflow: { xs: "visible", lg: "hidden" }, pr: { md: 1 } }}>
+                <Grid container spacing={2} sx={{ flex: 1, minHeight: 0, height: 0, overflow: "hidden", alignItems: "flex-start", boxSizing: "border-box" }}>
+                    <Grid item xs={12} md={6} sx={{ height: "100%", display: "flex", flexDirection: "column", overflow: "hidden", pr: { md: 1 } }}>
                         <AppointmentsList
                             titleDate={ruDateFromInput}
                             loading={isLoading}
@@ -282,7 +283,7 @@ const DoctorWorkPage: React.FC = () => {
                     </Grid>
 
                     {!isMobile && (
-                        <Grid item xs={12} md={6} sx={{ height: "100%", display: "flex", flexDirection: "column", pl: { md: 1 }, pr: { md: 1 } }}>
+                        <Grid item xs={12} md={6} sx={{ height: "100%", display: "flex", flexDirection: "column", overflow: "hidden", pl: { md: 1 }, pr: { md: 1 } }}>
                             {selectedAppointmentId ? (
                                 <AppointmentDetailsCard
                                     appointmentId={selectedAppointmentId}

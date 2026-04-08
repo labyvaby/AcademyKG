@@ -263,11 +263,15 @@ export const AllProceduresList: React.FC = () => {
     return (
         <Box
             sx={{
-                minHeight: { xs: "calc(100dvh - 56px)", sm: "calc(100dvh - 64px)" },
+                height: {
+                    xs: "calc(100dvh - 56px)",
+                    md: "calc(100dvh - 64px)",
+                    lg: "100%",
+                },
                 display: "flex",
                 flexDirection: "column",
                 boxSizing: "border-box",
-                overflow: { xs: "visible", lg: "hidden" },
+                overflow: "hidden",
             }}
         >
             <PageHeader
@@ -285,6 +289,7 @@ export const AllProceduresList: React.FC = () => {
                     flex: 1,
                     display: "flex",
                     flexDirection: "column",
+                    minHeight: 0,
                     overflowY: "auto",
                     overflowX: "hidden",
                     pb: theme.appLayout.page.paddingY,

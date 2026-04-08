@@ -249,11 +249,15 @@ const CategoriesPage: React.FC = () => {
   return (
     <Box
       sx={{
-        height: { xs: "auto", lg: "100%" },
-        minHeight: { xs: "calc(100dvh - 56px)", sm: "calc(100dvh - 64px)" },
+        height: {
+          xs: "calc(100dvh - 56px)",
+          md: "calc(100dvh - 64px)",
+          lg: "100%",
+        },
         display: "flex",
         flexDirection: "column",
-        overflow: { xs: "visible", lg: "hidden" },
+        boxSizing: "border-box",
+        overflow: "hidden",
       }}
     >
       <PageHeader
@@ -267,7 +271,17 @@ const CategoriesPage: React.FC = () => {
         onAdd={!isTabletLayout ? () => { setEditTarget(null); setFormOpen(true); } : undefined}
       />
 
-      <Box sx={(t) => ({ px: t.appLayout.page.paddingX, pb: t.appLayout.page.paddingY, flex: 1, display: "flex", flexDirection: "column", minHeight: 0 })}>
+      <Box
+        sx={(t) => ({
+          px: t.appLayout.page.paddingX,
+          pb: t.appLayout.page.paddingY,
+          flex: 1,
+          display: "flex",
+          flexDirection: "column",
+          minHeight: 0,
+          overflow: "hidden",
+        })}
+      >
         <Paper
           elevation={0}
           variant="outlined"
@@ -371,7 +385,7 @@ const CategoriesPage: React.FC = () => {
           )}
 
           {/* Список */}
-          <Box sx={{ flex: 1, overflowY: "auto", WebkitOverflowScrolling: "touch" }}>
+          <Box sx={{ flex: 1, minHeight: 0, overflowY: "auto", WebkitOverflowScrolling: "touch" }}>
             {loading ? (
               <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", p: 6 }}>
                 <CircularProgress />

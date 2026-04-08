@@ -200,11 +200,15 @@ const ProductsPage: React.FC = () => {
   return (
     <Box
       sx={{
-        height: { xs: "auto", lg: "100%" },
-        minHeight: { xs: "calc(100dvh - 56px)", sm: "calc(100dvh - 64px)" },
+        height: {
+          xs: "calc(100dvh - 56px)",
+          md: "calc(100dvh - 64px)",
+          lg: "100%",
+        },
         display: "flex",
         flexDirection: "column",
-        overflow: { xs: "visible", lg: "hidden" },
+        boxSizing: "border-box",
+        overflow: "hidden",
       }}
     >
       {/* Page Header */}
@@ -219,10 +223,24 @@ const ProductsPage: React.FC = () => {
         searchPlaceholder="Поиск..."
       />
 
-      <Box sx={{ px: 2, pb: 4, pt: 1, flex: 1, overflow: { xs: "visible", lg: "hidden" } }}>
-        <Grid2 container spacing={2} sx={{ height: { xs: "auto", lg: "100%" } }}>
+      <Box
+        sx={{
+          px: 2,
+          pb: 4,
+          pt: 1,
+          flex: 1,
+          minHeight: 0,
+          display: "flex",
+          flexDirection: "column",
+          overflow: "hidden",
+        }}
+      >
+        <Grid2 container spacing={2} sx={{ flex: 1, minHeight: 0, height: 0, overflow: "hidden" }}>
           {/* Left Column: Product List */}
-          <Grid2 size={{ xs: 12, md: 5 }} sx={{ height: { xs: "auto", lg: "100%" }, display: "flex", flexDirection: "column" }}>
+          <Grid2
+            size={{ xs: 12, md: 5 }}
+            sx={{ height: "100%", display: "flex", flexDirection: "column", overflow: "hidden" }}
+          >
             <Paper
               elevation={0}
               variant="outlined"
@@ -251,7 +269,7 @@ const ProductsPage: React.FC = () => {
                 </Stack>
               </Stack>
 
-              <Box sx={{ overflowY: "auto", flex: 1, WebkitOverflowScrolling: "touch" }}>
+              <Box sx={{ overflowY: "auto", flex: 1, minHeight: 0, WebkitOverflowScrolling: "touch" }}>
                 {loading ? (
                   <Box sx={{ p: 4, textAlign: "center" }}>
                     <CircularProgress size={24} />
@@ -326,7 +344,10 @@ const ProductsPage: React.FC = () => {
 
           {/* Right Column: Product Details (Desktop) */}
           {!isMobile && (
-            <Grid2 size={{ xs: 12, md: 7 }} sx={{ height: "100%" }}>
+            <Grid2
+              size={{ xs: 12, md: 7 }}
+              sx={{ height: "100%", minHeight: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}
+            >
               <ProductDetailCard
                 product={selectedProduct}
                 onEdit={() => selectedProduct && handleEditClick(selectedProduct)}

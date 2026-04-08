@@ -71,7 +71,19 @@ export const LoadAnalyticsPage: React.FC = () => {
     }, [dateRange]);
 
     return (
-        <Box sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column', gap: 2 }}>
+        <Box
+            sx={{
+                p: 2,
+                height: '100%',
+                minHeight: 0,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 2,
+                overflowY: 'auto',
+                overflowX: 'hidden',
+                WebkitOverflowScrolling: 'touch',
+            }}
+        >
             <Typography variant="h5" sx={{ fontWeight: 600 }}>Нагрузка (Аналитика)</Typography>
 
             <LoadFilters

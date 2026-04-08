@@ -405,11 +405,15 @@ const ServicesPage: React.FC = () => {
   return (
     <Box
       sx={{
-        height: { xs: "auto", lg: "100%" },
-        minHeight: { xs: "calc(100dvh - 56px)", sm: "calc(100dvh - 64px)" },
+        height: {
+          xs: "calc(100dvh - 56px)",
+          md: "calc(100dvh - 64px)",
+          lg: "100%",
+        },
         display: "flex",
         flexDirection: "column",
-        overflow: { xs: "visible", lg: "hidden" }
+        boxSizing: "border-box",
+        overflow: "hidden",
       }}
     >
       <PageHeader
@@ -422,7 +426,17 @@ const ServicesPage: React.FC = () => {
         onSearchChange={setSearchQuery}
       />
 
-      <Box sx={(theme) => ({ px: theme.appLayout.page.paddingX, pb: 2, flex: 1, minHeight: 0, display: "flex", flexDirection: "column" })}>
+      <Box
+        sx={(theme) => ({
+          px: theme.appLayout.page.paddingX,
+          pb: 2,
+          flex: 1,
+          minHeight: 0,
+          display: "flex",
+          flexDirection: "column",
+          overflow: "hidden",
+        })}
+      >
         <Card
           variant="outlined"
           sx={{ flex: 1, width: 1, display: "flex", flexDirection: "column" }}
