@@ -275,9 +275,17 @@ const LoginPage: React.FC = () => {
             background: "linear-gradient(45deg, #1e3c72 0%, #2a5298 100%)",
             WebkitBackgroundClip: "text",
             WebkitTextFillColor: "transparent",
-            mb: 1
+            mb: 1,
+            lineHeight: 1.25,
           }}>
-            Academy KG
+            Аутизм Победим<br />
+            <Typography component="span" variant="h5" fontWeight={600} sx={{
+              background: "linear-gradient(45deg, #1e3c72 0%, #2a5298 100%)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+            }}>
+              Академия KG
+            </Typography>
           </Typography>
           <Typography variant="body1" color="text.secondary" fontWeight={500}>
             Вход в систему
