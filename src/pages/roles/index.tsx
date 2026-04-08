@@ -96,6 +96,11 @@ const ACTION_LABELS: Record<string, string> = {
 
 const ACTION_ORDER = ["read", "create", "update", "delete"];
 
+/** Нормализует permissions из ответа API в массив строк.
+ * Бэкенд может вернуть строки ["res.action"] или объекты [{ name: "res.action" }] */
+const normalizePermissions = (raw: any[]): string[] =>
+  raw.map((p) => (typeof p === "string" ? p : (p?.name ?? ""))).filter(Boolean);
+
 const RolesPage: React.FC = () => {
   usePageTitle("Роли и права");
   const { open: notify } = useNotification();
@@ -116,26 +121,35 @@ const RolesPage: React.FC = () => {
         apiFetch("/api/v1/permissions/").catch(() => null),
       ]);
 
-      const rolesListData: Role[] = rolesRes?.data ?? rolesRes ?? [];
+      const rawRolesData = rolesRes?.data ?? rolesRes ?? [];
+      const rolesListData: Role[] = Array.isArray(rawRolesData)
+        ? rawRolesData
+        : (rawRolesData?.results ?? []);
 
       // Грузим detail всех ролей параллельно чтобы получить permissions[]
       const rolesWithDetails = await Promise.all(
         rolesListData.map(async (role) => {
           try {
             const detail: any = await apiFetch(`/api/v1/roles/${role.id}/`);
-            return (detail?.data ?? role) as Role;
+            const r: Role = detail?.data ?? role;
+            return { ...r, permissions: normalizePermissions(r.permissions ?? []) } as Role;
           } catch {
-            return role;
+            return { ...role, permissions: normalizePermissions(role.permissions ?? []) } as Role;
           }
         })
       );
       const rolesData = rolesWithDetails;
       setRoles(rolesData);
 
-      // GET /permissions/ может вернуть массив [{ name, displayName }]
-      // или объект { "resource.action": { displayName } }
-      // Может вернуть 403 если нет прав — тогда permsRes === null
-      const rawPerms = permsRes?.data ?? permsRes ?? null;
+      // GET /permissions/ может вернуть:
+      //   - { data: [...] }            — массив напрямую
+      //   - { data: { results: [...] } } — пагинированный
+      //   - { "resource.action": {...} } — объект-словарь
+      //   - null (403) — нет прав
+      const rawPermsOuter = permsRes?.data ?? permsRes ?? null;
+      const rawPerms = Array.isArray(rawPermsOuter)
+        ? rawPermsOuter
+        : (rawPermsOuter?.results ?? rawPermsOuter ?? null);
       let entries: PermissionEntry[] = [];
       if (Array.isArray(rawPerms)) {
         entries = rawPerms.map((p: any) => {
@@ -160,8 +174,9 @@ const RolesPage: React.FC = () => {
         // Грузим detail первой роли чтобы получить permissions
         const firstDetail: any = await apiFetch(`/api/v1/roles/${rolesData[0].id}/`);
         const firstRole: Role = firstDetail?.data ?? rolesData[0];
-        setSelectedRole(firstRole);
-        setEditedPermissions(new Set(firstRole.permissions ?? []));
+        const firstPerms = normalizePermissions(firstRole.permissions ?? []);
+        setSelectedRole({ ...firstRole, permissions: firstPerms });
+        setEditedPermissions(new Set(firstPerms));
       }
     } catch (e: any) {
       notify?.({ type: "error", message: e?.message ?? "Ошибка загрузки" });
@@ -173,15 +188,16 @@ const RolesPage: React.FC = () => {
   useEffect(() => { loadData(); }, [loadData]);
 
   const handleSelectRole = async (role: Role) => {
-    setSelectedRole(role);
-    setEditedPermissions(new Set(role.permissions ?? []));
+    const initialPerms = normalizePermissions(role.permissions ?? []);
+    setSelectedRole({ ...role, permissions: initialPerms });
+    setEditedPermissions(new Set(initialPerms));
     setDirty(false);
-    // Грузим detail чтобы получить актуальные permissions
     try {
       const detail: any = await apiFetch(`/api/v1/roles/${role.id}/`);
       const fullRole: Role = detail?.data ?? role;
-      setSelectedRole(fullRole);
-      setEditedPermissions(new Set(fullRole.permissions ?? []));
+      const fullPerms = normalizePermissions(fullRole.permissions ?? []);
+      setSelectedRole({ ...fullRole, permissions: fullPerms });
+      setEditedPermissions(new Set(fullPerms));
     } catch { /* оставляем то что есть в list */ }
   };
 
@@ -221,14 +237,19 @@ const RolesPage: React.FC = () => {
     if (!selectedRole) return;
     setSaving(true);
     try {
-      const patchRes: any = await apiFetch(`/api/v1/roles/${selectedRole.id}/`, {
+      await apiFetch(`/api/v1/roles/${selectedRole.id}/`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ permissions: Array.from(editedPermissions) }),
       });
-      const updatedRole: Role = patchRes?.data ?? { ...selectedRole, permissions: Array.from(editedPermissions) };
+      // Перезагружаем роль с сервера чтобы получить актуальные права
+      const detail: any = await apiFetch(`/api/v1/roles/${selectedRole.id}/`);
+      const rawUpdated: Role = detail?.data ?? { ...selectedRole, permissions: Array.from(editedPermissions) };
+      const updatedPerms = normalizePermissions(rawUpdated.permissions ?? []);
+      const updatedRole: Role = { ...rawUpdated, permissions: updatedPerms };
       setRoles((prev) => prev.map((r) => r.id === selectedRole.id ? updatedRole : r));
       setSelectedRole(updatedRole);
+      setEditedPermissions(new Set(updatedPerms));
       setDirty(false);
       notify?.({ type: "success", message: "Права сохранены" });
     } catch (e: any) {

@@ -69,7 +69,7 @@ type Props = {
   initialPhone?: string;
 };
 
-type PatientFieldKey = "fio" | "phone" | "birth" | "inn" | "blacklistReason";
+type PatientFieldKey = "fio" | "phone" | "birth" | "inn" | "blacklistReason" | "parent1Name" | "parent1Phone";
 type FieldErrors = Partial<Record<PatientFieldKey, string>>;
 
 const mapApiErrorToField = (rawMsg: string): { field?: PatientFieldKey; message: string } => {
@@ -223,71 +223,66 @@ const AddPatientDrawer: React.FC<Props> = ({ open, onClose, onCreated, initialPh
       notify?.({ type: "error", message: "Укажите причину добавления в черный список" });
       return;
     }
-    if (!selectedOrganizationId || !selectedBranchId) {
-      notify?.({
-        type: "error",
-        message: "Выберите организацию и филиал",
-      });
+    const parent1NameTrim = parent1Name.trim();
+    const fullParent1Phone = composePhone(parent1PhoneCountryCode, parent1Phone);
+    if (!parent1NameTrim) {
+      setFieldErrors({ parent1Name: "Введите ФИО ответственного лица" });
+      notify?.({ type: "error", message: "Введите ФИО ответственного лица" });
       return;
     }
-
+    if (!fullParent1Phone) {
+      setFieldErrors({ parent1Phone: "Введите телефон ответственного лица" });
+      notify?.({ type: "error", message: "Введите телефон ответственного лица" });
+      return;
+    }
     try {
       setBusy(true);
-      const fullPhone = composePhone(phoneCountryCode, phone);
-      if (fullPhone) {
-        const lookup: any = await apiFetch(`/api/v1/clients/?search=${encodeURIComponent(fullPhone)}&pageSize=30`);
-        const candidates: any[] = lookup?.data?.results ?? lookup?.results ?? [];
-        const duplicate = candidates.find((c: any) => normalizePhoneValue(c?.phone) === normalizePhoneValue(fullPhone));
-        if (duplicate) {
-          setFieldErrors({ phone: "Клиент с таким номером уже существует" });
-          notify?.({
-            type: "error",
-            message: "Клиент с таким номером уже существует",
-            description: `Номер ${fullPhone} уже привязан к клиенту. Откройте существующую карточку.`,
-          });
-          setBusy(false);
-          return;
+
+      const responsiblePersons: { fullName: string; phone: string }[] = [
+        { fullName: parent1NameTrim, phone: fullParent1Phone },
+      ];
+      if (showParent2) {
+        const parent2NameTrim = parent2Name.trim();
+        const fullParent2Phone = composePhone(parent2PhoneCountryCode, parent2Phone);
+        if (parent2NameTrim && fullParent2Phone) {
+          responsiblePersons.push({ fullName: parent2NameTrim, phone: fullParent2Phone });
         }
       }
 
-      const fd = new FormData();
-      fd.append("fullName", fioTrim);
-      if (fullPhone) fd.append("phone", fullPhone);
-      if (birth) fd.append("birthDate", birth.slice(0, 10));
-      if (inn.trim()) fd.append("inn", inn.trim());
-      if (parent1Name.trim()) fd.append("parent1Name", parent1Name.trim());
-      const fullParent1Phone = composePhone(parent1PhoneCountryCode, parent1Phone);
-      if (fullParent1Phone) fd.append("parent1Phone", fullParent1Phone);
-      if (parent2Name.trim()) fd.append("parent2Name", parent2Name.trim());
-      const fullParent2Phone = composePhone(parent2PhoneCountryCode, parent2Phone);
-      if (fullParent2Phone) fd.append("parent2Phone", fullParent2Phone);
-      fd.append("isBlacklisted", String(isBlacklisted));
-      if (isBlacklisted && blacklistReason.trim()) {
-        fd.append("blacklistReason", blacklistReason.trim());
-      }
-      if (photoFile) fd.append("photoUrl", photoFile);
-      fd.append("branch", selectedBranchId);
-      fd.append("organization", selectedOrganizationId);
+      const fullPhone = composePhone(phoneCountryCode, phone);
+
+      const body: Record<string, any> = {
+        fullName: fioTrim,
+        responsiblePersons,
+      };
+      if (fullPhone) body.phone = fullPhone;
+      if (birth) body.birthDate = birth.slice(0, 10);
+      if (inn.trim()) body.inn = inn.trim();
+      body.isBlacklisted = isBlacklisted;
+      if (isBlacklisted && blacklistReason.trim()) body.blacklistReason = blacklistReason.trim();
+      if (selectedBranchId) body.branch = selectedBranchId;
+      if (selectedOrganizationId) body.organization = selectedOrganizationId;
 
       const res: any = await apiFetch("/api/v1/clients/", {
         method: "POST",
-        body: fd,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
       });
 
       const data = res?.data ?? res;
-      const createdId = String(
-        data?.id ??
-        data?.client?.id ??
-        data?.patient?.id ??
-        ""
-      ).trim();
-      if (!createdId) {
-        throw new Error("Backend не вернул id созданного клиента");
+      const createdId = String(data?.id ?? data?.client?.id ?? data?.patient?.id ?? "").trim();
+      if (!createdId) throw new Error("Backend не вернул id созданного клиента");
+
+      if (photoFile) {
+        const pfd = new FormData();
+        pfd.append("photoUrl", photoFile);
+        await apiFetch(`/api/v1/clients/${createdId}/`, { method: "PATCH", body: pfd }).catch(() => {});
       }
+
       const created: CreatedPatient = {
         id: createdId,
         fio: fioTrim,
-        phone: fullPhone || null,
+        phone: body.phone ?? null,
         birth_date: birth ? birth.slice(0, 10) : null,
         photo: resolvePhotoUrl(data.photoUrl),
         inn: inn.trim() || null,
@@ -379,7 +374,7 @@ const AddPatientDrawer: React.FC<Props> = ({ open, onClose, onCreated, initialPh
 
             <Stack spacing={0.5}>
               <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
-                ФИО Клиента
+                ФИО Клиента *
               </Typography>
               <TextField
                 value={fio}
@@ -392,39 +387,6 @@ const AddPatientDrawer: React.FC<Props> = ({ open, onClose, onCreated, initialPh
                 placeholder="Введите ФИО клиента"
                 error={Boolean(fieldErrors.fio)}
                 helperText={fieldErrors.fio || ""}
-              />
-            </Stack>
-
-            <Stack spacing={0.5}>
-              <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
-                Телефон
-              </Typography>
-              <TextField
-                value={phone}
-                onChange={(e) => {
-                  const maxLen = getPhoneLocalMaxLength(phoneCountryCode);
-                  setPhone(e.target.value.replace(/[^\d]/g, "").slice(0, maxLen));
-                  setFieldErrors((prev) => ({ ...prev, phone: undefined }));
-                }}
-                fullWidth
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start" sx={{ mr: 1, ml: "-14px" }}>
-                      <PhoneCountryCodeSelect
-                        value={phoneCountryCode}
-                        onChange={(code) => setPhoneCountryCode(code)}
-                      />
-                    </InputAdornment>
-                  ),
-                }}
-                inputProps={{
-                  inputMode: "tel",
-                  pattern: "[0-9]*",
-                  maxLength: getPhoneLocalMaxLength(phoneCountryCode),
-                }}
-                placeholder={getPhoneLocalMaxLength(phoneCountryCode) === 10 ? "XXX XXX XXXX" : "XXX XXX XXX"}
-                error={Boolean(fieldErrors.phone)}
-                helperText={fieldErrors.phone || ""}
               />
             </Stack>
 
@@ -450,89 +412,30 @@ const AddPatientDrawer: React.FC<Props> = ({ open, onClose, onCreated, initialPh
               />
             </Stack>
 
-            <Stack spacing={0.5}>
-              <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
-                ИНН
-              </Typography>
-              <TextField
-                value={inn}
-                onChange={(e) => {
-                  setInn(e.target.value.replace(/[^\d]/g, "").slice(0, 14));
-                  setFieldErrors((prev) => ({ ...prev, inn: undefined }));
-                }}
-                fullWidth
-                placeholder="14 цифр"
-                inputProps={{ inputMode: "numeric", pattern: "[0-9]*", maxLength: 14 }}
-                error={Boolean(fieldErrors.inn)}
-                helperText={fieldErrors.inn || ""}
-              />
-            </Stack>
-
-            <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-              <Stack spacing={0.5} flex={1}>
-                <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
-                  Организация
-                </Typography>
-                <TextField
-                  select
-                  fullWidth
-                  value={selectedOrganizationId}
-                  onChange={(e) => {
-                    const nextOrgId = e.target.value;
-                    setSelectedOrganizationId(nextOrgId);
-                    const firstBranch = branches.find((branch) => branch.organizationId === nextOrgId);
-                    setSelectedBranchId(firstBranch?.id ?? "");
-                  }}
-                  disabled={organizations.length === 0}
-                  helperText={organizations.length === 0 ? "Нет доступных организаций" : ""}
-                >
-                  {organizations.map((organization) => (
-                    <MenuItem key={organization.id} value={organization.id}>
-                      {organization.name}
-                    </MenuItem>
-                  ))}
-                </TextField>
-              </Stack>
-
-              <Stack spacing={0.5} flex={1}>
-                <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
-                  Филиал
-                </Typography>
-                <TextField
-                  select
-                  fullWidth
-                  value={selectedBranchId}
-                  onChange={(e) => setSelectedBranchId(e.target.value)}
-                  disabled={availableBranches.length === 0}
-                  helperText={selectedOrganizationId && availableBranches.length === 0 ? "Нет филиалов для выбранной организации" : ""}
-                >
-                  {availableBranches.map((branch) => (
-                    <MenuItem key={branch.id} value={branch.id}>
-                      {branch.name}
-                    </MenuItem>
-                  ))}
-                </TextField>
-              </Stack>
-            </Stack>
-
             {/* Ответственные лица */}
-            <Box sx={{ border: "1px solid", borderColor: "divider", borderRadius: 1, p: 2 }}>
+            <Box sx={{ border: "1px solid", borderColor: fieldErrors.parent1Name || fieldErrors.parent1Phone ? "error.main" : "divider", borderRadius: 1, p: 2 }}>
               <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600, mb: 1.5 }}>
-                Ответственное лицо 1
+                Ответственное лицо за ребенка *
               </Typography>
               <Stack spacing={1.5}>
                 <TextField
                   value={parent1Name}
-                  onChange={(e) => setParent1Name(e.target.value)}
+                  onChange={(e) => {
+                    setParent1Name(e.target.value);
+                    setFieldErrors((prev) => ({ ...prev, parent1Name: undefined }));
+                  }}
                   fullWidth
                   size="small"
-                  placeholder="ФИО ответственного лица"
+                  placeholder="ФИО ответственного лица *"
+                  error={Boolean(fieldErrors.parent1Name)}
+                  helperText={fieldErrors.parent1Name || ""}
                 />
                 <TextField
                   value={parent1Phone}
                   onChange={(e) => {
                     const maxLen = getPhoneLocalMaxLength(parent1PhoneCountryCode);
                     setParent1Phone(e.target.value.replace(/[^\d]/g, "").slice(0, maxLen));
+                    setFieldErrors((prev) => ({ ...prev, parent1Phone: undefined }));
                   }}
                   fullWidth
                   size="small"
@@ -544,7 +447,9 @@ const AddPatientDrawer: React.FC<Props> = ({ open, onClose, onCreated, initialPh
                     ),
                   }}
                   inputProps={{ inputMode: "tel", pattern: "[0-9]*", maxLength: getPhoneLocalMaxLength(parent1PhoneCountryCode) }}
-                  placeholder={getPhoneLocalMaxLength(parent1PhoneCountryCode) === 10 ? "XXX XXX XXXX" : "XXX XXX XXX"}
+                  placeholder={`${getPhoneLocalMaxLength(parent1PhoneCountryCode) === 10 ? "XXX XXX XXXX" : "XXX XXX XXX"} *`}
+                  error={Boolean(fieldErrors.parent1Phone)}
+                  helperText={fieldErrors.parent1Phone || ""}
                 />
               </Stack>
             </Box>
@@ -598,6 +503,24 @@ const AddPatientDrawer: React.FC<Props> = ({ open, onClose, onCreated, initialPh
                 + Ответственное лицо
               </Button>
             )}
+
+            <Stack spacing={0.5}>
+              <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
+                ИНН
+              </Typography>
+              <TextField
+                value={inn}
+                onChange={(e) => {
+                  setInn(e.target.value.replace(/[^\d]/g, "").slice(0, 14));
+                  setFieldErrors((prev) => ({ ...prev, inn: undefined }));
+                }}
+                fullWidth
+                placeholder="14 цифр"
+                inputProps={{ inputMode: "numeric", pattern: "[0-9]*", maxLength: 14 }}
+                error={Boolean(fieldErrors.inn)}
+                helperText={fieldErrors.inn || ""}
+              />
+            </Stack>
 
             {canManageBlacklist && (
               <Box sx={{ border: "1px solid", borderColor: "divider", borderRadius: 1, p: 2 }}>
@@ -685,7 +608,7 @@ const AddPatientDrawer: React.FC<Props> = ({ open, onClose, onCreated, initialPh
             <Button
               variant="contained"
               onClick={handleSubmit}
-              disabled={busy || !fio.trim() || !selectedOrganizationId || !selectedBranchId}
+              disabled={busy || !fio.trim()}
             >
               {busy ? (
                 <Stack direction="row" alignItems="center" spacing={1}>

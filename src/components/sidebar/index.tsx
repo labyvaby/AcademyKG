@@ -352,7 +352,7 @@ const { hasPermission, isSuperAdmin, loading: permissionsLoading } = usePermissi
   return (
     <>
       <List sx={{ py: 0 }}>
-        {hasPermission(PERMISSIONS.APPOINTMENTS_READ) && (
+        {hasPermission(PERMISSIONS.APPOINTMENTS_READ) && hasPermission(PERMISSIONS.RECEPTION_READ) && (
           <SidebarMenuItem to="/home" icon={<HomeOutlined />} label="Регистратура" collapsed={siderCollapsed} />
         )}
 
@@ -377,6 +377,9 @@ const { hasPermission, isSuperAdmin, loading: permissionsLoading } = usePermissi
           <SidebarMenuItem to="/patient-search" icon={<SearchOutlined />} label="Поиск клиентов" collapsed={siderCollapsed} />
         )}
 
+        {hasPermission(PERMISSIONS.REPORTS_READ) && (
+          <SidebarMenuItem to="/reports" icon={<AnalyticsOutlined />} label="Отчеты" collapsed={siderCollapsed} />
+        )}
         {hasPermission(PERMISSIONS.REPORTS_READ) && (
           <SidebarMenuItem to="/admin/load" icon={<AnalyticsOutlined />} label="Нагрузка" collapsed={siderCollapsed} />
         )}

@@ -169,10 +169,17 @@ const EditPatientDrawer: React.FC<Props> = ({
         const birthRaw = String(data?.birthDate ?? "");
         const photoRaw = resolvePhotoUrl(data?.photoUrl) ?? initialPhoto ?? null;
         const innRaw = String(data?.inn ?? "");
-        const parentNameRaw = String(data?.parent1Name ?? data?.parentName ?? "");
-        const parentPhoneRaw = String(data?.parent1Phone ?? data?.parentPhone ?? "");
-        const parent2NameRaw = String(data?.parent2Name ?? "");
-        const parent2PhoneRaw = String(data?.parent2Phone ?? "");
+        // Читаем ответственных лиц из нового поля responsiblePersons (массив),
+        // с фолбэком на старые поля parent1Name/parent1Phone для совместимости
+        const responsiblePersons: any[] = Array.isArray(data?.responsiblePersons)
+          ? data.responsiblePersons
+          : [];
+        const p1 = responsiblePersons[0];
+        const p2 = responsiblePersons[1];
+        const parentNameRaw = String(p1?.fullName ?? data?.parent1Name ?? data?.parentName ?? "");
+        const parentPhoneRaw = String(p1?.phone ?? data?.parent1Phone ?? data?.parentPhone ?? "");
+        const parent2NameRaw = String(p2?.fullName ?? data?.parent2Name ?? "");
+        const parent2PhoneRaw = String(p2?.phone ?? data?.parent2Phone ?? "");
         const blacklistRaw = Boolean(data?.isBlacklisted ?? false);
         const reasonRaw = String(data?.blacklistReason ?? "");
 
@@ -266,10 +273,6 @@ const EditPatientDrawer: React.FC<Props> = ({
       notify?.({ type: "error", message: "Укажите причину добавления в черный список" });
       return;
     }
-    if (!selectedOrganizationId || !selectedBranchId) {
-      notify?.({ type: "error", message: "Выберите организацию и филиал" });
-      return;
-    }
     if (!patientId) return;
 
     try {
@@ -297,33 +300,46 @@ const EditPatientDrawer: React.FC<Props> = ({
         }
       }
 
-      const fd = new FormData();
-      fd.append("fullName", fioTrim);
-      if (fullPhone) fd.append("phone", fullPhone);
-      fd.append("birthDate", birth ? birth.slice(0, 10) : "");
-      fd.append("inn", inn.trim());
-      fd.append("parent1Name", parent1Name.trim());
+      // Собираем responsiblePersons только если есть хотя бы одно заполненное лицо
+      const parent1NameTrim = parent1Name.trim();
       const fullParent1Phone = composePhone(parent1PhoneCountryCode, parent1Phone);
-      fd.append("parent1Phone", fullParent1Phone || "");
-      fd.append("parent2Name", parent2Name.trim());
-      const fullParent2Phone = composePhone(parent2PhoneCountryCode, parent2Phone);
-      fd.append("parent2Phone", fullParent2Phone || "");
-      fd.append("isBlacklisted", String(isBlacklisted));
-      fd.append("blacklistReason", isBlacklisted ? blacklistReason.trim() : "");
-
-      if (photoFile) {
-        fd.append("photoUrl", photoFile);
-      } else if (removePhoto) {
-        fd.append("photoUrl", "");
+      const responsiblePersons: { fullName: string; phone: string }[] = [];
+      if (parent1NameTrim && fullParent1Phone) {
+        responsiblePersons.push({ fullName: parent1NameTrim, phone: fullParent1Phone });
+        if (showParent2) {
+          const parent2NameTrim = parent2Name.trim();
+          const fullParent2Phone = composePhone(parent2PhoneCountryCode, parent2Phone);
+          if (parent2NameTrim && fullParent2Phone) {
+            responsiblePersons.push({ fullName: parent2NameTrim, phone: fullParent2Phone });
+          }
+        }
       }
 
-      fd.append("branch", selectedBranchId);
-      fd.append("organization", selectedOrganizationId);
+      const body: Record<string, any> = {
+        fullName: fioTrim,
+        inn: inn.trim(),
+        isBlacklisted,
+        blacklistReason: isBlacklisted ? blacklistReason.trim() : "",
+      };
+      if (birth) body.birthDate = birth.slice(0, 10);
+      if (fullPhone) body.phone = fullPhone;
+      if (selectedBranchId) body.branch = selectedBranchId;
+      if (selectedOrganizationId) body.organization = selectedOrganizationId;
+      // Передаём responsiblePersons только если есть что передавать (пустой нельзя)
+      if (responsiblePersons.length > 0) body.responsiblePersons = responsiblePersons;
 
       const res: any = await apiFetch(`/api/v1/clients/${patientId}/`, {
         method: "PATCH",
-        body: fd,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
       });
+
+      // Обновляем фото отдельно (multipart), если изменилось
+      if (photoFile || removePhoto) {
+        const pfd = new FormData();
+        pfd.append("photoUrl", photoFile ?? "");
+        await apiFetch(`/api/v1/clients/${patientId}/`, { method: "PATCH", body: pfd }).catch(() => {});
+      }
 
       // Загрузить новые документы
       if (newDocFiles.length > 0) {
@@ -461,37 +477,6 @@ const EditPatientDrawer: React.FC<Props> = ({
                 />
               </Stack>
 
-              {/* Телефон */}
-              <Stack spacing={0.5}>
-                <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
-                  Телефон
-                </Typography>
-                <TextField
-                  value={phone}
-                  onChange={(e) => {
-                    const maxLen = getPhoneLocalMaxLength(phoneCountryCode);
-                    setPhone(e.target.value.replace(/[^\d]/g, "").slice(0, maxLen));
-                  }}
-                  fullWidth
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start" sx={{ mr: 1, ml: "-14px" }}>
-                        <PhoneCountryCodeSelect
-                          value={phoneCountryCode}
-                          onChange={(code) => setPhoneCountryCode(code)}
-                        />
-                      </InputAdornment>
-                    ),
-                  }}
-                  inputProps={{
-                    inputMode: "tel",
-                    pattern: "[0-9]*",
-                    maxLength: getPhoneLocalMaxLength(phoneCountryCode),
-                  }}
-                  placeholder={getPhoneLocalMaxLength(phoneCountryCode) === 10 ? "XXX XXX XXXX" : "XXX XXX XXX"}
-                />
-              </Stack>
-
               {/* Дата рождения */}
               <Stack spacing={0.5}>
                 <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
@@ -510,71 +495,10 @@ const EditPatientDrawer: React.FC<Props> = ({
                 />
               </Stack>
 
-              {/* ИНН */}
-              <Stack spacing={0.5}>
-                <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
-                  ИНН
-                </Typography>
-                <TextField
-                  value={inn}
-                  onChange={(e) => setInn(e.target.value.replace(/[^\d]/g, "").slice(0, 14))}
-                  fullWidth
-                  placeholder="14 цифр"
-                  inputProps={{ inputMode: "numeric", pattern: "[0-9]*", maxLength: 14 }}
-                />
-              </Stack>
-
-              <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-                <Stack spacing={0.5} flex={1}>
-                  <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
-                    Организация
-                  </Typography>
-                  <TextField
-                    select
-                    fullWidth
-                    value={selectedOrganizationId}
-                    onChange={(e) => {
-                      const nextOrgId = e.target.value;
-                      setSelectedOrganizationId(nextOrgId);
-                      const firstBranch = branches.find((branch) => branch.organizationId === nextOrgId);
-                      setSelectedBranchId(firstBranch?.id ?? "");
-                    }}
-                    disabled={organizations.length === 0}
-                    helperText={organizations.length === 0 ? "Нет доступных организаций" : ""}
-                  >
-                    {organizations.map((organization) => (
-                      <MenuItem key={organization.id} value={organization.id}>
-                        {organization.name}
-                      </MenuItem>
-                    ))}
-                  </TextField>
-                </Stack>
-
-                <Stack spacing={0.5} flex={1}>
-                  <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
-                    Филиал
-                  </Typography>
-                  <TextField
-                    select
-                    fullWidth
-                    value={selectedBranchId}
-                    onChange={(e) => setSelectedBranchId(e.target.value)}
-                    disabled={availableBranches.length === 0}
-                    helperText={selectedOrganizationId && availableBranches.length === 0 ? "Нет филиалов для выбранной организации" : ""}
-                  >
-                    {availableBranches.map((branch) => (
-                      <MenuItem key={branch.id} value={branch.id}>
-                        {branch.name}
-                      </MenuItem>
-                    ))}
-                  </TextField>
-                </Stack>
-              </Stack>
-
               {/* Ответственные лица */}
               <Box sx={{ border: "1px solid", borderColor: "divider", borderRadius: 1, p: 2 }}>
                 <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600, mb: 1.5 }}>
-                  Ответственное лицо 1
+                  Ответственное лицо за ребенка
                 </Typography>
                 <Stack spacing={1.5}>
                   <TextField
@@ -654,6 +578,20 @@ const EditPatientDrawer: React.FC<Props> = ({
                   + Ответственное лицо
                 </Button>
               )}
+
+              {/* ИНН */}
+              <Stack spacing={0.5}>
+                <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
+                  ИНН
+                </Typography>
+                <TextField
+                  value={inn}
+                  onChange={(e) => setInn(e.target.value.replace(/[^\d]/g, "").slice(0, 14))}
+                  fullWidth
+                  placeholder="14 цифр"
+                  inputProps={{ inputMode: "numeric", pattern: "[0-9]*", maxLength: 14 }}
+                />
+              </Stack>
 
               {/* Чёрный список */}
               {canManageBlacklist && (

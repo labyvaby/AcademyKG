@@ -114,6 +114,7 @@ export const HomeAddAppointmentDrawer: React.FC<
 
   const { hasPermission, employeeId } = usePermissions();
   const isWorkplaceNurse = isOwnOnlySpecialist(hasPermission);
+  const canReception = hasPermission(PERMISSIONS.RECEPTION_READ);
 
   const [selectedPatient, setSelectedPatient] =
     React.useState<PatientOption | null>(null);
@@ -1436,9 +1437,11 @@ export const HomeAddAppointmentDrawer: React.FC<
                   <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
                     Клиент *
                   </Typography>
-                  <Button size="small" onClick={() => setIsPatientDrawerOpen(true)}>
-                    + Новый клиент
-                  </Button>
+                  {canReception && (
+                    <Button size="small" onClick={() => setIsPatientDrawerOpen(true)}>
+                      + Новый клиент
+                    </Button>
+                  )}
                 </Stack>
 
                 <Box sx={{ mb: 0.5 }}>

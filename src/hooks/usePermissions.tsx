@@ -474,6 +474,8 @@ export const usePermissions = (): UserPermissions & PermissionCheck => {
     (perms: PermissionString[]): boolean => {
       if (state.loading) return false;
       if (isSuperuser) return true;
+      if (perms.length === 0) return true;
+      if (permissionNames.size === 0) return false;
       return perms.every(p => permissionNames.has(p));
     },
     [state.loading, permissionNames, isSuperuser]

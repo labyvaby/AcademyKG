@@ -922,6 +922,27 @@ const ExpensesListPage: React.FC = () => {
         searchVal={searchQuery}
         onSearchChange={setSearchQuery}
         searchPlaceholder="Поиск..."
+        actions={
+          <TextField
+            select
+            size="small"
+            value={selectedCategoryId ?? ""}
+            onChange={(e) => setSelectedCategoryId(e.target.value || null)}
+            sx={{ minWidth: 180 }}
+            SelectProps={{
+              displayEmpty: true,
+              renderValue: (val) => {
+                if (!val) return "Все категории";
+                return categoriesMap.get(val as string) ?? "Все категории";
+              },
+            }}
+          >
+            <MenuItem value="">Все категории</MenuItem>
+            {Array.from(categoriesMap.entries()).map(([id, name]) => (
+              <MenuItem key={id} value={id}>{name}</MenuItem>
+            ))}
+          </TextField>
+        }
       />
 
       <Box
@@ -974,43 +995,6 @@ const ExpensesListPage: React.FC = () => {
                 </Typography>
               </Paper>
             )}
-            {/* Чипы категорий */}
-            <Box
-              ref={categoriesScrollRef}
-              onMouseDown={handleMouseDown(categoriesScrollRef)}
-              onMouseLeave={handleMouseLeave(categoriesScrollRef)}
-              onMouseUp={handleMouseUp(categoriesScrollRef)}
-              onMouseMove={handleMouseMove(categoriesScrollRef)}
-              onWheel={handleWheel(categoriesScrollRef)}
-              sx={{
-                display: "flex",
-                overflowX: "auto",
-                scrollbarWidth: "none",
-                "&::-webkit-scrollbar": { display: "none" },
-                gap: 1.5,
-                pb: 1,
-                cursor: 'grab',
-                userSelect: 'none',
-              }}
-            >
-              <Chip
-                label="Все категории"
-                onClick={() => setSelectedCategoryId(null)}
-                variant={selectedCategoryId === null ? "filled" : "outlined"}
-                color={selectedCategoryId === null ? "primary" : "default"}
-                sx={{ fontWeight: 500 }}
-              />
-              {Array.from(categoriesMap.entries()).map(([id, name]) => (
-                <Chip
-                  key={id}
-                  label={name}
-                  onClick={() => setSelectedCategoryId(id === selectedCategoryId ? null : id)}
-                  variant={selectedCategoryId === id ? "filled" : "outlined"}
-                  color={selectedCategoryId === id ? "primary" : "default"}
-                  sx={{ fontWeight: 500 }}
-                />
-              ))}
-            </Box>
           </Stack>
         </Box>
 
@@ -1071,8 +1055,8 @@ const ExpensesListPage: React.FC = () => {
 
                 <Box sx={{ overflowY: "auto", flex: 1, p: 2 }}>
                   <Stack spacing={2}>
-                    {/* Фильтр по сотрудникам (для администраторов) */}
-                    {hasManageExpenses && employees.length > 0 && (
+                    {/* Фильтр по сотрудникам — только для категорий аванс/зарплата */}
+                    {hasManageExpenses && employees.length > 0 && selectedCategoryId && /аванс|зарплат/i.test(categoriesMap.get(selectedCategoryId) ?? "") && (
                       <Stack spacing={0.5}>
                         <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
                           Сотрудник

@@ -385,37 +385,39 @@ export const AddExpenseDrawer: React.FC<AddExpenseDrawerProps> = ({
               />
             </Stack>
 
-            <Stack spacing={0.5}>
-              <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
-                Сотрудник
-              </Typography>
-              <Autocomplete
-                options={employees}
-                loading={loadingEmployees}
-                getOptionLabel={(option) => option.specialization ? `${option.full_name} — ${option.specialization}` : option.full_name || ""}
-                isOptionEqualToValue={(option, value) => option.id === value.id}
-                value={employees.find((e) => e.id === values.employee_id) || null}
-                onChange={(_, newValue) => {
-                  const empName = newValue?.full_name || "";
-                  setValues((s) => ({
-                    ...s,
-                    employee_id: newValue?.id || null,
-                    name: !s.name.trim() && payrollLike && s.category && empName
-                      ? `${s.category} - ${empName}`
-                      : s.name,
-                  }));
-                }}
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    placeholder="Выберите сотрудника"
-                    fullWidth
-                    helperText={payrollLike ? "Для зарплаты и аванса обычно указывается сотрудник" : "Необязательное поле"}
-                  />
-                )}
-                noOptionsText="Нет сотрудников"
-              />
-            </Stack>
+            {payrollLike && (
+              <Stack spacing={0.5}>
+                <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
+                  Сотрудник
+                </Typography>
+                <Autocomplete
+                  options={employees}
+                  loading={loadingEmployees}
+                  getOptionLabel={(option) => option.specialization ? `${option.full_name} — ${option.specialization}` : option.full_name || ""}
+                  isOptionEqualToValue={(option, value) => option.id === value.id}
+                  value={employees.find((e) => e.id === values.employee_id) || null}
+                  onChange={(_, newValue) => {
+                    const empName = newValue?.full_name || "";
+                    setValues((s) => ({
+                      ...s,
+                      employee_id: newValue?.id || null,
+                      name: !s.name.trim() && s.category && empName
+                        ? `${s.category} - ${empName}`
+                        : s.name,
+                    }));
+                  }}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      placeholder="Выберите сотрудника"
+                      fullWidth
+                      helperText="Для зарплаты и аванса обычно указывается сотрудник"
+                    />
+                  )}
+                  noOptionsText="Нет сотрудников"
+                />
+              </Stack>
+            )}
 
             {payrollLike && (
               <Stack spacing={0.5}>

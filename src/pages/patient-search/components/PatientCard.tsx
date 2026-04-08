@@ -50,6 +50,11 @@ export type PatientDocument = {
   createdAt?: string;
 };
 
+export type ResponsiblePerson = {
+  fullName: string;
+  phone: string;
+};
+
 export type PatientLite = {
   fio: string;
   phone?: string;
@@ -58,6 +63,7 @@ export type PatientLite = {
   inn?: string | null;
   is_blacklisted?: boolean | null;
   blacklist_reason?: string | null;
+  responsiblePersons?: ResponsiblePerson[];
 } | null;
 
 type Props = {
@@ -240,6 +246,28 @@ const PatientCard: React.FC<Props> = ({
                   )}
                 </Box>
               </Stack>
+
+              {/* Ответственные лица */}
+              {patient.responsiblePersons && patient.responsiblePersons.length > 0 && (
+                <>
+                  <Divider sx={{ my: 1 }} />
+                  <Stack spacing={1}>
+                    <Typography variant="subtitle2" color="text.secondary">Ответственные лица</Typography>
+                    {patient.responsiblePersons.map((person, idx) => (
+                      <Stack key={idx} spacing={0.25}>
+                        <Typography variant="body2" fontWeight={500}>{person.fullName}</Typography>
+                        <Link
+                          href={`tel:${person.phone}`}
+                          sx={{ display: "flex", alignItems: "center", gap: 1, color: "text.secondary", textDecoration: "none", "&:hover": { color: "primary.main" } }}
+                        >
+                          <PhoneInTalkOutlined fontSize="small" sx={{ color: "primary.main" }} />
+                          <Typography variant="body2">{person.phone}</Typography>
+                        </Link>
+                      </Stack>
+                    ))}
+                  </Stack>
+                </>
+              )}
 
               {/* Vitals */}
               {(lastWeight || lastHeight || lastTemperature) && (

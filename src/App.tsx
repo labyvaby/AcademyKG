@@ -80,7 +80,10 @@ const BranchAwareLayout: React.FC<{ children: React.ReactNode }> = ({ children }
 
 // Вспомогательный компонент для защиты корневого редиректа
 const RootRedirect = () => {
-  return <Navigate to="/home" replace />;
+  const { hasPermission, loading } = usePermissions();
+  if (loading) return null;
+  const target = hasPermission('reception.read') ? '/home' : '/specialist';
+  return <Navigate to={target} replace />;
 };
 
 function App() {
@@ -298,7 +301,7 @@ function App() {
                         <Route
                           path="home"
                           element={
-                            <ProtectedRoute requiredPermissions={['appointments.read']}>
+                            <ProtectedRoute requiredPermissions={['appointments.read', 'reception.read']}>
                               <Suspense fallback={<LinearProgress />}>
                                 <HomePage />
                               </Suspense>

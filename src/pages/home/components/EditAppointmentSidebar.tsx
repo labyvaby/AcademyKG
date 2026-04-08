@@ -62,6 +62,7 @@ const EditAppointmentSidebar: React.FC<EditAppointmentSidebarProps> = ({
   const { open: notify } = useNotification();
   const { hasPermission, employeeId } = usePermissions();
   const isWorkplaceNurse = isOwnOnlySpecialist(hasPermission);
+  const canReception = hasPermission(PERMISSIONS.RECEPTION_READ);
   const [busy, setBusy] = React.useState(false);
   const busyRef = React.useRef(false);
   const [touched, setTouched] = React.useState(false);
@@ -442,12 +443,14 @@ const EditAppointmentSidebar: React.FC<EditAppointmentSidebarProps> = ({
                 <Typography variant="body2" color="text.secondary">
                   Клиент *
                 </Typography>
-                <Button
-                  size="small"
-                  onClick={() => setIsPatientDrawerOpen(true)}
-                >
-                  + Добавить клиента
-                </Button>
+                {canReception && (
+                  <Button
+                    size="small"
+                    onClick={() => setIsPatientDrawerOpen(true)}
+                  >
+                    + Добавить клиента
+                  </Button>
+                )}
               </Stack>
               <Autocomplete
                 disabled={isBooking}

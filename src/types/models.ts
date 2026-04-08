@@ -10,6 +10,7 @@ export type Patient = {
   birth_date?: string | null;
   is_blacklisted?: boolean | null;
   blacklist_reason?: string | null;
+  responsiblePersons?: { fullName: string; phone: string }[];
 };
 
 // History row for patient's appointments (normalized view)

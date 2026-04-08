@@ -51,7 +51,7 @@ export const PatientSearchPage: React.FC = () => {
     }
   }, [searchParams, setSearchParams]);
 
-  const canCreatePatient = hasPermission(PERMISSIONS.CLIENTS_CREATE);
+  const canCreatePatient = hasPermission(PERMISSIONS.RECEPTION_READ);
   const canUpdatePatient = hasPermission(PERMISSIONS.CLIENTS_UPDATE);
 
 
@@ -112,6 +112,9 @@ export const PatientSearchPage: React.FC = () => {
             inn: (data?.inn as string) ?? null,
             is_blacklisted: (data?.isBlacklisted as boolean) ?? false,
             blacklist_reason: (data?.blacklistReason as string) ?? null,
+            responsiblePersons: Array.isArray(data?.responsiblePersons)
+              ? data.responsiblePersons.map((p: any) => ({ fullName: String(p?.fullName ?? ""), phone: String(p?.phone ?? "") }))
+              : undefined,
           };
           setSelected((prev) => {
             if (!prev || prev.id !== selectedId) return prev;
@@ -255,6 +258,7 @@ export const PatientSearchPage: React.FC = () => {
         inn: selected.inn ?? null,
         is_blacklisted: selected.is_blacklisted ?? null,
         blacklist_reason: selected.blacklist_reason ?? null,
+        responsiblePersons: selected.responsiblePersons,
       }
     : null;
 
