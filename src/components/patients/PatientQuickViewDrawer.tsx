@@ -25,7 +25,7 @@ import {
 import dayjs from "dayjs";
 import "dayjs/locale/ru";
 import { apiFetch, resolveApiUrl } from "../../utility/apiClient";
-import { getStatusConfig, getStatusChipSx } from "../../config/appointmentStatuses";
+import { getStatusChipStyles, getStatusConfig } from "../../config/appointmentStatuses";
 import { calculateAgeWithMonths } from "../../utility/format";
 
 dayjs.locale("ru");
@@ -226,7 +226,7 @@ export const PatientQuickViewDrawer: React.FC<PatientQuickViewDrawerProps> = ({
                               label={getStatusConfig(appointment.status).label}
                               icon={getStatusConfig(appointment.status).icon}
                               size="small"
-                              sx={{ ...getStatusChipSx(appointment.status), height: 20 }}
+                              sx={(theme) => ({ ...getStatusChipStyles(appointment.status, theme), height: 20 })}
                             />
                           </Stack>
                         }

@@ -10,6 +10,7 @@ import {
   CardGiftcard as CardGiftcardIcon,
 } from "@mui/icons-material";
 import type { SxProps, Theme } from "@mui/material";
+import type { SystemStyleObject } from "@mui/system";
 import { alpha } from "@mui/material/styles";
 
 /**
@@ -274,29 +275,35 @@ const getStatusColors = (status: string, theme: Theme): { backgroundColor: strin
   }
 };
 
+export const getStatusChipStyles = (
+  status: string,
+  theme: Theme,
+): SystemStyleObject<Theme> => {
+  const { backgroundColor, textColor } = getStatusColors(status, theme);
+
+  return {
+    backgroundColor,
+    color: textColor,
+    fontWeight: 500,
+    fontSize: "0.75rem",
+    height: "22px",
+    "& .MuiChip-icon": {
+      color: textColor,
+    },
+    "&:hover": {
+      backgroundColor,
+      opacity: 0.9,
+    },
+  };
+};
+
 /**
  * Получить sx prop для Chip компонента с кастомными цветами
  * Использует функцию от темы для поддержки светлой/тёмной темы
  */
 export const getStatusChipSx = (status: string): SxProps<Theme> => {
   return (theme: Theme) => {
-    const { backgroundColor, textColor } = getStatusColors(status, theme);
-
-    return {
-      backgroundColor,
-      color: textColor,
-      fontWeight: 500,
-      fontSize: "0.75rem",
-      height: "22px",
-      "& .MuiChip-icon": {
-        color: textColor,
-      },
-      // Hover effect для лучшей интерактивности
-      "&:hover": {
-        backgroundColor,
-        opacity: 0.9,
-      },
-    };
+    return getStatusChipStyles(status, theme);
   };
 };
 

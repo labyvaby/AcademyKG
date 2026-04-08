@@ -204,7 +204,11 @@ const RolesPage: React.FC = () => {
   const handleToggle = (permName: string) => {
     setEditedPermissions((prev) => {
       const next = new Set(prev);
-      next.has(permName) ? next.delete(permName) : next.add(permName);
+      if (next.has(permName)) {
+        next.delete(permName);
+      } else {
+        next.add(permName);
+      }
       return next;
     });
     setDirty(true);

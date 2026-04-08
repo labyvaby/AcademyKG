@@ -16,16 +16,15 @@ import {
   Chip,
   Divider,
   Stack,
-  IconButton,
   Typography,
   List,
   ListItemButton,
-  ListItemText
 } from "@mui/material";
 import HistoryOutlined from "@mui/icons-material/HistoryOutlined";
 import dayjs from "dayjs";
 import { formatKGS } from "../../../utility/format";
-import { getStatusConfig, getStatusChipSx, normalizeStatus } from "../../../config/appointmentStatuses";
+import type { Theme } from "@mui/material/styles";
+import { getStatusChipStyles, normalizeStatus } from "../../../config/appointmentStatuses";
 import type { HistoryRow } from "../../../types/models";
 
 type Props = {
@@ -128,7 +127,10 @@ const PatientHistoryPanel: React.FC<Props> = ({
                         <Chip
                           label={normalizeStatus(h.Статус)}
                           size="small"
-                          sx={(theme) => ({ mt: 0.5, ...(getStatusChipSx(h.Статус ?? "") as Function)(theme) })}
+                          sx={(theme: Theme) => ({
+                            mt: 0.5,
+                            ...getStatusChipStyles(h.Статус ?? "", theme),
+                          })}
                         />
                       )}
                     </Stack>

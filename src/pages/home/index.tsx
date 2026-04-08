@@ -364,8 +364,6 @@ export const HomePage: React.FC = () => {
               onOpenFilters={() => setFiltersOpen(true)}
               onItemClick={(id) => {
                 setSelectedAppointmentId(id);
-                if (id !== selectedAppointmentId) {
-                }
               }}
               onAddSlot={(dateIso, docId) => {
                 setInitialSlotDate(dateIso);

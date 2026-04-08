@@ -21,7 +21,7 @@ import {
 import dayjs from "dayjs";
 import "dayjs/locale/ru";
 import { apiFetch } from "../../utility/apiClient";
-import { getStatusConfig, getStatusChipSx, normalizeStatus } from "../../config/appointmentStatuses";
+import { getStatusChipStyles, getStatusConfig, normalizeStatus } from "../../config/appointmentStatuses";
 import { Chip } from "@mui/material";
 
 dayjs.locale("ru");
@@ -204,7 +204,11 @@ export const DoctorQuickViewDrawer: React.FC<DoctorQuickViewDrawerProps> = ({ op
                             <Typography variant="body2" fontWeight={500}>
                               {a.appointment_at ? dayjs(a.appointment_at).format("DD.MM.YYYY HH:mm") : "—"}
                             </Typography>
-                            <Chip label={getStatusConfig(a.status).label} size="small" sx={{ ...getStatusChipSx(a.status), height: 20 }} />
+                            <Chip
+                              label={getStatusConfig(a.status).label}
+                              size="small"
+                              sx={(theme) => ({ ...getStatusChipStyles(a.status, theme), height: 20 })}
+                            />
                           </Stack>
                         }
                         secondary={
