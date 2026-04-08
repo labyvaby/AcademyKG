@@ -304,11 +304,14 @@ export const PatientSearchPage: React.FC = () => {
   return (
     <Box
       sx={{
-        height: { xs: "auto", lg: "100%" },
-        minHeight: { xs: "calc(100dvh - 56px)", sm: "calc(100dvh - 64px)" },
+        height: {
+          xs: "calc(100dvh - 56px)",
+          md: "calc(100dvh - 64px)",
+          lg: "100%",
+        },
         display: "flex",
         flexDirection: "column",
-        overflow: { xs: "visible", lg: "hidden" },
+        overflow: "hidden",
       }}
     >
       <PageHeader
@@ -331,7 +334,7 @@ export const PatientSearchPage: React.FC = () => {
           display: "flex",
           flexDirection: "column",
           minHeight: 0,
-          overflow: { xs: "visible", lg: "hidden" },
+          overflow: "hidden",
         })}
       >
         <Grid container spacing={2} sx={{ flex: 1, minHeight: 0 }}>

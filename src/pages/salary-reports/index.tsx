@@ -243,11 +243,10 @@ const SalaryReportsPage: React.FC = () => {
     return (
         <Box
             sx={{
-                height: { xs: "auto", lg: "100%" },
-                minHeight: { xs: "calc(100dvh - 56px)", sm: "calc(100dvh - 64px)" },
+                height: { xs: "calc(100dvh - 56px)", md: "calc(100vh - 64px)" },
                 display: "flex",
                 flexDirection: "column",
-                overflow: { xs: "visible", lg: "hidden" },
+                overflow: "hidden",
             }}
         >
             <PageHeader
