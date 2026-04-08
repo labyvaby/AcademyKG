@@ -11,6 +11,23 @@ export const PERMISSION_ALIASES: Record<string, string> = {
   'children.read':   'clients.read',
   'children.update': 'clients.update',
   'children.delete': 'clients.delete',
+  // Legacy resource names after cashbox/services permission unification
+  'payments.create': 'cashbox.create',
+  'payments.read': 'cashbox.read',
+  'payments.update': 'cashbox.update',
+  'payments.delete': 'cashbox.delete',
+  'sale_lines.create': 'cashbox.create',
+  'sale_lines.read': 'cashbox.read',
+  'sale_lines.update': 'cashbox.update',
+  'sale_lines.delete': 'cashbox.delete',
+  'sales.create': 'cashbox.create',
+  'sales.read': 'cashbox.read',
+  'sales.update': 'cashbox.update',
+  'sales.delete': 'cashbox.delete',
+  'sellable_items.create': 'services.read',
+  'sellable_items.read': 'services.read',
+  'sellable_items.update': 'services.read',
+  'sellable_items.delete': 'services.read',
 };
 
 // ---------------------------------------------------------------------------

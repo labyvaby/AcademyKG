@@ -49,6 +49,7 @@ export type CreatedPatient = {
   photo?: string | null;
   is_blacklisted?: boolean | null;
   blacklist_reason?: string | null;
+  responsiblePersons?: { fullName: string; phone: string }[];
 };
 
 export type CreatedEmployee = {

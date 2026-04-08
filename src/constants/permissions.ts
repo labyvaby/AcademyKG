@@ -127,10 +127,10 @@ const _ORGANIZATIONS = {
 } as const;
 
 const _PAYMENTS = {
-  CREATE: 'payments.create',
-  READ:   'payments.read',
-  UPDATE: 'payments.update',
-  DELETE: 'payments.delete',
+  CREATE: 'cashbox.create',
+  READ:   'cashbox.read',
+  UPDATE: 'cashbox.update',
+  DELETE: 'cashbox.delete',
 } as const;
 
 const _PRODUCTS = {
@@ -162,10 +162,10 @@ const _ROLES = {
 } as const;
 
 const _SALE_LINES = {
-  CREATE: 'sale_lines.create',
-  READ:   'sale_lines.read',
-  UPDATE: 'sale_lines.update',
-  DELETE: 'sale_lines.delete',
+  CREATE: 'cashbox.create',
+  READ:   'cashbox.read',
+  UPDATE: 'cashbox.update',
+  DELETE: 'cashbox.delete',
 } as const;
 
 const _SALARY_RULES = {
@@ -176,17 +176,17 @@ const _SALARY_RULES = {
 } as const;
 
 const _SALES = {
-  CREATE: 'sales.create',
-  READ:   'sales.read',
-  UPDATE: 'sales.update',
-  DELETE: 'sales.delete',
+  CREATE: 'cashbox.create',
+  READ:   'cashbox.read',
+  UPDATE: 'cashbox.update',
+  DELETE: 'cashbox.delete',
 } as const;
 
 const _SELLABLE_ITEMS = {
-  CREATE: 'sellable_items.create',
-  READ:   'sellable_items.read',
-  UPDATE: 'sellable_items.update',
-  DELETE: 'sellable_items.delete',
+  CREATE: 'services.read',
+  READ:   'services.read',
+  UPDATE: 'services.read',
+  DELETE: 'services.read',
 } as const;
 
 const _SERVICE_SALARY_RULES = {

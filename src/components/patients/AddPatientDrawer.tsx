@@ -13,13 +13,18 @@ import {
   FormControlLabel,
   Switch,
   Chip,
-  MenuItem,
 } from "@mui/material";
 import CloseOutlined from "@mui/icons-material/CloseOutlined";
 import AttachFileOutlined from "@mui/icons-material/AttachFileOutlined";
-import AddOutlined from "@mui/icons-material/AddOutlined";
 import { useNotification } from "@refinedev/core";
 import PatientPhotoUploader from "./PatientPhotoUploader";
+import ResponsiblePersonsSection, {
+  createResponsiblePersonValue,
+  ensureResponsiblePersonValues,
+  type ResponsiblePersonFieldErrors,
+  type ResponsiblePersonPayload,
+  type ResponsiblePersonValue,
+} from "./ResponsiblePersonsSection";
 import { apiFetch, getBranchFilter, resolveApiUrl } from "../../utility/apiClient";
 import { PhoneCountryCodeSelect, CustomDatePicker } from "../ui";
 import dayjs from "dayjs";
@@ -48,9 +53,6 @@ function resolvePhotoUrl(url: string | null | undefined): string | null {
   return resolveApiUrl(url);
 }
 
-const normalizePhoneValue = (value: string | null | undefined): string =>
-  String(value ?? "").replace(/[^\d+]/g, "");
-
 export type CreatedPatient = {
   id: string;
   fio: string;
@@ -60,6 +62,7 @@ export type CreatedPatient = {
   inn?: string | null;
   is_blacklisted?: boolean | null;
   blacklist_reason?: string | null;
+  responsiblePersons?: ResponsiblePersonPayload[];
 };
 
 type Props = {
@@ -69,11 +72,14 @@ type Props = {
   initialPhone?: string;
 };
 
-type PatientFieldKey = "fio" | "phone" | "birth" | "inn" | "blacklistReason" | "parent1Name" | "parent1Phone";
+type PatientFieldKey = "fio" | "phone" | "birth" | "inn" | "blacklistReason";
 type FieldErrors = Partial<Record<PatientFieldKey, string>>;
 
 const mapApiErrorToField = (rawMsg: string): { field?: PatientFieldKey; message: string } => {
   const msg = rawMsg.toLowerCase();
+  if (msg.includes("responsible")) {
+    return { message: "Проверьте ответственных лиц: ФИО и телефон обязательны." };
+  }
   if (msg.includes("full_name") || msg.includes("fullname") || msg.includes("name") || msg.includes("fio")) {
     return { field: "fio", message: "Проверьте ФИО: используйте корректное имя на кириллице." };
   }
@@ -99,13 +105,9 @@ const AddPatientDrawer: React.FC<Props> = ({ open, onClose, onCreated, initialPh
   const [phoneCountryCode, setPhoneCountryCode] = React.useState<PhoneCountryCode>(DEFAULT_PHONE_COUNTRY_CODE);
   const [birth, setBirth] = React.useState("");
   const [inn, setInn] = React.useState("");
-  const [parent1Name, setParent1Name] = React.useState("");
-  const [parent1Phone, setParent1Phone] = React.useState("");
-  const [parent1PhoneCountryCode, setParent1PhoneCountryCode] = React.useState<PhoneCountryCode>(DEFAULT_PHONE_COUNTRY_CODE);
-  const [parent2Name, setParent2Name] = React.useState("");
-  const [parent2Phone, setParent2Phone] = React.useState("");
-  const [parent2PhoneCountryCode, setParent2PhoneCountryCode] = React.useState<PhoneCountryCode>(DEFAULT_PHONE_COUNTRY_CODE);
-  const [showParent2, setShowParent2] = React.useState(false);
+  const [responsiblePersons, setResponsiblePersons] = React.useState<ResponsiblePersonValue[]>(() =>
+    ensureResponsiblePersonValues(),
+  );
   const [isBlacklisted, setIsBlacklisted] = React.useState(false);
   const [blacklistReason, setBlacklistReason] = React.useState("");
   const [busy, setBusy] = React.useState(false);
@@ -120,6 +122,7 @@ const AddPatientDrawer: React.FC<Props> = ({ open, onClose, onCreated, initialPh
   const [selectedOrganizationId, setSelectedOrganizationId] = React.useState("");
   const [selectedBranchId, setSelectedBranchId] = React.useState("");
   const [fieldErrors, setFieldErrors] = React.useState<FieldErrors>({});
+  const [responsiblePersonErrors, setResponsiblePersonErrors] = React.useState<ResponsiblePersonFieldErrors[]>([]);
 
   React.useEffect(() => {
     if (!open) return;
@@ -172,13 +175,7 @@ const AddPatientDrawer: React.FC<Props> = ({ open, onClose, onCreated, initialPh
       setPhoneCountryCode(DEFAULT_PHONE_COUNTRY_CODE);
       setBirth("");
       setInn("");
-      setParent1Name("");
-      setParent1Phone("");
-      setParent1PhoneCountryCode(DEFAULT_PHONE_COUNTRY_CODE);
-      setParent2Name("");
-      setParent2Phone("");
-      setParent2PhoneCountryCode(DEFAULT_PHONE_COUNTRY_CODE);
-      setShowParent2(false);
+      setResponsiblePersons(ensureResponsiblePersonValues());
       setIsBlacklisted(false);
       setBlacklistReason("");
       setBusy(false);
@@ -188,6 +185,7 @@ const AddPatientDrawer: React.FC<Props> = ({ open, onClose, onCreated, initialPh
       setSelectedOrganizationId("");
       setSelectedBranchId("");
       setFieldErrors({});
+      setResponsiblePersonErrors([]);
     } else if (initialPhone) {
       const parsed = parsePhone(initialPhone);
       setPhone(parsed.local);
@@ -199,6 +197,84 @@ const AddPatientDrawer: React.FC<Props> = ({ open, onClose, onCreated, initialPh
     () => branches.filter((branch) => branch.organizationId === selectedOrganizationId),
     [branches, selectedOrganizationId],
   );
+
+  const updateResponsiblePerson = React.useCallback(
+    (index: number, patch: Partial<Omit<ResponsiblePersonValue, "id">>) => {
+      setResponsiblePersons((current) =>
+        current.map((person, personIndex) =>
+          personIndex === index ? { ...person, ...patch } : person,
+        ),
+      );
+      setResponsiblePersonErrors((current) =>
+        current.map((error, errorIndex) =>
+          errorIndex === index
+            ? {
+                ...error,
+                ...(patch.fullName !== undefined ? { fullName: undefined } : {}),
+                ...(patch.phone !== undefined || patch.phoneCountryCode !== undefined
+                  ? { phone: undefined }
+                  : {}),
+              }
+            : error,
+        ),
+      );
+    },
+    [],
+  );
+
+  const addResponsiblePerson = React.useCallback(() => {
+    setResponsiblePersons((current) => [...current, createResponsiblePersonValue()]);
+    setResponsiblePersonErrors((current) => [...current, {}]);
+  }, []);
+
+  const removeResponsiblePerson = React.useCallback((index: number) => {
+    setResponsiblePersons((current) =>
+      current.length > 1 ? current.filter((_, currentIndex) => currentIndex !== index) : current,
+    );
+    setResponsiblePersonErrors((current) =>
+      current.filter((_, currentIndex) => currentIndex !== index),
+    );
+  }, []);
+
+  const buildResponsiblePersonsPayload = React.useCallback(() => {
+    const errors = responsiblePersons.map((person, index) => {
+      const fullName = person.fullName.trim();
+      const fullPhone = composePhone(person.phoneCountryCode, person.phone);
+      const isEmpty = !fullName && !fullPhone;
+      const shouldValidate = index === 0 || !isEmpty;
+
+      if (!shouldValidate) return {};
+
+      return {
+        fullName: fullName ? undefined : "Введите ФИО ответственного лица",
+        phone: fullPhone ? undefined : "Введите телефон ответственного лица",
+      };
+    });
+
+    const hasErrors = errors.some((error) => error.fullName || error.phone);
+    setResponsiblePersonErrors(errors);
+
+    if (hasErrors) {
+      notify?.({
+        type: "error",
+        message: "Проверьте блок ответственных лиц",
+        description: "Минимум одно ответственное лицо должно быть заполнено полностью.",
+      });
+      return null;
+    }
+
+    return responsiblePersons.reduce<ResponsiblePersonPayload[]>((acc, person, index) => {
+      const fullName = person.fullName.trim();
+      const fullPhone = composePhone(person.phoneCountryCode, person.phone);
+      const isEmpty = !fullName && !fullPhone;
+
+      if (index > 0 && isEmpty) return acc;
+      if (fullName && fullPhone) {
+        acc.push({ fullName, phone: fullPhone });
+      }
+      return acc;
+    }, []);
+  }, [notify, responsiblePersons]);
 
   const handleSubmit = async () => {
     const fioTrim = fio.trim();
@@ -223,37 +299,18 @@ const AddPatientDrawer: React.FC<Props> = ({ open, onClose, onCreated, initialPh
       notify?.({ type: "error", message: "Укажите причину добавления в черный список" });
       return;
     }
-    const parent1NameTrim = parent1Name.trim();
-    const fullParent1Phone = composePhone(parent1PhoneCountryCode, parent1Phone);
-    if (!parent1NameTrim) {
-      setFieldErrors({ parent1Name: "Введите ФИО ответственного лица" });
-      notify?.({ type: "error", message: "Введите ФИО ответственного лица" });
-      return;
-    }
-    if (!fullParent1Phone) {
-      setFieldErrors({ parent1Phone: "Введите телефон ответственного лица" });
-      notify?.({ type: "error", message: "Введите телефон ответственного лица" });
-      return;
-    }
+
+    const responsiblePersonsPayload = buildResponsiblePersonsPayload();
+    if (!responsiblePersonsPayload) return;
+
     try {
       setBusy(true);
-
-      const responsiblePersons: { fullName: string; phone: string }[] = [
-        { fullName: parent1NameTrim, phone: fullParent1Phone },
-      ];
-      if (showParent2) {
-        const parent2NameTrim = parent2Name.trim();
-        const fullParent2Phone = composePhone(parent2PhoneCountryCode, parent2Phone);
-        if (parent2NameTrim && fullParent2Phone) {
-          responsiblePersons.push({ fullName: parent2NameTrim, phone: fullParent2Phone });
-        }
-      }
 
       const fullPhone = composePhone(phoneCountryCode, phone);
 
       const body: Record<string, any> = {
         fullName: fioTrim,
-        responsiblePersons,
+        responsiblePersons: responsiblePersonsPayload,
       };
       if (fullPhone) body.phone = fullPhone;
       if (birth) body.birthDate = birth.slice(0, 10);
@@ -288,6 +345,7 @@ const AddPatientDrawer: React.FC<Props> = ({ open, onClose, onCreated, initialPh
         inn: inn.trim() || null,
         is_blacklisted: isBlacklisted,
         blacklist_reason: isBlacklisted ? blacklistReason.trim() : null,
+        responsiblePersons: responsiblePersonsPayload,
       };
 
       // Загружаем документы если есть
@@ -323,6 +381,12 @@ const AddPatientDrawer: React.FC<Props> = ({ open, onClose, onCreated, initialPh
       setBusy(false);
     }
   };
+
+  const primaryResponsiblePerson = responsiblePersons[0];
+  const canSubmit =
+    Boolean(fio.trim()) &&
+    Boolean(primaryResponsiblePerson?.fullName.trim()) &&
+    Boolean(primaryResponsiblePerson?.phone.trim());
 
   return (
     <Drawer
@@ -392,6 +456,51 @@ const AddPatientDrawer: React.FC<Props> = ({ open, onClose, onCreated, initialPh
 
             <Stack spacing={0.5}>
               <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
+                Телефон клиента
+              </Typography>
+              <TextField
+                value={phone}
+                onChange={(event) => {
+                  const maxLength = getPhoneLocalMaxLength(phoneCountryCode);
+                  setPhone(event.target.value.replace(/[^\d]/g, "").slice(0, maxLength));
+                  setFieldErrors((prev) => ({ ...prev, phone: undefined }));
+                }}
+                fullWidth
+                placeholder={
+                  getPhoneLocalMaxLength(phoneCountryCode) === 10
+                    ? "XXX XXX XXXX"
+                    : "XXX XXX XXX"
+                }
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start" sx={{ mr: 1, ml: "-14px" }}>
+                      <PhoneCountryCodeSelect
+                        value={phoneCountryCode}
+                        onChange={(countryCode) => {
+                          setPhoneCountryCode(countryCode);
+                          setPhone((current) =>
+                            current.slice(0, getPhoneLocalMaxLength(countryCode)),
+                          );
+                        }}
+                      />
+                    </InputAdornment>
+                  ),
+                }}
+                inputProps={{
+                  inputMode: "tel",
+                  pattern: "[0-9]*",
+                  maxLength: getPhoneLocalMaxLength(phoneCountryCode),
+                }}
+                error={Boolean(fieldErrors.phone)}
+                helperText={
+                  fieldErrors.phone ||
+                  "Необязательно. Можно оставить пустым, если связь идёт через ответственное лицо."
+                }
+              />
+            </Stack>
+
+            <Stack spacing={0.5}>
+              <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
                 Дата рождения
               </Typography>
               <CustomDatePicker
@@ -412,97 +521,15 @@ const AddPatientDrawer: React.FC<Props> = ({ open, onClose, onCreated, initialPh
               />
             </Stack>
 
-            {/* Ответственные лица */}
-            <Box sx={{ border: "1px solid", borderColor: fieldErrors.parent1Name || fieldErrors.parent1Phone ? "error.main" : "divider", borderRadius: 1, p: 2 }}>
-              <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600, mb: 1.5 }}>
-                Ответственное лицо за ребенка *
-              </Typography>
-              <Stack spacing={1.5}>
-                <TextField
-                  value={parent1Name}
-                  onChange={(e) => {
-                    setParent1Name(e.target.value);
-                    setFieldErrors((prev) => ({ ...prev, parent1Name: undefined }));
-                  }}
-                  fullWidth
-                  size="small"
-                  placeholder="ФИО ответственного лица *"
-                  error={Boolean(fieldErrors.parent1Name)}
-                  helperText={fieldErrors.parent1Name || ""}
-                />
-                <TextField
-                  value={parent1Phone}
-                  onChange={(e) => {
-                    const maxLen = getPhoneLocalMaxLength(parent1PhoneCountryCode);
-                    setParent1Phone(e.target.value.replace(/[^\d]/g, "").slice(0, maxLen));
-                    setFieldErrors((prev) => ({ ...prev, parent1Phone: undefined }));
-                  }}
-                  fullWidth
-                  size="small"
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start" sx={{ mr: 1, ml: "-14px" }}>
-                        <PhoneCountryCodeSelect value={parent1PhoneCountryCode} onChange={(code) => setParent1PhoneCountryCode(code)} />
-                      </InputAdornment>
-                    ),
-                  }}
-                  inputProps={{ inputMode: "tel", pattern: "[0-9]*", maxLength: getPhoneLocalMaxLength(parent1PhoneCountryCode) }}
-                  placeholder={`${getPhoneLocalMaxLength(parent1PhoneCountryCode) === 10 ? "XXX XXX XXXX" : "XXX XXX XXX"} *`}
-                  error={Boolean(fieldErrors.parent1Phone)}
-                  helperText={fieldErrors.parent1Phone || ""}
-                />
-              </Stack>
-            </Box>
-
-            {showParent2 ? (
-              <Box sx={{ border: "1px solid", borderColor: "divider", borderRadius: 1, p: 2 }}>
-                <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1.5 }}>
-                  <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
-                    Ответственное лицо 2
-                  </Typography>
-                  <IconButton size="small" color="error" onClick={() => { setShowParent2(false); setParent2Name(""); setParent2Phone(""); setParent2PhoneCountryCode(DEFAULT_PHONE_COUNTRY_CODE); }}>
-                    <CloseOutlined fontSize="small" />
-                  </IconButton>
-                </Stack>
-                <Stack spacing={1.5}>
-                  <TextField
-                    value={parent2Name}
-                    onChange={(e) => setParent2Name(e.target.value)}
-                    fullWidth
-                    size="small"
-                    placeholder="ФИО ответственного лица"
-                  />
-                  <TextField
-                    value={parent2Phone}
-                    onChange={(e) => {
-                      const maxLen = getPhoneLocalMaxLength(parent2PhoneCountryCode);
-                      setParent2Phone(e.target.value.replace(/[^\d]/g, "").slice(0, maxLen));
-                    }}
-                    fullWidth
-                    size="small"
-                    InputProps={{
-                      startAdornment: (
-                        <InputAdornment position="start" sx={{ mr: 1, ml: "-14px" }}>
-                          <PhoneCountryCodeSelect value={parent2PhoneCountryCode} onChange={(code) => setParent2PhoneCountryCode(code)} />
-                        </InputAdornment>
-                      ),
-                    }}
-                    inputProps={{ inputMode: "tel", pattern: "[0-9]*", maxLength: getPhoneLocalMaxLength(parent2PhoneCountryCode) }}
-                    placeholder={getPhoneLocalMaxLength(parent2PhoneCountryCode) === 10 ? "XXX XXX XXXX" : "XXX XXX XXX"}
-                  />
-                </Stack>
-              </Box>
-            ) : (
-              <Button
-                variant="outlined"
-                startIcon={<AddOutlined />}
-                onClick={() => setShowParent2(true)}
-                size="small"
-                sx={{ alignSelf: "flex-start" }}
-              >
-                + Ответственное лицо
-              </Button>
-            )}
+            <ResponsiblePersonsSection
+              persons={responsiblePersons}
+              errors={responsiblePersonErrors}
+              onChange={updateResponsiblePerson}
+              onAdd={addResponsiblePerson}
+              onRemove={removeResponsiblePerson}
+              disabled={busy}
+              title="Ответственные лица *"
+            />
 
             <Stack spacing={0.5}>
               <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
@@ -608,7 +635,7 @@ const AddPatientDrawer: React.FC<Props> = ({ open, onClose, onCreated, initialPh
             <Button
               variant="contained"
               onClick={handleSubmit}
-              disabled={busy || !fio.trim()}
+              disabled={busy || !canSubmit}
             >
               {busy ? (
                 <Stack direction="row" alignItems="center" spacing={1}>

@@ -563,13 +563,19 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
                     </Typography>
                   )}
 
-                  {/* Patient Balance — visible for admin/registrator when patient has funds */}
-                  {canSeeBalance && patientBalance && (patientBalance.balance > 0 || patientBalance.bonuses > 0) && (
+                  {/* Patient Balance — visible for admin/registrator when balance is non-zero or there are bonuses */}
+                  {canSeeBalance && patientBalance && (patientBalance.balance !== 0 || patientBalance.bonuses > 0) && (
                     <Stack direction="row" spacing={1.5} flexWrap="wrap" sx={{ mt: 0.5 }}>
-                      {patientBalance.balance > 0 && (
+                      {patientBalance.balance !== 0 && (
                         <Stack direction="row" alignItems="center" spacing={0.5}>
-                          <Typography variant="caption" color="text.secondary">Счёт:</Typography>
-                          <Typography variant="caption" fontWeight={700} color="success.main">
+                          <Typography variant="caption" color="text.secondary">
+                            {patientBalance.balance < 0 ? "Баланс (долг):" : "Счёт:"}
+                          </Typography>
+                          <Typography
+                            variant="caption"
+                            fontWeight={700}
+                            color={patientBalance.balance < 0 ? "error.main" : "success.main"}
+                          >
                             {patientBalance.balance.toLocaleString()} сом
                           </Typography>
                         </Stack>

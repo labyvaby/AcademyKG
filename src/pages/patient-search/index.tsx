@@ -466,6 +466,7 @@ export const PatientSearchPage: React.FC = () => {
             inn: p.inn ?? null,
             is_blacklisted: p.is_blacklisted ?? null,
             blacklist_reason: p.blacklist_reason ?? null,
+            responsiblePersons: p.responsiblePersons,
           });
         }}
       />
@@ -476,7 +477,7 @@ export const PatientSearchPage: React.FC = () => {
         patientId={selected?.id ?? null}
         initialPhoto={selected?.photo ?? null}
         onUpdated={(u) => {
-          setSelected({
+          setSelected((prev) => ({
             id: u.id,
             fio: u.fio,
             phone: u.phone ?? undefined,
@@ -485,7 +486,8 @@ export const PatientSearchPage: React.FC = () => {
             inn: u.inn ?? null,
             is_blacklisted: u.is_blacklisted ?? null,
             blacklist_reason: u.blacklist_reason ?? null,
-          });
+            responsiblePersons: u.responsiblePersons ?? prev?.responsiblePersons,
+          }));
           setEditOpen(false);
           reload();
         }}
