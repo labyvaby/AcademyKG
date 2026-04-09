@@ -368,7 +368,7 @@ const ServicesPage: React.FC = () => {
             onClick={(e) => e.stopPropagation()}
           >
             <Typography variant="subtitle2" color="text.primary" sx={{ whiteSpace: "nowrap" }}>
-              {Number.isFinite(Number(s.price)) ? String(s.price ?? 0) : "0"} сом
+              {Number.isFinite(Number(s.price)) ? Math.round(Number(s.price)).toLocaleString("ru-RU") : "0"} сом
             </Typography>
             {canEdit && (
               <Tooltip title={s.editable ? "Редактировать" : "Нельзя редактировать"}>

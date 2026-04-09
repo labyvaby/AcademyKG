@@ -576,7 +576,7 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
                   }}
                 />
 
-                {!editMode ? (
+                {!editMode && !changePasswordMode ? (
                   /* ── РЕЖИМ ПРОСМОТРА ── */
                   <>
                     <Box sx={{ textAlign: "center", mb: 1, width: "100%" }}>
@@ -713,7 +713,7 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
                     </Button>
                   </>
                 ) : changePasswordMode ? (
-                  /* ── СМЕНА ПАРОЛЯ ── */
+                  /* ── СМЕНА ПАРОЛЯ (из режима просмотра или редактирования) ── */
                   <>
                     <Box sx={{ textAlign: "center", mb: 2 }}>
                       <Typography variant="h6" fontWeight="700">Смена пароля</Typography>
