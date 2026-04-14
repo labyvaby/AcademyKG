@@ -77,8 +77,8 @@ type FieldErrors = Partial<Record<PatientFieldKey, string>>;
 
 const mapApiErrorToField = (rawMsg: string): { field?: PatientFieldKey; message: string } => {
   const msg = rawMsg.toLowerCase();
-  if (msg.includes("responsible")) {
-    return { message: "Проверьте ответственных лиц: ФИО и телефон обязательны." };
+  if (msg.includes("responsible") || msg.includes("responsible_persons")) {
+    return { message: "Проверьте ответственных лиц: проверьте телефон или ФИО." };
   }
   if (msg.includes("full_name") || msg.includes("fullname") || msg.includes("name") || msg.includes("fio")) {
     return { field: "fio", message: "Проверьте ФИО: используйте корректное имя на кириллице." };
@@ -254,14 +254,7 @@ const AddPatientDrawer: React.FC<Props> = ({ open, onClose, onCreated, initialPh
     const hasErrors = errors.some((error) => error.fullName || error.phone);
     setResponsiblePersonErrors(errors);
 
-    if (hasErrors) {
-      notify?.({
-        type: "error",
-        message: "Проверьте блок ответственных лиц",
-        description: "Минимум одно ответственное лицо должно быть заполнено полностью.",
-      });
-      return null;
-    }
+    if (hasErrors) return null;
 
     return responsiblePersons.reduce<ResponsiblePersonPayload[]>((acc, person, index) => {
       const fullName = person.fullName.trim();
@@ -278,30 +271,22 @@ const AddPatientDrawer: React.FC<Props> = ({ open, onClose, onCreated, initialPh
 
   const handleSubmit = async () => {
     const fioTrim = fio.trim();
-    setFieldErrors({});
+    const newFieldErrors: Partial<Record<PatientFieldKey, string>> = {};
+
     if (!fioTrim) {
-      const message = "Введите ФИО клиента";
-      setFieldErrors({ fio: message });
-      notify?.({ type: "error", message });
-      return;
-    }
-    if (/[A-Za-z]/.test(fioTrim)) {
-      setFieldErrors({ fio: "ФИО клиента должно быть на кириллице" });
-      notify?.({
-        type: "error",
-        message: "ФИО клиента должно быть на кириллице",
-        description: "Используйте русский/кыргызский алфавит. Латиница в этом поле не допускается.",
-      });
-      return;
+      newFieldErrors.fio = "Введите ФИО клиента";
+    } else if (/[A-Za-z]/.test(fioTrim)) {
+      newFieldErrors.fio = "ФИО должно быть на кириллице";
     }
     if (isBlacklisted && !blacklistReason.trim()) {
-      setFieldErrors({ blacklistReason: "Укажите причину добавления в черный список" });
-      notify?.({ type: "error", message: "Укажите причину добавления в черный список" });
-      return;
+      newFieldErrors.blacklistReason = "Укажите причину добавления в черный список";
     }
 
+    setFieldErrors(newFieldErrors);
+
     const responsiblePersonsPayload = buildResponsiblePersonsPayload();
-    if (!responsiblePersonsPayload) return;
+
+    if (Object.keys(newFieldErrors).length > 0 || !responsiblePersonsPayload) return;
 
     try {
       setBusy(true);
@@ -327,7 +312,23 @@ const AddPatientDrawer: React.FC<Props> = ({ open, onClose, onCreated, initialPh
       });
 
       const data = res?.data ?? res;
-      const createdId = String(data?.id ?? data?.client?.id ?? data?.patient?.id ?? "").trim();
+      let createdId = String(data?.id ?? data?.client?.id ?? data?.patient?.id ?? "").trim();
+
+      // Временный фикс: бэкенд не возвращает id при создании — ищем по телефону или ФИО
+      if (!createdId) {
+        const searchTerm = fullPhone || fioTrim;
+        const searchRes: any = await apiFetch(
+          `/api/v1/clients/?search=${encodeURIComponent(searchTerm)}&pageSize=5&ordering=-createdAt`
+        );
+        const results: any[] = searchRes?.data?.results ?? searchRes?.results ?? [];
+        const match = results.find((r: any) => {
+          const nameMatch = String(r.fullName ?? "").trim().toLowerCase() === fioTrim.toLowerCase();
+          const phoneMatch = fullPhone ? (r.phone ?? "") === fullPhone : false;
+          return nameMatch || phoneMatch;
+        });
+        createdId = String(match?.id ?? results[0]?.id ?? "").trim();
+      }
+
       if (!createdId) throw new Error("Backend не вернул id созданного клиента");
 
       if (photoFile) {
@@ -381,12 +382,6 @@ const AddPatientDrawer: React.FC<Props> = ({ open, onClose, onCreated, initialPh
       setBusy(false);
     }
   };
-
-  const primaryResponsiblePerson = responsiblePersons[0];
-  const canSubmit =
-    Boolean(fio.trim()) &&
-    Boolean(primaryResponsiblePerson?.fullName.trim()) &&
-    Boolean(primaryResponsiblePerson?.phone.trim());
 
   return (
     <Drawer
@@ -635,7 +630,7 @@ const AddPatientDrawer: React.FC<Props> = ({ open, onClose, onCreated, initialPh
             <Button
               variant="contained"
               onClick={handleSubmit}
-              disabled={busy || !canSubmit}
+              disabled={busy}
             >
               {busy ? (
                 <Stack direction="row" alignItems="center" spacing={1}>

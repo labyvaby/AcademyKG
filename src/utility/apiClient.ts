@@ -254,8 +254,11 @@ export async function apiFetch<T = unknown>(
     try {
       const errJson = await response.json();
       const firstError = errJson?.errors?.[0];
-      if (firstError?.detail) errorDetail = firstError.detail;
-      else if (errJson?.detail) errorDetail = errJson.detail;
+      if (firstError?.detail) {
+        errorDetail = firstError.attr
+          ? `[${firstError.attr}] ${firstError.detail}`
+          : firstError.detail;
+      } else if (errJson?.detail) errorDetail = errJson.detail;
     } catch {
       // ignore
     }
