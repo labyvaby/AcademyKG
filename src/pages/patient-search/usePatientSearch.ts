@@ -26,6 +26,9 @@ function resolvePhotoUrl(url: string | null | undefined): string | undefined {
 
 function mapApiPatient(r: Record<string, unknown>): Patient {
   const photoRaw = (r["photoUrl"] ?? r["photo_url"] ?? r["photo"] ?? r["avatar"] ?? r["image"]) as string | undefined;
+  const responsiblePersons = Array.isArray(r["responsiblePersons"])
+    ? (r["responsiblePersons"] as any[]).map((p) => ({ fullName: String(p.fullName ?? ""), phone: String(p.phone ?? "") }))
+    : undefined;
   return {
     id: String(r["id"] ?? ""),
     fio: String(r["fullName"] ?? ""),
@@ -35,6 +38,7 @@ function mapApiPatient(r: Record<string, unknown>): Patient {
     birth_date: (r["birthDate"] as string) ?? undefined,
     is_blacklisted: (r["isBlacklisted"] as boolean) ?? false,
     blacklist_reason: (r["blacklistReason"] as string) ?? null,
+    responsiblePersons,
   };
 }
 

@@ -218,20 +218,23 @@ const PatientCard: React.FC<Props> = ({
                 <Avatar src={patient.photo || undefined} sx={{ width: 64, height: 64 }} />
                 <Box>
                   <Typography variant="h6" sx={{ lineHeight: 1.2 }}>{patient.fio}</Typography>
-                  {patient.phone ? (
-                    <Link
-                      href={`tel:${patient.phone}`}
-                      sx={{ display: "flex", alignItems: "center", gap: 1, color: "text.secondary", textDecoration: "none", mt: 0.5, "&:hover": { color: "primary.main" } }}
-                    >
-                      <PhoneInTalkOutlined fontSize="small" sx={{ color: "primary.main" }} />
-                      <Typography variant="body2">{patient.phone}</Typography>
-                    </Link>
-                  ) : (
-                    <Stack direction="row" alignItems="center" gap={1} color="text.secondary" sx={{ mt: 0.5 }}>
-                      <LocalPhoneOutlined fontSize="small" />
-                      <Typography variant="body2">—</Typography>
-                    </Stack>
-                  )}
+                  {(() => {
+                    const displayPhone = patient.phone || patient.responsiblePersons?.[0]?.phone || null;
+                    return displayPhone ? (
+                      <Link
+                        href={`tel:${displayPhone}`}
+                        sx={{ display: "flex", alignItems: "center", gap: 1, color: "text.secondary", textDecoration: "none", mt: 0.5, "&:hover": { color: "primary.main" } }}
+                      >
+                        <PhoneInTalkOutlined fontSize="small" sx={{ color: "primary.main" }} />
+                        <Typography variant="body2">{displayPhone}</Typography>
+                      </Link>
+                    ) : (
+                      <Stack direction="row" alignItems="center" gap={1} color="text.secondary" sx={{ mt: 0.5 }}>
+                        <LocalPhoneOutlined fontSize="small" />
+                        <Typography variant="body2">—</Typography>
+                      </Stack>
+                    );
+                  })()}
                   <Stack direction="row" alignItems="center" gap={1} color="text.secondary" sx={{ mt: 0.5 }}>
                     <BadgeOutlined fontSize="small" />
                     <Typography variant="body2">ИНН: {patient.inn || "отсутствует"}</Typography>

@@ -21,6 +21,7 @@ import {
 } from "@mui/material";
 import MuiAlert from "@mui/material/Alert";
 import CloseOutlined from "@mui/icons-material/CloseOutlined";
+import AddOutlined from "@mui/icons-material/AddOutlined";
 import DeleteOutline from "@mui/icons-material/DeleteOutline";
 import AttachFileOutlined from "@mui/icons-material/AttachFileOutlined";
 import DeleteOutlineOutlined from "@mui/icons-material/DeleteOutlineOutlined";
@@ -95,6 +96,7 @@ const EditPatientDrawer: React.FC<Props> = ({
   const [phoneCountryCode, setPhoneCountryCode] = React.useState<PhoneCountryCode>(DEFAULT_PHONE_COUNTRY_CODE);
   const [birth, setBirth] = React.useState("");
   const [inn, setInn] = React.useState("");
+  const [showInn, setShowInn] = React.useState(false);
   const [responsiblePersons, setResponsiblePersons] = React.useState<ResponsiblePersonValue[]>(() =>
     ensureResponsiblePersonValues(),
   );
@@ -200,6 +202,7 @@ const EditPatientDrawer: React.FC<Props> = ({
         setPhone(parsed.local.replace(/[^\d]/g, "").slice(0, maxLen));
         setBirth(birthRaw ? birthRaw.slice(0, 10) : "");
         setInn(innRaw);
+        if (innRaw) setShowInn(true);
         setResponsiblePersons(loadedResponsiblePersons);
         setResponsiblePersonErrors([]);
         setIsBlacklisted(blacklistRaw);
@@ -538,45 +541,6 @@ const EditPatientDrawer: React.FC<Props> = ({
                 />
               </Stack>
 
-              <Stack spacing={0.5}>
-                <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
-                  Телефон клиента
-                </Typography>
-                <TextField
-                  value={phone}
-                  onChange={(event) => {
-                    const maxLength = getPhoneLocalMaxLength(phoneCountryCode);
-                    setPhone(event.target.value.replace(/[^\d]/g, "").slice(0, maxLength));
-                  }}
-                  fullWidth
-                  placeholder={
-                    getPhoneLocalMaxLength(phoneCountryCode) === 10
-                      ? "XXX XXX XXXX"
-                      : "XXX XXX XXX"
-                  }
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start" sx={{ mr: 1, ml: "-14px" }}>
-                        <PhoneCountryCodeSelect
-                          value={phoneCountryCode}
-                          onChange={(countryCode) => {
-                            setPhoneCountryCode(countryCode);
-                            setPhone((current) =>
-                              current.slice(0, getPhoneLocalMaxLength(countryCode)),
-                            );
-                          }}
-                        />
-                      </InputAdornment>
-                    ),
-                  }}
-                  inputProps={{
-                    inputMode: "tel",
-                    pattern: "[0-9]*",
-                    maxLength: getPhoneLocalMaxLength(phoneCountryCode),
-                  }}
-                  helperText="Необязательно. Если номер не нужен, оставьте поле пустым."
-                />
-              </Stack>
 
               {/* Дата рождения */}
               <Stack spacing={0.5}>
@@ -607,18 +571,41 @@ const EditPatientDrawer: React.FC<Props> = ({
               />
 
               {/* ИНН */}
-              <Stack spacing={0.5}>
-                <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
-                  ИНН
-                </Typography>
-                <TextField
-                  value={inn}
-                  onChange={(e) => setInn(e.target.value.replace(/[^\d]/g, "").slice(0, 14))}
-                  fullWidth
-                  placeholder="14 цифр"
-                  inputProps={{ inputMode: "numeric", pattern: "[0-9]*", maxLength: 14 }}
-                />
-              </Stack>
+              {showInn ? (
+                <Stack spacing={0.5}>
+                  <Stack direction="row" alignItems="center" justifyContent="space-between">
+                    <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
+                      ИНН
+                    </Typography>
+                    <Button
+                      variant="text"
+                      size="small"
+                      color="error"
+                      onClick={() => { setShowInn(false); setInn(""); }}
+                    >
+                      Убрать
+                    </Button>
+                  </Stack>
+                  <TextField
+                    value={inn}
+                    onChange={(e) => setInn(e.target.value.replace(/[^\d]/g, "").slice(0, 14))}
+                    fullWidth
+                    placeholder="14 цифр"
+                    inputProps={{ inputMode: "numeric", pattern: "[0-9]*", maxLength: 14 }}
+                    autoFocus
+                  />
+                </Stack>
+              ) : (
+                <Button
+                  variant="outlined"
+                  size="small"
+                  startIcon={<AddOutlined />}
+                  sx={{ alignSelf: "flex-start" }}
+                  onClick={() => setShowInn(true)}
+                >
+                  Добавить ИНН клиента
+                </Button>
+              )}
 
               {/* Чёрный список */}
               {canManageBlacklist && (

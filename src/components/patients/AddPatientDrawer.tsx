@@ -15,6 +15,7 @@ import {
   Chip,
 } from "@mui/material";
 import CloseOutlined from "@mui/icons-material/CloseOutlined";
+import AddOutlined from "@mui/icons-material/AddOutlined";
 import AttachFileOutlined from "@mui/icons-material/AttachFileOutlined";
 import { useNotification } from "@refinedev/core";
 import PatientPhotoUploader from "./PatientPhotoUploader";
@@ -105,6 +106,7 @@ const AddPatientDrawer: React.FC<Props> = ({ open, onClose, onCreated, initialPh
   const [phoneCountryCode, setPhoneCountryCode] = React.useState<PhoneCountryCode>(DEFAULT_PHONE_COUNTRY_CODE);
   const [birth, setBirth] = React.useState("");
   const [inn, setInn] = React.useState("");
+  const [showInn, setShowInn] = React.useState(false);
   const [responsiblePersons, setResponsiblePersons] = React.useState<ResponsiblePersonValue[]>(() =>
     ensureResponsiblePersonValues(),
   );
@@ -449,50 +451,6 @@ const AddPatientDrawer: React.FC<Props> = ({ open, onClose, onCreated, initialPh
               />
             </Stack>
 
-            <Stack spacing={0.5}>
-              <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
-                Телефон клиента
-              </Typography>
-              <TextField
-                value={phone}
-                onChange={(event) => {
-                  const maxLength = getPhoneLocalMaxLength(phoneCountryCode);
-                  setPhone(event.target.value.replace(/[^\d]/g, "").slice(0, maxLength));
-                  setFieldErrors((prev) => ({ ...prev, phone: undefined }));
-                }}
-                fullWidth
-                placeholder={
-                  getPhoneLocalMaxLength(phoneCountryCode) === 10
-                    ? "XXX XXX XXXX"
-                    : "XXX XXX XXX"
-                }
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start" sx={{ mr: 1, ml: "-14px" }}>
-                      <PhoneCountryCodeSelect
-                        value={phoneCountryCode}
-                        onChange={(countryCode) => {
-                          setPhoneCountryCode(countryCode);
-                          setPhone((current) =>
-                            current.slice(0, getPhoneLocalMaxLength(countryCode)),
-                          );
-                        }}
-                      />
-                    </InputAdornment>
-                  ),
-                }}
-                inputProps={{
-                  inputMode: "tel",
-                  pattern: "[0-9]*",
-                  maxLength: getPhoneLocalMaxLength(phoneCountryCode),
-                }}
-                error={Boolean(fieldErrors.phone)}
-                helperText={
-                  fieldErrors.phone ||
-                  "Необязательно. Можно оставить пустым, если связь идёт через ответственное лицо."
-                }
-              />
-            </Stack>
 
             <Stack spacing={0.5}>
               <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
@@ -526,23 +484,46 @@ const AddPatientDrawer: React.FC<Props> = ({ open, onClose, onCreated, initialPh
               title="Ответственные лица *"
             />
 
-            <Stack spacing={0.5}>
-              <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
-                ИНН
-              </Typography>
-              <TextField
-                value={inn}
-                onChange={(e) => {
-                  setInn(e.target.value.replace(/[^\d]/g, "").slice(0, 14));
-                  setFieldErrors((prev) => ({ ...prev, inn: undefined }));
-                }}
-                fullWidth
-                placeholder="14 цифр"
-                inputProps={{ inputMode: "numeric", pattern: "[0-9]*", maxLength: 14 }}
-                error={Boolean(fieldErrors.inn)}
-                helperText={fieldErrors.inn || ""}
-              />
-            </Stack>
+            {showInn ? (
+              <Stack spacing={0.5}>
+                <Stack direction="row" alignItems="center" justifyContent="space-between">
+                  <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
+                    ИНН
+                  </Typography>
+                  <Button
+                    variant="text"
+                    size="small"
+                    color="error"
+                    onClick={() => { setShowInn(false); setInn(""); setFieldErrors((prev) => ({ ...prev, inn: undefined })); }}
+                  >
+                    Убрать
+                  </Button>
+                </Stack>
+                <TextField
+                  value={inn}
+                  onChange={(e) => {
+                    setInn(e.target.value.replace(/[^\d]/g, "").slice(0, 14));
+                    setFieldErrors((prev) => ({ ...prev, inn: undefined }));
+                  }}
+                  fullWidth
+                  placeholder="14 цифр"
+                  inputProps={{ inputMode: "numeric", pattern: "[0-9]*", maxLength: 14 }}
+                  error={Boolean(fieldErrors.inn)}
+                  helperText={fieldErrors.inn || ""}
+                  autoFocus
+                />
+              </Stack>
+            ) : (
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={<AddOutlined />}
+                sx={{ alignSelf: "flex-start" }}
+                onClick={() => setShowInn(true)}
+              >
+                Добавить ИНН клиента
+              </Button>
+            )}
 
             {canManageBlacklist && (
               <Box sx={{ border: "1px solid", borderColor: "divider", borderRadius: 1, p: 2 }}>

@@ -97,10 +97,14 @@ export const PatientQuickViewDrawer: React.FC<PatientQuickViewDrawerProps> = ({
 
         if (active && data) {
           const lastApt = Array.isArray(data.appointments) ? data.appointments[0] : null;
+          const firstResponsiblePhone =
+            Array.isArray(data.responsiblePersons) && data.responsiblePersons[0]?.phone
+              ? data.responsiblePersons[0].phone
+              : null;
           setPatient({
             id: String(data.id),
             fio: data.fullName || data.full_name || "Не указано",
-            phone: data.phone || null,
+            phone: data.phone || firstResponsiblePhone || null,
             birthDate: data.birthDate || data.birth_date || null,
             inn: data.inn || null,
             photo_url: resolveUrl(data.photoUrl || data.photo_url),
