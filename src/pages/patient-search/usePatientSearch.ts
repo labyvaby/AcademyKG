@@ -91,25 +91,6 @@ export function usePatientList(options?: UsePatientListOptions) {
 
       setPatients((prev) => (page === 0 ? mapped : [...prev, ...mapped]));
       setHasMore((page + 1) * PER_PAGE < count);
-
-      // Фото не возвращается в списке — подгружаем детали всех клиентов страницы в фоне
-      if (mapped.length > 0) {
-        Promise.allSettled(
-          mapped.map((p) =>
-            apiFetch(`/api/v1/clients/${p.id}/`).then((r: any) => {
-              if (ctrl.signal.aborted) return;
-              const d = r?.data ?? r;
-              const photoRaw = d?.photoUrl as string | undefined;
-              if (!photoRaw) return;
-              const photo = resolvePhotoUrl(photoRaw);
-              if (!photo) return;
-              setPatients((prev) =>
-                prev.map((pt) => (pt.id === p.id ? { ...pt, photo } : pt))
-              );
-            }).catch(() => {/* тихо игнорируем ошибки */})
-          )
-        );
-      }
     } catch (e: any) {
       if (ctrl.signal.aborted || e?.name === "AbortError") return;
       console.error(e);
