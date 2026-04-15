@@ -464,7 +464,7 @@ const AddPatientDrawer: React.FC<Props> = ({ open, onClose, onCreated, initialPh
                 slotProps={{
                   textField: {
                     fullWidth: true,
-                    InputLabelProps: { shrink: true },
+                    size: "small",
                     placeholder: "дд.мм.гггг",
                     error: Boolean(fieldErrors.birth),
                     helperText: fieldErrors.birth || undefined,
@@ -473,56 +473,58 @@ const AddPatientDrawer: React.FC<Props> = ({ open, onClose, onCreated, initialPh
               />
             </Stack>
 
-            <ResponsiblePersonsSection
-              persons={responsiblePersons}
-              errors={responsiblePersonErrors}
-              onChange={updateResponsiblePerson}
-              onAdd={addResponsiblePerson}
-              onRemove={removeResponsiblePerson}
-              disabled={busy}
-              title="Ответственные лица *"
-            />
+            <Stack spacing={1.5}>
+              <ResponsiblePersonsSection
+                persons={responsiblePersons}
+                errors={responsiblePersonErrors}
+                onChange={updateResponsiblePerson}
+                onAdd={addResponsiblePerson}
+                onRemove={removeResponsiblePerson}
+                disabled={busy}
+                title="Ответственные лица *"
+              />
 
-            {showInn ? (
-              <Stack spacing={0.5}>
-                <Stack direction="row" alignItems="center" justifyContent="space-between">
-                  <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
-                    ИНН
-                  </Typography>
-                  <Button
-                    variant="text"
-                    size="small"
-                    color="error"
-                    onClick={() => { setShowInn(false); setInn(""); setFieldErrors((prev) => ({ ...prev, inn: undefined })); }}
-                  >
-                    Убрать
-                  </Button>
+              {showInn ? (
+                <Stack spacing={0.5}>
+                  <Stack direction="row" alignItems="center" justifyContent="space-between">
+                    <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
+                      ИНН
+                    </Typography>
+                    <Button
+                      variant="text"
+                      size="small"
+                      color="error"
+                      onClick={() => { setShowInn(false); setInn(""); setFieldErrors((prev) => ({ ...prev, inn: undefined })); }}
+                    >
+                      Убрать
+                    </Button>
+                  </Stack>
+                  <TextField
+                    value={inn}
+                    onChange={(e) => {
+                      setInn(e.target.value.replace(/[^\d]/g, "").slice(0, 14));
+                      setFieldErrors((prev) => ({ ...prev, inn: undefined }));
+                    }}
+                    fullWidth
+                    placeholder="14 цифр"
+                    inputProps={{ inputMode: "numeric", pattern: "[0-9]*", maxLength: 14 }}
+                    error={Boolean(fieldErrors.inn)}
+                    helperText={fieldErrors.inn || undefined}
+                    autoFocus
+                  />
                 </Stack>
-                <TextField
-                  value={inn}
-                  onChange={(e) => {
-                    setInn(e.target.value.replace(/[^\d]/g, "").slice(0, 14));
-                    setFieldErrors((prev) => ({ ...prev, inn: undefined }));
-                  }}
+              ) : (
+                <Button
+                  variant="outlined"
+                  size="small"
+                  startIcon={<AddOutlined />}
                   fullWidth
-                  placeholder="14 цифр"
-                  inputProps={{ inputMode: "numeric", pattern: "[0-9]*", maxLength: 14 }}
-                  error={Boolean(fieldErrors.inn)}
-                  helperText={fieldErrors.inn || undefined}
-                  autoFocus
-                />
-              </Stack>
-            ) : (
-              <Button
-                variant="outlined"
-                size="small"
-                startIcon={<AddOutlined />}
-                fullWidth
-                onClick={() => setShowInn(true)}
-              >
-                Добавить ИНН клиента
-              </Button>
-            )}
+                  onClick={() => setShowInn(true)}
+                >
+                  Добавить ИНН клиента
+                </Button>
+              )}
+            </Stack>
 
             {canManageBlacklist && (
               <Box sx={{ border: "1px solid", borderColor: "divider", borderRadius: 1, p: 2 }}>

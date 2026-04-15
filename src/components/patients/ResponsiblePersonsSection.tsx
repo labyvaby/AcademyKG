@@ -137,7 +137,6 @@ const ResponsiblePersonsSection: React.FC<Props> = ({
                   <InputAdornment position="start" sx={{ mr: 1, ml: "-14px" }}>
                     <PhoneCountryCodeSelect
                       value={person.phoneCountryCode}
-                      size="medium"
                       onChange={(countryCode) =>
                         onChange(index, {
                           phoneCountryCode: countryCode,
