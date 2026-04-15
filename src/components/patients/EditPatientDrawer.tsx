@@ -537,10 +537,9 @@ const EditPatientDrawer: React.FC<Props> = ({
                   autoFocus
                   placeholder="Введите ФИО клиента"
                   error={touched && !fio.trim()}
-                  helperText={touched && !fio.trim() ? "Обязательное поле" : ""}
+                  helperText={touched && !fio.trim() ? "Обязательное поле" : undefined}
                 />
               </Stack>
-
 
               {/* Дата рождения */}
               <Stack spacing={0.5}>
@@ -600,7 +599,7 @@ const EditPatientDrawer: React.FC<Props> = ({
                   variant="outlined"
                   size="small"
                   startIcon={<AddOutlined />}
-                  sx={{ alignSelf: "flex-start" }}
+                  fullWidth
                   onClick={() => setShowInn(true)}
                 >
                   Добавить ИНН клиента
@@ -637,7 +636,7 @@ const EditPatientDrawer: React.FC<Props> = ({
                       onChange={(e) => setBlacklistReason(e.target.value)}
                       placeholder="Опишите причину добавления в ЧС..."
                       error={!blacklistReason.trim()}
-                      helperText={!blacklistReason.trim() ? "Обязательное поле" : ""}
+                      helperText={!blacklistReason.trim() ? "Обязательное поле" : undefined}
                       sx={{ mt: 1 }}
                     />
                   )}
@@ -764,11 +763,12 @@ const EditPatientDrawer: React.FC<Props> = ({
           </Box>
 
           <Box sx={{ p: 2, borderTop: 1, borderColor: "divider", bgcolor: "background.paper" }}>
-            <Stack direction="row" gap={1} justifyContent="flex-end">
-              <Button onClick={onClose} disabled={busy}>
+            <Stack direction="row" gap={1}>
+              <Button fullWidth onClick={onClose} disabled={busy}>
                 Отмена
               </Button>
               <Button
+                fullWidth
                 variant="contained"
                 onClick={handleSubmit}
                 disabled={busy || !canSubmit}

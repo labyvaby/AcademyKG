@@ -447,10 +447,9 @@ const AddPatientDrawer: React.FC<Props> = ({ open, onClose, onCreated, initialPh
                 autoFocus
                 placeholder="Введите ФИО клиента"
                 error={Boolean(fieldErrors.fio)}
-                helperText={fieldErrors.fio || ""}
+                helperText={fieldErrors.fio || undefined}
               />
             </Stack>
-
 
             <Stack spacing={0.5}>
               <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
@@ -468,7 +467,7 @@ const AddPatientDrawer: React.FC<Props> = ({ open, onClose, onCreated, initialPh
                     InputLabelProps: { shrink: true },
                     placeholder: "дд.мм.гггг",
                     error: Boolean(fieldErrors.birth),
-                    helperText: fieldErrors.birth || "",
+                    helperText: fieldErrors.birth || undefined,
                   },
                 }}
               />
@@ -509,7 +508,7 @@ const AddPatientDrawer: React.FC<Props> = ({ open, onClose, onCreated, initialPh
                   placeholder="14 цифр"
                   inputProps={{ inputMode: "numeric", pattern: "[0-9]*", maxLength: 14 }}
                   error={Boolean(fieldErrors.inn)}
-                  helperText={fieldErrors.inn || ""}
+                  helperText={fieldErrors.inn || undefined}
                   autoFocus
                 />
               </Stack>
@@ -518,7 +517,7 @@ const AddPatientDrawer: React.FC<Props> = ({ open, onClose, onCreated, initialPh
                 variant="outlined"
                 size="small"
                 startIcon={<AddOutlined />}
-                sx={{ alignSelf: "flex-start" }}
+                fullWidth
                 onClick={() => setShowInn(true)}
               >
                 Добавить ИНН клиента
@@ -557,7 +556,7 @@ const AddPatientDrawer: React.FC<Props> = ({ open, onClose, onCreated, initialPh
                     }}
                     placeholder="Опишите причину добавления в ЧС..."
                     error={Boolean(fieldErrors.blacklistReason) || !blacklistReason.trim()}
-                    helperText={fieldErrors.blacklistReason || (!blacklistReason.trim() ? "Обязательное поле" : "")}
+                    helperText={fieldErrors.blacklistReason || (!blacklistReason.trim() ? "Обязательное поле" : undefined)}
                     sx={{ mt: 1 }}
                   />
                 )}
@@ -604,11 +603,12 @@ const AddPatientDrawer: React.FC<Props> = ({ open, onClose, onCreated, initialPh
         </Box>
 
         <Box sx={{ p: 2, borderTop: 1, borderColor: "divider", bgcolor: "background.paper" }}>
-          <Stack direction="row" gap={1} justifyContent="flex-end">
-            <Button onClick={onClose} disabled={busy}>
+          <Stack direction="row" gap={1}>
+            <Button fullWidth onClick={onClose} disabled={busy}>
               Отмена
             </Button>
             <Button
+              fullWidth
               variant="contained"
               onClick={handleSubmit}
               disabled={busy}
@@ -630,5 +630,3 @@ const AddPatientDrawer: React.FC<Props> = ({ open, onClose, onCreated, initialPh
 };
 
 export default AddPatientDrawer;
-
-

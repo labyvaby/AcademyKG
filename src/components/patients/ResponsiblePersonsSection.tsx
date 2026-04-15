@@ -1,6 +1,5 @@
 import React from "react";
 import {
-  Box,
   Button,
   IconButton,
   InputAdornment,
@@ -12,7 +11,6 @@ import AddOutlined from "@mui/icons-material/AddOutlined";
 import CloseOutlined from "@mui/icons-material/CloseOutlined";
 import { PhoneCountryCodeSelect } from "../ui";
 import {
-  DEFAULT_PHONE_COUNTRY_CODE,
   getPhoneLocalMaxLength,
   parsePhone,
   type PhoneCountryCode,
@@ -87,19 +85,18 @@ const ResponsiblePersonsSection: React.FC<Props> = ({
   helperText = "Минимум один контакт обязателен.",
 }) => {
   return (
-    <Stack spacing={1.5}>
-      <Box>
-        <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600, mb: 0.5 }}>
+    <Stack spacing={1}>
+      <Stack spacing={0.5}>
+        <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
           {title}
         </Typography>
         <Typography variant="caption" color="text.secondary">
           {helperText}
         </Typography>
-      </Box>
+      </Stack>
 
       {persons.map((person, index) => {
         const phoneMaxLength = getPhoneLocalMaxLength(person.phoneCountryCode);
-        const hasPersonError = errors[index]?.fullName || errors[index]?.phone;
 
         return (
           <Stack key={person.id} spacing={1}>
@@ -120,11 +117,10 @@ const ResponsiblePersonsSection: React.FC<Props> = ({
               value={person.fullName}
               onChange={(event) => onChange(index, { fullName: event.target.value })}
               fullWidth
-              size="small"
               disabled={disabled}
               placeholder="ФИО ответственного лица"
               error={Boolean(errors[index]?.fullName)}
-              helperText={errors[index]?.fullName || ""}
+              helperText={errors[index]?.fullName || undefined}
             />
 
             <TextField
@@ -135,13 +131,13 @@ const ResponsiblePersonsSection: React.FC<Props> = ({
                 })
               }
               fullWidth
-              size="small"
               disabled={disabled}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start" sx={{ mr: 1, ml: "-14px" }}>
                     <PhoneCountryCodeSelect
                       value={person.phoneCountryCode}
+                      size="medium"
                       onChange={(countryCode) =>
                         onChange(index, {
                           phoneCountryCode: countryCode,
@@ -159,7 +155,7 @@ const ResponsiblePersonsSection: React.FC<Props> = ({
               }}
               placeholder={phoneMaxLength === 10 ? "XXX XXX XXXX" : "XXX XXX XXX"}
               error={Boolean(errors[index]?.phone)}
-              helperText={errors[index]?.phone || ""}
+              helperText={errors[index]?.phone || undefined}
             />
           </Stack>
         );
@@ -171,7 +167,7 @@ const ResponsiblePersonsSection: React.FC<Props> = ({
         startIcon={<AddOutlined />}
         onClick={onAdd}
         disabled={disabled}
-        sx={{ alignSelf: "flex-start" }}
+        fullWidth
       >
         Добавить ещё ответственное лицо
       </Button>

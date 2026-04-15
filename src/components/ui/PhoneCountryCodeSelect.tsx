@@ -6,6 +6,7 @@ export interface PhoneCountryCodeSelectProps {
   value: PhoneCountryCode;
   onChange: (code: PhoneCountryCode) => void;
   disabled?: boolean;
+  size?: "small" | "medium";
 }
 
 /**
@@ -16,6 +17,7 @@ export const PhoneCountryCodeSelect: React.FC<PhoneCountryCodeSelectProps> = ({
   value,
   onChange,
   disabled,
+  size = "small",
 }) => {
   return (
     <TextField
@@ -23,7 +25,7 @@ export const PhoneCountryCodeSelect: React.FC<PhoneCountryCodeSelectProps> = ({
       value={value}
       onChange={(e) => onChange(e.target.value as PhoneCountryCode)}
       disabled={disabled}
-      size="small"
+      size={size}
       sx={{
         minWidth: 96,
         maxWidth: 110,
