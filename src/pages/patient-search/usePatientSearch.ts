@@ -26,8 +26,12 @@ function resolvePhotoUrl(url: string | null | undefined): string | undefined {
 
 function mapApiPatient(r: Record<string, unknown>): Patient {
   const photoRaw = (r["photoUrl"] ?? r["photo_url"] ?? r["photo"] ?? r["avatar"] ?? r["image"]) as string | undefined;
-  const responsiblePersons = Array.isArray(r["responsiblePersons"])
-    ? (r["responsiblePersons"] as any[]).map((p) => ({ fullName: String(p.fullName ?? ""), phone: String(p.phone ?? "") }))
+  const rawResponsible = r["responsiblePersons"] ?? r["responsible_persons"];
+  const responsiblePersons = Array.isArray(rawResponsible)
+    ? (rawResponsible as any[]).map((p) => ({
+        fullName: String(p.fullName ?? p.full_name ?? ""),
+        phone: String(p.phone ?? ""),
+      }))
     : undefined;
   return {
     id: String(r["id"] ?? ""),

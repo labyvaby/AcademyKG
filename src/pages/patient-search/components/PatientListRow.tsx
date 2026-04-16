@@ -23,6 +23,7 @@ export type PatientListRowProps = {
     photo?: string | null;
     is_blacklisted?: boolean | null;
     blacklist_reason?: string | null;
+    responsiblePersons?: { fullName: string; phone: string }[];
   };
   selected?: boolean;
   onClick?: () => void;
@@ -93,7 +94,7 @@ const PatientListRow: React.FC<PatientListRowProps> = ({
           }
           secondary={
             <Typography variant="caption" color="text.secondary" noWrap>
-              {patient.phone || "—"}
+              {patient.phone || patient.responsiblePersons?.[0]?.phone || "—"}
             </Typography>
           }
         />
