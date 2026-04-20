@@ -45,7 +45,7 @@ const MONTH_NAMES = [
 ];
 
 export const AllAppointmentsList: React.FC = () => {
-    usePageTitle("Все приемы");
+    usePageTitle("Все услуги");
     const { hasPermission, hasRole, employeeId, employee } = usePermissions();
     const isSpecialist = hasRole('specialist');
     const canViewAll = hasPermission(PERMISSIONS.APPOINTMENTS_READ) && !isSpecialist;
@@ -391,7 +391,7 @@ export const AllAppointmentsList: React.FC = () => {
             }}
         >
             <PageHeader
-                title="Все приемы"
+                title="Все услуги"
                 showTitle={false}
                 showSearch
                 searchVal={searchQuery}

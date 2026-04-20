@@ -107,51 +107,75 @@ export const ServiceQuickViewDrawer: React.FC<ServiceQuickViewDrawerProps> = ({
             isActive: item.isActive ?? item.is_active ?? true,
           });
 
-          // Загружаем сотрудников если есть
-          const empIds: string[] = item.employeeIds ?? [];
-          if (empIds.length > 0) {
-            try {
-              const empsRes: any = await apiFetch(`/api/v1/employees/?status=active`);
-              const allEmps: any[] = empsRes?.data?.results ?? empsRes?.results ?? [];
-              const filtered = allEmps.filter((e: any) =>
-                empIds.includes(String(e.id))
-              );
-              if (active) {
-                setEmployees(
-                  filtered.map((e: any) => ({
-                    id: String(e.id),
-                    full_name: e.fullName ?? e.full_name ?? "Не указано",
-                    specialization: e.role?.name ?? e.roleName ?? undefined,
-                  }))
-                );
-              }
-            } catch {
-              // ignore employee load errors
-            }
-          }
-        }
-
-        // Загружаем последние приёмы с этой услугой
+        // Загружаем последние приёмы с этой услугой через query param
         try {
-          const aptsRes: any = await apiFetch(
-            `/api/v1/appointments/?ordering=-appointmentAt`
+          // Try both service and sellableItem filter params
+          let aptsRes: any = await apiFetch(
+            `/api/v1/appointments/?sellableItem=${serviceId}&ordering=-appointmentAt&pageSize=5`
           );
-          const apts: any[] = aptsRes?.data?.results ?? aptsRes?.results ?? [];
-
-          // Фильтруем по serviceId в массиве services
-          const filtered = apts
-            .filter((apt: any) => {
-              const services: any[] = Array.isArray(apt.services) ? apt.services : [];
-              return services.some(
-                (s: any) =>
-                  String(s.sellableItem ?? s.sellable_item ?? s.id) === String(serviceId)
-              );
-            })
-            .slice(0, 5);
+          let apts: any[] = aptsRes?.data?.results ?? aptsRes?.results ?? [];
+          if (apts.length === 0) {
+            aptsRes = await apiFetch(
+              `/api/v1/appointments/?service=${serviceId}&ordering=-appointmentAt&pageSize=5`
+            );
+            apts = aptsRes?.data?.results ?? aptsRes?.results ?? [];
+          }
 
           if (active) {
+            // Сначала пробуем взять performers из приёмов
+            const empMap = new Map<string, ServiceEmployee>();
+            apts.forEach((apt: any) => {
+              const servicesArr: any[] = Array.isArray(apt.services) ? apt.services : [];
+              servicesArr.forEach((s: any) => {
+                const performer = s.performer ?? apt.specialist ?? null;
+                if (performer?.id) {
+                  const id = String(performer.id);
+                  if (!empMap.has(id)) {
+                    empMap.set(id, {
+                      id,
+                      full_name: performer.fullName ?? performer.full_name ?? "Не указано",
+                      specialization: performer.specialization ?? performer.role?.name ?? undefined,
+                    });
+                  }
+                }
+              });
+            });
+
+            // Если из приёмов не нашли — грузим сотрудников через их detail и фильтруем по услуге
+            if (empMap.size === 0) {
+              try {
+                const listRes: any = await apiFetch(`/api/v1/employees/?status=active&pageSize=200`);
+                const allEmps: any[] = listRes?.data?.results ?? listRes?.results ?? [];
+                // Параллельно грузим details и фильтруем по serviceId
+                const details = await Promise.allSettled(
+                  allEmps.map((e: any) => apiFetch(`/api/v1/employees/${e.id}/`))
+                );
+                details.forEach((result, idx) => {
+                  if (result.status !== "fulfilled") return;
+                  const d = (result.value as any)?.data ?? result.value;
+                  const empServices: any[] = Array.isArray(d?.services) ? d.services : [];
+                  const hasService = empServices.some(
+                    (s: any) =>
+                      String(s.id) === String(serviceId) ||
+                      String(s.sellableItem) === String(serviceId) ||
+                      String(s.sellable_item) === String(serviceId)
+                  );
+                  if (hasService) {
+                    const e = allEmps[idx];
+                    empMap.set(String(e.id), {
+                      id: String(e.id),
+                      full_name: d.fullName ?? e.fullName ?? "Не указано",
+                      specialization: d.role?.name ?? d.specializations?.[0]?.name ?? undefined,
+                    });
+                  }
+                });
+              } catch { /* ignore */ }
+            }
+
+            setEmployees(Array.from(empMap.values()));
+
             setRecentHistory(
-              filtered.map((apt: any) => {
+              apts.map((apt: any) => {
                 const patientNested = apt.patient ?? null;
                 const patientName =
                   apt.patientName ??
@@ -181,6 +205,7 @@ export const ServiceQuickViewDrawer: React.FC<ServiceQuickViewDrawerProps> = ({
         } catch {
           // ignore history load errors
         }
+        } // end if (item)
       } catch (error) {
         console.error("Ошибка при загрузке данных услуги:", error);
       } finally {

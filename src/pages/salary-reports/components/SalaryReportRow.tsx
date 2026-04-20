@@ -46,9 +46,9 @@ const COLORS = {
 };
 
 function calcShiftHours(shift: Shift): number {
-    if (!shift.start_time || !shift.end_time) return 0;
-    const [sh, sm] = shift.start_time.split(':').map(Number);
-    const [eh, em] = shift.end_time.split(':').map(Number);
+    if (!shift.startTime || !shift.endTime) return 0;
+    const [sh, sm] = shift.startTime.split(':').map(Number);
+    const [eh, em] = shift.endTime.split(':').map(Number);
     let mins = (eh * 60 + em) - (sh * 60 + sm);
     if (mins < 0) mins += 24 * 60;
     return Math.round(mins / 60 * 10) / 10;
@@ -68,12 +68,12 @@ const DailyBreakdown: React.FC<{ employeeId: string; month: string }> = ({ emplo
         const end = start.endOf('month');
 
         // Загружаем смены за месяц
-        fetchShifts({ employee: employeeId, startDate: start.format('YYYY-MM-DD'), endDate: end.format('YYYY-MM-DD') })
+        fetchShifts({ employee: employeeId, date: start.format('YYYY-MM-DD') })
             .then((data) => {
                 if (!cancelled) {
                     // Фильтруем по месяцу на случай если API вернул лишнее
-                    const filtered = data.filter(s => s.shift_date?.startsWith(month));
-                    setShifts(filtered.sort((a, b) => (a.shift_date ?? '').localeCompare(b.shift_date ?? '')));
+                    const filtered = data.filter(s => s.shiftDate?.startsWith(month));
+                    setShifts(filtered.sort((a, b) => (a.shiftDate ?? '').localeCompare(b.shiftDate ?? '')));
                     setLoading(false);
                 }
             })
@@ -116,9 +116,9 @@ const DailyBreakdown: React.FC<{ employeeId: string; month: string }> = ({ emplo
                 <TableBody>
                     {shifts.map((shift, idx) => {
                         const hours = calcShiftHours(shift);
-                        const isNight = shift.is_night_shift;
-                        const hasClockIn = !!shift.clock_in;
-                        const hasClockOut = !!shift.clock_out;
+                        const isNight = shift.isNightShift;
+                        const hasClockIn = !!shift.clockIn;
+                        const hasClockOut = !!shift.clockOut;
                         const isOpen = hasClockIn && !hasClockOut;
                         const isClosed = hasClockIn && hasClockOut;
 
@@ -133,9 +133,9 @@ const DailyBreakdown: React.FC<{ employeeId: string; month: string }> = ({ emplo
                                 }}
                             >
                                 <TableCell sx={{ fontWeight: 600, color: 'text.primary' }}>
-                                    {dayjs(shift.shift_date).format('DD MMM')}
+                                    {dayjs(shift.shiftDate).format('DD MMM')}
                                     <Typography component="span" sx={{ ml: 0.5, fontSize: '0.65rem', color: 'text.disabled' }}>
-                                        {dayjs(shift.shift_date).format('dd')}
+                                        {dayjs(shift.shiftDate).format('dd')}
                                     </Typography>
                                 </TableCell>
                                 <TableCell align="center">
@@ -145,10 +145,10 @@ const DailyBreakdown: React.FC<{ employeeId: string; month: string }> = ({ emplo
                                     }
                                 </TableCell>
                                 <TableCell align="center" sx={{ color: 'text.secondary' }}>
-                                    {shift.start_time || '—'}
+                                    {shift.startTime || '—'}
                                 </TableCell>
                                 <TableCell align="center" sx={{ color: 'text.secondary' }}>
-                                    {shift.end_time || '—'}
+                                    {shift.endTime || '—'}
                                 </TableCell>
                                 <TableCell align="center" sx={{ fontWeight: 700, color: isNight ? COLORS.night : COLORS.day }}>
                                     {hours > 0 ? `${hours}ч` : '—'}

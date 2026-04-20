@@ -669,18 +669,15 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
                 </Paper>
                 <Stack spacing={0.5}>
                     <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                        Комментарий администратора <Typography component="span" color="error">*</Typography>
+                        Комментарий администратора
                     </Typography>
                     <TextField
                         fullWidth
                         multiline
                         rows={3}
-                        required
                         value={adminComment}
                         onChange={(e) => setAdminComment(e.target.value)}
-                        placeholder="Обязательное поле"
-                        error={!adminComment.trim()}
-                        helperText={!adminComment.trim() ? "Обязательное поле" : ""}
+                        placeholder="Необязательное поле"
                     />
                 </Stack>
 
@@ -692,7 +689,7 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
                         fullWidth
                         variant="contained"
                         size="large"
-                        disabled={loading || !adminComment.trim()}
+                        disabled={loading}
                         onClick={handleSave}
                     >
                         {loading ? (

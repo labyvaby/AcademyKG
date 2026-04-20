@@ -151,10 +151,11 @@ const GroupAppointmentCard: React.FC<Props> = ({ group, onGroupUpdated, onAddPar
         <Divider />
         <Box sx={{ p: 1.5 }}>
           <Stack spacing={1}>
-            {group.participants.map((participant) => (
+            {group.participants.map((participant, idx) => (
               <ParticipantRow
                 key={participant.id}
                 participant={participant}
+                index={idx}
                 onStatusChange={(status) => handleStatusChange(participant.id, status)}
                 onPayClick={() => setPaymentParticipant(participant)}
               />

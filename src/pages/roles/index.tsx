@@ -14,6 +14,7 @@ import {
   TableHead,
   TableRow,
   Switch,
+  Tooltip,
   alpha,
 } from "@mui/material";
 import { AdminPanelSettingsOutlined, SaveOutlined } from "@mui/icons-material";
@@ -280,6 +281,28 @@ const RolesPage: React.FC = () => {
     return map;
   }, [allPermissions]);
 
+  // Название ресурса из displayName бэкенда — берём из read-права, иначе из первого
+  const resourceLabel = useMemo(() => {
+    const map: Record<string, string> = {};
+    Object.entries(grouped).forEach(([resource, perms]) => {
+      const readPerm = perms.find((p) => p.name.endsWith(".read")) ?? perms[0];
+      if (readPerm?.displayName) {
+        // displayName приходит как "Просмотр клиентов" — убираем слово действия если есть
+        const actionWords: Record<string, string> = {
+          "Просмотр ": "", "Создание ": "", "Редактирование ": "", "Удаление ": "",
+        };
+        let label = readPerm.displayName;
+        for (const [word, replace] of Object.entries(actionWords)) {
+          if (label.startsWith(word)) { label = label.replace(word, replace); break; }
+        }
+        map[resource] = label || RESOURCE_LABELS[resource] || resource;
+      } else {
+        map[resource] = RESOURCE_LABELS[resource] ?? resource;
+      }
+    });
+    return map;
+  }, [grouped]);
+
   const allActions = useMemo(() => {
     const set = new Set<string>();
     allPermissions.forEach((p) => set.add(p.name.split(".")[1]));
@@ -399,8 +422,7 @@ const RolesPage: React.FC = () => {
                     {Object.entries(grouped).map(([resource, perms]) => {
                       const names = perms.map((p) => p.name);
                       const allChecked = names.every((n) => editedPermissions.has(n));
-                      const label = RESOURCE_LABELS[resource] ?? resource;
-                      const isTranslated = !!RESOURCE_LABELS[resource];
+                      const label = resourceLabel[resource] ?? RESOURCE_LABELS[resource] ?? resource;
                       return (
                         <TableRow
                           key={resource}
@@ -414,7 +436,7 @@ const RolesPage: React.FC = () => {
                                 onChange={() => handleToggleRow(resource)}
                                 color="primary"
                               />
-                              <Typography variant="body2" fontWeight={500} color={isTranslated ? "text.primary" : "text.disabled"}>
+                              <Typography variant="body2" fontWeight={500}>
                                 {label}
                               </Typography>
                             </Stack>
@@ -431,12 +453,14 @@ const RolesPage: React.FC = () => {
                             const checked = editedPermissions.has(perm.name);
                             return (
                               <TableCell key={action} align="center" sx={{ borderBottom: "1px solid", borderColor: "divider" }}>
-                                <Switch
-                                  size="small"
-                                  checked={checked}
-                                  onChange={() => handleToggle(perm.name)}
-                                  color="primary"
-                                />
+                                <Tooltip title={perm.displayName} placement="top" arrow>
+                                  <Switch
+                                    size="small"
+                                    checked={checked}
+                                    onChange={() => handleToggle(perm.name)}
+                                    color="primary"
+                                  />
+                                </Tooltip>
                               </TableCell>
                             );
                           })}

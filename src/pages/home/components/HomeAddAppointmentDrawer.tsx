@@ -2,6 +2,7 @@ import React from "react";
 import { CustomDatePicker } from "../../../components/ui";
 import { useNotification } from "@refinedev/core";
 import {
+  Avatar,
   Box,
   Button,
   Card,
@@ -18,7 +19,9 @@ import {
   ToggleButton,
   ToggleButtonGroup,
   Typography,
+  alpha,
 } from "@mui/material";
+import CloseIcon from "@mui/icons-material/Close";
 import Autocomplete, { createFilterOptions } from "@mui/material/Autocomplete";
 import CloseOutlined from "@mui/icons-material/CloseOutlined";
 import PersonOutlined from "@mui/icons-material/PersonOutlined";
@@ -641,13 +644,14 @@ export const HomeAddAppointmentDrawer: React.FC<
 
     setTouched(true);
     const now = dayjs();
+    const yesterday = now.subtract(1, "day").startOf("day");
     if (scheduleMode === "once") {
       const chosen = visitDateTime ? dayjs(visitDateTime) : null;
-      if (!chosen || !chosen.isValid() || chosen.isBefore(now)) {
+      if (!chosen || !chosen.isValid() || chosen.isBefore(yesterday)) {
         notify?.({
           type: "error",
-          message: "Нельзя создавать приём в прошлом",
-          description: "Выберите текущую или будущую дату и время.",
+          message: "Нельзя создавать приём раньше вчерашнего дня",
+          description: "Выберите вчерашнюю, текущую или будущую дату и время.",
         });
         isSavingRef.current = false;
         return;
@@ -674,12 +678,12 @@ export const HomeAddAppointmentDrawer: React.FC<
 
         const baseTime = visitDateTime ? dayjs(visitDateTime) : dayjs().hour(9).minute(0).second(0);
         const timeStr = baseTime.format("HH:mm");
-        const hasPastDate = periodDates.some((date) => dayjs(`${date}T${timeStr}:00`).isBefore(now));
+        const hasPastDate = periodDates.some((date) => dayjs(`${date}T${timeStr}:00`).isBefore(yesterday));
         if (hasPastDate) {
           notify?.({
             type: "error",
-            message: "Нельзя создавать приём в прошлом",
-            description: "Уберите прошедшие даты из периода и попробуйте снова.",
+            message: "Нельзя создавать приём раньше вчерашнего дня",
+            description: "Уберите даты раньше вчерашнего из периода и попробуйте снова.",
           });
           setIsSaving(false);
           isSavingRef.current = false;
@@ -1605,17 +1609,44 @@ export const HomeAddAppointmentDrawer: React.FC<
                   )}
 
                   {groupParticipants.length > 0 && (
-                    <Stack spacing={0.5}>
-                      {groupParticipants.map((p) => (
-                        <Stack key={p.id} direction="row" alignItems="center" justifyContent="space-between"
-                          sx={{ px: 1.5, py: 0.75, border: "1px solid", borderColor: "divider", borderRadius: 1, bgcolor: "action.hover" }}>
-                          <Typography variant="body2">{p.fio ?? p.label ?? p.id}</Typography>
-                          <Button size="small" color="error" sx={{ minWidth: 0, px: 0.75 }}
-                            onClick={() => setGroupParticipants(prev => prev.filter(x => x.id !== p.id))}>
-                            ✕
-                          </Button>
-                        </Stack>
-                      ))}
+                    <Stack spacing={0.75}>
+                      {groupParticipants.map((p, idx) => {
+                        const name = p.fio ?? p.label ?? p.id;
+                        const initials = name.split(" ").slice(0, 2).map((w: string) => w[0]).join("").toUpperCase();
+                        return (
+                          <Box
+                            key={p.id}
+                            sx={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 1.25,
+                              px: 1.5,
+                              py: 0.75,
+                              borderRadius: 2,
+                              border: "1px solid",
+                              borderColor: "divider",
+                              bgcolor: "background.paper",
+                            }}
+                          >
+                            <Avatar sx={{ width: 28, height: 28, fontSize: 11, fontWeight: 700, bgcolor: (theme) => alpha(theme.palette.primary.main, 0.15), color: "primary.main", flexShrink: 0 }}>
+                              {initials}
+                            </Avatar>
+                            <Typography variant="body2" fontWeight={500} sx={{ flex: 1, minWidth: 0 }} noWrap>
+                              {name}
+                            </Typography>
+                            <Typography variant="caption" color="text.disabled" sx={{ flexShrink: 0 }}>
+                              #{idx + 1}
+                            </Typography>
+                            <IconButton
+                              size="small"
+                              onClick={() => setGroupParticipants(prev => prev.filter(x => x.id !== p.id))}
+                              sx={{ color: "text.disabled", "&:hover": { color: "error.main" }, p: 0.25 }}
+                            >
+                              <CloseIcon sx={{ fontSize: 16 }} />
+                            </IconButton>
+                          </Box>
+                        );
+                      })}
                     </Stack>
                   )}
 

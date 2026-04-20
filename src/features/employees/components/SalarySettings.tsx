@@ -24,6 +24,7 @@ import {
     CircularProgress,
 } from "@mui/material";
 import { fetchServices } from "../../../services/services";
+import { apiFetch } from "../../../utility/apiClient";
 import {
     Add,
     DeleteOutline,
@@ -111,14 +112,22 @@ const SalarySettings: React.FC<SalarySettingsProps> = ({ employeeId, initialValu
         const load = async () => {
             try {
                 setLoadingServices(true);
-                const data = await fetchServices();
-
-                let filtered = data;
+                let names: string[] = [];
                 if (employeeId) {
-                    filtered = data.filter(s => s.employee_ids?.includes(employeeId));
+                    // Берём услуги из детального ответа сотрудника — там уже только его услуги
+                    const res: any = await apiFetch(`/api/v1/employees/${employeeId}/`);
+                    const d = res?.data ?? res;
+                    const empServices: any[] = Array.isArray(d?.services) ? d.services : [];
+                    names = empServices
+                        .map((s: any) => s?.name ?? s?.displayName ?? "")
+                        .filter(Boolean);
                 }
-
-                setAvailableServices(filtered.map(s => s.name));
+                // Если нет привязанных услуг или нет employeeId — показываем все
+                if (names.length === 0) {
+                    const all = await fetchServices();
+                    names = all.map(s => s.name);
+                }
+                setAvailableServices(names);
             } catch (e) {
                 console.error("Failed to fetch services", e);
             } finally {
@@ -126,7 +135,7 @@ const SalarySettings: React.FC<SalarySettingsProps> = ({ employeeId, initialValu
             }
         };
         load();
-    }, []);
+    }, [employeeId]);
 
     const updateState = (updater: (prev: SalaryState) => SalaryState) => {
         setState((prev) => {

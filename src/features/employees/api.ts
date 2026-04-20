@@ -78,7 +78,7 @@ export function mapAnyToEmployee(o: Record<string, unknown>): Employee | null {
     email: (typeof o.email === 'string' ? o.email : null) ?? (typeof o.userEmail === 'string' ? o.userEmail : null),
     bank_account_number: (typeof o.bank_account_number === 'string' ? o.bank_account_number : null) ?? (typeof o.bankAccountNumber === 'string' ? o.bankAccountNumber : null),
     nickname: typeof o.nickname === 'string' ? o.nickname : null,
-    salary_rules: o.salary_rules || null,
+    salary_rules: o.salary_rules || o.salaryRules || null,
     passport_photos: Array.isArray(o.passport_photos) ? o.passport_photos as string[]
       : Array.isArray((o as any).passportPhotos) ? (o as any).passportPhotos as string[]
       : null,

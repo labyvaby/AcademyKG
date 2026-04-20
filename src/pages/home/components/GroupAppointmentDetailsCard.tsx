@@ -354,10 +354,11 @@ const GroupAppointmentDetailsCard: React.FC<Props> = ({ group, onGroupUpdated, o
                 <Typography variant="body2" color="text.secondary">Нет участников</Typography>
               ) : (
                 <Stack spacing={1}>
-                  {group.participants.map((p) => (
+                  {group.participants.map((p, idx) => (
                     <ParticipantRow
                       key={p.id}
                       participant={p}
+                      index={idx}
                       onStatusChange={(status) => handleStatusChange(p.id, status)}
                       onPayClick={() => setPaymentParticipant(p)}
                       onClientClick={() => setClientViewId(p.patientId)}

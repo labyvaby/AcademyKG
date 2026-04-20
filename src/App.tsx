@@ -41,6 +41,7 @@ import { usePermissions } from "./hooks/usePermissions";
 import { API_BASE_URL } from "./utility/apiClient";
 import { getDefaultAuthorizedRoute } from "./utils/permissionHelpers";
 import dataProvider from "@refinedev/simple-rest";
+import { ShiftStartBanner } from "./components/skud/ShiftStartBanner";
 
 // ОПТИМИЗАЦИЯ: Все страницы загружаются через lazy() для code splitting
 const UnderConstruction = lazy(() =>
@@ -68,6 +69,7 @@ const ClientSchedulePage = lazy(() => import("./pages/ClientSchedulePage"));
 const RolesPage = lazy(() => import("./pages/roles"));
 const CategoriesPage = lazy(() => import("./pages/categories/index.tsx"));
 const BranchManagePage = lazy(() => import("./pages/branches/BranchManagePage"));
+const SkudPage = lazy(() => import("./pages/skud"));
 
 
 // Вспомогательный компонент для обработки глобальных событий аутентификации
@@ -249,7 +251,7 @@ function App() {
                       {
                         name: "all-appointments",
                         list: "/all-appointments",
-                        meta: { label: "Все приемы" }
+                        meta: { label: "Все услуги" }
                       },
                     ]}
                     options={{
@@ -297,6 +299,7 @@ function App() {
                                   }
                                 }}
                               >
+                                <ShiftStartBanner />
                                 <Outlet />
                               </ThemedLayout>
                             </MobileSidebarProvider>
@@ -456,6 +459,17 @@ function App() {
                             <ProtectedRoute requiredPermissions={['app_settings.update']}>
                               <Suspense fallback={<LinearProgress />}>
                                 <BranchManagePage />
+                              </Suspense>
+                            </ProtectedRoute>
+                          }
+                        />
+
+                        <Route
+                          path="skud"
+                          element={
+                            <ProtectedRoute requiredPermissions={['work_shifts.read']}>
+                              <Suspense fallback={<LinearProgress />}>
+                                <SkudPage />
                               </Suspense>
                             </ProtectedRoute>
                           }

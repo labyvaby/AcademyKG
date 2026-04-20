@@ -219,13 +219,13 @@ export const AppointmentsList: React.FC<AppointmentsListProps & { onAddSlot?: (d
 
     return shifts.filter(shift => {
       // Direct match
-      if (shift.shift_date === currentDayStr) return true;
+      if (shift.shiftDate === currentDayStr) return true;
 
       // Check for night shift from previous day
       const prevDayStr = currentDay.subtract(1, 'day').format('YYYY-MM-DD');
-      if (shift.shift_date === prevDayStr) {
-        const sStart = dayjs(`${shift.shift_date}T${shift.start_time}`);
-        let sEnd = dayjs(`${shift.shift_date}T${shift.end_time}`);
+      if (shift.shiftDate === prevDayStr) {
+        const sStart = dayjs(`${shift.shiftDate}T${shift.startTime}`);
+        let sEnd = dayjs(`${shift.shiftDate}T${shift.endTime}`);
         if (sEnd.isBefore(sStart)) sEnd = sEnd.add(1, 'day');
         // If shift ends after the start of current day, it overlaps
         return sEnd.isAfter(currentDay.startOf('day'));
@@ -285,11 +285,11 @@ export const AppointmentsList: React.FC<AppointmentsListProps & { onAddSlot?: (d
 
     // --- NEW: Add doctors from shifts who might not have appointments yet ---
     currentDayShifts.forEach(shift => {
-      if (shift.employes_id && !doctorMap.has(shift.employes_id)) {
-        const fullInfo = doctors?.find(d => d.id === shift.employes_id);
-        doctorMap.set(shift.employes_id, {
-          id: shift.employes_id,
-          name: fullInfo?.full_name || shift.employee?.full_name || "Специалист",
+      if (shift.employee?.id && !doctorMap.has(shift.employee?.id)) {
+        const fullInfo = doctors?.find(d => d.id === shift.employee?.id);
+        doctorMap.set(shift.employee?.id, {
+          id: shift.employee?.id,
+          name: fullInfo?.full_name || shift.employee?.fullName || "Специалист",
           photoUrl: fullInfo?.avatar_url || null,
           nickname: fullInfo?.nickname
         });
@@ -372,16 +372,16 @@ export const AppointmentsList: React.FC<AppointmentsListProps & { onAddSlot?: (d
 
     // First, initialize groups for all doctors who HAVE SHIFTS on this day
     currentDayShifts.forEach(shift => {
-      const fullInfo = doctors?.find(d => d.id === shift.employes_id);
+      const fullInfo = doctors?.find(d => d.id === shift.employee?.id);
       if (fullInfo) {
         const docName = fullInfo.full_name || "Специалист";
-        const docId = shift.employes_id;
+        const docId = shift.employee?.id;
 
         if (restrictToDoctorId && docId !== restrictToDoctorId) return;
         if (effectiveSelectedDoctor && docName !== effectiveSelectedDoctor) return;
 
         if (!rawGroups[docName]) rawGroups[docName] = [];
-        doctorIdMap[docName] = docId;
+        doctorIdMap[docName] = docId ?? "";
       }
     });
 
@@ -495,14 +495,14 @@ export const AppointmentsList: React.FC<AppointmentsListProps & { onAddSlot?: (d
       const result: RenderItem[] = [];
 
       const docId = doctorIdMap[docName] || appts[0]?.doctor_id;
-      const docShifts = currentDayShifts.filter(s => s.employes_id === docId);
+      const docShifts = currentDayShifts.filter(s => s.employee?.id === docId);
 
       // Helper to check if a time is within ANY of doctor's shifts
       const getActiveShift = (date: dayjs.Dayjs) => {
         return docShifts.find(shift => {
-          const d = shift.shift_date;
-          const sStart = dayjs(`${d}T${shift.start_time}`);
-          let sEnd = dayjs(`${d}T${shift.end_time}`);
+          const d = shift.shiftDate;
+          const sStart = dayjs(`${d}T${shift.startTime}`);
+          let sEnd = dayjs(`${d}T${shift.endTime}`);
           if (sEnd.isBefore(sStart)) sEnd = sEnd.add(1, 'day');
           return (date.isAfter(sStart) || date.isSame(sStart)) && date.isBefore(sEnd);
         });
@@ -513,8 +513,8 @@ export const AppointmentsList: React.FC<AppointmentsListProps & { onAddSlot?: (d
         if (appts.length === 0) {
           const addedTimes = new Set<string>(); // Prevent duplicates
           docShifts.forEach(shift => {
-            const d = shift.shift_date;
-            const startTime = dayjs(`${d}T${shift.start_time}`);
+            const d = shift.shiftDate;
+            const startTime = dayjs(`${d}T${shift.startTime}`);
             const timeKey = startTime.format('HH:mm');
 
             if (!addedTimes.has(timeKey)) {
@@ -540,8 +540,8 @@ export const AppointmentsList: React.FC<AppointmentsListProps & { onAddSlot?: (d
           // Check if there is enough space BEFORE the first appointment
           const shiftForFirst = getActiveShift(firstStart.subtract(1, 'minute'));
           if (shiftForFirst) {
-            const d = shiftForFirst.shift_date;
-            const sStart = dayjs(`${d}T${shiftForFirst.start_time}`);
+            const d = shiftForFirst.shiftDate;
+            const sStart = dayjs(`${d}T${shiftForFirst.startTime}`);
             if (firstStart.diff(sStart) >= GAP_THRESHOLD_MS) {
               // Only add gap if it's not in the past
               if (!sStart.isBefore(dayjs())) {

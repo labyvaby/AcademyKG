@@ -33,6 +33,7 @@ import { useAvailableReportMonths } from "../../hooks/useAvailableReportMonths";
 import { formatKGS } from "../../utility/format";
 import { getFinancialReport } from "../../services/reports";
 import { useBranchContext } from "../../contexts/branch-context";
+import { apiFetch } from "../../utility/apiClient";
 import { DailyFinancialData, FinancialReportResponse } from "../../types/reports";
 import dayjs from "dayjs";
 import 'dayjs/locale/ru';
@@ -148,6 +149,10 @@ const ReportsPage: React.FC = () => {
     const scopeKey = useMemo(() => `${branchKey}:${month}`, [branchKey, month]);
     const [loadedScopeKey, setLoadedScopeKey] = useState<string | null>(null);
 
+    // Расходы за месяц
+    const [totalExpenses, setTotalExpenses] = useState<number>(0);
+    const [expensesByDate, setExpensesByDate] = useState<Record<string, number>>({});
+
     // Session cache: key = 'branch:YYYY-MM', invalidated on branch/month change
     const cache = React.useRef(new Map<string, FinancialReportResponse>());
 
@@ -197,6 +202,30 @@ const ReportsPage: React.FC = () => {
     }, [fetchFinancialData]);
 
     useEffect(() => {
+        let cancelled = false;
+        const load = async () => {
+            try {
+                const params = new URLSearchParams({ month });
+                if (selectedBranch?.id) params.set("branch", selectedBranch.id);
+                const res: any = await apiFetch(`/api/v1/reports/expenses-monthly/?${params}`);
+                if (cancelled) return;
+                const d = res?.data ?? res;
+                setTotalExpenses(toNumber(d?.totals?.totalExpenses));
+                const byDateArr: any[] = Array.isArray(d?.byDate) ? d.byDate : [];
+                const byDateMap: Record<string, number> = {};
+                byDateArr.forEach((entry: any) => {
+                    if (entry?.date) byDateMap[entry.date] = toNumber(entry.totalExpenses);
+                });
+                setExpensesByDate(byDateMap);
+            } catch {
+                if (!cancelled) { setTotalExpenses(0); setExpensesByDate({}); }
+            }
+        };
+        void load();
+        return () => { cancelled = true; };
+    }, [month, selectedBranch?.id]);
+
+    useEffect(() => {
         if (!activeMonths || activeMonths.size === 0) return;
         if (activeMonths.has(month)) return;
 
@@ -238,10 +267,10 @@ const ReportsPage: React.FC = () => {
                 color: 'primary',
             },
             {
-                title: 'Товары',
-                primaryValue: formatKGS(productsSum),
-                secondaryText: `${proceduresCount} процедур`,
-                color: 'info',
+                title: 'Расходы',
+                primaryValue: formatKGS(totalExpenses),
+                secondaryText: 'Операционные расходы',
+                color: 'error',
             },
             {
                 title: 'Общая выручка',
@@ -387,7 +416,7 @@ const ReportsPage: React.FC = () => {
                                     <Table stickyHeader size="small">
                                         <TableHead>
                                             <TableRow>
-                                                {['Дата', 'Записи', 'В ожидании', 'Услуги', 'Товары', 'Выручка', 'Скидка', 'Долг'].map(h => <TableCell key={h} align={h === 'Дата' ? 'left' : h === 'Записи' || h === 'В ожидании' ? 'center' : 'right'} sx={{ fontWeight: 800, ...(h === 'В ожидании' ? { color: 'error.main' } : {}) }}>{h}</TableCell>)}
+                                                {['Дата', 'Записи', 'В ожидании', 'Услуги', 'Расходы', 'Выручка', 'Скидка', 'Долг'].map(h => <TableCell key={h} align={h === 'Дата' ? 'left' : h === 'Записи' || h === 'В ожидании' ? 'center' : 'right'} sx={{ fontWeight: 800, ...(h === 'В ожидании' ? { color: 'error.main' } : {}) }}>{h}</TableCell>)}
                                             </TableRow>
                                         </TableHead>
                                         <TableBody>
@@ -402,7 +431,7 @@ const ReportsPage: React.FC = () => {
                                                         {day.waitingCount > 0 ? day.waitingCount : '-'}
                                                     </TableCell>
                                                     <TableCell align="right">{formatKGS(day.servicesSum)}</TableCell>
-                                                    <TableCell align="right" sx={{ color: 'info.main', fontWeight: 600 }}>{formatKGS(day.productsSum)}</TableCell>
+                                                    <TableCell align="right" sx={{ color: 'error.main' }}>{expensesByDate[day.date] != null ? formatKGS(expensesByDate[day.date]) : '—'}</TableCell>
                                                     <TableCell align="right" sx={{ color: 'success.main', fontWeight: 600 }}>{formatKGS(getDayRevenue(day))}</TableCell>
                                                     <TableCell align="right" sx={{ color: 'warning.main' }}>{day.discountSum > 0 ? formatKGS(day.discountSum) : '-'}</TableCell>
                                                     <TableCell align="right" sx={{ color: 'error.main' }}>{day.debtSum > 0 ? formatKGS(day.debtSum) : '-'}</TableCell>
@@ -413,7 +442,7 @@ const ReportsPage: React.FC = () => {
                                                 <TableCell align="center" sx={{ fontWeight: 800 }}>{reportTotals.appointmentsCount}</TableCell>
                                                 <TableCell align="center" sx={{ fontWeight: 800, color: 'error.main' }}>{reportTotals.waitingCount > 0 ? reportTotals.waitingCount : '-'}</TableCell>
                                                 <TableCell align="right" sx={{ fontWeight: 800 }}>{formatKGS(reportTotals.servicesSum)}</TableCell>
-                                                <TableCell align="right" sx={{ fontWeight: 800, color: 'info.main' }}>{formatKGS(reportTotals.productsSum)}</TableCell>
+                                                <TableCell align="right" sx={{ fontWeight: 800, color: 'error.main' }}>{formatKGS(totalExpenses)}</TableCell>
                                                 <TableCell align="right" sx={{ fontWeight: 800, color: 'success.main' }}>{formatKGS(getDayRevenue(reportTotals))}</TableCell>
                                                 <TableCell align="right" sx={{ fontWeight: 800, color: 'warning.main' }}>{formatKGS(reportTotals.discountSum)}</TableCell>
                                                 <TableCell align="right" sx={{ fontWeight: 800, color: 'error.main' }}>{formatKGS(reportTotals.debtSum)}</TableCell>

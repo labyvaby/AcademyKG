@@ -40,6 +40,7 @@ import HistoryOutlined from "@mui/icons-material/HistoryOutlined";
 import AdminPanelSettingsOutlined from "@mui/icons-material/AdminPanelSettingsOutlined";
 import CategoryOutlined from "@mui/icons-material/CategoryOutlined";
 import BusinessOutlined from "@mui/icons-material/BusinessOutlined";
+import SecurityOutlined from "@mui/icons-material/SecurityOutlined";
 
 import { useThemedLayoutContext } from "@refinedev/mui";
 import { logout } from "../../services/auth";
@@ -360,10 +361,13 @@ const SidebarSecondary: React.FC = () => {
         )}
 
         {hasPermission(PERMISSIONS.APPOINTMENTS_READ) && (
-          <SidebarMenuItem to="/all-appointments" icon={<HistoryOutlined />} label="Все приемы" collapsed={siderCollapsed} />
+          <SidebarMenuItem to="/all-appointments" icon={<HistoryOutlined />} label="Все услуги" collapsed={siderCollapsed} />
         )}
         {hasPermission(PERMISSIONS.EMPLOYEE_SCHEDULES_READ) && (
           <SidebarMenuItem to="/schedule" icon={<CalendarMonthOutlined />} label="Расписание" collapsed={siderCollapsed} />
+        )}
+        {hasPermission(PERMISSIONS.WORK_SHIFTS_READ) && (
+          <SidebarMenuItem to="/skud" icon={<SecurityOutlined />} label="СКУД" collapsed={siderCollapsed} />
         )}
         {hasPermission(PERMISSIONS.CLIENT_SCHEDULES_READ) && (
           <SidebarMenuItem to="/client-schedule" icon={<CalendarMonthOutlined />} label="Клиентское расписание" collapsed={siderCollapsed} />

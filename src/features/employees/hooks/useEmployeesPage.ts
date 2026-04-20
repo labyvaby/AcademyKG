@@ -30,6 +30,7 @@ const EMPLOYEE_WRITE_FIELDS = new Set([
   "serviceIds",
   "userEmail",
   "userPhoneNumber",
+  "salaryRules",
 ]);
 
 function getErrorMessage(error: unknown): string {

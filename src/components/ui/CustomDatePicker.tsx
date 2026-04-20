@@ -1,5 +1,6 @@
 import * as React from "react";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
+import Box from "@mui/material/Box";
 
 /**
  * Обертка над MUI X DatePicker с открытием по двойному клику.
@@ -20,21 +21,30 @@ export function CustomDatePicker(props: CustomDatePickerProps) {
     setOpen(true);
   };
 
-  return (
+  const textFieldProps = slotProps?.textField as Record<string, any> | undefined;
+  const isFullWidth = textFieldProps?.fullWidth;
+
+  const picker = (
     <DatePicker
       open={open}
       onOpen={() => setOpen(true)}
       onClose={() => setOpen(false)}
+      {...rest}
       slotProps={{
         ...slotProps,
         textField: {
           ...slotProps?.textField,
           onDoubleClick: handleDoubleClick,
+          ...(isFullWidth ? { sx: { ...(textFieldProps?.sx ?? {}), width: "100%" } } : {}),
         },
       }}
-      {...rest}
     />
   );
+
+  if (isFullWidth) {
+    return <Box sx={{ width: "100%" }}>{picker}</Box>;
+  }
+  return picker;
 }
 
 export default CustomDatePicker;

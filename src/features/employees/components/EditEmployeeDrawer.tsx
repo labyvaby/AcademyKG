@@ -103,7 +103,7 @@ const EditEmployeeDrawer: React.FC<EditEmployeeDrawerProps> = ({ record, onClose
     setRoleId((record.role_id && typeof record.role_id === 'string') ? record.role_id : "");
     setStatus(record.status || "active");
     setNickname(record.nickname || "");
-    setSalaryRules(record.salary_rules || null);
+    setSalaryRules(null); // loaded from detail response below
     setPhotoPreview(record.photo_url ? String(record.photo_url) : null);
     setPhotoFile(null);
     setPassportPhotos(Array.isArray(record.passport_photos) ? record.passport_photos : []);
@@ -136,6 +136,27 @@ const EditEmployeeDrawer: React.FC<EditEmployeeDrawerProps> = ({ record, onClose
         setInn(d?.inn ?? (record as any).inn ?? "");
         if (d?.photoUrl) setPhotoPreview(d.photoUrl);
         if (d?.birthDate) setBirthDate(normalizeDateInput(d.birthDate));
+
+        // Load salary rules from detail response (camelCase from backend → snake_case for UI)
+        if (d?.salaryRules) {
+          const sr = d.salaryRules;
+          setSalaryRules({
+            fixed_salary: {
+              enabled: sr.fixedSalary?.enabled ?? false,
+              night_hourly_rate: Number(sr.fixedSalary?.nightHourlyRate ?? 0),
+              day_hourly_rate: Number(sr.fixedSalary?.dayHourlyRate ?? 0),
+              appointment_rate: Number(sr.fixedSalary?.appointmentRate ?? 0),
+            },
+            dynamic_rules: Array.isArray(sr.dynamicRules)
+              ? sr.dynamicRules.map((r: any) => ({
+                  id: Math.random().toString(36).substr(2, 9),
+                  services: Array.isArray(r.services) ? r.services : [],
+                  percent: Number(r.percent ?? 0),
+                  fixed_amount: Number(r.fixedAmount ?? 0),
+                }))
+              : [],
+          });
+        }
 
         const allSrvUniq = Array.from(new Map((allSrv || []).map(s => [String(s.id), s])).values());
         setSpecializations(specs);
@@ -242,6 +263,25 @@ const EditEmployeeDrawer: React.FC<EditEmployeeDrawerProps> = ({ record, onClose
 
       // Для нетренерских ролей связи по услугам должны быть очищены.
       payload.serviceIds = isTrainerRole ? selectedServices.map(s => s.id) : [];
+
+      // Зарплатные правила — конвертируем snake_case UI → camelCase API
+      if (salaryRules !== null) {
+        payload.salaryRules = {
+          fixedSalary: {
+            enabled: salaryRules.fixed_salary?.enabled ?? false,
+            nightHourlyRate: String(salaryRules.fixed_salary?.night_hourly_rate ?? 0),
+            dayHourlyRate: String(salaryRules.fixed_salary?.day_hourly_rate ?? 0),
+            appointmentRate: String(salaryRules.fixed_salary?.appointment_rate ?? 0),
+          },
+          dynamicRules: Array.isArray(salaryRules.dynamic_rules)
+            ? salaryRules.dynamic_rules.map((r: any) => ({
+                services: Array.isArray(r.services) ? r.services : [],
+                percent: String(r.percent ?? 0),
+                fixedAmount: String(r.fixed_amount ?? 0),
+              }))
+            : [],
+        };
+      }
 
       await employeeFormUtils.updateEmployeeApi(String(record.id), payload);
 

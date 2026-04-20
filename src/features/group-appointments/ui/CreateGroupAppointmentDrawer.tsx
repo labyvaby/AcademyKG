@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import {
   Autocomplete,
+  Avatar,
   Box,
   Button,
   CircularProgress,
@@ -10,10 +11,10 @@ import {
   Stack,
   TextField,
   Typography,
-  Chip,
 } from "@mui/material";
 import CloseOutlined from "@mui/icons-material/CloseOutlined";
 import PersonAddOutlined from "@mui/icons-material/PersonAddOutlined";
+import CloseIcon from "@mui/icons-material/Close";
 import dayjs from "dayjs";
 import { CustomDateTimePicker } from "../../../components/ui";
 import { useDictionaries } from "../../../hooks/useDictionaries";
@@ -242,15 +243,43 @@ const CreateGroupAppointmentDrawer: React.FC<Props> = ({ open, onClose, onCreate
             </Stack>
 
             {participants.length > 0 && (
-              <Stack direction="row" flexWrap="wrap" gap={0.75} sx={{ mt: 0.5 }}>
-                {participants.map((p) => (
-                  <Chip
-                    key={p.id}
-                    label={p.label}
-                    size="small"
-                    onDelete={() => removeParticipant(p.id)}
-                  />
-                ))}
+              <Stack spacing={0.75} sx={{ mt: 0.5 }}>
+                {participants.map((p, idx) => {
+                  const initials = p.label.split(" ").slice(0, 2).map((w: string) => w[0]).join("").toUpperCase();
+                  return (
+                    <Box
+                      key={p.id}
+                      sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 1.5,
+                        px: 1.5,
+                        py: 0.75,
+                        borderRadius: 2,
+                        border: "1px solid",
+                        borderColor: "divider",
+                        bgcolor: "background.paper",
+                      }}
+                    >
+                      <Avatar sx={{ width: 28, height: 28, fontSize: 11, bgcolor: "primary.main", flexShrink: 0 }}>
+                        {initials}
+                      </Avatar>
+                      <Typography variant="body2" fontWeight={500} sx={{ flex: 1, minWidth: 0 }} noWrap>
+                        {p.label}
+                      </Typography>
+                      <Typography variant="caption" color="text.disabled" sx={{ flexShrink: 0 }}>
+                        #{idx + 1}
+                      </Typography>
+                      <IconButton
+                        size="small"
+                        onClick={() => removeParticipant(p.id)}
+                        sx={{ ml: 0.5, color: "text.disabled", "&:hover": { color: "error.main" }, p: 0.25 }}
+                      >
+                        <CloseIcon sx={{ fontSize: 16 }} />
+                      </IconButton>
+                    </Box>
+                  );
+                })}
               </Stack>
             )}
           </Stack>

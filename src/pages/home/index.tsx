@@ -32,7 +32,8 @@ import { mapAggregatedRowToAppointment, mapGroupToAppointment, compareAppointmen
 import { fetchGroups } from "../../features/group-appointments/api/group-appointments.api";
 import type { AppointmentGroup } from "../../features/group-appointments/model/types";
 import type { EmployeesRow } from "../expenses/types";
-import { fetchShiftsForDate, Shift } from "../../services/shifts";
+import { fetchShifts, type Shift } from "../../services/shifts";
+const fetchShiftsForDate = (date: string) => fetchShifts({ date });
 import { AppBottomSheet, PageHeader, DateNavigation } from "../../components/ui";
 import { useRefresh } from "../../contexts/refresh-context";
 import AppointmentDetailsCard from "./components/AppointmentDetailsCard";

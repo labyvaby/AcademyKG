@@ -218,10 +218,11 @@ const _USERS = {
 } as const;
 
 const _WORK_SHIFTS = {
-  CREATE: 'work_shifts.create',
-  READ:   'work_shifts.read',
-  UPDATE: 'work_shifts.update',
-  DELETE: 'work_shifts.delete',
+  CREATE:         'work_shifts.create',
+  READ:           'work_shifts.read',
+  UPDATE:         'work_shifts.update',
+  DELETE:         'work_shifts.delete',
+  SELF_CLOCK_IN:  'work_shifts.self_clock_in',
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -413,6 +414,7 @@ export const PERMISSIONS = {
   WORK_SHIFTS_READ:                  _WORK_SHIFTS.READ,
   WORK_SHIFTS_UPDATE:                _WORK_SHIFTS.UPDATE,
   WORK_SHIFTS_DELETE:                _WORK_SHIFTS.DELETE,
+  WORK_SHIFTS_SELF_CLOCK_IN:         _WORK_SHIFTS.SELF_CLOCK_IN,
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -570,6 +572,7 @@ export const P = {
   WORK_SHIFTS_READ:                  _WORK_SHIFTS.READ,
   WORK_SHIFTS_UPDATE:                _WORK_SHIFTS.UPDATE,
   WORK_SHIFTS_DELETE:                _WORK_SHIFTS.DELETE,
+  WORK_SHIFTS_SELF_CLOCK_IN:         _WORK_SHIFTS.SELF_CLOCK_IN,
 } as const;
 
 // ---------------------------------------------------------------------------
