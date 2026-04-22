@@ -300,11 +300,11 @@ const EditAppointmentSidebar: React.FC<EditAppointmentSidebarProps> = ({
 
     // Гарантируем ISO строку с часовым поясом, чтобы DB не интерпретировала как UTC
     const dt = dateTime ? dayjs(dateTime).format() : "";
-    if (dt && dayjs(dt).isBefore(dayjs())) {
+    if (dt && dayjs(dt).isBefore(dayjs().subtract(1, "day").startOf("day"))) {
       notify?.({
         type: "error",
         message: "Нельзя сохранять приём в прошлом",
-        description: "Выберите текущее или будущее время.",
+        description: "Выберите вчерашнюю, сегодняшнюю или будущую дату.",
       });
       return;
     }
