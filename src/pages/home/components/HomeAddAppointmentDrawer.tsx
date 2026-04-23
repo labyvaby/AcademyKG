@@ -551,7 +551,9 @@ export const HomeAddAppointmentDrawer: React.FC<
 
   const loadDayAppointments = React.useCallback(async (date: string): Promise<any[]> => {
     if (dayAppointmentsCacheRef.current[date]) return dayAppointmentsCacheRef.current[date];
-    const res: any = await apiFetch(`/api/v1/appointments/?date=${date}&pageSize=500`);
+    const branchId = getBranchFilter();
+    const branchParam = branchId ? `&branch=${branchId}` : "";
+    const res: any = await apiFetch(`/api/v1/appointments/?date=${date}&pageSize=500${branchParam}`);
     const list: any[] = res?.data?.results ?? res?.results ?? [];
     dayAppointmentsCacheRef.current[date] = Array.isArray(list) ? list : [];
     return dayAppointmentsCacheRef.current[date];
