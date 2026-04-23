@@ -33,6 +33,16 @@ import { PERMISSIONS } from "../../../constants/permissions";
 import { isOwnOnlySpecialist } from "../../../utils/permissionHelpers";
 
 
+function resolvePatientPhone(r: any): string {
+  const direct = r.phone ?? r.contactPhone ?? r["Телефон"] ?? "";
+  if (direct) return direct;
+  const persons = r.responsiblePersons ?? r.responsible_persons;
+  if (Array.isArray(persons) && persons.length > 0) {
+    return persons[0]?.phone ?? "";
+  }
+  return "";
+}
+
 const patientFilter = createFilterOptions<PatientOption>({
   matchFrom: "start",
   stringify: (o) => {
@@ -189,7 +199,7 @@ const EditAppointmentSidebar: React.FC<EditAppointmentSidebarProps> = ({
 
       const mapped = (data || []).map((r: any) => {
         const fio = r.full_name || r.fullName || r.fio || "";
-        const phone = r.phone || r.contactPhone || "";
+        const phone = resolvePatientPhone(r);
         return {
           id: String(r.id),
           fio,

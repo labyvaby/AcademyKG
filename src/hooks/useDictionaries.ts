@@ -20,7 +20,9 @@ const fetchAllDictionaries = async (): Promise<DictionariesByType> => {
       return rawData.map((r: any) => {
         const id = String(r.id ?? "");
         const fio = r.fullName ?? r.full_name ?? r["ФИО клиента"] ?? "";
-        const phone = r.phone ?? r.contactPhone ?? r.contact_phone ?? r["Телефон"] ?? "";
+        const directPhone = r.phone ?? r.contactPhone ?? r.contact_phone ?? r["Телефон"] ?? "";
+        const persons = r.responsiblePersons ?? r.responsible_persons;
+        const phone = directPhone || (Array.isArray(persons) && persons.length > 0 ? (persons[0]?.phone ?? "") : "");
         const label = [fio, phone].filter(Boolean).join(" — ") || id;
         return { id, label, fio, phone, "ФИО клиента": fio, "Телефон": phone };
       }).filter((p: PatientOption) => p.id) as PatientOption[];

@@ -38,6 +38,16 @@ import { usePermissions } from "../../../hooks/usePermissions";
 import { useNotification } from "@refinedev/core";
 import type { PatientOption } from "../types";
 import type { Appointment } from "../types";
+
+function resolvePatientPhone(r: any): string {
+  const direct = r.phone ?? r.contactPhone ?? r["Телефон"] ?? "";
+  if (direct) return direct;
+  const persons = r.responsiblePersons ?? r.responsible_persons;
+  if (Array.isArray(persons) && persons.length > 0) {
+    return persons[0]?.phone ?? "";
+  }
+  return "";
+}
 import { PaymentSidebar } from "./PaymentSidebar";
 import PatientQuickViewDrawer from "../../../components/patients/PatientQuickViewDrawer";
 import DoctorQuickViewDrawer from "../../../components/employees/DoctorQuickViewDrawer";
@@ -202,7 +212,7 @@ const GroupAppointmentDetailsCard: React.FC<Props> = ({ group, onGroupUpdated, o
         const data: any[] = res?.data?.results ?? res?.results ?? [];
         setAddPatientResults(data.map((r: any) => {
           const fio = r.fullName ?? r.full_name ?? "";
-          const phone = r.phone ?? r.contactPhone ?? "";
+          const phone = resolvePatientPhone(r);
           return { id: String(r.id ?? ""), fio, phone, "ФИО клиента": fio, "Телефон": phone, label: `${fio} — ${phone}` };
         }).filter((p: any) => p.id));
       } catch { setAddPatientResults([]); }
