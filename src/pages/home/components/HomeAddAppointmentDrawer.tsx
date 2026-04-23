@@ -368,34 +368,22 @@ export const HomeAddAppointmentDrawer: React.FC<
       .then(async (res: any) => {
         if (cancelled) return;
         const results: any[] = res?.data?.results ?? res?.data ?? res?.results ?? [];
-        const filterSpecialists = (list: EmployeesRow[]) =>
-          list.filter(e => {
-            const r = ((e as any).role as string ?? "").toLowerCase();
-            return r === "specialist";
-          });
         if (results.length > 0) {
+          // employees-by-date уже возвращает нужных сотрудников — не фильтруем по роли
           const emps = mapEmps(results);
-          const specialists = filterSpecialists(emps);
-          const final = specialists.length > 0 ? specialists : emps;
-          setDoctorsOpts(final);
-          setAllDoctorsOpts(final);
-          buildServiceToEmployeesMap(final);
+          setDoctorsOpts(emps);
+          setAllDoctorsOpts(emps);
+          buildServiceToEmployeesMap(emps);
         } else {
-          // Фоллбэк — загружаем UUID роли specialist, потом фильтруем
+          // Фоллбэк — загружаем всех активных сотрудников без фильтрации по роли
           try {
-            const rolesRes: any = await apiFetch("/api/v1/roles/");
-            const rolesArr: any[] = rolesRes?.data ?? rolesRes?.results ?? [];
-            const specialistRole = rolesArr.find((r: any) => r.name === "specialist");
-            const roleParam = specialistRole?.id ? `&role=${specialistRole.id}` : "";
-            const fallback: any = await apiFetch(`/api/v1/employees/?status=active${roleParam}&pageSize=200`);
+            const fallback: any = await apiFetch(`/api/v1/employees/?status=active&pageSize=200`);
             if (!cancelled) {
               const fbResults: any[] = fallback?.data?.results ?? fallback?.results ?? [];
               const emps = mapEmps(fbResults);
-              const specialists = filterSpecialists(emps);
-              const final = specialists.length > 0 ? specialists : emps;
-              setDoctorsOpts(final);
-              setAllDoctorsOpts(final);
-              buildServiceToEmployeesMap(final);
+              setDoctorsOpts(emps);
+              setAllDoctorsOpts(emps);
+              buildServiceToEmployeesMap(emps);
             }
           } catch {
             if (!cancelled) { setDoctorsOpts([]); setAllDoctorsOpts([]); }
@@ -405,20 +393,12 @@ export const HomeAddAppointmentDrawer: React.FC<
       .catch(async () => {
         if (cancelled) return;
         try {
-          const rolesRes: any = await apiFetch("/api/v1/roles/");
-          const rolesArr: any[] = rolesRes?.data ?? rolesRes?.results ?? [];
-          const specialistRole = rolesArr.find((r: any) => r.name === "specialist");
-          const roleParam = specialistRole?.id ? `&role=${specialistRole.id}` : "";
-          const fallback: any = await apiFetch(`/api/v1/employees/?status=active${roleParam}&pageSize=200`);
+          const fallback: any = await apiFetch(`/api/v1/employees/?status=active&pageSize=200`);
           if (!cancelled) {
             const fbResults: any[] = fallback?.data?.results ?? fallback?.results ?? [];
             const emps = mapEmps(fbResults);
-            const filterSpecialists = (list: EmployeesRow[]) =>
-              list.filter(e => { const r = ((e as any).role as string ?? "").toLowerCase(); return r === "specialist"; });
-            const specialists = filterSpecialists(emps);
-            const final = specialists.length > 0 ? specialists : emps;
-            setDoctorsOpts(final);
-            setAllDoctorsOpts(final);
+            setDoctorsOpts(emps);
+            setAllDoctorsOpts(emps);
           }
         } catch { if (!cancelled) { setDoctorsOpts([]); setAllDoctorsOpts([]); }
         }
@@ -1342,10 +1322,10 @@ export const HomeAddAppointmentDrawer: React.FC<
               <Autocomplete
                 fullWidth
                 disabled={isWorkplaceNurse}
-                options={doctorsOpts}
+                options={allDoctorsOpts}
                 loading={doctorsLoading}
                 noOptionsText={doctorNoOptionsText}
-                value={doctorsOpts.find((d) => d.id === serviceRows[0]?.doctorId) || null}
+                value={allDoctorsOpts.find((d) => d.id === serviceRows[0]?.doctorId) || null}
                 onChange={(_, v) => {
                   const updated = [...serviceRows];
                   // Не сбрасываем serviceId при смене тренера — пусть фильтруется
@@ -1359,22 +1339,9 @@ export const HomeAddAppointmentDrawer: React.FC<
                         setServicesLoading(false);
                       });
                     }
-                    // Фильтруем тренеров — убираем фильтр, тренер уже выбран
                   } else {
                     // Тренер сброшен — показываем все услуги обратно
                     setServicesOpts(allServicesOpts);
-                    // Тренеров восстанавливаем по текущей выбранной услуге или все
-                    const curServiceId = serviceRows[0]?.serviceId;
-                    if (curServiceId) {
-                      const empSet = serviceToEmployeesRef.current[curServiceId];
-                      if (empSet && empSet.size > 0) {
-                        setDoctorsOpts(allDoctorsOpts.filter(d => empSet.has(d.id)));
-                      } else {
-                        setDoctorsOpts(allDoctorsOpts);
-                      }
-                    } else {
-                      setDoctorsOpts(allDoctorsOpts);
-                    }
                   }
                 }}
                 getOptionLabel={(o) => `${o.full_name || o.id}${o.specialization ? ` — ${o.specialization}` : ""}`}
