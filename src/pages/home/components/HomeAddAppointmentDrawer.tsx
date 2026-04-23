@@ -697,6 +697,8 @@ export const HomeAddAppointmentDrawer: React.FC<
         });
 
         for (const date of periodDates) {
+          // Сбрасываем кэш перед проверкой каждой даты
+          delete dayAppointmentsCacheRef.current[date];
           const conflict = await findConflictForRows(date, timeStr, rowsForConflictCheck);
           if (conflict) {
             const docName = doctorsOpts.find((d) => d.id === conflict.doctorId)?.full_name
@@ -979,6 +981,8 @@ export const HomeAddAppointmentDrawer: React.FC<
       if (singleBranchId) requestPayload.branch = singleBranchId;
       {
         const visitDate = dayjs(visitDateTime);
+        // Сбрасываем кэш перед проверкой — берём актуальные данные с сервера
+        delete dayAppointmentsCacheRef.current[visitDate.format("YYYY-MM-DD")];
         const rowsForConflictCheck = validServiceRows.map((row) => {
           const employeeServices = employeeServicesCache[row.doctorId] ?? [];
           const svc = employeeServices.find((s) => s.id === row.serviceId)
