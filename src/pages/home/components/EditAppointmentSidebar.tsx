@@ -371,11 +371,14 @@ const EditAppointmentSidebar: React.FC<EditAppointmentSidebarProps> = ({
       onSaved?.(updatedItem);
       onClose();
       notify?.({ type: "success", message: "Прием сохранен" });
-    } catch (e) {
+    } catch (e: any) {
       console.error("Update appointment failed:", e);
+      const msg = String(e?.message ?? e ?? "").toLowerCase();
+      const isOverlap = msg.includes("overlap") || msg.includes("conflict") || msg.includes("занят") || msg.includes("пересека");
       notify?.({
         type: "error",
-        message: "Не удалось сохранить изменения приема",
+        message: isOverlap ? "Конфликт по времени" : "Не удалось сохранить изменения приёма",
+        description: isOverlap ? "Это время уже занято у выбранного специалиста. Выберите другой слот." : (e?.message || undefined),
       });
     } finally {
       setBusy(false);

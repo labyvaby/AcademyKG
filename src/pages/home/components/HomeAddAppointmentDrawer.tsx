@@ -1035,6 +1035,8 @@ export const HomeAddAppointmentDrawer: React.FC<
           msg.includes("overlap") || msg.includes("conflict") || msg.includes("занят") || msg.includes("пересека");
 
         if (isOverlap) {
+          // Сбрасываем кэш — конфликт значит данные устарели
+          dayAppointmentsCacheRef.current = {};
           notify?.({
             type: "error",
             message: "Конфликт по времени",
