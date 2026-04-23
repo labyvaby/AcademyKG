@@ -8,6 +8,7 @@ function toClient(r: any): Client {
   return {
     id: String(r.id ?? r.uuid ?? ""),
     fullName: r.fullName ?? r.full_name ?? r.fio ?? "",
+    phone: r.phone ?? r.phoneNumber ?? r.phone_number ?? null,
     photoUrl: r.photoUrl ?? r.photo_url ?? r.photo ?? undefined,
   };
 }

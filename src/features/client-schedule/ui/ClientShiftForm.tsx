@@ -309,7 +309,12 @@ const ClientShiftForm: React.FC<Props> = ({
             options={allClients}
             value={client}
             onChange={(_, v) => setClient(v)}
-            getOptionLabel={(o) => o.fullName}
+            getOptionLabel={(o) => `${o.fullName || "Нет ФИО"} — ${o.phone || "Нет телефона"}`}
+            renderOption={(props, option) => (
+              <li {...props} key={option.id}>
+                {`${option.fullName || "Нет ФИО"} — ${option.phone || "Нет телефона"}`}
+              </li>
+            )}
             renderInput={(params) => (
               <TextField
                 {...params}

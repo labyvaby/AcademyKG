@@ -21,7 +21,7 @@ import { useDictionaries } from "../../../hooks/useDictionaries";
 import { createGroup } from "../api/group-appointments.api";
 import type { AppointmentGroup } from "../model/types";
 
-type PatientOption = { id: string; label: string };
+type PatientOption = { id: string; label: string; phone?: string | null };
 
 type Props = {
   open: boolean;
@@ -86,6 +86,7 @@ const CreateGroupAppointmentDrawer: React.FC<Props> = ({ open, onClose, onCreate
         data.map((c) => ({
           id: String(c.id),
           label: c.fullName ?? c.full_name ?? c.fio ?? String(c.id),
+          phone: c.phone ?? c.phoneNumber ?? c.phone_number ?? null,
         })),
       );
     } catch {
@@ -208,7 +209,12 @@ const CreateGroupAppointmentDrawer: React.FC<Props> = ({ open, onClose, onCreate
                 options={patientOptions}
                 value={patientInput}
                 onChange={(_, v) => setPatientInput(v)}
-                getOptionLabel={(o) => o.label}
+                getOptionLabel={(o) => `${o.label || "Нет ФИО"} — ${o.phone || "Нет телефона"}`}
+                renderOption={(props, option) => (
+                  <li {...props} key={option.id}>
+                    {`${option.label || "Нет ФИО"} — ${option.phone || "Нет телефона"}`}
+                  </li>
+                )}
                 isOptionEqualToValue={(a, b) => a.id === b.id}
                 loading={patientLoading}
                 onInputChange={(_, val) => searchPatients(val)}
