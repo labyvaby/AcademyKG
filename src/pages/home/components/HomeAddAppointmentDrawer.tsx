@@ -594,7 +594,15 @@ export const HomeAddAppointmentDrawer: React.FC<
             ?? ""
           );
           if (!performerId) return null;
-          const duration = extractServiceDurationMinutes(s) || fallbackDuration;
+          // AppointmentListSellableItemNested не содержит durationMinutes,
+          // поэтому ищем реальную длительность в кэше всех услуг по sellableItem.id
+          const sellableItemId = s?.sellableItem?.id ?? s?.sellableItem ?? s?.sellable_item;
+          const knownService = sellableItemId
+            ? allServicesOpts.find((sv) => sv.id === String(sellableItemId))
+            : null;
+          const duration = (knownService ? extractServiceDurationMinutes(knownService) : 0)
+            || extractServiceDurationMinutes(s)
+            || fallbackDuration;
           return { performerId, start, end: start.add(duration, "minute") };
         })
         .filter((x): x is { performerId: string; start: dayjs.Dayjs; end: dayjs.Dayjs } => Boolean(x));
@@ -602,7 +610,7 @@ export const HomeAddAppointmentDrawer: React.FC<
     const fallbackPerformer = String(appt?.doctorId ?? appt?.doctor_id ?? "");
     if (!fallbackPerformer) return [];
     return [{ performerId: fallbackPerformer, start, end: start.add(fallbackDuration, "minute") }];
-  }, [extractServiceDurationMinutes, normalizeDurationMinutes]);
+  }, [allServicesOpts, extractServiceDurationMinutes, normalizeDurationMinutes]);
 
   const findConflictForRows = React.useCallback(async (
     date: string,
