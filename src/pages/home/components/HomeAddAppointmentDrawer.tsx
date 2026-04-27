@@ -372,44 +372,17 @@ export const HomeAddAppointmentDrawer: React.FC<
         serviceIds: e.serviceIds ?? [],
       } as unknown as EmployeesRow));
 
-    apiFetch(`/api/v1/appointments/employees-by-date/?date=${currentDateStr}`)
-      .then(async (res: any) => {
+    apiFetch(`/api/v1/employees/?status=active&pageSize=200`)
+      .then((res: any) => {
         if (cancelled) return;
-        const results: any[] = res?.data?.results ?? res?.data ?? res?.results ?? [];
-        if (results.length > 0) {
-          // employees-by-date уже возвращает нужных сотрудников — не фильтруем по роли
-          const emps = mapEmps(results);
-          setDoctorsOpts(emps);
-          setAllDoctorsOpts(emps);
-          buildServiceToEmployeesMap(emps);
-        } else {
-          // Фоллбэк — загружаем всех активных сотрудников без фильтрации по роли
-          try {
-            const fallback: any = await apiFetch(`/api/v1/employees/?status=active&pageSize=200`);
-            if (!cancelled) {
-              const fbResults: any[] = fallback?.data?.results ?? fallback?.results ?? [];
-              const emps = mapEmps(fbResults);
-              setDoctorsOpts(emps);
-              setAllDoctorsOpts(emps);
-              buildServiceToEmployeesMap(emps);
-            }
-          } catch {
-            if (!cancelled) { setDoctorsOpts([]); setAllDoctorsOpts([]); }
-          }
-        }
+        const results: any[] = res?.data?.results ?? res?.results ?? [];
+        const emps = mapEmps(results).filter(e => e.role === "Специалист (тренер)");
+        setDoctorsOpts(emps);
+        setAllDoctorsOpts(emps);
+        buildServiceToEmployeesMap(emps);
       })
-      .catch(async () => {
-        if (cancelled) return;
-        try {
-          const fallback: any = await apiFetch(`/api/v1/employees/?status=active&pageSize=200`);
-          if (!cancelled) {
-            const fbResults: any[] = fallback?.data?.results ?? fallback?.results ?? [];
-            const emps = mapEmps(fbResults);
-            setDoctorsOpts(emps);
-            setAllDoctorsOpts(emps);
-          }
-        } catch { if (!cancelled) { setDoctorsOpts([]); setAllDoctorsOpts([]); }
-        }
+      .catch(() => {
+        if (!cancelled) { setDoctorsOpts([]); setAllDoctorsOpts([]); }
       })
       .finally(() => { if (!cancelled) setDoctorsLoading(false); });
     return () => { cancelled = true; };
