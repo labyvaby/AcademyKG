@@ -99,6 +99,36 @@ const patientFilter = createFilterOptions<PatientOption>({
   trim: true,
 });
 
+function isSellableServiceAvailable(item: any): boolean {
+  const isActive = item?.isActive ?? item?.is_active ?? item?.service?.isActive ?? item?.service?.is_active ?? true;
+  const isDeleted = item?.isDeleted ?? item?.is_deleted ?? item?.service?.isDeleted ?? item?.service?.is_deleted ?? false;
+  return isActive !== false && isDeleted !== true;
+}
+
+function mapSellableService(item: any): ServiceRow {
+  return {
+    id: String(item?.id ?? item?.sellableItem ?? item?.sellable_item ?? ""),
+    name: item?.displayName ?? item?.display_name ?? item?.service?.name ?? item?.name ?? "",
+    price: item?.displayPrice != null
+      ? Number(item.displayPrice)
+      : item?.price != null
+        ? Number(item.price)
+        : item?.service?.price != null
+          ? Number(item.service.price)
+          : undefined,
+    is_active: item?.isActive ?? item?.is_active ?? item?.service?.isActive ?? item?.service?.is_active ?? true,
+    isGroup: item?.isGroup ?? item?.is_group ?? item?.service?.isGroup ?? item?.service?.is_group ?? false,
+    maxParticipants: item?.maxParticipants ?? item?.max_participants ?? item?.service?.maxParticipants ?? item?.service?.max_participants ?? null,
+    durationMinutes: item?.durationMinutes ?? item?.duration_minutes ?? item?.duration ?? item?.service?.durationMinutes ?? item?.service?.duration_minutes ?? item?.service?.duration ?? null,
+    employee_ids: item?.employeeIds ?? item?.employee_ids ?? [],
+  };
+}
+
+function serviceMatchesAppointmentMode(service: ServiceRow, mode: "single" | "group"): boolean {
+  const isGroup = Boolean((service as any).isGroup ?? (service as any).is_group);
+  return mode === "group" ? isGroup : !isGroup;
+}
+
 // ... (existing filters)
 
 
@@ -395,13 +425,10 @@ export const HomeAddAppointmentDrawer: React.FC<
     apiFetch(`/api/v1/sellable-items/?type=service&isActive=true&pageSize=200`)
       .then((res: any) => {
         const results: any[] = res?.data?.results ?? res?.results ?? [];
-        const mapped = results.map((item: any) => ({
-          id: item.id,
-          name: item.displayName ?? item.service?.name ?? item.name ?? "",
-          price: item.displayPrice ? parseFloat(item.displayPrice) : (item.service?.price ? parseFloat(item.service.price) : undefined),
-          is_active: item.isActive ?? true,
-          employee_ids: item.employeeIds ?? item.employee_ids ?? [],
-        } as ServiceRow)).filter((s: ServiceRow) => s.id && s.name);
+        const mapped = results
+          .filter(isSellableServiceAvailable)
+          .map(mapSellableService)
+          .filter((s: ServiceRow) => s.id && s.name);
         setAllServicesOpts(mapped);
         // Показываем все услуги пока тренер не выбран
         if (!serviceRows[0]?.doctorId) setServicesOpts(mapped);
@@ -417,20 +444,19 @@ export const HomeAddAppointmentDrawer: React.FC<
       try {
         const res: any = await apiFetch(`/api/v1/sellable-items/?type=service&isActive=true&employee=${emp.id}&pageSize=200`);
         const results: any[] = res?.data?.results ?? res?.results ?? [];
-        results.forEach((item: any) => {
-          if (!item.id) return;
-          if (!map[item.id]) map[item.id] = new Set();
-          map[item.id].add(emp.id);
+        const availableResults = results.filter(isSellableServiceAvailable);
+        availableResults.forEach((item: any) => {
+          const serviceId = mapSellableService(item).id;
+          if (!serviceId) return;
+          if (!map[serviceId]) map[serviceId] = new Set();
+          map[serviceId].add(emp.id);
         });
         // Также кэшируем услуги сотрудника
         setEmployeeServicesCache(prev => ({
           ...prev,
-          [emp.id]: results.map((item: any) => ({
-            id: item.id,
-            name: item.displayName ?? item.service?.name ?? item.name ?? "",
-            price: item.displayPrice ? parseFloat(item.displayPrice) : undefined,
-            is_active: item.isActive ?? true,
-          } as ServiceRow)).filter((s: ServiceRow) => s.id && s.name),
+          [emp.id]: availableResults
+            .map(mapSellableService)
+            .filter((s: ServiceRow) => s.id && s.name),
         }));
       } catch { /* ignore */ }
     }));
@@ -443,12 +469,10 @@ export const HomeAddAppointmentDrawer: React.FC<
     try {
       const res: any = await apiFetch(`/api/v1/sellable-items/?type=service&isActive=true&employee=${employeeId}&pageSize=200`);
       const results: any[] = res?.data?.results ?? res?.results ?? [];
-      return results.map((item: any) => ({
-        id: item.id,
-        name: item.displayName ?? item.service?.name ?? item.name ?? "",
-        price: item.displayPrice ? parseFloat(item.displayPrice) : (item.service?.price ? parseFloat(item.service.price) : undefined),
-        is_active: item.isActive ?? true,
-      } as ServiceRow)).filter((s: ServiceRow) => s.id && s.name);
+      return results
+        .filter(isSellableServiceAvailable)
+        .map(mapSellableService)
+        .filter((s: ServiceRow) => s.id && s.name);
     } catch {
       return [];
     }
@@ -1065,6 +1089,23 @@ export const HomeAddAppointmentDrawer: React.FC<
     }
   };
 
+  React.useEffect(() => {
+    const selectedServiceId = serviceRows[0]?.serviceId;
+    if (!selectedServiceId) return;
+
+    const currentServicePool = serviceRows[0]?.doctorId && employeeServicesCache[serviceRows[0].doctorId]
+      ? employeeServicesCache[serviceRows[0].doctorId]
+      : allServicesOpts;
+    const selectedService = currentServicePool.find((service) => service.id === selectedServiceId);
+
+    if (selectedService && serviceMatchesAppointmentMode(selectedService, appointmentMode)) return;
+
+    setServiceRows((prev) =>
+      prev.map((row, idx) => idx === 0 ? { ...row, serviceId: "" } : row)
+    );
+    setDoctorsOpts(allDoctorsOpts);
+  }, [appointmentMode, allDoctorsOpts, allServicesOpts, employeeServicesCache, serviceRows]);
+
   const doctorFilter = createFilterOptions<EmployeesRow>({
     matchFrom: "any",
     stringify: (option) => {
@@ -1089,20 +1130,29 @@ export const HomeAddAppointmentDrawer: React.FC<
 
   const selectedDoctorId = serviceRows[0]?.doctorId ?? "";
   const servicesForSelectedDoctor = selectedDoctorId ? employeeServicesCache[selectedDoctorId] : undefined;
-  const serviceOptions = servicesForSelectedDoctor ?? servicesOpts;
-  const isDoctorServicesEmpty = Boolean(selectedDoctorId) && Array.isArray(servicesForSelectedDoctor) && servicesForSelectedDoctor.length === 0;
+  const rawServiceOptions = servicesForSelectedDoctor ?? servicesOpts;
+  const serviceOptions = rawServiceOptions.filter((service) =>
+    serviceMatchesAppointmentMode(service, appointmentMode)
+  );
+  const isDoctorServicesEmpty = Boolean(selectedDoctorId) && Array.isArray(servicesForSelectedDoctor) && serviceOptions.length === 0;
   const doctorNoOptionsText = doctorsLoading
     ? "Загрузка тренеров..."
     : "Нет доступных тренеров. Добавьте тренера в разделе сотрудников.";
   const serviceNoOptionsText = servicesLoading
     ? "Загрузка услуг..."
     : isDoctorServicesEmpty
-      ? "Для выбранного тренера нет услуг. Добавьте услугу в разделе «Услуги»."
-      : "Нет доступных услуг. Добавьте услугу в разделе «Услуги».";
+      ? appointmentMode === "group"
+        ? "Для выбранного тренера нет групповых услуг."
+        : "Для выбранного тренера нет индивидуальных услуг."
+      : appointmentMode === "group"
+        ? "Нет доступных групповых услуг."
+        : "Нет доступных индивидуальных услуг.";
   const serviceHelperText = touched && !serviceRows[0]?.serviceId
     ? "Выберите услугу"
     : isDoctorServicesEmpty
-      ? "Для выбранного тренера нет услуг. Добавьте услугу в разделе «Услуги»."
+      ? appointmentMode === "group"
+        ? "Для выбранного тренера нет групповых услуг."
+        : "Для выбранного тренера нет индивидуальных услуг."
       : "";
 
   return (
@@ -1508,9 +1558,12 @@ export const HomeAddAppointmentDrawer: React.FC<
             {/* ── ГРУППОВОЙ: мультиселект участников ── */}
             {appointmentMode === "group" && (() => {
               // Вычисляем лимит из выбранной услуги
-              const currentServiceCache = serviceRows[0]?.doctorId && employeeServicesCache[serviceRows[0].doctorId]
+              const currentServiceCacheRaw = serviceRows[0]?.doctorId && employeeServicesCache[serviceRows[0].doctorId]
                 ? employeeServicesCache[serviceRows[0].doctorId]
                 : servicesOpts;
+              const currentServiceCache = currentServiceCacheRaw.filter((service) =>
+                serviceMatchesAppointmentMode(service, appointmentMode)
+              );
               const selectedSvc = currentServiceCache.find(s => s.id === serviceRows[0]?.serviceId);
               const maxParts: number | null = (selectedSvc as any)?.maxParticipants ?? null;
               const isFull = maxParts != null && groupParticipants.length >= maxParts;
@@ -1722,6 +1775,8 @@ export const HomeAddAppointmentDrawer: React.FC<
             price: rec.price ?? rec.price_som,
             employee_id: null,
             employee_ids: [],
+            is_active: true,
+            isGroup: rec.isGroup ?? false,
           };
           setServicesOpts((prev) => [
             entry,

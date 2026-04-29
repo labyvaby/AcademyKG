@@ -18,6 +18,7 @@ export type CreatedService = {
   employee_id: string | null;
   employee_name: string | null;
   photo_url: string | null;
+  isGroup?: boolean;
 };
 
 type UseAddServiceFormArgs = {
@@ -121,6 +122,7 @@ export function useAddServiceForm({ open, onClose, onCreated }: UseAddServiceFor
         employee_id: null,
         employee_name: null,
         photo_url: created.photoUrl || null,
+        isGroup: created.isGroup ?? false,
       };
 
       onCreated?.(out);
