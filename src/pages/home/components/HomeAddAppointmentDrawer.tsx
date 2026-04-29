@@ -1,5 +1,5 @@
 import React from "react";
-import { CustomDatePicker } from "../../../components/ui";
+import { CustomDatePicker, CustomTimePicker } from "../../../components/ui";
 import { useNotification } from "@refinedev/core";
 import {
   Avatar,
@@ -1267,8 +1267,14 @@ export const HomeAddAppointmentDrawer: React.FC<
                     ))}
                   </Stack>
                 </Stack>
-                <Stack direction="row" spacing={1}>
-                  <Stack spacing={0.5} sx={{ flex: 1 }}>
+                <Box
+                  sx={{
+                    display: "grid",
+                    gridTemplateColumns: { xs: "1fr", sm: "repeat(3, minmax(0, 1fr))" },
+                    gap: 1,
+                  }}
+                >
+                  <Stack spacing={0.5} sx={{ minWidth: 0 }}>
                     <Typography variant="body2" color="text.secondary" fontWeight={500}>Начало</Typography>
                     <CustomDatePicker
                       value={periodStartDate ? dayjs(periodStartDate) : null}
@@ -1276,11 +1282,15 @@ export const HomeAddAppointmentDrawer: React.FC<
                         const v = val ? val.format("YYYY-MM-DD") : "";
                         setPeriodStartDate(v);
                         if (!periodEndDate || periodEndDate < v) setPeriodEndDate(v);
+                        if (v) {
+                          const currentTime = visitDateTime ? dayjs(visitDateTime).format("HH:mm") : "09:00";
+                          setVisitDateTime(dayjs(`${v}T${currentTime}:00`).format());
+                        }
                       }}
                       slotProps={{ textField: { size: "small", fullWidth: true } }}
                     />
                   </Stack>
-                  <Stack spacing={0.5} sx={{ flex: 1 }}>
+                  <Stack spacing={0.5} sx={{ minWidth: 0 }}>
                     <Typography variant="body2" color="text.secondary" fontWeight={500}>Конец</Typography>
                     <CustomDatePicker
                       value={periodEndDate ? dayjs(periodEndDate) : null}
@@ -1288,7 +1298,20 @@ export const HomeAddAppointmentDrawer: React.FC<
                       slotProps={{ textField: { size: "small", fullWidth: true } }}
                     />
                   </Stack>
-                </Stack>
+                  <Stack spacing={0.5} sx={{ minWidth: 0 }}>
+                    <Typography variant="body2" color="text.secondary" fontWeight={500}>Время</Typography>
+                    <CustomTimePicker
+                      value={visitDateTime ? dayjs(visitDateTime) : dayjs(`${periodStartDate || dayjs().format("YYYY-MM-DD")}T09:00:00`)}
+                      onChange={(val) => {
+                        const date = periodStartDate || dayjs().format("YYYY-MM-DD");
+                        const time = val && val.isValid() ? val.format("HH:mm") : "09:00";
+                        setVisitDateTime(dayjs(`${date}T${time}:00`).format());
+                      }}
+                      minutesStep={15}
+                      slotProps={{ textField: { size: "small", fullWidth: true } }}
+                    />
+                  </Stack>
+                </Box>
                 {periodDates.length > 0 && (
                   <Box>
                     <Typography variant="caption" color="text.secondary">
