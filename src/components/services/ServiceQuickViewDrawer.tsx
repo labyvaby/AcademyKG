@@ -32,6 +32,80 @@ function resolveUrl(url: string | null | undefined): string | undefined {
   return resolveApiUrl(url) ?? undefined;
 }
 
+function normalizeId(value: any): string {
+  if (value == null) return "";
+  if (typeof value === "object") {
+    return String(
+      value.id ??
+      value.sellableItem ??
+      value.sellable_item ??
+      value.sellableItemId ??
+      value.sellable_item_id ??
+      ""
+    );
+  }
+  return String(value);
+}
+
+function getAppointmentServices(appointment: any): any[] {
+  const raw = appointment?.services ?? appointment?.services_json ?? appointment?.servicesJson ?? [];
+  if (Array.isArray(raw)) return raw;
+  if (typeof raw === "string") {
+    try {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
+
+function getServiceIds(entry: any): string[] {
+  return [
+    entry?.sellableItem,
+    entry?.sellable_item,
+    entry?.sellableItemId,
+    entry?.sellable_item_id,
+    entry?.service,
+    entry?.service_id,
+    entry?.id,
+  ].map(normalizeId).filter(Boolean);
+}
+
+function getMatchingServiceEntries(appointment: any, serviceId: string): any[] {
+  return getAppointmentServices(appointment).filter((entry) =>
+    getServiceIds(entry).includes(String(serviceId))
+  );
+}
+
+function getPerformer(entry: any, appointment: any) {
+  const performer = entry?.performer ?? entry?.doctor ?? appointment?.specialist ?? null;
+  const id =
+    normalizeId(performer) ||
+    normalizeId(entry?.performerId) ||
+    normalizeId(entry?.performer_id) ||
+    normalizeId(entry?.doctorId) ||
+    normalizeId(entry?.doctor_id);
+  const name =
+    (typeof performer === "object" ? performer?.fullName ?? performer?.full_name ?? performer?.name : null) ??
+    entry?.performerName ??
+    entry?.performer_name ??
+    entry?.doctorName ??
+    entry?.doctor_name ??
+    appointment?.doctorName ??
+    appointment?.doctor_name ??
+    "Не указано";
+
+  return {
+    id,
+    fullName: String(name),
+    specialization: typeof performer === "object"
+      ? performer?.specialization ?? performer?.role?.name ?? undefined
+      : undefined,
+  };
+}
+
 // Интерфейс детальной информации об услуге
 export interface ServiceDetail {
   id: string;
@@ -102,39 +176,34 @@ export const ServiceQuickViewDrawer: React.FC<ServiceQuickViewDrawerProps> = ({
             name: item.name ?? "Не указано",
             price: item.price ?? item.priceSom ?? null,
             photoUrl: resolveUrl(item.imageUrl ?? item.image_url) ?? null,
-            employeeIds: item.employeeIds ?? [],
+            employeeIds: item.employeeIds ?? item.employee_ids ?? [],
             description: item.description ?? null,
             isActive: item.isActive ?? item.is_active ?? true,
           });
 
         // Загружаем последние приёмы с этой услугой через query param
         try {
-          // Try both service and sellableItem filter params
-          let aptsRes: any = await apiFetch(
-            `/api/v1/appointments/?sellableItem=${serviceId}&ordering=-appointmentAt&pageSize=5`
+          const aptsRes: any = await apiFetch(
+            `/api/v1/appointments/?service=${serviceId}&ordering=-appointmentAt&pageSize=50`
           );
           let apts: any[] = aptsRes?.data?.results ?? aptsRes?.results ?? [];
-          if (apts.length === 0) {
-            aptsRes = await apiFetch(
-              `/api/v1/appointments/?service=${serviceId}&ordering=-appointmentAt&pageSize=5`
-            );
-            apts = aptsRes?.data?.results ?? aptsRes?.results ?? [];
-          }
+          apts = apts
+            .filter((apt: any) => getMatchingServiceEntries(apt, serviceId).length > 0)
+            .slice(0, 5);
 
           if (active) {
             // Сначала пробуем взять performers из приёмов
             const empMap = new Map<string, ServiceEmployee>();
             apts.forEach((apt: any) => {
-              const servicesArr: any[] = Array.isArray(apt.services) ? apt.services : [];
-              servicesArr.forEach((s: any) => {
-                const performer = s.performer ?? apt.specialist ?? null;
-                if (performer?.id) {
+              getMatchingServiceEntries(apt, serviceId).forEach((s: any) => {
+                const performer = getPerformer(s, apt);
+                if (performer.id) {
                   const id = String(performer.id);
                   if (!empMap.has(id)) {
                     empMap.set(id, {
                       id,
-                      full_name: performer.fullName ?? performer.full_name ?? "Не указано",
-                      specialization: performer.specialization ?? performer.role?.name ?? undefined,
+                      full_name: performer.fullName,
+                      specialization: performer.specialization,
                     });
                   }
                 }
@@ -156,9 +225,8 @@ export const ServiceQuickViewDrawer: React.FC<ServiceQuickViewDrawerProps> = ({
                   const empServices: any[] = Array.isArray(d?.services) ? d.services : [];
                   const hasService = empServices.some(
                     (s: any) =>
-                      String(s.id) === String(serviceId) ||
-                      String(s.sellableItem) === String(serviceId) ||
-                      String(s.sellable_item) === String(serviceId)
+                      getServiceIds(s).includes(String(serviceId)) ||
+                      normalizeId(s) === String(serviceId)
                   );
                   if (hasService) {
                     const e = allEmps[idx];
@@ -176,6 +244,8 @@ export const ServiceQuickViewDrawer: React.FC<ServiceQuickViewDrawerProps> = ({
 
             setRecentHistory(
               apts.map((apt: any) => {
+                const matchingService = getMatchingServiceEntries(apt, serviceId)[0] ?? {};
+                const performer = getPerformer(matchingService, apt);
                 const patientNested = apt.patient ?? null;
                 const patientName =
                   apt.patientName ??
@@ -183,17 +253,17 @@ export const ServiceQuickViewDrawer: React.FC<ServiceQuickViewDrawerProps> = ({
                   patientNested?.fullName ??
                   patientNested?.full_name ??
                   "Не указан";
-                const servicesArr: any[] = Array.isArray(apt.services) ? apt.services : [];
                 const doctorName =
+                  performer.fullName ??
                   apt.doctorName ??
                   apt.doctor_name ??
-                  servicesArr[0]?.performer?.fullName ??
                   "Не указан";
+                const appointmentAt = apt.appointmentAt ?? apt.appointment_at ?? "";
                 return {
                   id: String(apt.id),
-                  appointment_at: apt.appointmentAt ?? apt.appointment_at ?? "",
-                  formatted_date: apt.appointmentAt
-                    ? dayjs(apt.appointmentAt).format("DD.MM.YYYY HH:mm")
+                  appointment_at: appointmentAt,
+                  formatted_date: appointmentAt
+                    ? dayjs(appointmentAt).format("DD.MM.YYYY HH:mm")
                     : "",
                   patient_name: patientName,
                   doctor_name: doctorName,
