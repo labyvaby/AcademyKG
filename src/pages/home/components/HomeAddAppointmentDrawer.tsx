@@ -100,9 +100,13 @@ const patientFilter = createFilterOptions<PatientOption>({
 });
 
 function isSellableServiceAvailable(item: any): boolean {
+  // Если поле service присутствует в ответе, но равно null — сервис удалён физически
+  if ("service" in item && item.service === null) return false;
   const isActive = item?.isActive ?? item?.is_active ?? item?.service?.isActive ?? item?.service?.is_active ?? true;
   const isDeleted = item?.isDeleted ?? item?.is_deleted ?? item?.service?.isDeleted ?? item?.service?.is_deleted ?? false;
-  return isActive !== false && isDeleted !== true;
+  // Дополнительно: если вложенный сервис неактивен, скрываем
+  const serviceIsActive = item?.service?.isActive ?? item?.service?.is_active ?? true;
+  return isActive !== false && isDeleted !== true && serviceIsActive !== false;
 }
 
 function mapSellableService(item: any): ServiceRow {
@@ -152,6 +156,8 @@ export const HomeAddAppointmentDrawer: React.FC<
   const [employeeServicesCache, setEmployeeServicesCache] = React.useState<Record<string, ServiceRow[]>>({});
   // Обратный маппинг: serviceId -> Set<employeeId> (строится в фоне)
   const serviceToEmployeesRef = React.useRef<Record<string, Set<string>>>({});
+  // Кэш валидных sellable-item ID (не удалённых сервисов), пустой Set = не загружен
+  const validSellableIdsRef = React.useRef<Set<string> | null>(null);
 
   const { hasPermission, employeeId } = usePermissions();
   const isWorkplaceNurse = isOwnOnlySpecialist(hasPermission);
@@ -419,14 +425,43 @@ export const HomeAddAppointmentDrawer: React.FC<
   }, [open, currentDateStr]);
 
   // Загружаем все услуги при первом открытии (для выбора услуги без тренера)
+  // Загружаем валидные service ID из /api/v1/services/ (исключает is_deleted=true)
+  // sellable-item содержит вложенный объект service.id — сравниваем по нему
+  const getValidServiceIds = React.useCallback(async (): Promise<Set<string>> => {
+    if (validSellableIdsRef.current !== null) return validSellableIdsRef.current;
+    try {
+      const res: any = await apiFetch(`/api/v1/services/?isActive=true&pageSize=200`);
+      const results: any[] = res?.data?.results ?? res?.results ?? [];
+      const ids = new Set<string>(results.map((s: any) => String(s.id ?? "")).filter(Boolean));
+      validSellableIdsRef.current = ids;
+      return ids;
+    } catch {
+      return new Set();
+    }
+  }, []);
+
+  // Сбрасываем кэш услуг при каждом открытии дравера
+  React.useEffect(() => {
+    if (open) {
+      validSellableIdsRef.current = null;
+      setAllServicesOpts([]);
+      setServicesOpts([]);
+    }
+  }, [open]);
+
+  // Загружаем все услуги при первом открытии (для выбора услуги без тренера)
   React.useEffect(() => {
     if (!open || allServicesOpts.length > 0) return;
     setServicesLoading(true);
-    apiFetch(`/api/v1/sellable-items/?type=service&isActive=true&pageSize=200`)
-      .then((res: any) => {
-        const results: any[] = res?.data?.results ?? res?.results ?? [];
-        const mapped = results
+    Promise.all([
+      apiFetch(`/api/v1/sellable-items/?type=service&isActive=true&pageSize=200`),
+      getValidServiceIds(),
+    ])
+      .then(([siRes, validIds]: any[]) => {
+        const siResults: any[] = siRes?.data?.results ?? siRes?.results ?? [];
+        const mapped = siResults
           .filter(isSellableServiceAvailable)
+          .filter((item: any) => (validIds as Set<string>).size === 0 || (validIds as Set<string>).has(String(item?.service?.id ?? "")))
           .map(mapSellableService)
           .filter((s: ServiceRow) => s.id && s.name);
         setAllServicesOpts(mapped);
@@ -435,16 +470,19 @@ export const HomeAddAppointmentDrawer: React.FC<
       })
       .catch(() => {})
       .finally(() => setServicesLoading(false));
-  }, [open]);
+  }, [open, getValidServiceIds]);
 
   // Строим обратный маппинг serviceId → Set<employeeId> для всех тренеров в фоне
   const buildServiceToEmployeesMap = React.useCallback(async (emps: EmployeesRow[]) => {
     const map: Record<string, Set<string>> = {};
+    const validIds = await getValidServiceIds();
     await Promise.all(emps.map(async (emp) => {
       try {
         const res: any = await apiFetch(`/api/v1/sellable-items/?type=service&isActive=true&employee=${emp.id}&pageSize=200`);
         const results: any[] = res?.data?.results ?? res?.results ?? [];
-        const availableResults = results.filter(isSellableServiceAvailable);
+        const availableResults = results
+          .filter(isSellableServiceAvailable)
+          .filter((item: any) => validIds.size === 0 || validIds.has(String(item?.service?.id ?? "")));
         availableResults.forEach((item: any) => {
           const serviceId = mapSellableService(item).id;
           if (!serviceId) return;
@@ -461,22 +499,26 @@ export const HomeAddAppointmentDrawer: React.FC<
       } catch { /* ignore */ }
     }));
     serviceToEmployeesRef.current = map;
-  }, []);
+  }, [getValidServiceIds]);
 
   // Load services per employee when employee changes in a service row
   const loadServicesForEmployee = React.useCallback(async (employeeId: string): Promise<ServiceRow[]> => {
     if (!employeeId) return [];
     try {
-      const res: any = await apiFetch(`/api/v1/sellable-items/?type=service&isActive=true&employee=${employeeId}&pageSize=200`);
-      const results: any[] = res?.data?.results ?? res?.results ?? [];
+      const [res, validIds] = await Promise.all([
+        apiFetch(`/api/v1/sellable-items/?type=service&isActive=true&employee=${employeeId}&pageSize=200`),
+        getValidServiceIds(),
+      ]);
+      const results: any[] = (res as any)?.data?.results ?? (res as any)?.results ?? [];
       return results
         .filter(isSellableServiceAvailable)
+        .filter((item: any) => validIds.size === 0 || validIds.has(String(item?.service?.id ?? "")))
         .map(mapSellableService)
         .filter((s: ServiceRow) => s.id && s.name);
     } catch {
       return [];
     }
-  }, []);
+  }, [getValidServiceIds]);
 
   // Установка начального клиента, если передан initialPatientId
   // Установка начального клиента, если передан initialPatientId

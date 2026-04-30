@@ -100,6 +100,11 @@ const ClientShiftForm: React.FC<Props> = ({
         const results: any[] = res?.data?.results ?? res?.results ?? [];
         setServiceOptions(
           results
+            .filter((r: any) => {
+              if ("service" in r && r.service === null) return false;
+              const serviceIsActive = r?.service?.isActive ?? r?.service?.is_active ?? true;
+              return serviceIsActive !== false;
+            })
             .map((r: any) => ({
               id: String(r.id ?? r.uuid ?? ""),
               label: r.displayName ?? r.display_name ?? r.name ?? "",
