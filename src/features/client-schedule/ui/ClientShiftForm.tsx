@@ -34,7 +34,7 @@ import Autocomplete from "@mui/material/Autocomplete";
 import { Client, ClientShift } from "../model/types";
 import { fetchGroups, addParticipantToGroup } from "../../group-appointments/api/group-appointments.api";
 import type { AppointmentGroup } from "../../group-appointments/model/types";
-import { apiFetch } from "../../../utility/apiClient";
+import { useAvailableServices } from "../../../hooks/useAvailableServices";
 
 const WEEKDAYS = [
   { label: "ПН", value: "monday", dayOfWeek: 1 },
@@ -80,8 +80,12 @@ const ClientShiftForm: React.FC<Props> = ({
 
   // Услуга
   const [service, setService] = useState<ServiceOption | null>(null);
-  const [serviceOptions, setServiceOptions] = useState<ServiceOption[]>([]);
-  const [servicesLoading, setServicesLoading] = useState(false);
+  const { services: rawServices, isLoading: servicesLoading } = useAvailableServices();
+  const serviceOptions: ServiceOption[] = rawServices.map((s) => ({
+    id: s.id,
+    label: s.name,
+    maxParticipants: s.maxParticipants ?? null,
+  }));
 
   // Групповые занятия
   const [groupSessions, setGroupSessions] = useState<AppointmentGroup[]>([]);
@@ -91,31 +95,6 @@ const ClientShiftForm: React.FC<Props> = ({
 
   const mode = shiftToEdit ? "edit" : "create";
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
-
-  // Загрузка услуг
-  useEffect(() => {
-    setServicesLoading(true);
-    apiFetch(`/api/v1/sellable-items/?type=service&isActive=true&pageSize=200`)
-      .then((res: any) => {
-        const results: any[] = res?.data?.results ?? res?.results ?? [];
-        setServiceOptions(
-          results
-            .filter((r: any) => {
-              if ("service" in r && r.service === null) return false;
-              const serviceIsActive = r?.service?.isActive ?? r?.service?.is_active ?? true;
-              return serviceIsActive !== false;
-            })
-            .map((r: any) => ({
-              id: String(r.id ?? r.uuid ?? ""),
-              label: r.displayName ?? r.display_name ?? r.name ?? "",
-              maxParticipants: r.maxParticipants ?? r.max_participants ?? null,
-            }))
-            .filter((s: ServiceOption) => s.id)
-        );
-      })
-      .catch(() => setServiceOptions([]))
-      .finally(() => setServicesLoading(false));
-  }, []);
 
   // Загрузка групповых занятий когда выбраны дни + услуга + групповой режим
   useEffect(() => {

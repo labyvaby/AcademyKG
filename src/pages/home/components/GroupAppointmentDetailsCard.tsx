@@ -34,6 +34,7 @@ import { addParticipantToGroup, updateParticipantStatus, payParticipant, deleteG
 import ParticipantRow from "../../../features/group-appointments/ui/ParticipantRow";
 import type { GroupAppointmentStatus } from "../../../features/group-appointments/model/types";
 import { apiFetch } from "../../../utility/apiClient";
+import { useAvailableServices } from "../../../hooks/useAvailableServices";
 import { usePermissions } from "../../../hooks/usePermissions";
 import { useNotification } from "@refinedev/core";
 import type { PatientOption } from "../types";
@@ -89,6 +90,7 @@ const GroupAppointmentDetailsCard: React.FC<Props> = ({ group, onGroupUpdated, o
   const paidCount = group.participants.filter((p) => p.debt === 0).length;
   const { isSuperAdmin } = usePermissions();
   const { open: notify } = useNotification();
+  const { services: availableServices } = useAvailableServices();
 
   // Delete confirm dialog
   const [deleteOpen, setDeleteOpen] = React.useState(false);
@@ -123,26 +125,22 @@ const GroupAppointmentDetailsCard: React.FC<Props> = ({ group, onGroupUpdated, o
     setEditDateTime(group.appointmentAt ? group.appointmentAt.slice(0, 16) : "");
     setEditPerformerId(group.performerId);
     setEditServiceId(group.sellableItemId);
+    setEditServices(availableServices.map((s) => ({ id: s.id, name: s.name })));
     setEditOpen(true);
     if (editEmployees.length === 0) {
       setEditLoading(true);
       try {
-        const [rolesRes, svcRes]: [any, any] = await Promise.all([
-          apiFetch("/api/v1/roles/"),
-          apiFetch("/api/v1/sellable-items/?type=service&isActive=true&pageSize=200"),
-        ]);
+        const rolesRes: any = await apiFetch("/api/v1/roles/");
         const rolesArr: any[] = rolesRes?.data ?? rolesRes?.results ?? [];
         const specialistRole = rolesArr.find((r: any) => r.name === "specialist");
         const roleParam = specialistRole?.id ? `?status=active&role=${specialistRole.id}&pageSize=200` : "?status=active&pageSize=200";
         const empRes: any = await apiFetch(`/api/v1/employees/${roleParam}`);
-        const svcs: any[] = svcRes?.data?.results ?? svcRes?.results ?? [];
         const emps: any[] = empRes?.data?.results ?? empRes?.results ?? [];
         const specialists = emps.filter((e: any) => {
           const r = (e.role?.name ?? e.roleName ?? "").toLowerCase();
           return r === "specialist";
         });
         setEditEmployees((specialists.length > 0 ? specialists : emps).map((e: any) => ({ id: String(e.id), name: e.fullName ?? e.full_name ?? e.id })));
-        setEditServices(svcs.map((s: any) => ({ id: String(s.id), name: s.displayName ?? s.display_name ?? s.name ?? s.id })));
       } catch { /* ignore */ }
       finally { setEditLoading(false); }
     }

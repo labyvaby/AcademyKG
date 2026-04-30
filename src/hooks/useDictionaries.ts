@@ -1,14 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "../utility/apiClient";
 import { fetchMedicalStaff } from "../services/employees";
-import { fetchServices, type ServiceRow } from "../services/services";
 import type { PatientOption } from "../pages/home/types";
 
 // Types
 type DictionariesByType = {
   patients: PatientOption[];
-  employees: any[]; // Medical staff + others depending on request
-  services: ServiceRow[];
+  employees: any[];
 };
 
 
@@ -31,16 +29,12 @@ const fetchAllDictionaries = async (): Promise<DictionariesByType> => {
     }
   })();
 
-  const staffPromise = fetchMedicalStaff();
-  const servicesPromise = fetchServices();
-
-  const [patients, employees, services] = await Promise.all([
+  const [patients, employees] = await Promise.all([
     patientsPromise,
-    staffPromise,
-    servicesPromise,
+    fetchMedicalStaff(),
   ]);
 
-  return { patients, employees, services };
+  return { patients, employees };
 };
 
 export function useDictionaries(enabled: boolean = true) {
@@ -58,7 +52,6 @@ export function useDictionaries(enabled: boolean = true) {
   return {
     patients: data?.patients ?? [],
     employees: data?.employees ?? [],
-    services: data?.services ?? [],
     loading: isLoading,
   };
 }

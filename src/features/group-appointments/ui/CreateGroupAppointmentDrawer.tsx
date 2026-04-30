@@ -18,6 +18,7 @@ import CloseIcon from "@mui/icons-material/Close";
 import dayjs from "dayjs";
 import { CustomDateTimePicker } from "../../../components/ui";
 import { useDictionaries } from "../../../hooks/useDictionaries";
+import { useAvailableServices } from "../../../hooks/useAvailableServices";
 import { createGroup } from "../api/group-appointments.api";
 import type { AppointmentGroup } from "../model/types";
 
@@ -31,7 +32,8 @@ type Props = {
 };
 
 const CreateGroupAppointmentDrawer: React.FC<Props> = ({ open, onClose, onCreated, initialDate }) => {
-  const { employees, services } = useDictionaries();
+  const { employees } = useDictionaries();
+  const { services: availableServices } = useAvailableServices({ enabled: open });
 
   const [appointmentAt, setAppointmentAt] = useState<string>(
     initialDate ?? dayjs().format("YYYY-MM-DDTHH:mm"),
@@ -69,10 +71,10 @@ const CreateGroupAppointmentDrawer: React.FC<Props> = ({ open, onClose, onCreate
     label: d.full_name ?? d.fullName ?? d.name ?? String(d.id),
   }));
 
-  const serviceOptions: { id: string; label: string; price: number }[] = (services ?? []).map((s: any) => ({
-    id: String(s.id),
-    label: s.name ?? s.display_name ?? s.displayName ?? String(s.id),
-    price: Number(s.price ?? s.cost ?? 0),
+  const serviceOptions = availableServices.map((s) => ({
+    id: s.id,
+    label: s.name,
+    price: Number(s.price ?? 0),
   }));
 
   const searchPatients = async (query: string) => {
