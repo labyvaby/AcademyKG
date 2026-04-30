@@ -111,20 +111,45 @@ const EditAppointmentSidebar: React.FC<EditAppointmentSidebarProps> = ({
   const [services, setServices] = React.useState<ServiceRow[]>([]);
   const [servicesLoading, setServicesLoading] = React.useState(false);
   const [employeeServicesCache, setEmployeeServicesCache] = React.useState<Record<string, ServiceRow[]>>({});
+  const validServiceIdsRef = React.useRef<Set<string> | null>(null);
+
+  const getValidServiceIds = React.useCallback(async (): Promise<Set<string>> => {
+    if (validServiceIdsRef.current !== null) return validServiceIdsRef.current;
+    try {
+      const res: any = await apiFetch(`/api/v1/services/?isActive=true&pageSize=200`);
+      const results: any[] = res?.data?.results ?? res?.results ?? [];
+      const ids = new Set<string>(results.map((s: any) => String(s.id ?? "")).filter(Boolean));
+      validServiceIdsRef.current = ids;
+      return ids;
+    } catch {
+      return new Set();
+    }
+  }, []);
 
   const loadServicesForEmployee = React.useCallback(async (empId: string): Promise<ServiceRow[]> => {
     if (!empId) return [];
     try {
-      const res: any = await apiFetch(`/api/v1/sellable-items/?type=service&isActive=true&employee=${empId}&pageSize=200`);
-      const results: any[] = res?.data?.results ?? res?.results ?? [];
-      return results.map((item: any) => ({
-        id: item.id,
-        name: item.displayName ?? item.service?.name ?? item.name ?? "",
-        price: item.displayPrice ? parseFloat(item.displayPrice) : (item.service?.price ? parseFloat(item.service.price) : undefined),
-        is_active: item.isActive ?? true,
-      } as ServiceRow)).filter((s: ServiceRow) => s.id && s.name);
+      const [res, validIds] = await Promise.all([
+        apiFetch(`/api/v1/sellable-items/?type=service&isActive=true&employee=${empId}&pageSize=200`),
+        getValidServiceIds(),
+      ]);
+      const results: any[] = (res as any)?.data?.results ?? (res as any)?.results ?? [];
+      return results
+        .filter((item: any) => {
+          if ("service" in item && item.service === null) return false;
+          const serviceIsActive = item?.service?.isActive ?? item?.service?.is_active ?? true;
+          if (serviceIsActive === false) return false;
+          return validIds.size === 0 || validIds.has(String(item?.service?.id ?? ""));
+        })
+        .map((item: any) => ({
+          id: item.id,
+          name: item.displayName ?? item.service?.name ?? item.name ?? "",
+          price: item.displayPrice ? parseFloat(item.displayPrice) : (item.service?.price ? parseFloat(item.service.price) : undefined),
+          is_active: item.isActive ?? true,
+        } as ServiceRow))
+        .filter((s: ServiceRow) => s.id && s.name);
     } catch { return []; }
-  }, []);
+  }, [getValidServiceIds]);
 
 
   const [serviceRows, setServiceRows] = React.useState<ServiceRowEntry[]>(
@@ -269,9 +294,11 @@ const EditAppointmentSidebar: React.FC<EditAppointmentSidebarProps> = ({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, item.id]);
 
-  // Сброс при закрытии
+  // Сброс при открытии/закрытии
   React.useEffect(() => {
-    if (!isOpen) {
+    if (isOpen) {
+      validServiceIdsRef.current = null;
+    } else {
       setBusy(false);
       busyRef.current = false;
       setTouched(false);
