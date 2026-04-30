@@ -31,6 +31,10 @@ import { useDictionaries } from "../../../hooks/useDictionaries";
 import { usePermissions } from "../../../hooks/usePermissions";
 import { PERMISSIONS } from "../../../constants/permissions";
 import { isOwnOnlySpecialist } from "../../../utils/permissionHelpers";
+import { useQueryClient } from "@tanstack/react-query";
+import { useAvailableServices, SELLABLE_SERVICES_QUERY_KEY } from "../../../hooks/useAvailableServices";
+import { useValidServiceIds, useValidServiceIdsInvalidation } from "../../../hooks/useValidServiceIds";
+import { isValidSellableService, mapSellableToServiceRow } from "../../../utils/sellableServiceFilters";
 
 
 function resolvePatientPhone(r: any): string {
@@ -108,48 +112,35 @@ const EditAppointmentSidebar: React.FC<EditAppointmentSidebarProps> = ({
   // Доктора и Услуги
   const [employees, setEmployees] = React.useState<EmployeesRow[]>([]);
   const [loadingEmps, setLoadingEmps] = React.useState(false);
-  const [services, setServices] = React.useState<ServiceRow[]>([]);
-  const [servicesLoading, setServicesLoading] = React.useState(false);
-  const [employeeServicesCache, setEmployeeServicesCache] = React.useState<Record<string, ServiceRow[]>>({});
-  const validServiceIdsRef = React.useRef<Set<string> | null>(null);
 
-  const getValidServiceIds = React.useCallback(async (): Promise<Set<string>> => {
-    if (validServiceIdsRef.current !== null) return validServiceIdsRef.current;
-    try {
-      const res: any = await apiFetch(`/api/v1/services/?isActive=true&pageSize=200`);
-      const results: any[] = res?.data?.results ?? res?.results ?? [];
-      const ids = new Set<string>(results.map((s: any) => String(s.id ?? "")).filter(Boolean));
-      validServiceIdsRef.current = ids;
-      return ids;
-    } catch {
-      return new Set();
-    }
-  }, []);
+  const queryClient = useQueryClient();
+  const { validServiceIds } = useValidServiceIds();
+  const invalidateValidServiceIds = useValidServiceIdsInvalidation();
 
-  const loadServicesForEmployee = React.useCallback(async (empId: string): Promise<ServiceRow[]> => {
+  // Все услуги — источник для поиска по serviceId и автоподсчёта суммы
+  const { services: allServices, isLoading: servicesLoading } = useAvailableServices({ enabled: isOpen });
+
+  // Загружает услуги сотрудника через React Query кэш (или сеть если нет в кэше)
+  const fetchServicesForEmployee = React.useCallback(async (empId: string): Promise<ServiceRow[]> => {
     if (!empId) return [];
+    const cacheKey = [SELLABLE_SERVICES_QUERY_KEY, { employeeId: empId }];
     try {
-      const [res, validIds] = await Promise.all([
-        apiFetch(`/api/v1/sellable-items/?type=service&isActive=true&employee=${empId}&pageSize=200`),
-        getValidServiceIds(),
-      ]);
-      const results: any[] = (res as any)?.data?.results ?? (res as any)?.results ?? [];
-      return results
-        .filter((item: any) => {
-          if ("service" in item && item.service === null) return false;
-          const serviceIsActive = item?.service?.isActive ?? item?.service?.is_active ?? true;
-          if (serviceIsActive === false) return false;
-          return validIds.size === 0 || validIds.has(String(item?.service?.id ?? ""));
-        })
-        .map((item: any) => ({
-          id: item.id,
-          name: item.displayName ?? item.service?.name ?? item.name ?? "",
-          price: item.displayPrice ? parseFloat(item.displayPrice) : (item.service?.price ? parseFloat(item.service.price) : undefined),
-          is_active: item.isActive ?? true,
-        } as ServiceRow))
-        .filter((s: ServiceRow) => s.id && s.name);
+      const cached = queryClient.getQueryData<any[]>(cacheKey);
+      const raw: any[] = cached ?? await (async () => {
+        const res: any = await apiFetch(`/api/v1/sellable-items/?type=service&isActive=true&employee=${empId}&pageSize=200`);
+        const results = res?.data?.results ?? res?.results ?? [];
+        queryClient.setQueryData(cacheKey, results);
+        return results;
+      })();
+      return raw
+        .filter((item) => isValidSellableService(item, validServiceIds))
+        .map(mapSellableToServiceRow)
+        .filter((s) => s.id && s.name);
     } catch { return []; }
-  }, [getValidServiceIds]);
+  }, [queryClient, validServiceIds]);
+
+  // Per-employee services cache для дропдаунов (employeeId → ServiceRow[])
+  const [employeeServicesCache, setEmployeeServicesCache] = React.useState<Record<string, ServiceRow[]>>({});
 
 
   const [serviceRows, setServiceRows] = React.useState<ServiceRowEntry[]>(
@@ -188,13 +179,13 @@ const EditAppointmentSidebar: React.FC<EditAppointmentSidebarProps> = ({
   React.useEffect(() => {
     const servicesTotal = serviceRows.reduce((sum, row) => {
       const cache = row.doctorId ? employeeServicesCache[row.doctorId] : null;
-      const service = (cache || services).find((s) => s.id === row.serviceId);
+      const service = (cache || allServices).find((s) => s.id === row.serviceId);
       const rowPrice = Number(service?.price) || 0;
       const rowQty = row.quantity || 1;
       return sum + (rowPrice * rowQty);
     }, 0);
     setPrice(servicesTotal || "");
-  }, [serviceRows, services, employeeServicesCache]);
+  }, [serviceRows, allServices, employeeServicesCache]);
 
   const [adminComment, setAdminComment] = React.useState<string>(
     item.admin_comment || ""
@@ -252,33 +243,19 @@ const EditAppointmentSidebar: React.FC<EditAppointmentSidebarProps> = ({
     return () => clearTimeout(timer);
   }, [patientSearchInput, fetchPatientsServerSide]);
 
-  // Use cached dictionaries
+  // Use cached dictionaries (пациенты и сотрудники — не услуги)
   const {
     patients: dictPatients,
     employees: dictEmployees,
-    services: dictServices,
     loading: dictLoading,
   } = useDictionaries(isOpen);
 
   React.useEffect(() => {
     if (dictPatients.length > 0) setPatients(dictPatients);
     if (dictEmployees.length > 0) setEmployees(dictEmployees);
-    if (dictServices.length > 0) {
-      const servicesArray = Array.isArray(item.services_json)
-        ? item.services_json
-        : typeof item.services_json === "string"
-          ? JSON.parse(item.services_json)
-          : [];
-      const currentServiceIds = servicesArray.map((s: any) => s.id) || [];
-      const filtered = dictServices.filter(
-        (s) => s.is_active !== false || currentServiceIds.includes(s.id)
-      );
-      setServices(filtered);
-    }
     setPatientsLoading(dictLoading);
     setLoadingEmps(dictLoading);
-    setServicesLoading(dictLoading);
-  }, [dictPatients, dictEmployees, dictServices, dictLoading]);
+  }, [dictPatients, dictEmployees, dictLoading]);
 
   // Загружаем услуги для уже выбранных исполнителей при открытии
   React.useEffect(() => {
@@ -286,7 +263,7 @@ const EditAppointmentSidebar: React.FC<EditAppointmentSidebarProps> = ({
     const uniqueDocIds = [...new Set(serviceRows.map(r => r.doctorId).filter(Boolean))];
     uniqueDocIds.forEach(docId => {
       if (!employeeServicesCache[docId]) {
-        loadServicesForEmployee(docId).then(srvs => {
+        fetchServicesForEmployee(docId).then(srvs => {
           setEmployeeServicesCache(prev => ({ ...prev, [docId]: srvs }));
         });
       }
@@ -296,9 +273,7 @@ const EditAppointmentSidebar: React.FC<EditAppointmentSidebarProps> = ({
 
   // Сброс при открытии/закрытии
   React.useEffect(() => {
-    if (isOpen) {
-      validServiceIdsRef.current = null;
-    } else {
+    if (!isOpen) {
       setBusy(false);
       busyRef.current = false;
       setTouched(false);
@@ -646,10 +621,8 @@ const EditAppointmentSidebar: React.FC<EditAppointmentSidebarProps> = ({
                                   updated[index].serviceId = "";
                                   setServiceRows(updated);
                                   if (v?.id && !employeeServicesCache[v.id]) {
-                                    setServicesLoading(true);
-                                    loadServicesForEmployee(v.id).then(srvs => {
+                                    fetchServicesForEmployee(v.id).then(srvs => {
                                       setEmployeeServicesCache(prev => ({ ...prev, [v.id]: srvs }));
-                                      setServicesLoading(false);
                                     });
                                   }
                                 }}
@@ -688,13 +661,13 @@ const EditAppointmentSidebar: React.FC<EditAppointmentSidebarProps> = ({
                                   options={
                                     row.doctorId && employeeServicesCache[row.doctorId]
                                       ? employeeServicesCache[row.doctorId]
-                                      : services
+                                      : allServices
                                   }
                                   loading={servicesLoading}
                                   value={
                                     (row.doctorId && employeeServicesCache[row.doctorId]
                                       ? employeeServicesCache[row.doctorId]
-                                      : services
+                                      : allServices
                                     ).find((s) => s.id === row.serviceId) || null
                                   }
                                   onChange={(_, v) => {
@@ -797,7 +770,7 @@ const EditAppointmentSidebar: React.FC<EditAppointmentSidebarProps> = ({
                         <Typography variant="h6">
                           {serviceRows.reduce((sum, row) => {
                             const cache = row.doctorId ? employeeServicesCache[row.doctorId] : null;
-                            const service = (cache || services).find((s) => s.id === row.serviceId);
+                            const service = (cache || allServices).find((s) => s.id === row.serviceId);
                             return sum + (Number(service?.price) || 0);
                           }, 0)}{" "}
                           сом
@@ -890,21 +863,12 @@ const EditAppointmentSidebar: React.FC<EditAppointmentSidebarProps> = ({
         open={isServiceDrawerOpen}
         onClose={() => setIsServiceDrawerOpen(false)}
         onCreated={(rec) => {
-          const entry: ServiceRow = {
-            id: String(rec.id ?? ""),
-            name: rec.name || rec.service_name,
-            price: rec.price ?? rec.price_som,
-            employee_id: null,
-            employee_ids: [],
-          };
-          setServices((prev) => [
-            entry,
-            ...prev.filter((x) => x.id !== entry.id),
-          ]);
-          // Добавляем новую строку с созданной услугой
+          // Инвалидируем кэш чтобы новая услуга появилась в списке
+          invalidateValidServiceIds();
+          queryClient.invalidateQueries({ queryKey: [SELLABLE_SERVICES_QUERY_KEY] });
           setServiceRows((prev) => [
             ...prev,
-            { serviceId: entry.id, doctorId: "", quantity: 1 },
+            { serviceId: String(rec.id ?? ""), doctorId: "", quantity: 1 },
           ]);
           setIsServiceDrawerOpen(false);
         }}
