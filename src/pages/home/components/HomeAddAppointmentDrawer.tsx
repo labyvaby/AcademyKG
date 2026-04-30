@@ -33,6 +33,10 @@ import "dayjs/locale/ru";
 
 import { CustomDateTimePicker } from "../../../components/ui";
 import { useDictionaries } from "../../../hooks/useDictionaries";
+import { useAvailableServices, SELLABLE_SERVICES_QUERY_KEY } from "../../../hooks/useAvailableServices";
+import { useValidServiceIdsInvalidation } from "../../../hooks/useValidServiceIds";
+import { useQueryClient } from "@tanstack/react-query";
+import { isValidSellableService, mapSellableToServiceRow } from "../../../utils/sellableServiceFilters";
 import AddPatientDrawer from "../../../components/patients/AddPatientDrawer";
 import AddServiceDrawer from "../../../components/services/AddServiceDrawer";
 import { apiFetch, getBranchFilter } from "../../../utility/apiClient";
@@ -99,34 +103,6 @@ const patientFilter = createFilterOptions<PatientOption>({
   trim: true,
 });
 
-function isSellableServiceAvailable(item: any): boolean {
-  // Если поле service присутствует в ответе, но равно null — сервис удалён физически
-  if ("service" in item && item.service === null) return false;
-  const isActive = item?.isActive ?? item?.is_active ?? item?.service?.isActive ?? item?.service?.is_active ?? true;
-  const isDeleted = item?.isDeleted ?? item?.is_deleted ?? item?.service?.isDeleted ?? item?.service?.is_deleted ?? false;
-  // Дополнительно: если вложенный сервис неактивен, скрываем
-  const serviceIsActive = item?.service?.isActive ?? item?.service?.is_active ?? true;
-  return isActive !== false && isDeleted !== true && serviceIsActive !== false;
-}
-
-function mapSellableService(item: any): ServiceRow {
-  return {
-    id: String(item?.id ?? item?.sellableItem ?? item?.sellable_item ?? ""),
-    name: item?.displayName ?? item?.display_name ?? item?.service?.name ?? item?.name ?? "",
-    price: item?.displayPrice != null
-      ? Number(item.displayPrice)
-      : item?.price != null
-        ? Number(item.price)
-        : item?.service?.price != null
-          ? Number(item.service.price)
-          : undefined,
-    is_active: item?.isActive ?? item?.is_active ?? item?.service?.isActive ?? item?.service?.is_active ?? true,
-    isGroup: item?.isGroup ?? item?.is_group ?? item?.service?.isGroup ?? item?.service?.is_group ?? false,
-    maxParticipants: item?.maxParticipants ?? item?.max_participants ?? item?.service?.maxParticipants ?? item?.service?.max_participants ?? null,
-    durationMinutes: item?.durationMinutes ?? item?.duration_minutes ?? item?.duration ?? item?.service?.durationMinutes ?? item?.service?.duration_minutes ?? item?.service?.duration ?? null,
-    employee_ids: item?.employeeIds ?? item?.employee_ids ?? [],
-  };
-}
 
 function serviceMatchesAppointmentMode(service: ServiceRow, mode: "single" | "group"): boolean {
   const isGroup = Boolean((service as any).isGroup ?? (service as any).is_group);
@@ -149,19 +125,18 @@ export const HomeAddAppointmentDrawer: React.FC<
   const [doctorsOpts, setDoctorsOpts] = React.useState<EmployeesRow[]>([]);
   const [allDoctorsOpts, setAllDoctorsOpts] = React.useState<EmployeesRow[]>([]);
   const [doctorsLoading, setDoctorsLoading] = React.useState(false);
-  const [servicesOpts, setServicesOpts] = React.useState<ServiceRow[]>([]);
-  const [allServicesOpts, setAllServicesOpts] = React.useState<ServiceRow[]>([]);
-  const [servicesLoading, setServicesLoading] = React.useState(false);
-  // Per-employee services cache: employeeId -> ServiceRow[]
-  const [employeeServicesCache, setEmployeeServicesCache] = React.useState<Record<string, ServiceRow[]>>({});
-  // Обратный маппинг: serviceId -> Set<employeeId> (строится в фоне)
+  // Обратный маппинг: serviceId -> Set<employeeId> (строится в фоне при загрузке врачей)
   const serviceToEmployeesRef = React.useRef<Record<string, Set<string>>>({});
-  // Кэш валидных sellable-item ID (не удалённых сервисов), пустой Set = не загружен
-  const validSellableIdsRef = React.useRef<Set<string> | null>(null);
 
   const { hasPermission, employeeId } = usePermissions();
   const isWorkplaceNurse = isOwnOnlySpecialist(hasPermission);
   const canReception = hasPermission(PERMISSIONS.RECEPTION_READ);
+
+  const queryClient = useQueryClient();
+  const invalidateValidServiceIds = useValidServiceIdsInvalidation();
+
+  // Все услуги (без врача) — для выбора услуги первой
+  const { services: allServicesOpts, isLoading: servicesLoading } = useAvailableServices({ enabled: open });
 
   const [selectedPatient, setSelectedPatient] =
     React.useState<PatientOption | null>(null);
@@ -393,8 +368,6 @@ export const HomeAddAppointmentDrawer: React.FC<
     prevDateRef.current = currentDateStr;
     // Clear employee/service selections when date changes
     setServiceRows(prev => prev.map(r => ({ ...r, doctorId: "", serviceId: "" })));
-    setEmployeeServicesCache({});
-    setServicesOpts(allServicesOpts); // Восстанавливаем все услуги при смене даты
 
     let cancelled = false;
     setDoctorsLoading(true);
@@ -424,101 +397,33 @@ export const HomeAddAppointmentDrawer: React.FC<
     return () => { cancelled = true; };
   }, [open, currentDateStr]);
 
-  // Загружаем все услуги при первом открытии (для выбора услуги без тренера)
-  // Загружаем валидные service ID из /api/v1/services/ (исключает is_deleted=true)
-  // sellable-item содержит вложенный объект service.id — сравниваем по нему
-  const getValidServiceIds = React.useCallback(async (): Promise<Set<string>> => {
-    if (validSellableIdsRef.current !== null) return validSellableIdsRef.current;
-    try {
-      const res: any = await apiFetch(`/api/v1/services/?isActive=true&pageSize=200`);
-      const results: any[] = res?.data?.results ?? res?.results ?? [];
-      const ids = new Set<string>(results.map((s: any) => String(s.id ?? "")).filter(Boolean));
-      validSellableIdsRef.current = ids;
-      return ids;
-    } catch {
-      return new Set();
-    }
-  }, []);
-
-  // Сбрасываем кэш услуг при каждом открытии дравера
-  React.useEffect(() => {
-    if (open) {
-      validSellableIdsRef.current = null;
-      setAllServicesOpts([]);
-      setServicesOpts([]);
-    }
-  }, [open]);
-
-  // Загружаем все услуги при первом открытии (для выбора услуги без тренера)
-  React.useEffect(() => {
-    if (!open || allServicesOpts.length > 0) return;
-    setServicesLoading(true);
-    Promise.all([
-      apiFetch(`/api/v1/sellable-items/?type=service&isActive=true&pageSize=200`),
-      getValidServiceIds(),
-    ])
-      .then(([siRes, validIds]: any[]) => {
-        const siResults: any[] = siRes?.data?.results ?? siRes?.results ?? [];
-        const mapped = siResults
-          .filter(isSellableServiceAvailable)
-          .filter((item: any) => (validIds as Set<string>).size === 0 || (validIds as Set<string>).has(String(item?.service?.id ?? "")))
-          .map(mapSellableService)
-          .filter((s: ServiceRow) => s.id && s.name);
-        setAllServicesOpts(mapped);
-        // Показываем все услуги пока тренер не выбран
-        if (!serviceRows[0]?.doctorId) setServicesOpts(mapped);
-      })
-      .catch(() => {})
-      .finally(() => setServicesLoading(false));
-  }, [open, getValidServiceIds]);
-
-  // Строим обратный маппинг serviceId → Set<employeeId> для всех тренеров в фоне
+  // Строим обратный маппинг serviceId → Set<employeeId> для фильтрации врачей при выборе услуги первой.
+  // Используем React Query кэш чтобы не делать лишних запросов.
   const buildServiceToEmployeesMap = React.useCallback(async (emps: EmployeesRow[]) => {
     const map: Record<string, Set<string>> = {};
-    const validIds = await getValidServiceIds();
     await Promise.all(emps.map(async (emp) => {
       try {
-        const res: any = await apiFetch(`/api/v1/sellable-items/?type=service&isActive=true&employee=${emp.id}&pageSize=200`);
-        const results: any[] = res?.data?.results ?? res?.results ?? [];
-        const availableResults = results
-          .filter(isSellableServiceAvailable)
-          .filter((item: any) => validIds.size === 0 || validIds.has(String(item?.service?.id ?? "")));
-        availableResults.forEach((item: any) => {
-          const serviceId = mapSellableService(item).id;
-          if (!serviceId) return;
-          if (!map[serviceId]) map[serviceId] = new Set();
-          map[serviceId].add(emp.id);
-        });
-        // Также кэшируем услуги сотрудника
-        setEmployeeServicesCache(prev => ({
-          ...prev,
-          [emp.id]: availableResults
-            .map(mapSellableService)
-            .filter((s: ServiceRow) => s.id && s.name),
-        }));
+        // Берём из кэша React Query если уже загружено, иначе запрашиваем
+        const cacheKey = [SELLABLE_SERVICES_QUERY_KEY, { employeeId: emp.id }];
+        const cached = queryClient.getQueryData<any[]>(cacheKey);
+        const raw: any[] = cached ?? await (async () => {
+          const res: any = await apiFetch(`/api/v1/sellable-items/?type=service&isActive=true&employee=${emp.id}&pageSize=200`);
+          const results = res?.data?.results ?? res?.results ?? [];
+          queryClient.setQueryData(cacheKey, results);
+          return results;
+        })();
+        raw
+          .filter((item: any) => isValidSellableService(item, new Set()))
+          .forEach((item: any) => {
+            const sid = String(item?.id ?? "");
+            if (!sid) return;
+            if (!map[sid]) map[sid] = new Set();
+            map[sid].add(emp.id);
+          });
       } catch { /* ignore */ }
     }));
     serviceToEmployeesRef.current = map;
-  }, [getValidServiceIds]);
-
-  // Load services per employee when employee changes in a service row
-  const loadServicesForEmployee = React.useCallback(async (employeeId: string): Promise<ServiceRow[]> => {
-    if (!employeeId) return [];
-    try {
-      const [res, validIds] = await Promise.all([
-        apiFetch(`/api/v1/sellable-items/?type=service&isActive=true&employee=${employeeId}&pageSize=200`),
-        getValidServiceIds(),
-      ]);
-      const results: any[] = (res as any)?.data?.results ?? (res as any)?.results ?? [];
-      return results
-        .filter(isSellableServiceAvailable)
-        .filter((item: any) => validIds.size === 0 || validIds.has(String(item?.service?.id ?? "")))
-        .map(mapSellableService)
-        .filter((s: ServiceRow) => s.id && s.name);
-    } catch {
-      return [];
-    }
-  }, [getValidServiceIds]);
+  }, [queryClient]);
 
   // Установка начального клиента, если передан initialPatientId
   // Установка начального клиента, если передан initialPatientId
@@ -727,10 +632,7 @@ export const HomeAddAppointmentDrawer: React.FC<
           return;
         }
         const rowsForConflictCheck = validServiceRows.map((row) => {
-          const employeeServices = employeeServicesCache[row.doctorId] ?? [];
-          const svc = employeeServices.find((s) => s.id === row.serviceId)
-            ?? allServicesOpts.find((s) => s.id === row.serviceId)
-            ?? servicesOpts.find((s) => s.id === row.serviceId);
+          const svc = allServicesOpts.find((s) => s.id === row.serviceId);
           return {
             doctorId: row.doctorId,
             durationMinutes: extractServiceDurationMinutes(svc),
@@ -841,8 +743,7 @@ export const HomeAddAppointmentDrawer: React.FC<
           isSavingRef.current = false;
           return;
         }
-        const cache = employeeServicesCache[firstRow.doctorId];
-        const svc = (cache || servicesOpts).find(s => s.id === firstRow.serviceId);
+        const svc = allServicesOpts.find(s => s.id === firstRow.serviceId);
         const groupDuration = extractServiceDurationMinutes(svc);
 
         // ── ГРУППОВОЙ НА ПЕРИОД ──────────────────────────────────
@@ -1025,10 +926,7 @@ export const HomeAddAppointmentDrawer: React.FC<
         // Сбрасываем кэш перед проверкой — берём актуальные данные с сервера
         delete dayAppointmentsCacheRef.current[visitDate.format("YYYY-MM-DD")];
         const rowsForConflictCheck = validServiceRows.map((row) => {
-          const employeeServices = employeeServicesCache[row.doctorId] ?? [];
-          const svc = employeeServices.find((s) => s.id === row.serviceId)
-            ?? allServicesOpts.find((s) => s.id === row.serviceId)
-            ?? servicesOpts.find((s) => s.id === row.serviceId);
+          const svc = allServicesOpts.find((s) => s.id === row.serviceId);
           return {
             doctorId: row.doctorId,
             durationMinutes: extractServiceDurationMinutes(svc),
@@ -1135,10 +1033,7 @@ export const HomeAddAppointmentDrawer: React.FC<
     const selectedServiceId = serviceRows[0]?.serviceId;
     if (!selectedServiceId) return;
 
-    const currentServicePool = serviceRows[0]?.doctorId && employeeServicesCache[serviceRows[0].doctorId]
-      ? employeeServicesCache[serviceRows[0].doctorId]
-      : allServicesOpts;
-    const selectedService = currentServicePool.find((service) => service.id === selectedServiceId);
+    const selectedService = allServicesOpts.find((service) => service.id === selectedServiceId);
 
     if (selectedService && serviceMatchesAppointmentMode(selectedService, appointmentMode)) return;
 
@@ -1146,7 +1041,7 @@ export const HomeAddAppointmentDrawer: React.FC<
       prev.map((row, idx) => idx === 0 ? { ...row, serviceId: "" } : row)
     );
     setDoctorsOpts(allDoctorsOpts);
-  }, [appointmentMode, allDoctorsOpts, allServicesOpts, employeeServicesCache, serviceRows]);
+  }, [appointmentMode, allDoctorsOpts, allServicesOpts, serviceRows]);
 
   const doctorFilter = createFilterOptions<EmployeesRow>({
     matchFrom: "any",
@@ -1171,16 +1066,22 @@ export const HomeAddAppointmentDrawer: React.FC<
   });
 
   const selectedDoctorId = serviceRows[0]?.doctorId ?? "";
-  const servicesForSelectedDoctor = selectedDoctorId ? employeeServicesCache[selectedDoctorId] : undefined;
-  const rawServiceOptions = servicesForSelectedDoctor ?? servicesOpts;
+  // Услуги выбранного врача — хук реагирует на смену selectedDoctorId автоматически
+  const { services: doctorServices, isLoading: doctorServicesLoading } = useAvailableServices({
+    employeeId: selectedDoctorId || undefined,
+    enabled: open && !!selectedDoctorId,
+  });
+  // Если врач выбран — показываем его услуги, иначе все услуги
+  const rawServiceOptions = selectedDoctorId ? doctorServices : allServicesOpts;
   const serviceOptions = rawServiceOptions.filter((service) =>
     serviceMatchesAppointmentMode(service, appointmentMode)
   );
-  const isDoctorServicesEmpty = Boolean(selectedDoctorId) && Array.isArray(servicesForSelectedDoctor) && serviceOptions.length === 0;
+  const isServiceListLoading = servicesLoading || (!!selectedDoctorId && doctorServicesLoading);
+  const isDoctorServicesEmpty = Boolean(selectedDoctorId) && !doctorServicesLoading && serviceOptions.length === 0;
   const doctorNoOptionsText = doctorsLoading
     ? "Загрузка тренеров..."
     : "Нет доступных тренеров. Добавьте тренера в разделе сотрудников.";
-  const serviceNoOptionsText = servicesLoading
+  const serviceNoOptionsText = isServiceListLoading
     ? "Загрузка услуг..."
     : isDoctorServicesEmpty
       ? appointmentMode === "group"
@@ -1435,18 +1336,8 @@ export const HomeAddAppointmentDrawer: React.FC<
                   // Не сбрасываем serviceId при смене тренера — пусть фильтруется
                   updated[0] = { ...updated[0], doctorId: v?.id || "" };
                   setServiceRows(updated);
-                  if (v?.id) {
-                    if (!employeeServicesCache[v.id]) {
-                      setServicesLoading(true);
-                      loadServicesForEmployee(v.id).then(srvs => {
-                        setEmployeeServicesCache(prev => ({ ...prev, [v.id]: srvs }));
-                        setServicesLoading(false);
-                      });
-                    }
-                  } else {
-                    // Тренер сброшен — показываем все услуги обратно
-                    setServicesOpts(allServicesOpts);
-                  }
+                  // Услуги для врача загружаются автоматически через useAvailableServices({ employeeId })
+                  // при изменении selectedDoctorId. Ничего дополнительного не нужно.
                 }}
                 getOptionLabel={(o) => `${o.full_name || o.id}${o.specialization ? ` — ${o.specialization}` : ""}`}
                 filterOptions={doctorFilter}
@@ -1475,7 +1366,7 @@ export const HomeAddAppointmentDrawer: React.FC<
               <Autocomplete
                 fullWidth
                 options={serviceOptions}
-                loading={servicesLoading}
+                loading={isServiceListLoading}
                 noOptionsText={serviceNoOptionsText}
                 value={serviceOptions.find((s) => s.id === serviceRows[0]?.serviceId) || null}
                 onChange={(_, v) => {
@@ -1600,13 +1491,7 @@ export const HomeAddAppointmentDrawer: React.FC<
             {/* ── ГРУППОВОЙ: мультиселект участников ── */}
             {appointmentMode === "group" && (() => {
               // Вычисляем лимит из выбранной услуги
-              const currentServiceCacheRaw = serviceRows[0]?.doctorId && employeeServicesCache[serviceRows[0].doctorId]
-                ? employeeServicesCache[serviceRows[0].doctorId]
-                : servicesOpts;
-              const currentServiceCache = currentServiceCacheRaw.filter((service) =>
-                serviceMatchesAppointmentMode(service, appointmentMode)
-              );
-              const selectedSvc = currentServiceCache.find(s => s.id === serviceRows[0]?.serviceId);
+              const selectedSvc = allServicesOpts.find(s => s.id === serviceRows[0]?.serviceId);
               const maxParts: number | null = (selectedSvc as any)?.maxParticipants ?? null;
               const isFull = maxParts != null && groupParticipants.length >= maxParts;
 
@@ -1811,22 +1696,12 @@ export const HomeAddAppointmentDrawer: React.FC<
         open={isServiceDrawerOpen}
         onClose={() => setIsServiceDrawerOpen(false)}
         onCreated={(rec) => {
-          const entry: ServiceRow = {
-            id: String(rec.id ?? ""),
-            name: rec.name || rec.service_name,
-            price: rec.price ?? rec.price_som,
-            employee_id: null,
-            employee_ids: [],
-            is_active: true,
-            isGroup: rec.isGroup ?? false,
-          };
-          setServicesOpts((prev) => [
-            entry,
-            ...prev.filter((x) => x.id !== entry.id),
-          ]);
+          // Инвалидируем кэш чтобы новая услуга появилась в списке
+          invalidateValidServiceIds();
+          queryClient.invalidateQueries({ queryKey: [SELLABLE_SERVICES_QUERY_KEY] });
           setServiceRows((prev) => [
             ...prev,
-            { serviceId: entry.id, doctorId: "", quantity: 1 },
+            { serviceId: String(rec.id ?? ""), doctorId: "", quantity: 1 },
           ]);
         }}
       />
