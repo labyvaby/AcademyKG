@@ -9,6 +9,10 @@ import {
   CardContent,
   Chip,
   CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Divider,
   Drawer,
   FormControlLabel,
@@ -182,6 +186,14 @@ export const HomeAddAppointmentDrawer: React.FC<
     }
     return dates;
   }, [periodWeekdays, periodStartDate, periodEndDate]);
+
+  const periodServicePrice = React.useMemo(() => {
+    const firstRow = serviceRows[0];
+    if (!firstRow?.serviceId) return null;
+    const svc = allServicesOpts.find((s) => s.id === firstRow.serviceId);
+    const p = Number(svc?.price ?? 0);
+    return p > 0 ? p : null;
+  }, [serviceRows, allServicesOpts]);
   const [groupParticipants, setGroupParticipants] = React.useState<PatientOption[]>([]);
   const [groupPatientInput, setGroupPatientInput] = React.useState<PatientOption | null>(null);
   const [groupPatientSearch, setGroupPatientSearch] = React.useState("");
@@ -197,6 +209,12 @@ export const HomeAddAppointmentDrawer: React.FC<
   const discountAmount = typeof discount === "number" ? discount : 0;
   // Итоговая сумма считается на лету при рендере и отдельно в payload,
   // поэтому отдельный стейт под неё не держим.
+
+  const [periodPaymentOpen, setPeriodPaymentOpen] = React.useState(false);
+  const [periodCreatedAppointments, setPeriodCreatedAppointments] = React.useState<import("../types").Appointment[]>([]);
+  const [periodPaymentCash, setPeriodPaymentCash] = React.useState<number | "">("");
+  const [periodPaymentCard, setPeriodPaymentCard] = React.useState<number | "">("");
+  const [periodPaymentSaving, setPeriodPaymentSaving] = React.useState(false);
 
   const [isSaving, setIsSaving] = React.useState(false);
   const isSavingRef = React.useRef(false);
@@ -711,6 +729,14 @@ export const HomeAddAppointmentDrawer: React.FC<
           });
         }
 
+        // Собираем успешно созданные приёмы для возможной оплаты за период
+        const createdAppointments = results
+          .filter((r): r is PromiseFulfilledResult<any> => r.status === "fulfilled")
+          .map((r) => r.value);
+
+        const hasPatient = !!selectedPatient;
+        const servicePrice = periodServicePrice;
+
         setPeriodWeekdays([]);
         setPeriodStartDate(dayjs().format("YYYY-MM-DD"));
         setPeriodEndDate("");
@@ -725,6 +751,15 @@ export const HomeAddAppointmentDrawer: React.FC<
         if (failed.length === 0) {
           notify?.({ type: "success", message: `Создано ${periodDates.length} приёмов!` });
         }
+
+        // Предлагаем оплату за весь период если есть клиент и цена услуги
+        if (hasPatient && servicePrice && createdAppointments.length > 0 && failed.length === 0) {
+          setPeriodCreatedAppointments(createdAppointments as import("../types").Appointment[]);
+          setPeriodPaymentCash("");
+          setPeriodPaymentCard("");
+          setPeriodPaymentOpen(true);
+        }
+
         return;
       }
 
@@ -1315,6 +1350,13 @@ export const HomeAddAppointmentDrawer: React.FC<
                         <Chip key={dateStr} label={dayjs(dateStr).locale("ru").format("dd D MMM")} size="small" variant="outlined" sx={{ fontSize: 11, height: 22 }} />
                       ))}
                     </Box>
+                    {periodServicePrice !== null && (
+                      <Box sx={{ mt: 1, px: 1.5, py: 0.75, bgcolor: "action.selected", borderRadius: 1, display: "inline-block" }}>
+                        <Typography variant="body2" fontWeight={600} color="text.primary">
+                          Итого за период: {periodDates.length} × {periodServicePrice} = {periodDates.length * periodServicePrice} сом
+                        </Typography>
+                      </Box>
+                    )}
                   </Box>
                 )}
               </Stack>
@@ -1671,6 +1713,120 @@ export const HomeAddAppointmentDrawer: React.FC<
           </Stack>
         </Box>
       </Drawer>
+
+      <Dialog
+        open={periodPaymentOpen}
+        onClose={() => {
+          if (!periodPaymentSaving) {
+            setPeriodPaymentOpen(false);
+            setPeriodCreatedAppointments([]);
+          }
+        }}
+        maxWidth="xs"
+        fullWidth
+      >
+        {(() => {
+          const totalPrice = periodServicePrice !== null
+            ? periodServicePrice * periodCreatedAppointments.length
+            : null;
+          const cashNum = Number(periodPaymentCash || 0);
+          const cardNum = Number(periodPaymentCard || 0);
+          const selectedType = cashNum > 0 ? "cash" : cardNum > 0 ? "card" : null;
+          const handlePeriodPaymentSave = async () => {
+            if (periodPaymentSaving || periodCreatedAppointments.length === 0 || !selectedType) return;
+            setPeriodPaymentSaving(true);
+            try {
+              const perAppt = periodServicePrice ?? 0;
+              await Promise.all(
+                periodCreatedAppointments.map((appt) =>
+                  apiFetch(`/api/v1/appointments/${appt.id}/`, {
+                    method: "PATCH",
+                    body: JSON.stringify({
+                      paidCash: selectedType === "cash" ? perAppt : 0,
+                      paidCard: selectedType === "card" ? perAppt : 0,
+                      paidBalance: 0,
+                      paidBonuses: 0,
+                      discount: 0,
+                      adminComment: "",
+                    }),
+                  })
+                )
+              );
+              notify?.({ type: "success", message: `Оплата за ${periodCreatedAppointments.length} приёмов принята` });
+              setPeriodPaymentOpen(false);
+              setPeriodCreatedAppointments([]);
+              onCreated?.();
+            } catch {
+              notify?.({ type: "error", message: "Ошибка при сохранении оплаты" });
+            } finally {
+              setPeriodPaymentSaving(false);
+            }
+          };
+          return (
+            <>
+              <DialogTitle>Принять оплату за период</DialogTitle>
+              <DialogContent>
+                <Stack spacing={2} sx={{ pt: 1 }}>
+                  {totalPrice !== null && (
+                    <Box sx={{ px: 1.5, py: 1, bgcolor: "action.selected", borderRadius: 1 }}>
+                      <Typography variant="body2" fontWeight={600}>
+                        Итого: {periodCreatedAppointments.length} × {periodServicePrice} = {totalPrice} сом
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Каждый приём будет отмечен как оплаченный
+                      </Typography>
+                    </Box>
+                  )}
+                  <Typography variant="body2" color="text.secondary" fontWeight={500}>
+                    Способ оплаты
+                  </Typography>
+                  <Stack direction="row" spacing={1.5}>
+                    <Button
+                      variant={cashNum > 0 ? "contained" : "outlined"}
+                      color={cashNum > 0 ? "success" : "inherit"}
+                      size="small"
+                      fullWidth
+                      onClick={() => { setPeriodPaymentCash(cashNum > 0 ? "" : 1); setPeriodPaymentCard(""); }}
+                    >
+                      Наличные
+                    </Button>
+                    <Button
+                      variant={cardNum > 0 ? "contained" : "outlined"}
+                      color={cardNum > 0 ? "success" : "inherit"}
+                      size="small"
+                      fullWidth
+                      onClick={() => { setPeriodPaymentCard(cardNum > 0 ? "" : 1); setPeriodPaymentCash(""); }}
+                    >
+                      Безнал
+                    </Button>
+                  </Stack>
+                </Stack>
+              </DialogContent>
+              <DialogActions sx={{ px: 2.5, pb: 2 }}>
+                <Button
+                  variant="text"
+                  onClick={() => {
+                    setPeriodPaymentOpen(false);
+                    setPeriodCreatedAppointments([]);
+                  }}
+                  disabled={periodPaymentSaving}
+                >
+                  Пропустить
+                </Button>
+                <Button
+                  variant="contained"
+                  color="success"
+                  onClick={handlePeriodPaymentSave}
+                  disabled={periodPaymentSaving || !selectedType}
+                  startIcon={periodPaymentSaving ? <CircularProgress size={16} color="inherit" /> : undefined}
+                >
+                  Принять оплату
+                </Button>
+              </DialogActions>
+            </>
+          );
+        })()}
+      </Dialog>
 
       <AddPatientDrawer
         open={isPatientDrawerOpen}
