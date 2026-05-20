@@ -444,9 +444,17 @@ export const HomeAddAppointmentDrawer: React.FC<
   }, [queryClient]);
 
   // Установка начального клиента, если передан initialPatientId
-  // Установка начального клиента, если передан initialPatientId
+  const fetchedInitialPatientRef = React.useRef<string | null>(null);
   React.useEffect(() => {
-    if (!open || !initialPatientId) return;
+    if (!open) {
+      fetchedInitialPatientRef.current = null;
+      return;
+    }
+    if (!initialPatientId) return;
+
+    // Если уже выбран нужный клиент — повторно ничего не делаем,
+    // иначе при каждом изменении patientsOpts/patientsSearchResults эффект перезаписывал бы state.
+    if (selectedPatient?.id === initialPatientId) return;
 
     // 1. Попытка найти в уже загруженном списке
     const found = patientsOpts.find((p) => p.id === initialPatientId);
@@ -462,7 +470,10 @@ export const HomeAddAppointmentDrawer: React.FC<
       return;
     }
 
-    // 3. Если нигде нет — грузим из базы
+    // 3. Если нигде нет — грузим из базы (один раз на initialPatientId).
+    if (fetchedInitialPatientRef.current === initialPatientId) return;
+    fetchedInitialPatientRef.current = initialPatientId;
+
     apiFetch(`/api/v1/clients/${initialPatientId}/`).then((res: any) => {
       const data = res?.data ?? res;
       if (data?.id) {
@@ -476,11 +487,11 @@ export const HomeAddAppointmentDrawer: React.FC<
           "Телефон": phone,
           label: `${fio} — ${phone}`
         };
-        setPatientsOpts(prev => [...prev, newOpt]);
+        setPatientsOpts(prev => prev.some(p => p.id === newOpt.id) ? prev : [...prev, newOpt]);
         setSelectedPatient(newOpt);
       }
     }).catch(() => { /* ignore */ });
-  }, [open, initialPatientId, patientsOpts, patientsSearchResults]);
+  }, [open, initialPatientId, patientsOpts, patientsSearchResults, selectedPatient]);
 
   // Эффект для режима "Бронирования" удален, так как теперь 
   // бронирование разрешает создание приема без указания клиента (null).
@@ -1072,10 +1083,13 @@ export const HomeAddAppointmentDrawer: React.FC<
 
     if (selectedService && serviceMatchesAppointmentMode(selectedService, appointmentMode)) return;
 
-    setServiceRows((prev) =>
-      prev.map((row, idx) => idx === 0 ? { ...row, serviceId: "" } : row)
-    );
-    setDoctorsOpts(allDoctorsOpts);
+    setServiceRows((prev) => {
+      // Guard: если первая строка уже без serviceId — не создаём новый массив,
+      // иначе ссылка меняется каждый рендер и эффект попадает в петлю.
+      if (!prev[0] || prev[0].serviceId === "") return prev;
+      return prev.map((row, idx) => idx === 0 ? { ...row, serviceId: "" } : row);
+    });
+    setDoctorsOpts((prev) => (prev === allDoctorsOpts ? prev : allDoctorsOpts));
   }, [appointmentMode, allDoctorsOpts, allServicesOpts, serviceRows]);
 
   const doctorFilter = createFilterOptions<EmployeesRow>({
@@ -1734,11 +1748,19 @@ export const HomeAddAppointmentDrawer: React.FC<
           const selectedType = cashNum > 0 ? "cash" : cardNum > 0 ? "card" : null;
           const handlePeriodPaymentSave = async () => {
             if (periodPaymentSaving || periodCreatedAppointments.length === 0 || !selectedType) return;
+            // Защита: не отправляем PATCH к /appointments/undefined/, если бэкенд не вернул id.
+            const validAppointments = periodCreatedAppointments.filter((appt) => Boolean(appt?.id));
+            if (validAppointments.length === 0) {
+              notify?.({ type: "error", message: "Не удалось определить созданные приёмы для оплаты" });
+              setPeriodPaymentOpen(false);
+              setPeriodCreatedAppointments([]);
+              return;
+            }
             setPeriodPaymentSaving(true);
             try {
               const perAppt = periodServicePrice ?? 0;
               await Promise.all(
-                periodCreatedAppointments.map((appt) =>
+                validAppointments.map((appt) =>
                   apiFetch(`/api/v1/appointments/${appt.id}/`, {
                     method: "PATCH",
                     body: JSON.stringify({
@@ -1752,7 +1774,7 @@ export const HomeAddAppointmentDrawer: React.FC<
                   })
                 )
               );
-              notify?.({ type: "success", message: `Оплата за ${periodCreatedAppointments.length} приёмов принята` });
+              notify?.({ type: "success", message: `Оплата за ${validAppointments.length} приёмов принята` });
               setPeriodPaymentOpen(false);
               setPeriodCreatedAppointments([]);
               onCreated?.();
