@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { apiFetch } from "../utility/apiClient";
 import { fetchMedicalStaff } from "../services/employees";
 import type { PatientOption } from "../pages/home/types";
@@ -37,21 +37,25 @@ const fetchAllDictionaries = async (): Promise<DictionariesByType> => {
   return { patients, employees };
 };
 
+const EMPTY_PATIENTS: PatientOption[] = [];
+const EMPTY_EMPLOYEES: any[] = [];
+
 export function useDictionaries(enabled: boolean = true) {
   const { data, isLoading } = useQuery({
     queryKey: ["dictionaries", "all"],
     queryFn: fetchAllDictionaries,
     enabled,
-    staleTime: 10 * 60 * 1000, // 10 minutes - увеличено для уменьшения запросов
-    gcTime: 30 * 60 * 1000, // 30 minutes - увеличено для хранения в памяти
+    staleTime: 10 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
     refetchOnWindowFocus: false,
-    refetchOnMount: false, // Не перезагружать при монтировании, если данные есть
-    refetchOnReconnect: false, // Не перезагружать при восстановлении соединения
+    refetchOnMount: false,
+    refetchOnReconnect: false,
+    placeholderData: keepPreviousData,
   });
 
   return {
-    patients: data?.patients ?? [],
-    employees: data?.employees ?? [],
+    patients: data?.patients ?? EMPTY_PATIENTS,
+    employees: data?.employees ?? EMPTY_EMPLOYEES,
     loading: isLoading,
   };
 }
