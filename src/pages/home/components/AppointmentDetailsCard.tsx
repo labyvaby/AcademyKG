@@ -4,6 +4,7 @@ import {
   Card,
   CardContent,
   CardHeader,
+  Checkbox,
   Chip,
   Divider,
   Stack,
@@ -40,6 +41,7 @@ import DoctorQuickViewDrawer from "../../../components/employees/DoctorQuickView
 import { PaymentInfoBlock } from "../../../components/ui";
 
 import { apiFetch } from "../../../utility/apiClient";
+import { markAttendance } from "../../../features/group-appointments/api/group-appointments.api";
 import { setCachedDetail, getCachedDetail } from "../../../utility/appointmentCache";
 import { formatKGS } from "../../../utility/format";
 import EditAppointmentSidebar from "./EditAppointmentSidebar";
@@ -129,6 +131,21 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
 
   // Payment Sidebar
   const [paymentOpen, setPaymentOpen] = React.useState(false);
+
+  // Attendance
+  const [attendanceBusy, setAttendanceBusy] = React.useState(false);
+  const handleAttendanceChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!item || attendanceBusy) return;
+    setAttendanceBusy(true);
+    try {
+      await markAttendance(item.id, e.target.checked);
+      refresh();
+    } catch {
+      // ignore — server will return error if not paid
+    } finally {
+      setAttendanceBusy(false);
+    }
+  };
 
   const canSeeBalance = canSeePatientBalance(hasPermission);
   const { balance: patientBalance } = usePatientBalance(
@@ -504,6 +521,25 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
                     ) : undefined
                   }
                 />
+                {item.debt === 0 && (
+                  <Stack direction="row" alignItems="center" spacing={0.5} sx={{ mt: -1 }}>
+                    <Tooltip title={item.attended ? "Пришёл — нажмите чтобы снять отметку" : "Отметить как пришедшего"} disableInteractive>
+                      <span>
+                        <Checkbox
+                          size="small"
+                          checked={Boolean(item.attended)}
+                          onChange={handleAttendanceChange}
+                          disabled={attendanceBusy}
+                          color="success"
+                          sx={{ p: 0.5 }}
+                        />
+                      </span>
+                    </Tooltip>
+                    <Typography variant="caption" color={item.attended ? "success.main" : "text.secondary"}>
+                      {item.attended ? "Пришёл" : "Пришёл?"}
+                    </Typography>
+                  </Stack>
+                )}
                 <Divider />
               </>
             )}

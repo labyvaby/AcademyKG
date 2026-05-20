@@ -47,6 +47,7 @@ export type GroupParticipant = {
   paidCard: number;
   paidBalance: number; // баланс клиента (нал+безнал)
   debt: number;
+  attended: boolean;
 };
 
 export type AppointmentGroup = {

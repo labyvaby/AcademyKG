@@ -26,6 +26,7 @@ function toParticipant(r: any): GroupParticipant {
     paidCard: Number(r.paidCard ?? r.paid_card ?? 0),
     paidBalance: Number(r.paidBalance ?? r.paid_balance ?? 0),
     debt: Number(r.debt ?? 0),
+    attended: Boolean(r.attended ?? false),
   };
 }
 
@@ -157,6 +158,19 @@ export async function setGroupTrainerNotCame(groupId: string): Promise<Appointme
   });
   const data = res?.data ?? res;
   return data?.id ? toGroup(data) : null;
+}
+
+export async function markAttendance(
+  appointmentId: string,
+  attended: boolean,
+): Promise<{ id: string; attended: boolean }> {
+  const res: any = await apiFetch(`/api/v1/appointments/${appointmentId}/mark-attended/`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ attended }),
+  });
+  const data = res?.data ?? res;
+  return { id: String(data?.id ?? appointmentId), attended: Boolean(data?.attended ?? attended) };
 }
 
 export async function payParticipant(

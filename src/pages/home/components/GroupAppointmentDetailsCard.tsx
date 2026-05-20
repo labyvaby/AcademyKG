@@ -30,7 +30,7 @@ import CalendarMonthOutlined from "@mui/icons-material/CalendarMonthOutlined";
 import dayjs from "dayjs";
 import { dayjsBishkek } from "../../../utility/dayjsBishkek";
 import type { AppointmentGroup, GroupParticipant } from "../../../features/group-appointments/model/types";
-import { addParticipantToGroup, updateParticipantStatus, payParticipant, deleteGroup, updateGroup } from "../../../features/group-appointments/api/group-appointments.api";
+import { addParticipantToGroup, updateParticipantStatus, payParticipant, deleteGroup, updateGroup, markAttendance } from "../../../features/group-appointments/api/group-appointments.api";
 import ParticipantRow from "../../../features/group-appointments/ui/ParticipantRow";
 import type { GroupAppointmentStatus } from "../../../features/group-appointments/model/types";
 import { apiFetch } from "../../../utility/apiClient";
@@ -247,6 +247,14 @@ const GroupAppointmentDetailsCard: React.FC<Props> = ({ group, onGroupUpdated, o
     });
   };
 
+  const handleAttendanceToggle = async (participantId: string, attended: boolean) => {
+    await markAttendance(participantId, attended);
+    onGroupUpdated({
+      ...group,
+      participants: group.participants.map((p) => p.id === participantId ? { ...p, attended } : p),
+    });
+  };
+
   const handlePay = async (participantId: string, payment: { paidCash?: number; paidCard?: number; paidBalance?: number }) => {
     const updated = await payParticipant(group.id, participantId, payment);
     onGroupUpdated({
@@ -370,6 +378,7 @@ const GroupAppointmentDetailsCard: React.FC<Props> = ({ group, onGroupUpdated, o
                       onStatusChange={(status) => handleStatusChange(p.id, status)}
                       onPayClick={() => setPaymentParticipant(p)}
                       onClientClick={() => setClientViewId(p.patientId)}
+                      onAttendanceToggle={(attended) => handleAttendanceToggle(p.id, attended)}
                     />
                   ))}
                 </Stack>

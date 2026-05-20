@@ -67,6 +67,7 @@ export type Appointment = {
   // Групповой приём
   is_group?: boolean;
   group_data?: AppointmentGroup | null;
+  attended?: boolean;
   created_at?: string;
   updated_at?: string;
   created_by_name?: string | null;
@@ -305,6 +306,7 @@ export const mapAggregatedRowToAppointment = (
       ?? null,
     diagnosis_data: r.diagnosis_data ?? r.diagnosisData ?? null,
     conclusion_history: r.conclusion_history ?? r.conclusionHistory ?? null,
+    attended: Boolean(r.attended ?? false),
   };
 };
 

@@ -3,8 +3,10 @@ import {
   Avatar,
   Box,
   Button,
+  Checkbox,
   Chip,
   Stack,
+  Tooltip,
   Typography,
   alpha,
   useTheme,
@@ -19,12 +21,24 @@ type Props = {
   onStatusChange: (status: GroupAppointmentStatus) => Promise<void>;
   onPayClick: () => void;
   onClientClick?: () => void;
+  onAttendanceToggle?: (attended: boolean) => Promise<void>;
 };
 
-const ParticipantRow: React.FC<Props> = ({ participant: p, index, onPayClick, onClientClick }) => {
+const ParticipantRow: React.FC<Props> = ({ participant: p, index, onPayClick, onClientClick, onAttendanceToggle }) => {
   const theme = useTheme();
+  const [attendanceBusy, setAttendanceBusy] = React.useState(false);
   const initials = p.patientName.split(" ").slice(0, 2).map((w) => w[0]).join("").toUpperCase();
   const isPaid = p.debt <= 0;
+
+  const handleAttendanceChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!onAttendanceToggle || attendanceBusy) return;
+    setAttendanceBusy(true);
+    try {
+      await onAttendanceToggle(e.target.checked);
+    } finally {
+      setAttendanceBusy(false);
+    }
+  };
 
   return (
     <Box
@@ -79,7 +93,23 @@ const ParticipantRow: React.FC<Props> = ({ participant: p, index, onPayClick, on
           />
           {p.debt > 0
             ? <Typography variant="caption" color="error.main" fontWeight={500}>Долг: {p.debt.toLocaleString()} с</Typography>
-            : <Typography variant="caption" color="success.main" fontWeight={500}>Оплачено</Typography>
+            : (
+              <Stack direction="row" alignItems="center" spacing={0.25}>
+                <Typography variant="caption" color="success.main" fontWeight={500}>Оплачено</Typography>
+                <Tooltip title={p.attended ? "Пришёл" : "Отметить как пришедшего"} disableInteractive>
+                  <span>
+                    <Checkbox
+                      size="small"
+                      checked={p.attended}
+                      onChange={handleAttendanceChange}
+                      disabled={attendanceBusy || !onAttendanceToggle}
+                      color="success"
+                      sx={{ p: 0.25, ml: 0.25 }}
+                    />
+                  </span>
+                </Tooltip>
+              </Stack>
+            )
           }
         </Stack>
       </Box>

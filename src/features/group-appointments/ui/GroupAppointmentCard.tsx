@@ -17,7 +17,7 @@ import ExpandMoreOutlined from "@mui/icons-material/ExpandMoreOutlined";
 import ExpandLessOutlined from "@mui/icons-material/ExpandLessOutlined";
 import dayjs from "dayjs";
 import type { AppointmentGroup, GroupAppointmentStatus, GroupParticipant } from "../model/types";
-import { updateParticipantStatus, payParticipant } from "../api/group-appointments.api";
+import { updateParticipantStatus, payParticipant, markAttendance } from "../api/group-appointments.api";
 import ParticipantRow from "./ParticipantRow";
 import type { Appointment } from "../../../pages/home/types";
 import { PaymentSidebar } from "../../../pages/home/components/PaymentSidebar";
@@ -77,6 +77,14 @@ const GroupAppointmentCard: React.FC<Props> = ({ group, onGroupUpdated, onAddPar
       participants: group.participants.map((p) => (p.id === participantId ? updated : p)),
     });
     setPaymentParticipant(null);
+  };
+
+  const handleAttendanceToggle = async (participantId: string, attended: boolean) => {
+    await markAttendance(participantId, attended);
+    onGroupUpdated({
+      ...group,
+      participants: group.participants.map((p) => p.id === participantId ? { ...p, attended } : p),
+    });
   };
 
   return (
@@ -158,6 +166,7 @@ const GroupAppointmentCard: React.FC<Props> = ({ group, onGroupUpdated, onAddPar
                 index={idx}
                 onStatusChange={(status) => handleStatusChange(participant.id, status)}
                 onPayClick={() => setPaymentParticipant(participant)}
+                onAttendanceToggle={(attended) => handleAttendanceToggle(participant.id, attended)}
               />
             ))}
           </Stack>
