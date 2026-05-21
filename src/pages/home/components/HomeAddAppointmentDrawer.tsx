@@ -9,10 +9,6 @@ import {
   CardContent,
   Chip,
   CircularProgress,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
   Divider,
   Drawer,
   FormControlLabel,
@@ -54,6 +50,7 @@ import { isOwnOnlySpecialist } from "../../../utils/permissionHelpers";
 
 import { createGroup } from "../../../features/group-appointments/api/group-appointments.api";
 import { clientScheduleApi } from "../../../features/client-schedule/api/client-schedule.api";
+import { PaymentSidebar } from "./PaymentSidebar";
 import CalendarMonthOutlined from "@mui/icons-material/CalendarMonthOutlined";
 
 export const noSpinnersSx = {
@@ -212,9 +209,8 @@ export const HomeAddAppointmentDrawer: React.FC<
 
   const [periodPaymentOpen, setPeriodPaymentOpen] = React.useState(false);
   const [periodCreatedAppointments, setPeriodCreatedAppointments] = React.useState<import("../types").Appointment[]>([]);
-  const [periodPaymentCash, setPeriodPaymentCash] = React.useState<number | "">("");
-  const [periodPaymentCard, setPeriodPaymentCard] = React.useState<number | "">("");
-  const [periodPaymentSaving, setPeriodPaymentSaving] = React.useState(false);
+  const [periodPaymentTotal, setPeriodPaymentTotal] = React.useState<number>(0);
+  const [periodPaymentContext, setPeriodPaymentContext] = React.useState<import("../types").Appointment | null>(null);
 
   const [isSaving, setIsSaving] = React.useState(false);
   const isSavingRef = React.useRef(false);
@@ -747,6 +743,12 @@ export const HomeAddAppointmentDrawer: React.FC<
 
         const hasPatient = !!selectedPatient;
         const servicePrice = periodServicePrice;
+        // Снимок данных для последующего открытия sidebar оплаты — берём ДО ресета формы.
+        const patientForPayment = selectedPatient;
+        const firstService = serviceRows[0];
+        const serviceNameForPayment = firstService?.serviceId
+          ? (allServicesOpts.find((s) => s.id === firstService.serviceId)?.name ?? "")
+          : "";
 
         setPeriodWeekdays([]);
         setPeriodStartDate(dayjs().format("YYYY-MM-DD"));
@@ -763,11 +765,34 @@ export const HomeAddAppointmentDrawer: React.FC<
           notify?.({ type: "success", message: `Создано ${periodDates.length} приёмов!` });
         }
 
-        // Предлагаем оплату за весь период если есть клиент и цена услуги
-        if (hasPatient && servicePrice && createdAppointments.length > 0 && failed.length === 0) {
-          setPeriodCreatedAppointments(createdAppointments as import("../types").Appointment[]);
-          setPeriodPaymentCash("");
-          setPeriodPaymentCard("");
+        // Предлагаем оплату за весь период если есть клиент, цена и валидные id созданных приёмов.
+        const validCreated = (createdAppointments as import("../types").Appointment[]).filter((a) => Boolean(a?.id));
+        if (hasPatient && servicePrice && validCreated.length > 0 && failed.length === 0) {
+          const total = servicePrice * validCreated.length;
+          const first = validCreated[0];
+          // Минимальный appointment-контекст для PaymentSidebar (даёт имя клиента и patient_id для совместимости).
+          const context: import("../types").Appointment = {
+            id: first?.id ?? "",
+            appointment_at: (first as any)?.appointmentAt ?? (first as any)?.appointment_at ?? "",
+            formatted_date: "",
+            doctor_name: "",
+            patient_name: patientForPayment?.fio ?? patientForPayment?.["ФИО клиента"] ?? "",
+            patient_id: patientForPayment?.id,
+            service_names: serviceNameForPayment,
+            status: "scheduled",
+            is_night: false,
+            total_cost: total,
+            total_amount: total,
+            paid_cash: 0,
+            paid_card: 0,
+            paid_balance: 0,
+            paid_bonuses: 0,
+            discount: 0,
+            debt: total,
+          };
+          setPeriodCreatedAppointments(validCreated);
+          setPeriodPaymentTotal(total);
+          setPeriodPaymentContext(context);
           setPeriodPaymentOpen(true);
         }
 
@@ -1728,127 +1753,26 @@ export const HomeAddAppointmentDrawer: React.FC<
         </Box>
       </Drawer>
 
-      <Dialog
+      <PaymentSidebar
         open={periodPaymentOpen}
         onClose={() => {
-          if (!periodPaymentSaving) {
-            setPeriodPaymentOpen(false);
-            setPeriodCreatedAppointments([]);
-          }
+          setPeriodPaymentOpen(false);
+          setPeriodCreatedAppointments([]);
+          setPeriodPaymentContext(null);
+          setPeriodPaymentTotal(0);
         }}
-        maxWidth="xs"
-        fullWidth
-      >
-        {(() => {
-          const totalPrice = periodServicePrice !== null
-            ? periodServicePrice * periodCreatedAppointments.length
-            : null;
-          const cashNum = Number(periodPaymentCash || 0);
-          const cardNum = Number(periodPaymentCard || 0);
-          const selectedType = cashNum > 0 ? "cash" : cardNum > 0 ? "card" : null;
-          const handlePeriodPaymentSave = async () => {
-            if (periodPaymentSaving || periodCreatedAppointments.length === 0 || !selectedType) return;
-            // Защита: не отправляем PATCH к /appointments/undefined/, если бэкенд не вернул id.
-            const validAppointments = periodCreatedAppointments.filter((appt) => Boolean(appt?.id));
-            if (validAppointments.length === 0) {
-              notify?.({ type: "error", message: "Не удалось определить созданные приёмы для оплаты" });
-              setPeriodPaymentOpen(false);
-              setPeriodCreatedAppointments([]);
-              return;
-            }
-            setPeriodPaymentSaving(true);
-            try {
-              const perAppt = periodServicePrice ?? 0;
-              await Promise.all(
-                validAppointments.map((appt) =>
-                  apiFetch(`/api/v1/appointments/${appt.id}/`, {
-                    method: "PATCH",
-                    body: JSON.stringify({
-                      paidCash: selectedType === "cash" ? perAppt : 0,
-                      paidCard: selectedType === "card" ? perAppt : 0,
-                      paidBalance: 0,
-                      paidBonuses: 0,
-                      discount: 0,
-                      adminComment: "",
-                    }),
-                  })
-                )
-              );
-              notify?.({ type: "success", message: `Оплата за ${validAppointments.length} приёмов принята` });
-              setPeriodPaymentOpen(false);
-              setPeriodCreatedAppointments([]);
-              onCreated?.();
-            } catch {
-              notify?.({ type: "error", message: "Ошибка при сохранении оплаты" });
-            } finally {
-              setPeriodPaymentSaving(false);
-            }
-          };
-          return (
-            <>
-              <DialogTitle>Принять оплату за период</DialogTitle>
-              <DialogContent>
-                <Stack spacing={2} sx={{ pt: 1 }}>
-                  {totalPrice !== null && (
-                    <Box sx={{ px: 1.5, py: 1, bgcolor: "action.selected", borderRadius: 1 }}>
-                      <Typography variant="body2" fontWeight={600}>
-                        Итого: {periodCreatedAppointments.length} × {periodServicePrice} = {totalPrice} сом
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        Каждый приём будет отмечен как оплаченный
-                      </Typography>
-                    </Box>
-                  )}
-                  <Typography variant="body2" color="text.secondary" fontWeight={500}>
-                    Способ оплаты
-                  </Typography>
-                  <Stack direction="row" spacing={1.5}>
-                    <Button
-                      variant={cashNum > 0 ? "contained" : "outlined"}
-                      color={cashNum > 0 ? "success" : "inherit"}
-                      size="small"
-                      fullWidth
-                      onClick={() => { setPeriodPaymentCash(cashNum > 0 ? "" : 1); setPeriodPaymentCard(""); }}
-                    >
-                      Наличные
-                    </Button>
-                    <Button
-                      variant={cardNum > 0 ? "contained" : "outlined"}
-                      color={cardNum > 0 ? "success" : "inherit"}
-                      size="small"
-                      fullWidth
-                      onClick={() => { setPeriodPaymentCard(cardNum > 0 ? "" : 1); setPeriodPaymentCash(""); }}
-                    >
-                      Безнал
-                    </Button>
-                  </Stack>
-                </Stack>
-              </DialogContent>
-              <DialogActions sx={{ px: 2.5, pb: 2 }}>
-                <Button
-                  variant="text"
-                  onClick={() => {
-                    setPeriodPaymentOpen(false);
-                    setPeriodCreatedAppointments([]);
-                  }}
-                  disabled={periodPaymentSaving}
-                >
-                  Пропустить
-                </Button>
-                <Button
-                  variant="contained"
-                  color="success"
-                  onClick={handlePeriodPaymentSave}
-                  disabled={periodPaymentSaving || !selectedType}
-                  startIcon={periodPaymentSaving ? <CircularProgress size={16} color="inherit" /> : undefined}
-                >
-                  Принять оплату
-                </Button>
-              </DialogActions>
-            </>
-          );
-        })()}
-      </Dialog>
+        appointment={periodPaymentContext}
+        bulkAppointmentIds={periodCreatedAppointments.map((a) => String(a?.id ?? "")).filter(Boolean)}
+        bulkTotalAmount={periodPaymentTotal}
+        bulkCount={periodCreatedAppointments.length}
+        onSaved={() => {
+          setPeriodPaymentOpen(false);
+          setPeriodCreatedAppointments([]);
+          setPeriodPaymentContext(null);
+          setPeriodPaymentTotal(0);
+          onCreated?.();
+        }}
+      />
 
       <AddPatientDrawer
         open={isPatientDrawerOpen}

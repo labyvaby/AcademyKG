@@ -33,7 +33,27 @@ type PaymentSidebarProps = {
     appointment: Appointment | null;
     onSaved: () => void;
     productsCost?: number;
+    /** Bulk/period mode: список id приёмов периода. Если задан и не пуст — sidebar работает как групповая оплата. */
+    bulkAppointmentIds?: string[];
+    /** Общая сумма за все приёмы периода. Используется как basePrice в bulk-режиме. */
+    bulkTotalAmount?: number;
+    /** Кол-во приёмов для отображения в заголовке bulk-режима. */
+    bulkCount?: number;
 };
+
+// Распределяет сумму между N приёмами по копейкам с учётом остатка.
+function distributeAmount(total: number, count: number): number[] {
+    if (count <= 0) return [];
+    const totalCents = Math.round(total * 100);
+    const baseCents = Math.floor(totalCents / count);
+    const remainderCents = totalCents - baseCents * count;
+    const shares: number[] = [];
+    for (let i = 0; i < count; i++) {
+        const c = baseCents + (i < remainderCents ? 1 : 0);
+        shares.push(c / 100);
+    }
+    return shares;
+}
 
 export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
     open,
@@ -41,7 +61,11 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
     appointment,
     onSaved,
     productsCost = 0,
+    bulkAppointmentIds,
+    bulkTotalAmount,
+    bulkCount,
 }) => {
+    const isBulkMode = Boolean(bulkAppointmentIds && bulkAppointmentIds.length > 0);
     const { open: notify } = useNotification();
     const [loading, setLoading] = useState(false);
 
@@ -82,7 +106,9 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
     let basePrice = 0;
     let servicesList: AppointmentServiceJson[] = [];
 
-    if (appointment) {
+    if (isBulkMode && typeof bulkTotalAmount === "number") {
+        basePrice = bulkTotalAmount;
+    } else if (appointment) {
         // Приоритет 1: total_amount из БД — базовая цена, сохранённая при создании/редактировании.
         // Это самый надёжный источник, не зависящий от текущих цен услуг.
         const storedAmount = Number(appointment.total_amount || 0);
@@ -135,6 +161,20 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
     };
 
     useEffect(() => {
+        if (open && isBulkMode) {
+            // Bulk-режим: всегда сбрасываем поля к "пусто" при открытии.
+            const bulkKey = `bulk:${(bulkAppointmentIds ?? []).join(",")}`;
+            if (lastInitializedId.current !== bulkKey) {
+                setCash("");
+                setCard("");
+                setBalanceUsed(0);
+                setPointsUsed(0);
+                setDiscountPercent(0);
+                setAdminComment("");
+                lastInitializedId.current = bulkKey;
+            }
+            return;
+        }
         if (open && appointment) {
             // Re-initialize every time the sidebar opens (even for the same appointment id)
             // so re-opened payments reflect the latest saved values
@@ -195,7 +235,7 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
     // Local preview only. Canonical debt/status comes from backend after save.
     const previewDebt = Math.max(0, finalPrice - totalPaid);
 
-    if (!appointment) return null;
+    if (!appointment && !isBulkMode) return null;
 
     const handleSaveFree = async () => {
         if (loading || !appointment) return;
@@ -251,8 +291,55 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
         }
     };
 
-    const handleSave = async () => {
+    const handleSaveBulk = async () => {
         if (loading) return;
+        const ids = bulkAppointmentIds ?? [];
+        if (ids.length === 0) {
+            notify?.({ type: "error", message: "Не указаны приёмы для оплаты" });
+            return;
+        }
+        if (ids.some((id) => !id)) {
+            notify?.({ type: "error", message: "Не удалось определить созданные приёмы для оплаты" });
+            return;
+        }
+        const cashShares = distributeAmount(cashNum, ids.length);
+        const cardShares = distributeAmount(cardNum, ids.length);
+        const discountShares = distributeAmount(discountAmount, ids.length);
+        try {
+            setLoading(true);
+            // Promise.all останавливается при первой ошибке — частично "оплаченные" приёмы остаются с обновлёнными
+            // полями, но ошибка отображается пользователю; рассинхрон возможен в случае сетевых сбоев.
+            await Promise.all(
+                ids.map((id, idx) =>
+                    apiFetch(`/api/v1/appointments/${id}/`, {
+                        method: "PATCH",
+                        body: JSON.stringify({
+                            paidCash: cashShares[idx] ?? 0,
+                            paidCard: cardShares[idx] ?? 0,
+                            paidBalance: 0,
+                            paidBonuses: 0,
+                            discount: discountShares[idx] ?? 0,
+                            adminComment: adminComment,
+                        }),
+                    })
+                )
+            );
+            notify?.({ type: "success", message: `Оплата за ${ids.length} приёмов сохранена` });
+            queryClient.invalidateQueries({ queryKey: ["appointments", "daily"] });
+            onSaved();
+            onClose();
+        } catch (e: unknown) {
+            const message = e && typeof e === "object" && "message" in e ? String((e as { message?: unknown }).message) : String(e);
+            notify?.({ type: "error", message: "Ошибка при сохранении оплаты за период", description: message });
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleSave = async () => {
+        if (isBulkMode) return handleSaveBulk();
+        if (loading) return;
+        if (!appointment) return;
 
         // Capture prev values BEFORE any optimistic updates
         const prevBalance = appointment.paid_balance || 0;
@@ -412,7 +499,7 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
             }}
         >
             <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", px: 2, py: 1.5 }}>
-                <Typography variant="h6">Оплата приема</Typography>
+                <Typography variant="h6">{isBulkMode ? "Оплата за период" : "Оплата приема"}</Typography>
                 <IconButton onClick={onClose}><CloseOutlined /></IconButton>
             </Box>
 
@@ -444,50 +531,54 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
                         {/* Patient Info & Balance Section */}
                         <Box>
                             <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.5, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                                Клиент
+                                {isBulkMode ? "Приёмы периода" : "Клиент"}
                             </Typography>
                             <Typography variant="body1" sx={{ mb: 2, fontWeight: 600 }}>
-                                {appointment.patient_name}
+                                {isBulkMode
+                                    ? `${bulkCount ?? (bulkAppointmentIds?.length ?? 0)} ${(bulkCount ?? (bulkAppointmentIds?.length ?? 0)) === 1 ? "приём" : "приёмов"}${appointment?.patient_name ? ` — ${appointment.patient_name}` : ""}`
+                                    : appointment?.patient_name}
                             </Typography>
 
-                            <Stack spacing={0.5}>
-                                <Stack direction="row" justifyContent="space-between" alignItems="center">
-                                    <Typography variant="caption" color="text.secondary">
-                                        Со счёта / баллов
-                                    </Typography>
-                                    <Typography variant="caption" color="success.main" fontWeight={600}>
-                                        доступно: {((patientBalance?.balance ?? 0) + (patientBalance?.bonuses ?? 0)).toLocaleString()} сом
-                                    </Typography>
+                            {!isBulkMode && (
+                                <Stack spacing={0.5}>
+                                    <Stack direction="row" justifyContent="space-between" alignItems="center">
+                                        <Typography variant="caption" color="text.secondary">
+                                            Со счёта / баллов
+                                        </Typography>
+                                        <Typography variant="caption" color="success.main" fontWeight={600}>
+                                            доступно: {((patientBalance?.balance ?? 0) + (patientBalance?.bonuses ?? 0)).toLocaleString()} сом
+                                        </Typography>
+                                    </Stack>
+                                    <Stack direction="row" alignItems="center" spacing={0} sx={{ border: '1px solid', borderColor: (balanceUsed + pointsUsed) > 0 ? 'success.main' : 'divider', borderRadius: 1, bgcolor: 'background.paper', transition: 'border-color 0.2s' }}>
+                                        <Box px={1}><AccountBalanceWalletOutlined sx={{ fontSize: 18, color: (balanceUsed + pointsUsed) > 0 ? 'success.main' : 'action.active' }} /></Box>
+                                        <TextField
+                                            variant="standard"
+                                            fullWidth
+                                            type="number"
+                                            value={(balanceUsed + pointsUsed) === 0 ? "" : balanceUsed + pointsUsed}
+                                            onChange={(e) => {
+                                                if (e.target.value === "") {
+                                                    setBalanceUsed(0);
+                                                    setPointsUsed(0);
+                                                } else {
+                                                    const val = Number(e.target.value);
+                                                    const maxAvailable = (patientBalance?.balance ?? 0) + (patientBalance?.bonuses ?? 0);
+                                                    const maxAllowed = Math.max(0, finalPrice - cashNum - cardNum);
+                                                    const clamped = Math.min(val, maxAvailable, maxAllowed);
+                                                    // Сначала используем баланс, потом баллы
+                                                    const fromBalance = Math.min(clamped, patientBalance?.balance ?? 0);
+                                                    const fromBonuses = clamped - fromBalance;
+                                                    setBalanceUsed(fromBalance);
+                                                    setPointsUsed(fromBonuses);
+                                                }
+                                            }}
+                                            InputProps={{ disableUnderline: true }}
+                                            sx={{ py: 0.5, ...noSpinnersSx }}
+                                            placeholder="0"
+                                        />
+                                    </Stack>
                                 </Stack>
-                                <Stack direction="row" alignItems="center" spacing={0} sx={{ border: '1px solid', borderColor: (balanceUsed + pointsUsed) > 0 ? 'success.main' : 'divider', borderRadius: 1, bgcolor: 'background.paper', transition: 'border-color 0.2s' }}>
-                                    <Box px={1}><AccountBalanceWalletOutlined sx={{ fontSize: 18, color: (balanceUsed + pointsUsed) > 0 ? 'success.main' : 'action.active' }} /></Box>
-                                    <TextField
-                                        variant="standard"
-                                        fullWidth
-                                        type="number"
-                                        value={(balanceUsed + pointsUsed) === 0 ? "" : balanceUsed + pointsUsed}
-                                        onChange={(e) => {
-                                            if (e.target.value === "") {
-                                                setBalanceUsed(0);
-                                                setPointsUsed(0);
-                                            } else {
-                                                const val = Number(e.target.value);
-                                                const maxAvailable = (patientBalance?.balance ?? 0) + (patientBalance?.bonuses ?? 0);
-                                                const maxAllowed = Math.max(0, finalPrice - cashNum - cardNum);
-                                                const clamped = Math.min(val, maxAvailable, maxAllowed);
-                                                // Сначала используем баланс, потом баллы
-                                                const fromBalance = Math.min(clamped, patientBalance?.balance ?? 0);
-                                                const fromBonuses = clamped - fromBalance;
-                                                setBalanceUsed(fromBalance);
-                                                setPointsUsed(fromBonuses);
-                                            }
-                                        }}
-                                        InputProps={{ disableUnderline: true }}
-                                        sx={{ py: 0.5, ...noSpinnersSx }}
-                                        placeholder="0"
-                                    />
-                                </Stack>
-                            </Stack>
+                            )}
                         </Box>
 
                         <Divider sx={{ my: 1 }} />
@@ -694,11 +785,13 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
                     >
                         {loading ? (
                             <CircularProgress size={24} color="inherit" />
+                        ) : isBulkMode ? (
+                            "Подтвердить оплату"
                         ) : (
-                            (appointment.paid_cash || 0) > 0 ||
-                            (appointment.paid_card || 0) > 0 ||
-                            (appointment.paid_balance || 0) > 0 ||
-                            (appointment.paid_bonuses || 0) > 0
+                            (appointment?.paid_cash || 0) > 0 ||
+                            (appointment?.paid_card || 0) > 0 ||
+                            (appointment?.paid_balance || 0) > 0 ||
+                            (appointment?.paid_bonuses || 0) > 0
                                 ? "Обновить оплату"
                                 : "Подтвердить оплату"
                         )}
