@@ -265,15 +265,20 @@ export const HomePage: React.FC = () => {
     setDayCounts(counts);
   }, [rangeData, rangeGroupData]);
 
+  // Храним refetchAppointments в ref чтобы не попадать в deps useEffect —
+  // сама функция пересоздаётся при каждом рендере и вызывала бесконечный loop
+  // через setOnRefresh → ре-рендер → новый refetch → снова эффект.
+  const refetchRef = React.useRef(refetchAppointments);
+  refetchRef.current = refetchAppointments;
+
   useEffect(() => {
-    const handleRefresh = () => {
-      refetchAppointments();
-    };
-    setOnRefresh(() => handleRefresh);
+    setOnRefresh(() => () => refetchRef.current());
     return () => {
       setOnRefresh(null);
     };
-  }, [setOnRefresh, refetchAppointments]);
+  // setOnRefresh — стабильный setter из useState, не меняется. refetchRef — ref, не входит в deps.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [setOnRefresh]);
 
   // Derived
   const ruDateFromInput = React.useMemo(() => {
