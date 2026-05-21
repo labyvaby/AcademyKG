@@ -22,6 +22,10 @@ function toParticipant(r: any): GroupParticipant {
     patientPhoto: r.patientPhoto ?? r.patient_photo ?? null,
     status: r.status ?? "scheduled",
     total: Number(r.total ?? 0),
+    totalAmount: r.totalAmount !== undefined || r.total_amount !== undefined
+      ? Number(r.totalAmount ?? r.total_amount ?? 0)
+      : undefined,
+    discount: r.discount !== undefined ? Number(r.discount) : undefined,
     paidCash: Number(r.paidCash ?? r.paid_cash ?? 0),
     paidCard: Number(r.paidCard ?? r.paid_card ?? 0),
     paidBalance: Number(r.paidBalance ?? r.paid_balance ?? 0),

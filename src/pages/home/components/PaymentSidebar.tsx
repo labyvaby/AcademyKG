@@ -67,6 +67,32 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
 }) => {
     const isBulkMode = Boolean(bulkAppointmentIds && bulkAppointmentIds.length > 0);
     const { open: notify } = useNotification();
+
+    // Автоматическая скидка для ребёнка сотрудника: подгружаем клиента и читаем процент.
+    const [employeeChildPercent, setEmployeeChildPercent] = useState<number | null>(null);
+    useEffect(() => {
+        if (!open || !appointment?.patient_id) {
+            setEmployeeChildPercent(null);
+            return;
+        }
+        let cancelled = false;
+        apiFetch(`/api/v1/clients/${appointment.patient_id}/`)
+            .then((r: any) => {
+                if (cancelled) return;
+                const data = r?.data ?? r;
+                const isChild = Boolean(data?.isEmployeeChild ?? data?.is_employee_child);
+                const pct = data?.employeeChildDiscountPercent ?? data?.employee_child_discount_percent;
+                if (isChild && pct !== null && pct !== undefined && Number(pct) > 0) {
+                    setEmployeeChildPercent(Number(pct));
+                } else {
+                    setEmployeeChildPercent(null);
+                }
+            })
+            .catch(() => {
+                if (!cancelled) setEmployeeChildPercent(null);
+            });
+        return () => { cancelled = true; };
+    }, [open, appointment?.patient_id]);
     const [loading, setLoading] = useState(false);
 
     // Form State
@@ -220,6 +246,13 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [open, appointment?.id]);
+
+    // Если клиент — ребёнок сотрудника, форсим процент скидки на значение из карточки клиента.
+    useEffect(() => {
+        if (open && employeeChildPercent !== null) {
+            setDiscountPercent(employeeChildPercent);
+        }
+    }, [open, employeeChildPercent]);
 
     // Calculate Discount Amount
     const discountAmount = Math.round((basePrice * discountPercent) / 100);
@@ -607,6 +640,8 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
                                         onChange={(e) => setDiscountPercent(Math.min(100, Math.max(0, Number(e.target.value) || 0)))}
                                         inputProps={{ min: 0, max: 100, style: { textAlign: 'center' } }}
                                         sx={{ ...noSpinnersSx }}
+                                        disabled={employeeChildPercent !== null}
+                                        helperText={employeeChildPercent !== null ? "Авто: ребёнок сотрудника" : undefined}
                                     />
                                 </Box>
                             </Stack>

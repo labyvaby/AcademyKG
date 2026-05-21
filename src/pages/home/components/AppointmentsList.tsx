@@ -821,6 +821,18 @@ export const AppointmentsList: React.FC<AppointmentsListProps & { onAddSlot?: (d
                       const bonuses = Number(a.paid_bonuses || 0);
                       const statusConfig = getStatusConfig(a.status);
                       const hasPaymentBreakdown = cash > 0 || card > 0 || balance > 0 || bonuses > 0;
+                      // Скидка: process discount and compute percent for badge
+                      const baseAmount = Number(a.total_amount || a.total_cost || a.estimated_total || 0);
+                      const discountAbs = Number(a.discount || 0);
+                      const discountPct = baseAmount > 0 && discountAbs > 0
+                          ? Math.round((discountAbs / baseAmount) * 100)
+                          : 0;
+                      // Компактный список способов оплаты (только > 0).
+                      const paymentParts: string[] = [];
+                      if (cash > 0) paymentParts.push(`Нал: ${formatKGS(cash)}`);
+                      if (card > 0) paymentParts.push(`Безнал: ${formatKGS(card)}`);
+                      if (balance > 0) paymentParts.push(`Счёт: ${formatKGS(balance)}`);
+                      if (bonuses > 0) paymentParts.push(`Баллы: ${formatKGS(bonuses)}`);
                       return (
                         <Box
                           key={a.id}
@@ -842,6 +854,15 @@ export const AppointmentsList: React.FC<AppointmentsListProps & { onAddSlot?: (d
                                   size="small"
                                   sx={getStatusChipSx(a.status)}
                                 />
+                                {discountPct > 0 && (
+                                  <Chip
+                                    label={`Со скидкой ${discountPct}%`}
+                                    size="small"
+                                    color="secondary"
+                                    variant="outlined"
+                                    sx={{ height: 22, fontSize: "0.7rem", fontWeight: 500 }}
+                                  />
+                                )}
                                 {hasPaymentBreakdown && (
                                   <Stack direction="row" alignItems="center" gap={0.25} color="text.secondary">
                                     {cash > 0 && <PaymentsOutlined sx={{ fontSize: 16 }} />}
@@ -856,7 +877,12 @@ export const AppointmentsList: React.FC<AppointmentsListProps & { onAddSlot?: (d
                               </Stack>
                               {(a.total_amount != null || a.total_cost != null || a.estimated_total != null) && (
                                 <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                                  Итого: {formatKGS(Number(a.total_amount || a.total_cost || a.estimated_total || 0))}
+                                  Итого: {formatKGS(Number(a.total_amount || a.total_cost || a.estimated_total || 0) - discountAbs)}
+                                </Typography>
+                              )}
+                              {paymentParts.length > 0 && (
+                                <Typography variant="caption" color="text.secondary" sx={{ mt: 0.25 }}>
+                                  {paymentParts.join(" / ")}
                                 </Typography>
                               )}
                             </Stack>

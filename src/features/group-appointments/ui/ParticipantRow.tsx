@@ -30,6 +30,19 @@ const ParticipantRow: React.FC<Props> = ({ participant: p, index, onPayClick, on
   const initials = p.patientName.split(" ").slice(0, 2).map((w) => w[0]).join("").toUpperCase();
   const isPaid = p.debt <= 0;
 
+  // Скидка по приёму участника (бейдж "Со скидкой X%")
+  const baseAmount = Number(p.totalAmount ?? 0) || Number(p.total ?? 0);
+  const discountAbs = Number(p.discount ?? 0);
+  const discountPct = baseAmount > 0 && discountAbs > 0
+    ? Math.round((discountAbs / baseAmount) * 100)
+    : 0;
+  // Компактный список фактических способов оплаты
+  const paymentParts: string[] = [];
+  if (p.paidCash > 0) paymentParts.push(`Нал: ${p.paidCash.toLocaleString()}`);
+  if (p.paidCard > 0) paymentParts.push(`Безнал: ${p.paidCard.toLocaleString()}`);
+  if (p.paidBalance > 0) paymentParts.push(`Счёт: ${p.paidBalance.toLocaleString()}`);
+  const hasPayment = paymentParts.length > 0;
+
   const handleAttendanceChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!onAttendanceToggle || attendanceBusy) return;
     setAttendanceBusy(true);
@@ -111,7 +124,21 @@ const ParticipantRow: React.FC<Props> = ({ participant: p, index, onPayClick, on
               </Stack>
             )
           }
+          {discountPct > 0 && (
+            <Chip
+              label={`Со скидкой ${discountPct}%`}
+              size="small"
+              color="secondary"
+              variant="outlined"
+              sx={{ height: 18, fontSize: "0.6rem", fontWeight: 500, "& .MuiChip-label": { px: 0.5 } }}
+            />
+          )}
         </Stack>
+        {hasPayment && isPaid && (
+          <Typography variant="caption" color="text.disabled" sx={{ display: "block", mt: 0.25, fontSize: "0.65rem" }}>
+            {paymentParts.join(" / ")}
+          </Typography>
+        )}
       </Box>
 
       {/* Index */}

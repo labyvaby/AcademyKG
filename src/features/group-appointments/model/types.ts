@@ -43,6 +43,8 @@ export type GroupParticipant = {
   patientPhoto?: string | null;
   status: GroupAppointmentStatus;
   total: number;
+  totalAmount?: number;
+  discount?: number;
   paidCash: number;
   paidCard: number;
   paidBalance: number; // баланс клиента (нал+безнал)

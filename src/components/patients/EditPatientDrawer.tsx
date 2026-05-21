@@ -103,6 +103,12 @@ const EditPatientDrawer: React.FC<Props> = ({
   const [responsiblePersonErrors, setResponsiblePersonErrors] = React.useState<ResponsiblePersonFieldErrors[]>([]);
   const [isBlacklisted, setIsBlacklisted] = React.useState(false);
   const [blacklistReason, setBlacklistReason] = React.useState("");
+
+  // Ребёнок сотрудника + автоматическая скидка при оплате
+  const [isEmployeeChild, setIsEmployeeChild] = React.useState(false);
+  const [employeeParentId, setEmployeeParentId] = React.useState<string>("");
+  const [employeeChildDiscountPercent, setEmployeeChildDiscountPercent] = React.useState<string>("");
+  const [employeesList, setEmployeesList] = React.useState<{ id: string; fullName: string }[]>([]);
   const [busy, setBusy] = React.useState(false);
   const [touched, setTouched] = React.useState(false);
 
@@ -128,6 +134,21 @@ const EditPatientDrawer: React.FC<Props> = ({
 
   const showSnack = (message: string, severity: "success" | "error" = "success") =>
     setSnack({ open: true, message, severity });
+
+  React.useEffect(() => {
+    if (!open || employeesList.length > 0) return;
+    apiFetch("/api/v1/employees/?status=active&pageSize=500&ordering=fullName")
+      .then((r: any) => {
+        const list: any[] = r?.data?.results ?? r?.results ?? r?.data ?? [];
+        setEmployeesList(
+          list.map((e: any) => ({
+            id: String(e.id ?? ""),
+            fullName: String(e.fullName ?? e.full_name ?? e.id ?? ""),
+          })).filter((e) => e.id),
+        );
+      })
+      .catch(() => {});
+  }, [open, employeesList.length]);
 
   React.useEffect(() => {
     if (!open) return;
@@ -194,6 +215,10 @@ const EditPatientDrawer: React.FC<Props> = ({
         );
         const blacklistRaw = Boolean(data?.isBlacklisted ?? false);
         const reasonRaw = String(data?.blacklistReason ?? "");
+        const isEmpChild = Boolean(data?.isEmployeeChild ?? false);
+        const empParent = data?.employeeParent ?? null;
+        const empParentId = typeof empParent === "string" ? empParent : String(empParent?.id ?? "");
+        const empDiscount = data?.employeeChildDiscountPercent;
 
         setFio(fioVal);
         const parsed = parsePhone(phoneRaw);
@@ -207,6 +232,11 @@ const EditPatientDrawer: React.FC<Props> = ({
         setResponsiblePersonErrors([]);
         setIsBlacklisted(blacklistRaw);
         setBlacklistReason(reasonRaw);
+        setIsEmployeeChild(isEmpChild);
+        setEmployeeParentId(empParentId);
+        setEmployeeChildDiscountPercent(
+          empDiscount === null || empDiscount === undefined ? "" : String(empDiscount),
+        );
         setExistingPhoto(photoRaw);
         setPhotoPreview(photoRaw);
         setPhotoFile(null);
@@ -366,12 +396,30 @@ const EditPatientDrawer: React.FC<Props> = ({
       setBusy(true);
       const fullPhone = composePhone(phoneCountryCode, phone);
 
+      // Валидация полей "ребёнок сотрудника" на фронте — backend дублирует это сам.
+      let employeeChildPercentNum: number | null = null;
+      if (isEmployeeChild) {
+        if (!employeeParentId) {
+          notify?.({ type: "error", message: "Выберите сотрудника-родителя" });
+          return;
+        }
+        const parsed = Number(employeeChildDiscountPercent);
+        if (!Number.isFinite(parsed) || parsed < 0 || parsed > 100) {
+          notify?.({ type: "error", message: "Процент скидки должен быть от 0 до 100" });
+          return;
+        }
+        employeeChildPercentNum = Math.round(parsed);
+      }
+
       const body: Record<string, any> = {
         fullName: fioTrim,
         inn: inn.trim(),
         isBlacklisted,
         blacklistReason: isBlacklisted ? blacklistReason.trim() : "",
         responsiblePersons: responsiblePersonsPayload,
+        isEmployeeChild,
+        employeeParent: isEmployeeChild ? employeeParentId : null,
+        employeeChildDiscountPercent: isEmployeeChild ? employeeChildPercentNum : null,
       };
       if (birth) body.birthDate = birth.slice(0, 10);
       if (fullPhone) body.phone = fullPhone;
@@ -644,6 +692,56 @@ const EditPatientDrawer: React.FC<Props> = ({
                   )}
                 </Box>
               )}
+
+              {/* Ребёнок сотрудника */}
+              <Box sx={{ border: "1px solid", borderColor: "divider", borderRadius: 1, p: 2 }}>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={isEmployeeChild}
+                      onChange={(e) => setIsEmployeeChild(e.target.checked)}
+                      color="success"
+                    />
+                  }
+                  label={
+                    <Typography
+                      variant="body2"
+                      sx={{ fontWeight: 600, color: isEmployeeChild ? "success.main" : "text.primary" }}
+                    >
+                      Ребёнок сотрудника
+                    </Typography>
+                  }
+                />
+                {isEmployeeChild && (
+                  <Stack spacing={1.5} sx={{ mt: 1 }}>
+                    <TextField
+                      select
+                      SelectProps={{ native: true }}
+                      label="Сотрудник-родитель"
+                      fullWidth
+                      value={employeeParentId}
+                      onChange={(e) => setEmployeeParentId(e.target.value)}
+                      error={!employeeParentId}
+                      helperText={!employeeParentId ? "Выберите сотрудника" : undefined}
+                    >
+                      <option value="">— не выбран —</option>
+                      {employeesList.map((emp) => (
+                        <option key={emp.id} value={emp.id}>{emp.fullName}</option>
+                      ))}
+                    </TextField>
+                    <TextField
+                      label="Скидка, %"
+                      type="number"
+                      inputProps={{ min: 0, max: 100, step: 1 }}
+                      fullWidth
+                      value={employeeChildDiscountPercent}
+                      onChange={(e) => setEmployeeChildDiscountPercent(e.target.value)}
+                      error={!employeeChildDiscountPercent || Number(employeeChildDiscountPercent) < 0 || Number(employeeChildDiscountPercent) > 100}
+                      helperText="От 0 до 100. Применяется автоматически в сайдбаре оплаты."
+                    />
+                  </Stack>
+                )}
+              </Box>
 
               {/* Документы */}
               <Stack spacing={1}>

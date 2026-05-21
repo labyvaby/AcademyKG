@@ -116,6 +116,24 @@ const AddPatientDrawer: React.FC<Props> = ({ open, onClose, onCreated, initialPh
   const [photoFile, setPhotoFile] = React.useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = React.useState<string | null>(null);
 
+  // Ребёнок сотрудника + автоматическая скидка при оплате
+  const [isEmployeeChild, setIsEmployeeChild] = React.useState(false);
+  const [employeeParentId, setEmployeeParentId] = React.useState<string>("");
+  const [employeeChildDiscountPercent, setEmployeeChildDiscountPercent] = React.useState<string>("");
+  const [employeesList, setEmployeesList] = React.useState<{ id: string; fullName: string }[]>([]);
+  React.useEffect(() => {
+    if (!open || employeesList.length > 0) return;
+    apiFetch("/api/v1/employees/?status=active&pageSize=500&ordering=fullName")
+      .then((r: any) => {
+        const list: any[] = r?.data?.results ?? r?.results ?? r?.data ?? [];
+        setEmployeesList(list.map((e: any) => ({
+          id: String(e.id ?? ""),
+          fullName: String(e.fullName ?? e.full_name ?? e.id ?? ""),
+        })).filter((e) => e.id));
+      })
+      .catch(() => {});
+  }, [open, employeesList.length]);
+
   const canManageBlacklist = useHasRole(['superadmin', 'admin', 'receptionist']);
   const { employee } = usePermissions();
   const [docFiles, setDocFiles] = React.useState<File[]>([]);
@@ -304,6 +322,24 @@ const AddPatientDrawer: React.FC<Props> = ({ open, onClose, onCreated, initialPh
       if (inn.trim()) body.inn = inn.trim();
       body.isBlacklisted = isBlacklisted;
       if (isBlacklisted && blacklistReason.trim()) body.blacklistReason = blacklistReason.trim();
+
+      // Ребёнок сотрудника + автоматическая скидка
+      if (isEmployeeChild) {
+        if (!employeeParentId) {
+          notify?.({ type: "error", message: "Выберите сотрудника-родителя" });
+          setBusy(false);
+          return;
+        }
+        const parsed = Number(employeeChildDiscountPercent);
+        if (!Number.isFinite(parsed) || parsed < 0 || parsed > 100) {
+          notify?.({ type: "error", message: "Процент скидки должен быть от 0 до 100" });
+          setBusy(false);
+          return;
+        }
+        body.isEmployeeChild = true;
+        body.employeeParent = employeeParentId;
+        body.employeeChildDiscountPercent = Math.round(parsed);
+      }
       if (selectedBranchId) body.branch = selectedBranchId;
       if (selectedOrganizationId) body.organization = selectedOrganizationId;
 
@@ -564,6 +600,53 @@ const AddPatientDrawer: React.FC<Props> = ({ open, onClose, onCreated, initialPh
                 )}
               </Box>
             )}
+
+            {/* Ребёнок сотрудника */}
+            <Box sx={{ border: "1px solid", borderColor: "divider", borderRadius: 1, p: 2 }}>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={isEmployeeChild}
+                    onChange={(e) => setIsEmployeeChild(e.target.checked)}
+                    color="success"
+                  />
+                }
+                label={
+                  <Typography variant="body2" sx={{ fontWeight: 600, color: isEmployeeChild ? "success.main" : "text.primary" }}>
+                    Ребёнок сотрудника
+                  </Typography>
+                }
+              />
+              {isEmployeeChild && (
+                <Stack spacing={1.5} sx={{ mt: 1 }}>
+                  <TextField
+                    select
+                    SelectProps={{ native: true }}
+                    label="Сотрудник-родитель"
+                    fullWidth
+                    value={employeeParentId}
+                    onChange={(e) => setEmployeeParentId(e.target.value)}
+                    error={!employeeParentId}
+                    helperText={!employeeParentId ? "Выберите сотрудника" : undefined}
+                  >
+                    <option value="">— не выбран —</option>
+                    {employeesList.map((emp) => (
+                      <option key={emp.id} value={emp.id}>{emp.fullName}</option>
+                    ))}
+                  </TextField>
+                  <TextField
+                    label="Скидка, %"
+                    type="number"
+                    inputProps={{ min: 0, max: 100, step: 1 }}
+                    fullWidth
+                    value={employeeChildDiscountPercent}
+                    onChange={(e) => setEmployeeChildDiscountPercent(e.target.value)}
+                    error={!employeeChildDiscountPercent || Number(employeeChildDiscountPercent) < 0 || Number(employeeChildDiscountPercent) > 100}
+                    helperText="От 0 до 100. Применяется автоматически в сайдбаре оплаты."
+                  />
+                </Stack>
+              )}
+            </Box>
 
             {/* Документы */}
             <Stack spacing={0.5}>
