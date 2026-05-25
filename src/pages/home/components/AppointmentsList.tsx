@@ -13,6 +13,7 @@ import {
   LinearProgress,
 } from "@mui/material";
 import { useTheme, alpha } from "@mui/material/styles";
+import type { SxProps, Theme } from "@mui/material";
 import FilterListOutlined from "@mui/icons-material/FilterListOutlined";
 import GroupsOutlined from "@mui/icons-material/GroupsOutlined";
 import PaymentsOutlined from "@mui/icons-material/PaymentsOutlined";
@@ -827,12 +828,20 @@ export const AppointmentsList: React.FC<AppointmentsListProps & { onAddSlot?: (d
                       const discountPct = baseAmount > 0 && discountAbs > 0
                           ? Math.round((discountAbs / baseAmount) * 100)
                           : 0;
-                      // Компактный список способов оплаты (только > 0).
-                      const paymentParts: string[] = [];
-                      if (cash > 0) paymentParts.push(`Нал: ${formatKGS(cash)}`);
-                      if (card > 0) paymentParts.push(`Безнал: ${formatKGS(card)}`);
-                      if (balance > 0) paymentParts.push(`Счёт: ${formatKGS(balance)}`);
-                      if (bonuses > 0) paymentParts.push(`Баллы: ${formatKGS(bonuses)}`);
+                      // Цвет чипа «Оплачено»: безнал (карта+баланс+бонусы) >= нал → синий, иначе зелёный
+                      const isPaid = a.status?.trim().toLowerCase() === "оплачено" || a.status?.trim().toLowerCase() === "paid";
+                      const nonCash = card + balance + bonuses;
+                      const paidChipSx: SxProps<Theme> = isPaid && nonCash >= cash && (cash > 0 || nonCash > 0)
+                        ? (theme: Theme) => ({
+                            backgroundColor: alpha(theme.palette.info.main, theme.palette.mode === "dark" ? 0.2 : 0.12),
+                            color: theme.palette.mode === "dark" ? theme.palette.info.light : theme.palette.info.dark,
+                            fontWeight: 500,
+                            fontSize: "0.75rem",
+                            height: "22px",
+                            "& .MuiChip-icon": { color: theme.palette.mode === "dark" ? theme.palette.info.light : theme.palette.info.dark },
+                            "&:hover": { opacity: 0.9 },
+                          })
+                        : getStatusChipSx(a.status);
                       return (
                         <Box
                           key={a.id}
@@ -852,7 +861,7 @@ export const AppointmentsList: React.FC<AppointmentsListProps & { onAddSlot?: (d
                                   label={statusConfig.label}
                                   icon={statusConfig.icon}
                                   size="small"
-                                  sx={getStatusChipSx(a.status)}
+                                  sx={paidChipSx}
                                 />
                                 {discountPct > 0 && (
                                   <Chip
@@ -878,11 +887,6 @@ export const AppointmentsList: React.FC<AppointmentsListProps & { onAddSlot?: (d
                               {(a.total_amount != null || a.total_cost != null || a.estimated_total != null) && (
                                 <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
                                   Итого: {formatKGS(Number(a.total_amount || a.total_cost || a.estimated_total || 0) - discountAbs)}
-                                </Typography>
-                              )}
-                              {paymentParts.length > 0 && (
-                                <Typography variant="caption" color="text.secondary" sx={{ mt: 0.25 }}>
-                                  {paymentParts.join(" / ")}
                                 </Typography>
                               )}
                             </Stack>
