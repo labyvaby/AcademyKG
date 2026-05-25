@@ -771,6 +771,8 @@ const EditAppointmentSidebar: React.FC<EditAppointmentSidebarProps> = ({
                       {/* Кнопка добавить услугу */}
                       <Button
                         size="small"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onTouchStart={(e) => e.currentTarget.blur()}
                         onClick={() => {
                           // Копируем сотрудника из последней строки для удобства
                           const lastRow = serviceRows[serviceRows.length - 1];
@@ -787,7 +789,12 @@ const EditAppointmentSidebar: React.FC<EditAppointmentSidebarProps> = ({
                             },
                           ]);
                         }}
-                        sx={{ alignSelf: "flex-start", mt: "4px !important" }}
+                        sx={{
+                          alignSelf: "flex-start",
+                          mt: "4px !important",
+                          "&:focus-visible": { outline: "none" },
+                          "&.Mui-focusVisible": { boxShadow: "none" },
+                        }}
                       >
                         + Добавить услугу
                       </Button>

@@ -385,7 +385,7 @@ const CategoriesPage: React.FC = () => {
           )}
 
           {/* Список */}
-          <Box sx={{ flex: 1, minHeight: 0, overflowY: "auto", WebkitOverflowScrolling: "touch" }}>
+          <Box sx={{ flex: 1, minHeight: 0, overflowY: "auto", WebkitOverflowScrolling: "touch", pb: "calc(env(safe-area-inset-bottom, 0px) + 16px)" }}>
             {loading ? (
               <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", p: 6 }}>
                 <CircularProgress />

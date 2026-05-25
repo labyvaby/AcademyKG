@@ -966,6 +966,9 @@ const ExpensesListPage: React.FC = () => {
         <Tabs
           value={activeTab}
           onChange={(_, v) => setActiveTab(v)}
+          variant="scrollable"
+          scrollButtons="auto"
+          allowScrollButtonsMobile
           sx={{
             minHeight: 44,
             "& .MuiTabs-indicator": {
@@ -1007,7 +1010,7 @@ const ExpensesListPage: React.FC = () => {
           minHeight: 0,
           overflowY: "auto",
           overflowX: "hidden",
-          pb: theme.appLayout.page.paddingY,
+          pb: { xs: "calc(env(safe-area-inset-bottom, 0px) + 24px)", md: theme.appLayout.page.paddingY },
           WebkitOverflowScrolling: "touch",
           scrollbarWidth: 'none',
           msOverflowStyle: 'none',

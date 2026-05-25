@@ -126,7 +126,7 @@ export const useAppointmentDetails = (appointmentId: string | null) => {
             }
         },
         enabled: !!appointmentId,
-        staleTime: 5000,
+        staleTime: 0,
     });
 
     const refresh = () => {

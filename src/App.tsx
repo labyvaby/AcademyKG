@@ -9,7 +9,9 @@ import {
 
 import CssBaseline from "@mui/material/CssBaseline";
 import GlobalStyles from "@mui/material/GlobalStyles";
-import { useMediaQuery, useTheme } from "@mui/material";
+import { useMediaQuery, useTheme, IconButton } from "@mui/material";
+import CloseIcon from "@mui/icons-material/Close";
+import { useSnackbar, type SnackbarKey } from "notistack";
 import LinearProgress from "@mui/material/LinearProgress";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
@@ -35,7 +37,7 @@ import { ProtectedRoute } from "./components/rbac/ProtectedRoute";
 import { BranchProvider } from "./contexts/branch-context";
 // import { RoleDebugNotification } from "./components/debug/RoleDebugNotification"; // ⚠️ Временно отключено
 
-import { lazy, Suspense, useEffect } from "react";
+import React, { lazy, Suspense, useEffect } from "react";
 import { useAuthIdentitySync } from "./hooks/useAuthIdentitySync";
 import { usePermissions } from "./hooks/usePermissions";
 import { API_BASE_URL } from "./utility/apiClient";
@@ -90,6 +92,20 @@ const RootRedirect = () => {
     roleName: role?.name ?? null,
   });
   return <Navigate to={target} replace />;
+};
+
+const SnackbarCloseButton: React.FC<{ snackbarKey: SnackbarKey }> = ({ snackbarKey }) => {
+  const { closeSnackbar } = useSnackbar();
+  return (
+    <IconButton
+      size="small"
+      color="inherit"
+      onClick={() => closeSnackbar(snackbarKey)}
+      sx={{ opacity: 0.7, "&:hover": { opacity: 1 } }}
+    >
+      <CloseIcon sx={{ fontSize: 16 }} />
+    </IconButton>
+  );
 };
 
 function App() {
@@ -173,7 +189,11 @@ function App() {
                 }}
               />
 
-              <RefineSnackbarProvider anchorOrigin={{ vertical: "top", horizontal: isMobile ? "right" : "center" }} autoHideDuration={4000}>
+              <RefineSnackbarProvider
+                anchorOrigin={{ vertical: "top", horizontal: isMobile ? "right" : "center" }}
+                autoHideDuration={4000}
+                action={(key) => <SnackbarCloseButton snackbarKey={key} />}
+              >
                 <LocalizationProvider
                   dateAdapter={AdapterDayjs}
                   adapterLocale="ru"
