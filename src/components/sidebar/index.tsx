@@ -41,6 +41,11 @@ import AdminPanelSettingsOutlined from "@mui/icons-material/AdminPanelSettingsOu
 import CategoryOutlined from "@mui/icons-material/CategoryOutlined";
 import BusinessOutlined from "@mui/icons-material/BusinessOutlined";
 import SecurityOutlined from "@mui/icons-material/SecurityOutlined";
+import AppsOutlined from "@mui/icons-material/AppsOutlined";
+import WorkOutlineOutlined from "@mui/icons-material/WorkOutlineOutlined";
+import ApartmentOutlined from "@mui/icons-material/ApartmentOutlined";
+import ManageAccountsOutlined from "@mui/icons-material/ManageAccountsOutlined";
+import SavingsOutlined from "@mui/icons-material/SavingsOutlined";
 
 import { useThemedLayoutContext } from "@refinedev/mui";
 import { logout } from "../../services/auth";
@@ -338,10 +343,42 @@ const DesktopSidebarHeader: React.FC = () => {
   );
 };
 
-// Extra static sections: mimic the provided design with many items
+// Категории навигации — позволяют отфильтровать длинный список пунктов
+// в компактную "плиточную" сетку наверху сайдбара.
+type MenuCategory = "work" | "org" | "finance" | "admin";
+
+type SidebarEntry = {
+  to: string;
+  icon: React.ReactNode;
+  label: string;
+  category: MenuCategory;
+  visible: boolean;
+};
+
+// LocalStorage-ключ для запоминания выбранной категории между сессиями.
+const ACTIVE_CATEGORY_STORAGE_KEY = "sidebar.activeCategory";
+
 const SidebarSecondary: React.FC = () => {
   const { siderCollapsed } = useThemedLayoutContext();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const { hasPermission, loading: permissionsLoading } = usePermissions();
+
+  const [activeCategory, setActiveCategory] = React.useState<MenuCategory | "all">(() => {
+    if (typeof window === "undefined") return "all";
+    const saved = window.localStorage.getItem(ACTIVE_CATEGORY_STORAGE_KEY);
+    if (saved === "work" || saved === "org" || saved === "finance" || saved === "admin" || saved === "all") {
+      return saved;
+    }
+    return "all";
+  });
+
+  const handleSetCategory = React.useCallback((next: MenuCategory | "all") => {
+    setActiveCategory(next);
+    try {
+      window.localStorage.setItem(ACTIVE_CATEGORY_STORAGE_KEY, next);
+    } catch { /* ignore quota / SSR */ }
+  }, []);
 
   // Во время загрузки прав не показываем элементы меню
   // Это предотвращает "моргание" при переключении вкладок
@@ -349,75 +386,168 @@ const SidebarSecondary: React.FC = () => {
     return <List sx={{ py: 0 }} />;
   }
 
+  const entries: SidebarEntry[] = [
+    // Моя работа — повседневные операции
+    { to: "/home", icon: <HomeOutlined />, label: "Регистратура", category: "work", visible: hasPermission(PERMISSIONS.APPOINTMENTS_READ) && hasPermission(PERMISSIONS.RECEPTION_READ) },
+    { to: "/specialist", icon: <LocalHospitalOutlined />, label: "Кабинет специалиста", category: "work", visible: hasPermission(PERMISSIONS.APPOINTMENTS_READ) },
+    { to: "/all-appointments", icon: <HistoryOutlined />, label: "Все услуги", category: "work", visible: hasPermission(PERMISSIONS.APPOINTMENTS_READ) },
+    { to: "/schedule", icon: <CalendarMonthOutlined />, label: "Расписание", category: "work", visible: hasPermission(PERMISSIONS.EMPLOYEE_SCHEDULES_READ) },
+    { to: "/skud", icon: <SecurityOutlined />, label: "СКУД", category: "work", visible: hasPermission(PERMISSIONS.WORK_SHIFTS_READ) },
+    { to: "/client-schedule", icon: <CalendarMonthOutlined />, label: "Клиентское расписание", category: "work", visible: hasPermission(PERMISSIONS.CLIENT_SCHEDULES_READ) },
+    { to: "/patient-search", icon: <SearchOutlined />, label: "Поиск клиентов", category: "work", visible: hasPermission(PERMISSIONS.CLIENTS_READ) },
+
+    // Организация — структура
+    { to: "/employees", icon: <BadgeOutlined />, label: "Сотрудники", category: "org", visible: hasPermission(PERMISSIONS.EMPLOYEES_READ) },
+    { to: "/services", icon: <MedicalServicesOutlined />, label: "Услуги", category: "org", visible: hasPermission(PERMISSIONS.SERVICES_READ) },
+    { to: "/branches", icon: <BusinessOutlined />, label: "Управление филиалами", category: "org", visible: hasPermission(PERMISSIONS.APP_SETTINGS_UPDATE) },
+
+    // Финансы — деньги, отчёты
+    { to: "/cashbox", icon: <AccountBalanceWalletOutlined />, label: "Касса", category: "finance", visible: hasPermission(PERMISSIONS.CASHBOX_READ) },
+    { to: "/expenses", icon: <PaymentsOutlined />, label: "Расходы", category: "finance", visible: hasPermission(PERMISSIONS.EXPENSES_READ) },
+    { to: "/categories", icon: <CategoryOutlined />, label: "Категории расходов", category: "finance", visible: hasPermission(PERMISSIONS.EXPENSES_READ) },
+    { to: "/reports", icon: <AnalyticsOutlined />, label: "Отчеты", category: "finance", visible: hasPermission(PERMISSIONS.REPORTS_READ) },
+    { to: "/admin/load", icon: <AnalyticsOutlined />, label: "Нагрузка", category: "finance", visible: hasPermission(PERMISSIONS.REPORTS_READ) },
+    { to: "/salary-reports", icon: <AccountBalanceWalletOutlined />, label: "Отчет по ЗП", category: "finance", visible: hasPermission(PERMISSIONS.REPORTS_READ) },
+
+    // Управление — админ-настройки
+    { to: "/roles", icon: <AdminPanelSettingsOutlined />, label: "Роли и права", category: "admin", visible: hasPermission(PERMISSIONS.APP_SETTINGS_UPDATE) },
+  ];
+
+  const visibleEntries = entries.filter((e) => e.visible);
+  const categoriesWithItems = new Set<MenuCategory>(visibleEntries.map((e) => e.category));
+  const filteredEntries = activeCategory === "all"
+    ? visibleEntries
+    : visibleEntries.filter((e) => e.category === activeCategory);
+
+  // В свёрнутом сайдбаре на десктопе плитки прячем — там нет места под текст;
+  // показываем весь список как иконки, как было раньше.
+  const showTiles = !(siderCollapsed && !isMobile);
+
   return (
     <>
+      {showTiles && (
+        <Stack spacing={0.75} sx={{ px: 0.5, pb: 1 }}>
+          <CategoryTile
+            label="Все"
+            icon={<AppsOutlined fontSize="small" />}
+            active={activeCategory === "all"}
+            onClick={() => handleSetCategory("all")}
+            fullWidth
+          />
+          <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 0.75 }}>
+            {categoriesWithItems.has("work") && (
+              <CategoryTile
+                label="Моя работа"
+                icon={<WorkOutlineOutlined fontSize="small" />}
+                active={activeCategory === "work"}
+                onClick={() => handleSetCategory("work")}
+              />
+            )}
+            {categoriesWithItems.has("org") && (
+              <CategoryTile
+                label="Организация"
+                icon={<ApartmentOutlined fontSize="small" />}
+                active={activeCategory === "org"}
+                onClick={() => handleSetCategory("org")}
+              />
+            )}
+            {categoriesWithItems.has("finance") && (
+              <CategoryTile
+                label="Финансы"
+                icon={<SavingsOutlined fontSize="small" />}
+                active={activeCategory === "finance"}
+                onClick={() => handleSetCategory("finance")}
+              />
+            )}
+            {categoriesWithItems.has("admin") && (
+              <CategoryTile
+                label="Управление"
+                icon={<ManageAccountsOutlined fontSize="small" />}
+                active={activeCategory === "admin"}
+                onClick={() => handleSetCategory("admin")}
+              />
+            )}
+          </Box>
+        </Stack>
+      )}
+
       <List sx={{ py: 0 }}>
-        {hasPermission(PERMISSIONS.APPOINTMENTS_READ) && hasPermission(PERMISSIONS.RECEPTION_READ) && (
-          <SidebarMenuItem to="/home" icon={<HomeOutlined />} label="Регистратура" collapsed={siderCollapsed} />
-        )}
-
-        {hasPermission(PERMISSIONS.APPOINTMENTS_READ) && (
-          <SidebarMenuItem to="/specialist" icon={<LocalHospitalOutlined />} label="Кабинет специалиста" collapsed={siderCollapsed} />
-        )}
-
-        {hasPermission(PERMISSIONS.APPOINTMENTS_READ) && (
-          <SidebarMenuItem to="/all-appointments" icon={<HistoryOutlined />} label="Все услуги" collapsed={siderCollapsed} />
-        )}
-        {hasPermission(PERMISSIONS.EMPLOYEE_SCHEDULES_READ) && (
-          <SidebarMenuItem to="/schedule" icon={<CalendarMonthOutlined />} label="Расписание" collapsed={siderCollapsed} />
-        )}
-        {hasPermission(PERMISSIONS.WORK_SHIFTS_READ) && (
-          <SidebarMenuItem to="/skud" icon={<SecurityOutlined />} label="СКУД" collapsed={siderCollapsed} />
-        )}
-        {hasPermission(PERMISSIONS.CLIENT_SCHEDULES_READ) && (
-          <SidebarMenuItem to="/client-schedule" icon={<CalendarMonthOutlined />} label="Клиентское расписание" collapsed={siderCollapsed} />
-        )}
-        {hasPermission(PERMISSIONS.EMPLOYEES_READ) && (
-          <SidebarMenuItem to="/employees" icon={<BadgeOutlined />} label="Сотрудники" collapsed={siderCollapsed} />
-        )}
-
-        {hasPermission(PERMISSIONS.CLIENTS_READ) && (
-          <SidebarMenuItem to="/patient-search" icon={<SearchOutlined />} label="Поиск клиентов" collapsed={siderCollapsed} />
-        )}
-
-        {hasPermission(PERMISSIONS.REPORTS_READ) && (
-          <SidebarMenuItem to="/reports" icon={<AnalyticsOutlined />} label="Отчеты" collapsed={siderCollapsed} />
-        )}
-        {hasPermission(PERMISSIONS.REPORTS_READ) && (
-          <SidebarMenuItem to="/admin/load" icon={<AnalyticsOutlined />} label="Нагрузка" collapsed={siderCollapsed} />
-        )}
-        {hasPermission(PERMISSIONS.REPORTS_READ) && (
-          <SidebarMenuItem to="/salary-reports" icon={<AccountBalanceWalletOutlined />} label="Отчет по ЗП" collapsed={siderCollapsed} />
-        )}
-
-        {hasPermission(PERMISSIONS.EXPENSES_READ) && (
-          <SidebarMenuItem to="/expenses" icon={<PaymentsOutlined />} label="Расходы" collapsed={siderCollapsed} />
-        )}
-        {hasPermission(PERMISSIONS.EXPENSES_READ) && (
-          <SidebarMenuItem to="/categories" icon={<CategoryOutlined />} label="Категории расходов" collapsed={siderCollapsed} />
-        )}
-        {hasPermission(PERMISSIONS.CASHBOX_READ) && (
-          <SidebarMenuItem to="/cashbox" icon={<AccountBalanceWalletOutlined />} label="Касса" collapsed={siderCollapsed} />
-        )}
-
-        {hasPermission(PERMISSIONS.SERVICES_READ) && (
-          <SidebarMenuItem to="/services" icon={<MedicalServicesOutlined />} label="Услуги" collapsed={siderCollapsed} />
-        )}
-        {hasPermission(PERMISSIONS.APP_SETTINGS_UPDATE) && (
-          <SidebarMenuItem to="/roles" icon={<AdminPanelSettingsOutlined />} label="Роли и права" collapsed={siderCollapsed} />
-        )}
-        {hasPermission(PERMISSIONS.APP_SETTINGS_UPDATE) && (
-          <SidebarMenuItem to="/branches" icon={<BusinessOutlined />} label="Управление филиалами" collapsed={siderCollapsed} />
-        )}
-        {/* Вход в страницу уведомлений временно отключен. */}
-        {/* {hasPermission(PERMISSIONS.APP_SETTINGS_UPDATE) && (
-          <SidebarMenuItem to="/settings/notifications" icon={<NotificationsOutlined />} label="Уведомления" collapsed={siderCollapsed} />
-        )} */}
-
+        {(showTiles ? filteredEntries : visibleEntries).map((e) => (
+          <SidebarMenuItem
+            key={e.to}
+            to={e.to}
+            icon={e.icon}
+            label={e.label}
+            collapsed={siderCollapsed}
+          />
+        ))}
       </List>
     </>
   );
 };
+
+// Плитка-категория для верхней сетки сайдбара
+type CategoryTileProps = {
+  label: string;
+  icon: React.ReactNode;
+  active: boolean;
+  onClick: () => void;
+  fullWidth?: boolean;
+};
+
+const CategoryTile: React.FC<CategoryTileProps> = ({ label, icon, active, onClick, fullWidth }) => (
+  <Box
+    role="button"
+    tabIndex={0}
+    onClick={onClick}
+    onKeyDown={(e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        onClick();
+      }
+    }}
+    sx={{
+      cursor: "pointer",
+      userSelect: "none",
+      borderRadius: 2,
+      border: "1px solid",
+      borderColor: active ? "primary.main" : "divider",
+      bgcolor: (theme) => (active ? alpha(theme.palette.primary.main, 0.08) : "transparent"),
+      color: active ? "primary.main" : "text.primary",
+      py: fullWidth ? 0.75 : 1,
+      px: 1,
+      display: "flex",
+      flexDirection: fullWidth ? "row" : "column",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: fullWidth ? 0.75 : 0.25,
+      minHeight: fullWidth ? 36 : 60,
+      transition: "border-color 0.15s, background-color 0.15s",
+      "&:hover": {
+        borderColor: "primary.main",
+        bgcolor: (theme) => alpha(theme.palette.primary.main, 0.04),
+      },
+      "&:focus-visible": {
+        outline: "2px solid",
+        outlineColor: "primary.main",
+        outlineOffset: 1,
+      },
+    }}
+  >
+    {icon}
+    <Typography
+      variant="caption"
+      fontWeight={600}
+      sx={{
+        fontSize: fullWidth ? "0.78rem" : "0.7rem",
+        textAlign: "center",
+        lineHeight: 1.1,
+      }}
+    >
+      {label}
+    </Typography>
+  </Box>
+);
 
 // Reusable item with tooltip-on-collapse
 type SidebarMenuItemProps = {
