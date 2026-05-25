@@ -119,8 +119,6 @@ const SidebarContainer: React.FC<React.PropsWithChildren<{ stickyTop?: React.Rea
     return;
   }, [isMobile, mobileOpen]);
 
-  const scrollbarVisible = !siderCollapsed || isMobile;
-
   return (
     <>
       {/* Backdrop behind the sidebar on mobile */}
@@ -158,23 +156,8 @@ const SidebarContainer: React.FC<React.PropsWithChildren<{ stickyTop?: React.Rea
               overflowY: "auto",
               overflowX: "hidden",
               minHeight: 0,
-              scrollbarWidth: scrollbarVisible ? "thin" : "none",
-              scrollbarColor: scrollbarVisible
-                ? (theme: any) => `${alpha(theme.palette.text.primary, 0.28)} transparent`
-                : "transparent transparent",
-              "&::-webkit-scrollbar": { width: scrollbarVisible ? 8 : 0 },
-              "&::-webkit-scrollbar-track": { background: "transparent" },
-              "&::-webkit-scrollbar-thumb": {
-                backgroundColor: scrollbarVisible
-                  ? (theme: any) => alpha(theme.palette.text.primary, 0.28)
-                  : "transparent",
-                borderRadius: 8,
-              },
-              "&::-webkit-scrollbar-thumb:hover": {
-                backgroundColor: scrollbarVisible
-                  ? (theme: any) => alpha(theme.palette.text.primary, 0.42)
-                  : "transparent",
-              },
+              scrollbarWidth: "none",
+              "&::-webkit-scrollbar": { display: "none" },
             }}
           >
             {children}
@@ -215,17 +198,8 @@ const SidebarContainer: React.FC<React.PropsWithChildren<{ stickyTop?: React.Rea
             overflowY: "auto",
             overflowX: "hidden",
             minHeight: 0,
-            scrollbarWidth: "thin",
-            scrollbarColor: (theme) => `${alpha(theme.palette.text.primary, 0.28)} transparent`,
-            "&::-webkit-scrollbar": { width: 8 },
-            "&::-webkit-scrollbar-track": { background: "transparent" },
-            "&::-webkit-scrollbar-thumb": {
-              backgroundColor: (theme) => alpha(theme.palette.text.primary, 0.28),
-              borderRadius: 8,
-            },
-            "&::-webkit-scrollbar-thumb:hover": {
-              backgroundColor: (theme) => alpha(theme.palette.text.primary, 0.42),
-            },
+            scrollbarWidth: "none",
+            "&::-webkit-scrollbar": { display: "none" },
           }}
         >
           {children}
