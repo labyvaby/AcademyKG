@@ -40,8 +40,8 @@ export const fetchShifts = async (params?: {
     const res: any = await apiFetch(`/api/v1/work-shifts/?${q.toString()}`);
     const results = res?.data?.results ?? res?.results ?? [];
     return results.map(toShift);
-  } catch (e) {
-    console.error("fetchShifts failed", e);
+  } catch (e: any) {
+    if (e?.status !== 429) console.error("fetchShifts failed", e);
     return [];
   }
 };

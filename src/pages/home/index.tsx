@@ -157,10 +157,11 @@ export const HomePage: React.FC = () => {
   // Fetch shifts for the selected date (and previous day for night shifts) — с кэшем
   const prevDate = React.useMemo(() => dayjs(date).subtract(1, 'day').format('YYYY-MM-DD'), [date]);
   const { data: shiftsData } = useQuery({
-    queryKey: ["shifts", date],
+    queryKey: ["shifts", date, prevDate],
     queryFn: () => Promise.all([fetchShiftsForDate(date), fetchShiftsForDate(prevDate)]),
-    staleTime: 2 * 60 * 1000,
+    staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
+    retry: false,
   });
   const dayShifts = React.useMemo(() => {
     if (!shiftsData) return [];
