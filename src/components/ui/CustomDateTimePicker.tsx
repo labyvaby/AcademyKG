@@ -1,49 +1,47 @@
 import * as React from "react";
+import { MobileDateTimePicker } from "@mui/x-date-pickers/MobileDateTimePicker";
 import { DateTimePicker } from "@mui/x-date-pickers/DateTimePicker";
+import useMediaQuery from "@mui/material/useMediaQuery";
+import { useTheme } from "@mui/material/styles";
 
 /**
- * Обертка над MUI X DateTimePicker с minutesStep=5 по умолчанию.
+ * Обёртка над MUI X DateTimePicker.
  *
- * ВАЖНО: контекст локализации (LocalizationProvider + AdapterDayjs + ruRU)
- * задается ОДИНОЖДЫ на уровне `App.tsx`. Здесь мы его не создаем повторно,
- * чтобы избежать конфликтов версий/контекста и ошибок вида
- * "MUI X: Can not find the date and time pickers localization context".
- * - Открывается при двойном клике на поле ввода
+ * На мобиле — MobileDateTimePicker (диалог, тап по полю открывает picker,
+ * не ломается при быстрых кликах next month). На десктопе — обычный DateTimePicker.
+ *
+ * `reduceAnimations: true` устраняет визуальный сбой "месяц уезжает наверх"
+ * при быстрых последовательных кликах по стрелке месяца.
+ *
+ * Контекст локализации (LocalizationProvider + AdapterDayjs + ruRU) задаётся
+ * на уровне App.tsx; здесь его не пересоздаём.
  */
 export type CustomDateTimePickerProps = React.ComponentProps<typeof DateTimePicker>;
 
 export function CustomDateTimePicker(props: CustomDateTimePickerProps) {
   const { minutesStep, slotProps, ...rest } = props;
-  const [open, setOpen] = React.useState(false);
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
-  const handleDoubleClick = () => {
-    setOpen(true);
-  };
+  const commonProps = {
+    minutesStep: minutesStep ?? 15,
+    shouldDisableTime: (value: any, view: string) =>
+      view === "minutes" && value.minute() % (minutesStep ?? 15) !== 0,
+    reduceAnimations: true,
+    slotProps: {
+      ...slotProps,
+      textField: {
+        ...slotProps?.textField,
+      },
+      digitalClock: { skipDisabled: true } as any,
+      multiSectionDigitalClock: { skipDisabled: true } as any,
+    },
+  } as const;
 
-  return (
-    <DateTimePicker
-      minutesStep={minutesStep ?? 15}
-      shouldDisableTime={(value, view) => view === "minutes" && value.minute() % (minutesStep ?? 15) !== 0}
-      skipDisabled={true}
-      open={open}
-      onOpen={() => setOpen(true)}
-      onClose={() => setOpen(false)}
-      slotProps={{
-        ...slotProps,
-        textField: {
-          ...slotProps?.textField,
-          onDoubleClick: handleDoubleClick,
-        },
-        // @ts-expect-error MUI picker types do not expose skipDisabled yet.
-        digitalClock: {
-          skipDisabled: true,
-        },
-        multiSectionDigitalClock: {
-          skipDisabled: true,
-        },
-      }}
-      {...rest}
-    />
+  return isMobile ? (
+    <MobileDateTimePicker {...rest} {...commonProps} />
+  ) : (
+    <DateTimePicker skipDisabled={true} {...rest} {...commonProps} />
   );
 }
 

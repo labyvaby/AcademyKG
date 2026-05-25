@@ -1,44 +1,48 @@
 import * as React from "react";
+import { MobileDatePicker } from "@mui/x-date-pickers/MobileDatePicker";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import Box from "@mui/material/Box";
+import useMediaQuery from "@mui/material/useMediaQuery";
+import { useTheme } from "@mui/material/styles";
 
 /**
- * Обертка над MUI X DatePicker с открытием по двойному клику.
+ * Обёртка над MUI X DatePicker.
  *
- * ВАЖНО: контекст локализации (LocalizationProvider + AdapterDayjs + ruRU)
- * задается ОДИНОЖДЫ на уровне `App.tsx`. Здесь мы его не создаем повторно,
- * чтобы избежать конфликтов версий/контекста и ошибок вида
- * "MUI X: Can not find the date and time pickers localization context".
- * - Открывается при двойном клике на поле ввода
+ * На мобиле используется MobileDatePicker (открывается обычным тапом по полю,
+ * рендерится в диалоге — устойчив к быстрым кликам по стрелке месяца).
+ * На десктопе остаётся DatePicker (popper).
+ *
+ * `reduceAnimations` подавляет переходный CSS-transition между месяцами —
+ * именно он "уезжал" наверх при быстрых последовательных кликах по стрелке.
+ *
+ * Контекст локализации (LocalizationProvider + AdapterDayjs + ruRU) задаётся
+ * на уровне App.tsx; здесь его не пересоздаём.
  */
 export type CustomDatePickerProps = React.ComponentProps<typeof DatePicker>;
 
 export function CustomDatePicker(props: CustomDatePickerProps) {
   const { slotProps, ...rest } = props;
-  const [open, setOpen] = React.useState(false);
-
-  const handleDoubleClick = () => {
-    setOpen(true);
-  };
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
   const textFieldProps = slotProps?.textField as Record<string, any> | undefined;
   const isFullWidth = textFieldProps?.fullWidth;
 
-  const picker = (
-    <DatePicker
-      open={open}
-      onOpen={() => setOpen(true)}
-      onClose={() => setOpen(false)}
-      {...rest}
-      slotProps={{
-        ...slotProps,
-        textField: {
-          ...slotProps?.textField,
-          onDoubleClick: handleDoubleClick,
-          ...(isFullWidth ? { sx: { ...(textFieldProps?.sx ?? {}), width: "100%" } } : {}),
-        },
-      }}
-    />
+  const commonProps = {
+    reduceAnimations: true,
+    slotProps: {
+      ...slotProps,
+      textField: {
+        ...slotProps?.textField,
+        ...(isFullWidth ? { sx: { ...(textFieldProps?.sx ?? {}), width: "100%" } } : {}),
+      },
+    },
+  } as const;
+
+  const picker = isMobile ? (
+    <MobileDatePicker {...rest} {...commonProps} />
+  ) : (
+    <DatePicker {...rest} {...commonProps} />
   );
 
   if (isFullWidth) {

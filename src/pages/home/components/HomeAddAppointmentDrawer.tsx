@@ -1378,8 +1378,27 @@ export const HomeAddAppointmentDrawer: React.FC<
                     <Typography variant="body2" color="text.secondary" fontWeight={500}>Конец</Typography>
                     <CustomDatePicker
                       value={periodEndDate ? dayjs(periodEndDate) : null}
-                      onChange={(val) => setPeriodEndDate(val ? val.format("YYYY-MM-DD") : "")}
-                      slotProps={{ textField: { size: "small", fullWidth: true } }}
+                      minDate={periodStartDate ? dayjs(periodStartDate) : undefined}
+                      onChange={(val) => {
+                        const v = val ? val.format("YYYY-MM-DD") : "";
+                        // Не даём конец раньше начала: если выбрана более ранняя дата, поднимаем её до начала.
+                        if (v && periodStartDate && v < periodStartDate) {
+                          setPeriodEndDate(periodStartDate);
+                        } else {
+                          setPeriodEndDate(v);
+                        }
+                      }}
+                      slotProps={{
+                        textField: {
+                          size: "small",
+                          fullWidth: true,
+                          error: Boolean(periodStartDate && periodEndDate && periodEndDate < periodStartDate),
+                          helperText:
+                            periodStartDate && periodEndDate && periodEndDate < periodStartDate
+                              ? "Конец периода раньше начала"
+                              : undefined,
+                        },
+                      }}
                     />
                   </Stack>
                   <Stack spacing={0.5} sx={{ minWidth: 0 }}>
@@ -1443,12 +1462,8 @@ export const HomeAddAppointmentDrawer: React.FC<
                 renderOption={(props, o) => (
                   <li {...props} key={o.id}>{o.full_name || o.id}{o.specialization ? ` — ${o.specialization}` : ""}</li>
                 )}
-                slotProps={{
-                  popupIndicator: {
-                    onTouchStart: (e) => { e.preventDefault(); },
-                    onMouseDown: (e) => { e.preventDefault(); },
-                  },
-                }}
+                openOnFocus
+                blurOnSelect="touch"
                 renderInput={(params) => (
                   <TextField
                     {...params}
@@ -1495,11 +1510,9 @@ export const HomeAddAppointmentDrawer: React.FC<
                 renderOption={(props, o) => (
                   <li {...props} key={o.id}>{o.name}{o.price ? ` — ${o.price} сом` : ""}</li>
                 )}
+                openOnFocus
+                blurOnSelect="touch"
                 slotProps={{
-                  popupIndicator: {
-                    onTouchStart: (e) => { e.preventDefault(); },
-                    onMouseDown: (e) => { e.preventDefault(); },
-                  },
                   popper: {
                     disablePortal: true,
                     placement: "bottom-start",
@@ -1572,11 +1585,9 @@ export const HomeAddAppointmentDrawer: React.FC<
                     const phone = option["Телефон"] ?? option.phone ?? "";
                     return <li {...props} key={option.id}>{`${fio || "Нет ФИО"} — ${phone || "Нет телефона"}`}</li>;
                   }}
+                  openOnFocus
+                  blurOnSelect="touch"
                   slotProps={{
-                    popupIndicator: {
-                      onTouchStart: (e) => { e.preventDefault(); },
-                      onMouseDown: (e) => { e.preventDefault(); },
-                    },
                     popper: {
                       disablePortal: true,
                       placement: "bottom-start",
@@ -1666,11 +1677,9 @@ export const HomeAddAppointmentDrawer: React.FC<
                           const phone = option["Телефон"] ?? option.phone ?? "";
                           return <li {...props} key={option.id}>{`${fio || "Нет ФИО"} — ${phone || "Нет телефона"}`}</li>;
                         }}
+                        openOnFocus
+                        blurOnSelect="touch"
                         slotProps={{
-                          popupIndicator: {
-                            onTouchStart: (e) => { e.preventDefault(); },
-                            onMouseDown: (e) => { e.preventDefault(); },
-                          },
                           popper: {
                             disablePortal: true,
                             placement: "bottom-start",
@@ -1799,6 +1808,7 @@ export const HomeAddAppointmentDrawer: React.FC<
                 !serviceRows.some((r) => r.serviceId && r.doctorId) ||
                 (scheduleMode === "once" && !visitDateTime) ||
                 (scheduleMode === "period" && periodDates.length === 0) ||
+                (scheduleMode === "period" && Boolean(periodStartDate && periodEndDate && periodEndDate < periodStartDate)) ||
                 (scheduleMode === "period" && appointmentMode === "single" && !isBooking && !selectedPatient) ||
                 (scheduleMode === "period" && appointmentMode === "group" && groupParticipants.length === 0) ||
                 (scheduleMode === "once" && appointmentMode === "single" && !isBooking && !selectedPatient) ||
