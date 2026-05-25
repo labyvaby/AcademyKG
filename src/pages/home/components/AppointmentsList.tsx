@@ -746,7 +746,7 @@ export const AppointmentsList: React.FC<AppointmentsListProps & { onAddSlot?: (d
             {loading ? "Загрузка…" : "Нет записей"}
           </Typography>
         ) : (
-          <Stack spacing={0}>
+          <Stack spacing={0} sx={{ pb: "calc(env(safe-area-inset-bottom, 0px) + 16px)" }}>
             {Object.entries(groupedItemsWithGaps).map(([docName, groupItems]) => {
               const apptCount = groupItems.filter(i => !isGap(i)).length;
               return (
@@ -894,6 +894,13 @@ export const AppointmentsList: React.FC<AppointmentsListProps & { onAddSlot?: (d
                 </Box>
               );
             })}
+            <Box sx={{ px: 2, py: 1.5, display: "flex", alignItems: "center", gap: 1.5 }}>
+              <Box sx={{ flex: 1, height: "1px", bgcolor: "divider" }} />
+              <Typography variant="caption" color="text.disabled" sx={{ whiteSpace: "nowrap", fontSize: "0.7rem" }}>
+                Конец списка
+              </Typography>
+              <Box sx={{ flex: 1, height: "1px", bgcolor: "divider" }} />
+            </Box>
           </Stack>
         )}
       </CardContent>

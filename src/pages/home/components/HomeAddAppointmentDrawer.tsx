@@ -1443,6 +1443,12 @@ export const HomeAddAppointmentDrawer: React.FC<
                 renderOption={(props, o) => (
                   <li {...props} key={o.id}>{o.full_name || o.id}{o.specialization ? ` — ${o.specialization}` : ""}</li>
                 )}
+                slotProps={{
+                  popupIndicator: {
+                    onTouchStart: (e) => { e.preventDefault(); },
+                    onMouseDown: (e) => { e.preventDefault(); },
+                  },
+                }}
                 renderInput={(params) => (
                   <TextField
                     {...params}
@@ -1489,6 +1495,12 @@ export const HomeAddAppointmentDrawer: React.FC<
                 renderOption={(props, o) => (
                   <li {...props} key={o.id}>{o.name}{o.price ? ` — ${o.price} сом` : ""}</li>
                 )}
+                slotProps={{
+                  popupIndicator: {
+                    onTouchStart: (e) => { e.preventDefault(); },
+                    onMouseDown: (e) => { e.preventDefault(); },
+                  },
+                }}
                 renderInput={(params) => (
                   <TextField
                     {...params}
@@ -1551,6 +1563,12 @@ export const HomeAddAppointmentDrawer: React.FC<
                     const fio = option["ФИО клиента"] ?? option.fio ?? "";
                     const phone = option["Телефон"] ?? option.phone ?? "";
                     return <li {...props} key={option.id}>{`${fio || "Нет ФИО"} — ${phone || "Нет телефона"}`}</li>;
+                  }}
+                  slotProps={{
+                    popupIndicator: {
+                      onTouchStart: (e) => { e.preventDefault(); },
+                      onMouseDown: (e) => { e.preventDefault(); },
+                    },
                   }}
                   renderInput={(params) => (
                     <TextField
@@ -1631,6 +1649,12 @@ export const HomeAddAppointmentDrawer: React.FC<
                           const fio = option["ФИО клиента"] ?? option.fio ?? "";
                           const phone = option["Телефон"] ?? option.phone ?? "";
                           return <li {...props} key={option.id}>{`${fio || "Нет ФИО"} — ${phone || "Нет телефона"}`}</li>;
+                        }}
+                        slotProps={{
+                          popupIndicator: {
+                            onTouchStart: (e) => { e.preventDefault(); },
+                            onMouseDown: (e) => { e.preventDefault(); },
+                          },
                         }}
                         renderInput={(params) => (
                           <TextField
