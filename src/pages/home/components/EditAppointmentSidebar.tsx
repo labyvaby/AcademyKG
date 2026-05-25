@@ -489,6 +489,18 @@ const EditAppointmentSidebar: React.FC<EditAppointmentSidebarProps> = ({
                       }`}</li>
                   );
                 }}
+                openOnFocus
+                blurOnSelect="touch"
+                slotProps={{
+                  popper: {
+                    disablePortal: true,
+                    placement: "bottom-start",
+                    modifiers: [
+                      { name: "flip", enabled: false },
+                      { name: "preventOverflow", enabled: false },
+                    ],
+                  },
+                }}
                 renderInput={(params) => (
                   <TextField
                     {...params}
@@ -637,6 +649,18 @@ const EditAppointmentSidebar: React.FC<EditAppointmentSidebarProps> = ({
                                       }`.trim(),
                                 })}
                                 isOptionEqualToValue={(o, v) => o.id === v.id}
+                                openOnFocus
+                                blurOnSelect="touch"
+                                slotProps={{
+                                  popper: {
+                                    disablePortal: true,
+                                    placement: "bottom-start",
+                                    modifiers: [
+                                      { name: "flip", enabled: false },
+                                      { name: "preventOverflow", enabled: false },
+                                    ],
+                                  },
+                                }}
                                 renderInput={(params) => (
                                   <TextField
                                     {...params}
@@ -692,6 +716,18 @@ const EditAppointmentSidebar: React.FC<EditAppointmentSidebarProps> = ({
                                       )}`.trim(),
                                   })}
                                   isOptionEqualToValue={(o, v) => o.id === v.id}
+                                  openOnFocus
+                                  blurOnSelect="touch"
+                                  slotProps={{
+                                    popper: {
+                                      disablePortal: true,
+                                      placement: "bottom-start",
+                                      modifiers: [
+                                        { name: "flip", enabled: false },
+                                        { name: "preventOverflow", enabled: false },
+                                      ],
+                                    },
+                                  }}
                                   renderInput={(params) => (
                                     <TextField
                                       {...params}

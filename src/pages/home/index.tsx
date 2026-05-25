@@ -115,14 +115,29 @@ export const HomePage: React.FC = () => {
   const [filtersOpen, setFiltersOpen] = React.useState(false);
 
   // Filters
-  // Дата по умолчанию — сегодня (yyyy-MM-dd), чтобы сразу грузить серверно отфильтрованные данные
+  // Дата по умолчанию — сегодня (yyyy-MM-dd), чтобы сразу грузить серверно отфильтрованные данные.
+  // Если в URL уже есть ?date=YYYY-MM-DD — берём оттуда, чтобы browser refresh не сбрасывал выбор пользователя.
+  const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
   const [date, setDate] = React.useState<string>(() => {
+    const fromUrl = searchParams.get("date");
+    if (fromUrl && DATE_RE.test(fromUrl)) return fromUrl;
     const t = new Date();
     const yyyy = t.getFullYear();
     const mm = String(t.getMonth() + 1).padStart(2, "0");
     const dd = String(t.getDate()).padStart(2, "0");
     return `${yyyy}-${mm}-${dd}`;
   });
+
+  // Синхронизируем выбранную дату с URL search-параметром.
+  // Так browser refresh открывает ту же дату, и dev-tools history/back работает прозрачно.
+  React.useEffect(() => {
+    const current = searchParams.get("date");
+    if (current === date) return;
+    const next = new URLSearchParams(searchParams);
+    next.set("date", date);
+    setSearchParams(next, { replace: true });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [date]);
   const [status, setStatus] = React.useState<Record<string, boolean>>({});
   const [doctorId, setDoctorId] = React.useState("");
 
@@ -270,13 +285,23 @@ export const HomePage: React.FC = () => {
   // через setOnRefresh → ре-рендер → новый refetch → снова эффект.
   const refetchRef = React.useRef(refetchAppointments);
   refetchRef.current = refetchAppointments;
+  const queryClientRef = React.useRef(queryClient);
+  queryClientRef.current = queryClient;
 
   useEffect(() => {
-    setOnRefresh(() => () => refetchRef.current());
+    // При ручном refresh обновляем не только список дня, но и счётчики дат —
+    // иначе после удаления последнего приёма бейдж на кнопке даты висел до
+    // полного browser-refresh.
+    setOnRefresh(() => () => {
+      const qc = queryClientRef.current;
+      qc.invalidateQueries({ queryKey: ["appointments"] });
+      qc.invalidateQueries({ queryKey: ["group-appointments"] });
+      refetchRef.current();
+    });
     return () => {
       setOnRefresh(null);
     };
-  // setOnRefresh — стабильный setter из useState, не меняется. refetchRef — ref, не входит в deps.
+  // setOnRefresh — стабильный setter из useState, не меняется. refetchRef/queryClientRef — refs.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [setOnRefresh]);
 
@@ -410,6 +435,10 @@ export const HomePage: React.FC = () => {
                   appointmentId={selectedAppointment?.is_group ? null : selectedAppointmentId}
                   onClose={() => setSelectedAppointmentId(null)}
                   onUpdate={() => {
+                    // Удаление/изменение приёма должно обновить и счётчики дней,
+                    // не только список выбранного дня.
+                    queryClient.invalidateQueries({ queryKey: ["appointments"] });
+                    queryClient.invalidateQueries({ queryKey: ["group-appointments"] });
                     refetchAppointments();
                   }}
                   onStartAppointment={(patientId) => {

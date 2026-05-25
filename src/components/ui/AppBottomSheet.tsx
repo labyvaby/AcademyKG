@@ -52,38 +52,33 @@ export const AppBottomSheet: React.FC<AppBottomSheetProps> = ({
     };
   }, [open]);
 
-  const handleTouchStart: React.TouchEventHandler<HTMLDivElement> = (e) => {
-    const target = e.currentTarget as HTMLElement;
+  // Свайп-закрытие срабатывает ТОЛЬКО при тяге за ручку (handle) сверху листа.
+  // Раньше handler висел на всём Paper, и любой свайп по контенту (после возврата
+  // из payment sidebar, когда scrollTop = 0) закрывал лист как побочный эффект.
+  const handleHandleTouchStart: React.TouchEventHandler<HTMLDivElement> = (e) => {
     const startY = e.touches[0].clientY;
+    const handleNode = e.currentTarget as HTMLElement;
 
     const handleTouchMove = (moveEvent: TouchEvent) => {
       const currentY = moveEvent.touches[0].clientY;
       const diff = currentY - startY;
-      const scrollable = target.querySelector("[data-scrollable]") as HTMLElement | null;
-
-      // Закрываем только если тянем вниз и контент прокручен в самый верх (или scrollable отсутствует)
-      if (diff > 0 && (!scrollable || scrollable.scrollTop <= 0)) {
-        // Only prevent default if we are reasonably sure it's a drag attempt, 
-        // but to prevent native scroll bouncing we usually need to capture early.
-        // However, let's keep preventDefault to avoid overscroll indicators.
+      if (diff > 0) {
         moveEvent.preventDefault();
-
-        // Increased threshold to 150 to avoid accidental closing
-        if (diff > 150) {
+        if (diff > 60) {
           onClose();
-          target.removeEventListener("touchmove", handleTouchMove);
-          target.removeEventListener("touchend", handleTouchEnd);
+          handleNode.removeEventListener("touchmove", handleTouchMove);
+          handleNode.removeEventListener("touchend", handleTouchEnd);
         }
       }
     };
 
     const handleTouchEnd = () => {
-      target.removeEventListener("touchmove", handleTouchMove);
-      target.removeEventListener("touchend", handleTouchEnd);
+      handleNode.removeEventListener("touchmove", handleTouchMove);
+      handleNode.removeEventListener("touchend", handleTouchEnd);
     };
 
-    target.addEventListener("touchmove", handleTouchMove, { passive: false });
-    target.addEventListener("touchend", handleTouchEnd);
+    handleNode.addEventListener("touchmove", handleTouchMove, { passive: false });
+    handleNode.addEventListener("touchend", handleTouchEnd);
   };
 
   return (
@@ -112,12 +107,12 @@ export const AppBottomSheet: React.FC<AppBottomSheetProps> = ({
             ? PaperProps.sx(theme)
             : (PaperProps?.sx as object | undefined)),
         }),
-        onTouchStart: handleTouchStart,
       }}
       {...rest}
     >
-      {/* Ручка для свайпа */}
+      {/* Ручка для свайпа — swipe-close активен только здесь */}
       <Box
+        onTouchStart={handleHandleTouchStart}
         sx={{
           pt: 1.5,
           pb: 1,
@@ -125,6 +120,7 @@ export const AppBottomSheet: React.FC<AppBottomSheetProps> = ({
           justifyContent: "center",
           flexShrink: 0,
           cursor: "grab",
+          touchAction: "none",
         }}
       >
         <Box

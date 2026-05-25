@@ -636,7 +636,7 @@ export const HomeAddAppointmentDrawer: React.FC<
 
       // ── РЕЖИМ "НА ПЕРИОД" ────────────────────────────────────────
       if (scheduleMode === "period") {
-        if (periodDates.length === 0 || (!selectedPatient && !isBooking)) {
+        if (periodDates.length === 0 || (appointmentMode !== "group" && !selectedPatient && !isBooking)) {
           setIsSaving(false);
           isSavingRef.current = false;
           return;
@@ -1464,6 +1464,16 @@ export const HomeAddAppointmentDrawer: React.FC<
                 )}
                 openOnFocus
                 blurOnSelect="touch"
+                slotProps={{
+                  popper: {
+                    disablePortal: true,
+                    placement: "bottom-start",
+                    modifiers: [
+                      { name: "flip", enabled: false },
+                      { name: "preventOverflow", enabled: false },
+                    ],
+                  },
+                }}
                 renderInput={(params) => (
                   <TextField
                     {...params}
