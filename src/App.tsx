@@ -173,7 +173,7 @@ function App() {
                 }}
               />
 
-              <RefineSnackbarProvider anchorOrigin={{ vertical: "top", horizontal: isMobile ? "right" : "center" }}>
+              <RefineSnackbarProvider anchorOrigin={{ vertical: "top", horizontal: isMobile ? "right" : "center" }} autoHideDuration={4000}>
                 <LocalizationProvider
                   dateAdapter={AdapterDayjs}
                   adapterLocale="ru"
