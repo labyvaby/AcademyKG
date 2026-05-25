@@ -379,9 +379,15 @@ export const HomeAddAppointmentDrawer: React.FC<
   React.useEffect(() => {
     if (!open || !currentDateStr) return;
     if (currentDateStr === prevDateRef.current) return;
+    const isFirstLoad = !prevDateRef.current;
     prevDateRef.current = currentDateStr;
-    // Clear employee/service selections when date changes
-    setServiceRows(prev => prev.map(r => ({ ...r, doctorId: "", serviceId: "" })));
+    // Эндпоинт /employees/ не зависит от даты, поэтому выбранные тренер/услуга/клиент
+    // при простой смене даты не сбрасываем. Первичная загрузка сотрудников происходит
+    // при открытии drawer; повторно дёргать её при смене даты не нужно, но оставляем
+    // на случай если cache пустой.
+    if (!isFirstLoad && allDoctorsOpts.length > 0) {
+      return;
+    }
 
     let cancelled = false;
     setDoctorsLoading(true);

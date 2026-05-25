@@ -48,6 +48,7 @@ import {
 } from "../../utility/phone";
 import { useHasRole, usePermissions } from "../../hooks/usePermissions";
 import { getBranchFilter } from "../../utility/apiClient";
+import { isValidPersonName, validateBirthDate, birthDateErrorMessage } from "../../utility/validation";
 
 function resolvePhotoUrl(url: string | null | undefined): string | null {
   return resolveApiUrl(url);
@@ -345,8 +346,12 @@ const EditPatientDrawer: React.FC<Props> = ({
 
       if (!shouldValidate) return {};
 
+      let fullNameError: string | undefined;
+      if (!fullName) fullNameError = "Введите ФИО ответственного лица";
+      else if (!isValidPersonName(fullName)) fullNameError = "Введите корректное ФИО";
+
       return {
-        fullName: fullName ? undefined : "Введите ФИО ответственного лица",
+        fullName: fullNameError,
         phone: fullPhone ? undefined : "Введите телефон ответственного лица",
       };
     });
@@ -381,6 +386,15 @@ const EditPatientDrawer: React.FC<Props> = ({
     const fioTrim = fio.trim();
     if (!fioTrim) {
       notify?.({ type: "error", message: "Введите ФИО клиента" });
+      return;
+    }
+    if (!isValidPersonName(fioTrim)) {
+      notify?.({ type: "error", message: "Введите корректное ФИО" });
+      return;
+    }
+    const birthValidation = validateBirthDate(birth ? birth.slice(0, 10) : "");
+    if (!birthValidation.ok) {
+      notify?.({ type: "error", message: birthDateErrorMessage(birthValidation.reason) });
       return;
     }
     if (isBlacklisted && !blacklistReason.trim()) {

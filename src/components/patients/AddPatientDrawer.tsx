@@ -37,6 +37,7 @@ import {
   type PhoneCountryCode,
 } from "../../utility/phone";
 import { useHasRole, usePermissions } from "../../hooks/usePermissions";
+import { isValidPersonName, validateBirthDate, birthDateErrorMessage } from "../../utility/validation";
 
 type BranchRow = {
   id: string;
@@ -265,8 +266,12 @@ const AddPatientDrawer: React.FC<Props> = ({ open, onClose, onCreated, initialPh
 
       if (!shouldValidate) return {};
 
+      let fullNameError: string | undefined;
+      if (!fullName) fullNameError = "Введите ФИО ответственного лица";
+      else if (!isValidPersonName(fullName)) fullNameError = "Введите корректное ФИО";
+
       return {
-        fullName: fullName ? undefined : "Введите ФИО ответственного лица",
+        fullName: fullNameError,
         phone: fullPhone ? undefined : "Введите телефон ответственного лица",
       };
     });
@@ -295,8 +300,12 @@ const AddPatientDrawer: React.FC<Props> = ({ open, onClose, onCreated, initialPh
 
     if (!fioTrim) {
       newFieldErrors.fio = "Введите ФИО клиента";
-    } else if (/[A-Za-z]/.test(fioTrim)) {
-      newFieldErrors.fio = "ФИО должно быть на кириллице";
+    } else if (!isValidPersonName(fioTrim)) {
+      newFieldErrors.fio = "Введите корректное ФИО";
+    }
+    const birthValidation = validateBirthDate(birth ? birth.slice(0, 10) : "");
+    if (!birthValidation.ok) {
+      newFieldErrors.birth = birthDateErrorMessage(birthValidation.reason);
     }
     if (isBlacklisted && !blacklistReason.trim()) {
       newFieldErrors.blacklistReason = "Укажите причину добавления в черный список";
