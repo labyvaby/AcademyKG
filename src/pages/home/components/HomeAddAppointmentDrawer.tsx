@@ -1182,6 +1182,7 @@ export const HomeAddAppointmentDrawer: React.FC<
           sx: {
             width: { xs: 390, sm: 480, md: 520 },
             maxWidth: "100vw",
+            height: "100dvh",
             zIndex: (theme) => theme.zIndex.drawer + 10,
             display: "flex",
             flexDirection: "column",
@@ -1287,6 +1288,16 @@ export const HomeAddAppointmentDrawer: React.FC<
             "&::-webkit-scrollbar": {
               display: "none",
             },
+          }}
+          onTouchStart={(e) => {
+            const tag = (e.target as HTMLElement).tagName.toLowerCase();
+            const role = (e.target as HTMLElement).getAttribute("role") ?? "";
+            const interactive = ["input", "textarea", "select", "button", "label", "a"].includes(tag)
+              || ["combobox", "listbox", "option", "menuitem", "dialog", "switch"].includes(role)
+              || (e.target as HTMLElement).closest("[role='listbox'],[role='menu'],[role='dialog'],[data-popper-placement]") !== null;
+            if (!interactive && document.activeElement instanceof HTMLElement) {
+              document.activeElement.blur();
+            }
           }}
         >
           <Stack spacing={2}>
@@ -1710,6 +1721,7 @@ export const HomeAddAppointmentDrawer: React.FC<
         <Box
           sx={{
             p: 2,
+            pb: "calc(16px + env(safe-area-inset-bottom, 0px))",
             bgcolor: "background.paper",
             borderTop: 1,
             borderColor: "divider",
