@@ -94,6 +94,37 @@ function isClientSessionRevoked(): boolean {
   return logoutAt > 0 && logoutAt >= sessionStartedAt;
 }
 
+/**
+ * Декодирует payload JWT и возвращает `exp` (секунды Unix), если он есть.
+ * Без верификации подписи — используется только для подсказки про истечение,
+ * чтобы не отправлять заведомо протухший токен на /users/me/ и не получать
+ * "техническую" 401-ку с последующим retry-после-refresh.
+ */
+function getJwtExp(token: string | null | undefined): number | null {
+  if (!token) return null;
+  const parts = token.split(".");
+  if (parts.length !== 3) return null;
+  try {
+    const payloadB64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+    // atob падает на не-ASCII, для JWT exp это безопасно (число)
+    const json = JSON.parse(atob(payloadB64));
+    const exp = Number(json?.exp);
+    return Number.isFinite(exp) ? exp : null;
+  } catch {
+    return null;
+  }
+}
+
+// Запас на сетевую задержку — refresh-им чуть заранее, чтобы успеть до серверного expiry.
+const ACCESS_EXPIRY_LEEWAY_SECONDS = 5;
+
+function isAccessTokenExpired(token: string | null | undefined): boolean {
+  const exp = getJwtExp(token);
+  if (exp == null) return false; // не смогли распарсить — пусть сервер сам решит
+  const nowSeconds = Math.floor(Date.now() / 1000);
+  return exp <= nowSeconds + ACCESS_EXPIRY_LEEWAY_SECONDS;
+}
+
 export const tokenStorage = {
   getAccess: () => localStorage.getItem(TOKEN_KEY),
   getRefresh: () => localStorage.getItem(REFRESH_KEY),
@@ -213,7 +244,28 @@ export async function apiFetch<T = unknown>(
       headers: buildHeaders(skipAuth ? undefined : token),
     });
 
-  const accessToken = skipAuth ? null : tokenStorage.getAccess();
+  let accessToken = skipAuth ? null : tokenStorage.getAccess();
+
+  // Pro-active refresh: если access JWT уже протух по exp, обновляем токен ДО запроса,
+  // чтобы не пачкать Network "техническими" 401-ками с последующим retry. Если refresh
+  // не сработал — оставляем старый access; ниже стандартная reactive ветка очистит сессию
+  // и сделает редирект на /login.
+  if (!skipAuth && accessToken && isAccessTokenExpired(accessToken) && tokenStorage.getRefresh()) {
+    if (isRefreshing) {
+      const refreshed = await new Promise<string | null>((resolve) => {
+        refreshQueue.push(resolve);
+      });
+      if (refreshed) accessToken = refreshed;
+    } else {
+      isRefreshing = true;
+      const refreshed = await refreshAccessToken();
+      isRefreshing = false;
+      refreshQueue.forEach((cb) => cb(refreshed));
+      refreshQueue = [];
+      if (refreshed) accessToken = refreshed;
+    }
+  }
+
   let response = await doRequest(accessToken);
 
   // Auto-refresh on 401
