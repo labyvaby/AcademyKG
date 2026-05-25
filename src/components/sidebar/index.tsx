@@ -119,6 +119,8 @@ const SidebarContainer: React.FC<React.PropsWithChildren<{ stickyTop?: React.Rea
     return;
   }, [isMobile, mobileOpen]);
 
+  const scrollbarVisible = !siderCollapsed || isMobile;
+
   return (
     <>
       {/* Backdrop behind the sidebar on mobile */}
@@ -156,16 +158,22 @@ const SidebarContainer: React.FC<React.PropsWithChildren<{ stickyTop?: React.Rea
               overflowY: "auto",
               overflowX: "hidden",
               minHeight: 0,
-              scrollbarWidth: "thin",
-              scrollbarColor: (theme) => `${alpha(theme.palette.text.primary, 0.28)} transparent`,
-              "&::-webkit-scrollbar": { width: 8 },
+              scrollbarWidth: scrollbarVisible ? "thin" : "none",
+              scrollbarColor: scrollbarVisible
+                ? (theme: any) => `${alpha(theme.palette.text.primary, 0.28)} transparent`
+                : "transparent transparent",
+              "&::-webkit-scrollbar": { width: scrollbarVisible ? 8 : 0 },
               "&::-webkit-scrollbar-track": { background: "transparent" },
               "&::-webkit-scrollbar-thumb": {
-                backgroundColor: (theme) => alpha(theme.palette.text.primary, 0.28),
+                backgroundColor: scrollbarVisible
+                  ? (theme: any) => alpha(theme.palette.text.primary, 0.28)
+                  : "transparent",
                 borderRadius: 8,
               },
               "&::-webkit-scrollbar-thumb:hover": {
-                backgroundColor: (theme) => alpha(theme.palette.text.primary, 0.42),
+                backgroundColor: scrollbarVisible
+                  ? (theme: any) => alpha(theme.palette.text.primary, 0.42)
+                  : "transparent",
               },
             }}
           >
@@ -509,7 +517,7 @@ const CategoryTile: React.FC<CategoryTileProps> = ({ label, icon, active, onClic
     sx={{
       cursor: "pointer",
       userSelect: "none",
-      borderRadius: 2,
+      borderRadius: 1,
       border: "1px solid",
       borderColor: active ? "primary.main" : "divider",
       bgcolor: (theme) => (active ? alpha(theme.palette.primary.main, 0.08) : "transparent"),
@@ -611,7 +619,7 @@ const SidebarMenuItem: React.FC<SidebarMenuItemProps> = ({
         to={to}
         selected={isActive}
         sx={{
-          borderRadius: 4,
+          borderRadius: 1,
           my: 0.25,
           px: 1.4,
           color: (theme) => (isActive ? theme.palette.primary.main : undefined),
