@@ -1500,6 +1500,14 @@ export const HomeAddAppointmentDrawer: React.FC<
                     onTouchStart: (e) => { e.preventDefault(); },
                     onMouseDown: (e) => { e.preventDefault(); },
                   },
+                  popper: {
+                    disablePortal: true,
+                    placement: "bottom-start",
+                    modifiers: [
+                      { name: "flip", enabled: false },
+                      { name: "preventOverflow", enabled: false },
+                    ],
+                  },
                 }}
                 renderInput={(params) => (
                   <TextField
@@ -1568,6 +1576,14 @@ export const HomeAddAppointmentDrawer: React.FC<
                     popupIndicator: {
                       onTouchStart: (e) => { e.preventDefault(); },
                       onMouseDown: (e) => { e.preventDefault(); },
+                    },
+                    popper: {
+                      disablePortal: true,
+                      placement: "bottom-start",
+                      modifiers: [
+                        { name: "flip", enabled: false },
+                        { name: "preventOverflow", enabled: false },
+                      ],
                     },
                   }}
                   renderInput={(params) => (
@@ -1655,6 +1671,14 @@ export const HomeAddAppointmentDrawer: React.FC<
                             onTouchStart: (e) => { e.preventDefault(); },
                             onMouseDown: (e) => { e.preventDefault(); },
                           },
+                          popper: {
+                            disablePortal: true,
+                            placement: "bottom-start",
+                            modifiers: [
+                              { name: "flip", enabled: false },
+                              { name: "preventOverflow", enabled: false },
+                            ],
+                          },
                         }}
                         renderInput={(params) => (
                           <TextField
@@ -1673,21 +1697,28 @@ export const HomeAddAppointmentDrawer: React.FC<
                           />
                         )}
                       />
-                      <Button
-                        variant="outlined"
-                        size="small"
-                        startIcon={<PersonAddOutlined />}
-                        disabled={!groupPatientInput || groupParticipants.some(p => p.id === groupPatientInput?.id)}
-                        onClick={() => {
-                          if (!groupPatientInput) return;
-                          setGroupParticipants(prev => [...prev, groupPatientInput]);
-                          setGroupPatientInput(null);
-                          setGroupPatientSearch("");
-                        }}
-                        sx={{ whiteSpace: "nowrap" }}
-                      >
-                        Добавить
-                      </Button>
+                      <Stack alignItems="flex-end" spacing={0.25}>
+                        <Button
+                          variant="outlined"
+                          size="small"
+                          startIcon={<PersonAddOutlined />}
+                          disabled={!groupPatientInput || groupParticipants.some(p => p.id === groupPatientInput?.id)}
+                          onClick={() => {
+                            if (!groupPatientInput) return;
+                            setGroupParticipants(prev => [...prev, groupPatientInput]);
+                            setGroupPatientInput(null);
+                            setGroupPatientSearch("");
+                          }}
+                          sx={{ whiteSpace: "nowrap" }}
+                        >
+                          Добавить
+                        </Button>
+                        {groupPatientInput && groupParticipants.some(p => p.id === groupPatientInput?.id) && (
+                          <Typography variant="caption" color="warning.main" sx={{ whiteSpace: "nowrap", fontSize: "0.7rem" }}>
+                            Уже добавлен
+                          </Typography>
+                        )}
+                      </Stack>
                     </Stack>
                   )}
 
