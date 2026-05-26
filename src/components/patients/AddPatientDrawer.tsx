@@ -627,7 +627,7 @@ const AddPatientDrawer: React.FC<Props> = ({ open, onClose, onCreated, initialPh
                 }
               />
               {isEmployeeChild && (
-                <Stack spacing={1.5} sx={{ mt: 1 }}>
+                <Stack spacing={2} sx={{ mt: 1.5 }}>
                   <TextField
                     select
                     SelectProps={{ native: true }}
@@ -635,24 +635,39 @@ const AddPatientDrawer: React.FC<Props> = ({ open, onClose, onCreated, initialPh
                     fullWidth
                     value={employeeParentId}
                     onChange={(e) => setEmployeeParentId(e.target.value)}
+                    // shrink:true фиксирует label в верхней позиции и убирает наезд
+                    // на текст нативного select.
+                    InputLabelProps={{ shrink: true }}
                     error={!employeeParentId}
-                    helperText={!employeeParentId ? "Выберите сотрудника" : undefined}
+                    helperText={!employeeParentId ? "Выберите сотрудника" : " "}
+                    sx={{ '& .MuiInputBase-root': { minHeight: 56 } }}
                   >
                     <option value="">— не выбран —</option>
                     {employeesList.map((emp) => (
                       <option key={emp.id} value={emp.id}>{emp.fullName}</option>
                     ))}
                   </TextField>
-                  <TextField
-                    label="Скидка, %"
-                    type="number"
-                    inputProps={{ min: 0, max: 100, step: 1 }}
-                    fullWidth
-                    value={employeeChildDiscountPercent}
-                    onChange={(e) => setEmployeeChildDiscountPercent(e.target.value)}
-                    error={!employeeChildDiscountPercent || Number(employeeChildDiscountPercent) < 0 || Number(employeeChildDiscountPercent) > 100}
-                    helperText="От 0 до 100. Применяется автоматически в сайдбаре оплаты."
-                  />
+                  {(() => {
+                    const num = Number(employeeChildDiscountPercent);
+                    const hasValue = employeeChildDiscountPercent !== "";
+                    const outOfRange = hasValue && (Number.isNaN(num) || num < 0 || num > 100);
+                    return (
+                      <TextField
+                        label="Скидка, %"
+                        type="number"
+                        inputProps={{ min: 0, max: 100, step: 1, inputMode: "numeric" }}
+                        fullWidth
+                        value={employeeChildDiscountPercent}
+                        onChange={(e) => setEmployeeChildDiscountPercent(e.target.value)}
+                        InputLabelProps={{ shrink: true }}
+                        error={outOfRange}
+                        helperText={outOfRange
+                          ? "Введите значение от 0 до 100"
+                          : "От 0 до 100. Применяется автоматически в сайдбаре оплаты."}
+                        sx={{ '& .MuiInputBase-root': { minHeight: 56 } }}
+                      />
+                    );
+                  })()}
                 </Stack>
               )}
             </Box>
