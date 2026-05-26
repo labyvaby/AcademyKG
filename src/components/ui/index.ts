@@ -22,3 +22,5 @@ export type { DateNavigationProps } from "./DateNavigation";
 export { MonthNavigation } from "./MonthNavigation";
 export type { MonthNavigationProps } from "./MonthNavigation";
 export { default as AppAutocomplete } from "./AppAutocomplete";
+export { printReceipt, buildReceiptHtml } from "./PaymentReceipt";
+export type { ReceiptData } from "./PaymentReceipt";

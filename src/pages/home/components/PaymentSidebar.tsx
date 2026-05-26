@@ -18,6 +18,7 @@ import CloseOutlined from "@mui/icons-material/CloseOutlined";
 import AccountBalanceWalletOutlined from "@mui/icons-material/AccountBalanceWalletOutlined";
 import CreditCardOutlined from "@mui/icons-material/CreditCardOutlined";
 import CardGiftcardOutlined from "@mui/icons-material/CardGiftcardOutlined";
+import PrintOutlinedIcon from "@mui/icons-material/PrintOutlined";
 // AccountBalanceWalletOutlined и CreditCardOutlined используются в полях оплаты (Наличные/Безналичные)
 
 import { APPOINTMENT_STATUSES } from "../../../config/appointmentStatuses";
@@ -26,6 +27,7 @@ import { apiFetch } from "../../../utility/apiClient";
 import { useNotification } from "@refinedev/core";
 import { useQueryClient } from "@tanstack/react-query";
 import { usePatientBalance } from "../../patient-search/usePatientBalance";
+import { printReceipt, type ReceiptData } from "../../../components/ui/PaymentReceipt";
 
 type PaymentSidebarProps = {
     open: boolean;
@@ -107,6 +109,7 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
     const [adminComment, setAdminComment] = useState("");
     const [balanceUsed, setBalanceUsed] = useState<number>(0);
     const [pointsUsed, setPointsUsed] = useState<number>(0);
+    const [lastReceiptData, setLastReceiptData] = useState<ReceiptData | null>(null);
 
     // Load patient balance
     const { balance: patientBalance, reload: reloadBalance } = usePatientBalance(
@@ -243,6 +246,7 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
             }
         } else if (!open) {
             lastInitializedId.current = null;
+            setLastReceiptData(null);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [open, appointment?.id]);
@@ -449,13 +453,29 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
 
             reloadBalance();
 
+            // Сохраняем данные для печати чека
+            if (appointment) {
+                setLastReceiptData({
+                    appointment,
+                    cashPaid: cashNum,
+                    cardPaid: cardNum,
+                    balancePaid: balanceUsed,
+                    bonusesPaid: pointsUsed,
+                    discountPercent,
+                    discountAmount,
+                    basePrice,
+                    finalPrice,
+                    bulkCount: bulkCount,
+                    cashierName: appointment.updated_by_name ?? appointment.created_by_name ?? null,
+                });
+            }
 
             notify?.({
                 type: "success",
                 message: "Оплата успешно сохранена",
             });
             onSaved();
-            onClose();
+            // Не закрываем сразу — даём напечатать чек. Пользователь закроет вручную.
         } catch (e: unknown) {
             let rollbackFailed = false;
             const rollbackErrors: string[] = [];
@@ -811,15 +831,28 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
 
             <Box sx={{ p: 2, borderTop: '1px solid', borderColor: 'divider' }}>
                 <Stack spacing={1}>
+                    {lastReceiptData && (
+                        <Button
+                            fullWidth
+                            variant="outlined"
+                            size="large"
+                            startIcon={<PrintOutlinedIcon />}
+                            onClick={() => printReceipt(lastReceiptData)}
+                        >
+                            Печать чека
+                        </Button>
+                    )}
                     <Button
                         fullWidth
-                        variant="contained"
+                        variant={lastReceiptData ? "text" : "contained"}
                         size="large"
                         disabled={loading}
                         onClick={handleSave}
                     >
                         {loading ? (
                             <CircularProgress size={24} color="inherit" />
+                        ) : lastReceiptData ? (
+                            "Перепровести оплату"
                         ) : isBulkMode ? (
                             "Подтвердить оплату"
                         ) : (
@@ -831,6 +864,17 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
                                 : "Подтвердить оплату"
                         )}
                     </Button>
+                    {lastReceiptData && (
+                        <Button
+                            fullWidth
+                            variant="contained"
+                            color="success"
+                            size="large"
+                            onClick={onClose}
+                        >
+                            Закрыть
+                        </Button>
+                    )}
                 </Stack>
             </Box>
         </Drawer>

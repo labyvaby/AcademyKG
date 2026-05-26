@@ -39,6 +39,8 @@ import PatientQuickViewDrawer from "../../../components/patients/PatientQuickVie
 import ServiceQuickViewDrawer from "../../../components/services/ServiceQuickViewDrawer";
 import DoctorQuickViewDrawer from "../../../components/employees/DoctorQuickViewDrawer";
 import { PaymentInfoBlock } from "../../../components/ui";
+import PrintOutlinedIcon from "@mui/icons-material/PrintOutlined";
+import { printReceipt } from "../../../components/ui/PaymentReceipt";
 
 import { apiFetch } from "../../../utility/apiClient";
 import { markAttendance } from "../../../features/group-appointments/api/group-appointments.api";
@@ -540,6 +542,38 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
                     </Typography>
                   </Stack>
                 )}
+                {((item.paid_cash ?? 0) > 0 || (item.paid_card ?? 0) > 0 ||
+                  (item.paid_balance ?? 0) > 0 || (item.paid_bonuses ?? 0) > 0) && (
+                  <Button
+                    size="small"
+                    variant="text"
+                    startIcon={<PrintOutlinedIcon fontSize="small" />}
+                    sx={{ alignSelf: "flex-start", textTransform: "none", px: 0.5 }}
+                    onClick={() => {
+                      const baseTotal = Number(item.total_amount || item.total_cost || item.estimated_total || 0);
+                      const disc = Number(item.discount || 0);
+                      const cash = Number(item.paid_cash || 0);
+                      const card = Number(item.paid_card || 0);
+                      const bal = Number(item.paid_balance || 0);
+                      const bon = Number(item.paid_bonuses || 0);
+                      const pct = baseTotal > 0 ? Math.round((disc / baseTotal) * 100) : 0;
+                      printReceipt({
+                        appointment: item,
+                        cashPaid: cash,
+                        cardPaid: card,
+                        balancePaid: bal,
+                        bonusesPaid: bon,
+                        discountPercent: pct,
+                        discountAmount: disc,
+                        basePrice: baseTotal,
+                        finalPrice: Math.max(0, baseTotal - disc),
+                        cashierName: item.updated_by_name ?? item.created_by_name ?? null,
+                      });
+                    }}
+                  >
+                    Печать чека
+                  </Button>
+                )}
                 <Divider />
               </>
             )}
@@ -877,6 +911,33 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
                     ) : undefined
                   }
                 />
+                {((item.paid_cash ?? 0) > 0 || (item.paid_card ?? 0) > 0 ||
+                  (item.paid_balance ?? 0) > 0 || (item.paid_bonuses ?? 0) > 0) && (
+                  <Button
+                    size="small"
+                    variant="text"
+                    startIcon={<PrintOutlinedIcon fontSize="small" />}
+                    sx={{ alignSelf: "flex-start", textTransform: "none", px: 0.5 }}
+                    onClick={() => {
+                      const baseTotal = Number(item.total_amount || item.total_cost || item.estimated_total || 0);
+                      const disc = Number(item.discount || 0);
+                      printReceipt({
+                        appointment: item,
+                        cashPaid: Number(item.paid_cash || 0),
+                        cardPaid: Number(item.paid_card || 0),
+                        balancePaid: Number(item.paid_balance || 0),
+                        bonusesPaid: Number(item.paid_bonuses || 0),
+                        discountPercent: baseTotal > 0 ? Math.round((disc / baseTotal) * 100) : 0,
+                        discountAmount: disc,
+                        basePrice: baseTotal,
+                        finalPrice: Math.max(0, baseTotal - disc),
+                        cashierName: item.updated_by_name ?? item.created_by_name ?? null,
+                      });
+                    }}
+                  >
+                    Печать чека
+                  </Button>
+                )}
               </>
             )}
 
