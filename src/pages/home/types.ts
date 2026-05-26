@@ -182,24 +182,33 @@ export const mapAggregatedRowToAppointment = (
   // API returns: {id, sellableItem: "uuid", performer: "uuid", performerName: "...", price: "1234.00", ...}
   const normalizeServices = (arr: any[]): AppointmentServiceJson[] =>
     arr.map((s: any) => {
-      // Already normalized (old format has name/performer_name)
-      if (s.performer_name || s.doctor_name) return s;
-      // performer and sellableItem are plain UUIDs (strings), name is in performerName / sellableItemName
+      // performer/doctor name — берём из всех возможных полей
       const performerId = typeof s.performer === "string" ? s.performer : s.performer?.id ?? null;
       const performerName = s.performerName ?? s.performer_name
         ?? (typeof s.performer === "object" ? (s.performer?.fullName ?? s.performer?.full_name ?? "") : null)
-        ?? (doctorName || null); // фоллбэк — имя специалиста из самого приёма
-      // Бэк отдаёт snake_case: sellable_item: {id, display_name}
-      // Поддерживаем оба варианта: snake_case (REST API) и camelCase (legacy)
+        ?? (doctorName || null);
+
+      // sellable_item может быть:
+      //   - объектом {id, display_name}  — из AppointmentListSerializer
+      //   - UUID-строкой                 — из AppointmentDetailSerializer
+      //   - null
       const sellableItemObj = s.sellable_item ?? s.sellableItem ?? null;
       const sellableId =
         typeof sellableItemObj === "string" ? sellableItemObj
         : sellableItemObj?.id ?? null;
       const sellableName =
-        (typeof sellableItemObj === "object" ? (sellableItemObj?.display_name ?? sellableItemObj?.displayName ?? sellableItemObj?.name ?? null) : null)
-        ?? s.sellableItemName ?? s.serviceName ?? s.service_name ?? s.name ?? "Услуга";
+        // объект с display_name (list endpoint)
+        (typeof sellableItemObj === "object" && sellableItemObj !== null
+          ? (sellableItemObj.display_name ?? sellableItemObj.displayName ?? sellableItemObj.name ?? null)
+          : null)
+        // camelCase legacy / уже нормализованные поля
+        ?? s.sellableItemName ?? s.serviceName ?? s.service_name
+        // уже готовое name (если объект пришёл нормализованным)
+        ?? s.name
+        ?? "Услуга";
+
       return {
-        // id = UUID AppointmentService (для ключей), service_id = UUID SellableItem (для quick view)
+        // id = UUID AppointmentService (для React-ключей), service_id = UUID SellableItem (для quick view)
         id: String(s.id ?? ""),
         service_id: String(sellableId ?? s.id ?? ""),
         name: sellableName,
