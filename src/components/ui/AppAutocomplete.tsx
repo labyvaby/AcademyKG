@@ -50,6 +50,19 @@ function AppAutocomplete<
       onMouseDown: handleArrowInteraction,
       onTouchStart: handleArrowInteraction,
     },
+    popper: {
+      disablePortal: true,
+      placement: "bottom-start" as const,
+      modifiers: [
+        { name: "flip", enabled: false },
+        { name: "preventOverflow", enabled: false },
+      ],
+      ...(slotProps as any)?.popper,
+    },
+    listbox: {
+      style: { maxHeight: 240 },
+      ...(slotProps as any)?.listbox,
+    },
   };
 
   return (

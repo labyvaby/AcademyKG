@@ -19,6 +19,7 @@ import {
   DialogActions,
   Snackbar,
 } from "@mui/material";
+import AppAutocomplete from "../ui/AppAutocomplete";
 import MuiAlert from "@mui/material/Alert";
 import CloseOutlined from "@mui/icons-material/CloseOutlined";
 import AddOutlined from "@mui/icons-material/AddOutlined";
@@ -728,25 +729,24 @@ const EditPatientDrawer: React.FC<Props> = ({
                 />
                 {isEmployeeChild && (
                   <Stack spacing={2} sx={{ mt: 1.5 }}>
-                    <TextField
-                      select
-                      SelectProps={{ native: true }}
-                      label="Сотрудник-родитель"
-                      fullWidth
-                      value={employeeParentId}
-                      onChange={(e) => setEmployeeParentId(e.target.value)}
-                      // shrink:true фиксирует label в верхней позиции и не даёт ему
-                      // наезжать на текст нативного select.
-                      InputLabelProps={{ shrink: true }}
-                      error={!employeeParentId}
-                      helperText={!employeeParentId ? "Выберите сотрудника" : " "}
-                      sx={{ '& .MuiInputBase-root': { minHeight: 56 } }}
-                    >
-                      <option value="">— не выбран —</option>
-                      {employeesList.map((emp) => (
-                        <option key={emp.id} value={emp.id}>{emp.fullName}</option>
-                      ))}
-                    </TextField>
+                    <AppAutocomplete
+                      options={employeesList}
+                      getOptionLabel={(o) => o.fullName}
+                      isOptionEqualToValue={(o, v) => o.id === v.id}
+                      value={employeesList.find((e) => e.id === employeeParentId) ?? null}
+                      onChange={(_, v) => setEmployeeParentId(v?.id ?? "")}
+                      noOptionsText="Нет сотрудников"
+                      renderInput={(params) => (
+                        <TextField
+                          {...params}
+                          label="Сотрудник-родитель"
+                          placeholder="Выберите сотрудника"
+                          fullWidth
+                          error={!employeeParentId}
+                          helperText={!employeeParentId ? "Выберите сотрудника" : " "}
+                        />
+                      )}
+                    />
                     {(() => {
                       const num = Number(employeeChildDiscountPercent);
                       const hasValue = employeeChildDiscountPercent !== "";
