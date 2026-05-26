@@ -33,18 +33,6 @@ export type ReceiptData = {
 };
 
 const RECEIPT_CSS = `
-  @page {
-    margin: 0;
-    size: 80mm auto;
-    /* Отключаем стандартные колонтитулы браузера (URL, дата, номер страницы).
-       Работает в Chrome/Edge. В Firefox колонтитулы убираются только в настройках печати. */
-    @top-left   { content: ""; }
-    @top-center { content: ""; }
-    @top-right  { content: ""; }
-    @bottom-left   { content: ""; }
-    @bottom-center { content: ""; }
-    @bottom-right  { content: ""; }
-  }
   * {
     margin: 0;
     padding: 0;
@@ -52,19 +40,43 @@ const RECEIPT_CSS = `
   }
   html, body {
     width: 80mm;
-    /* auto высота — браузер подгонит страницу под контент */
     height: auto;
-    overflow: visible;
+    background: #fff;
   }
   body {
     font-family: 'Courier New', Courier, monospace;
     font-size: 11px;
     color: #000;
-    background: #fff;
+  }
+  @media print {
+    @page {
+      size: 80mm auto;
+      margin: 0;
+    }
+    html, body {
+      width: 80mm;
+      margin: 0;
+      padding: 0;
+    }
+    body * {
+      visibility: hidden;
+    }
+    .receipt-print-root,
+    .receipt-print-root * {
+      visibility: visible;
+    }
+    .receipt-print-root {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 80mm;
+      margin: 0;
+      padding: 4mm;
+    }
+  }
+  .receipt-print-root {
+    width: 80mm;
     padding: 4mm;
-    /* display:table заставляет body сжаться по высоте контента,
-       что вместе с size:80mm auto даёт «бумагу по размеру чека» */
-    display: table;
   }
   .center { text-align: center; }
   .right  { text-align: right; }
@@ -178,10 +190,12 @@ export function buildReceiptHtml(data: ReceiptData): string {
 <html lang="ru">
 <head>
 <meta charset="utf-8"/>
+<meta name="viewport" content="width=80mm"/>
 <title>Чек #${receiptNo}</title>
 <style>${RECEIPT_CSS}</style>
 </head>
 <body>
+<div class="receipt-print-root">
   <div class="center bold lg">${orgName}</div>
   <div class="center sm">Кассовый чек</div>
 
@@ -247,6 +261,7 @@ export function buildReceiptHtml(data: ReceiptData): string {
   <div class="sep"></div>
 
   <div class="center sm" style="margin-top:4px;margin-bottom:4px">Спасибо за визит!</div>
+</div>
 </body>
 </html>`;
 }
