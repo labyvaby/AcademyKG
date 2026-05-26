@@ -863,7 +863,7 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
             )}
 
 
-            {canViewAsSpecialist && (
+            {canViewAsSpecialist && !canSeeBalance && (
               <>
                 <Divider />
                 <Typography variant="caption" color="text.secondary" display="block">
