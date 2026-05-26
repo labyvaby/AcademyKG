@@ -34,7 +34,7 @@ export type ReceiptData = {
 
 const RECEIPT_CSS = `
   @page {
-    margin: 4mm;
+    margin: 0;
     size: 80mm auto;
   }
   * {
@@ -42,12 +42,21 @@ const RECEIPT_CSS = `
     padding: 0;
     box-sizing: border-box;
   }
+  html, body {
+    width: 80mm;
+    /* auto высота — браузер подгонит страницу под контент */
+    height: auto;
+    overflow: visible;
+  }
   body {
     font-family: 'Courier New', Courier, monospace;
     font-size: 11px;
     color: #000;
     background: #fff;
-    width: 72mm;
+    padding: 4mm;
+    /* display:table заставляет body сжаться по высоте контента,
+       что вместе с size:80mm auto даёт «бумагу по размеру чека» */
+    display: table;
   }
   .center { text-align: center; }
   .right  { text-align: right; }
@@ -229,8 +238,7 @@ export function buildReceiptHtml(data: ReceiptData): string {
 
   <div class="sep"></div>
 
-  <div class="center sm" style="margin-top:4px">Спасибо за визит!</div>
-  <div style="margin-bottom:8px"></div>
+  <div class="center sm" style="margin-top:4px;margin-bottom:4px">Спасибо за визит!</div>
 </body>
 </html>`;
 }
