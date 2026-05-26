@@ -476,6 +476,11 @@ const AddPatientDrawer: React.FC<Props> = ({ open, onClose, onCreated, initialPh
                   if (photoPreview) URL.revokeObjectURL(photoPreview);
                   setPhotoPreview(f ? URL.createObjectURL(f) : null);
                 }}
+                onRemovePhoto={() => {
+                  setPhotoFile(null);
+                  if (photoPreview) URL.revokeObjectURL(photoPreview);
+                  setPhotoPreview(null);
+                }}
               />
             </Stack>
 

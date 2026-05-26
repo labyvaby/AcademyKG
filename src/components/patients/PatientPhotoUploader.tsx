@@ -3,8 +3,9 @@
  * UI-блок для выбора фото пациента (превью + input type="file").
  */
 import React from "react";
-import { Stack, Typography, CardContent, Avatar, Box } from "@mui/material";
+import { Stack, Typography, CardContent, Avatar, Box, IconButton } from "@mui/material";
 import PhotoCameraOutlined from "@mui/icons-material/PhotoCameraOutlined";
+import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import { AppCard } from "../ui";
 
 export type PatientPhotoUploaderProps = {
@@ -12,12 +13,14 @@ export type PatientPhotoUploaderProps = {
   photoPreview: string | null;
   inputId?: string;
   onPickPhoto: (file: File | null) => void;
+  onRemovePhoto?: () => void;
 };
 
 const PatientPhotoUploader: React.FC<PatientPhotoUploaderProps> = ({
   photoPreview,
   inputId = "add-patient-file-input",
   onPickPhoto,
+  onRemovePhoto,
 }) => {
   return (
     <Stack spacing={0.5}>
@@ -35,9 +38,32 @@ const PatientPhotoUploader: React.FC<PatientPhotoUploaderProps> = ({
             el?.click();
           }}
         >
-          <Avatar variant="rounded" src={photoPreview || undefined} sx={{ width: 48, height: 48 }}>
-            <PhotoCameraOutlined />
-          </Avatar>
+          <Box sx={{ position: "relative", flexShrink: 0 }}>
+            <Avatar variant="rounded" src={photoPreview || undefined} sx={{ width: 48, height: 48 }}>
+              <PhotoCameraOutlined />
+            </Avatar>
+            {photoPreview && onRemovePhoto && (
+              <IconButton
+                size="small"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onRemovePhoto();
+                }}
+                sx={{
+                  position: "absolute",
+                  top: -8,
+                  right: -8,
+                  bgcolor: "error.main",
+                  color: "white",
+                  width: 20,
+                  height: 20,
+                  "&:hover": { bgcolor: "error.dark" },
+                }}
+              >
+                <DeleteOutlineIcon sx={{ fontSize: 13 }} />
+              </IconButton>
+            )}
+          </Box>
           <Box sx={{ flex: 1 }}>
             <Typography variant="subtitle1" sx={{ fontWeight: 600, lineHeight: 1.2 }}>
               {photoPreview ? "Сменить фото" : "Добавить фото"}

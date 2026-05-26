@@ -23,7 +23,6 @@ import AppAutocomplete from "../ui/AppAutocomplete";
 import MuiAlert from "@mui/material/Alert";
 import CloseOutlined from "@mui/icons-material/CloseOutlined";
 import AddOutlined from "@mui/icons-material/AddOutlined";
-import DeleteOutline from "@mui/icons-material/DeleteOutline";
 import AttachFileOutlined from "@mui/icons-material/AttachFileOutlined";
 import DeleteOutlineOutlined from "@mui/icons-material/DeleteOutlineOutlined";
 import ZoomInOutlined from "@mui/icons-material/ZoomInOutlined";
@@ -568,24 +567,13 @@ const EditPatientDrawer: React.FC<Props> = ({
                     if (photoPreview) URL.revokeObjectURL(photoPreview);
                     setPhotoPreview(f ? URL.createObjectURL(f) : existingPhoto);
                   }}
+                  onRemovePhoto={() => {
+                    setRemovePhoto(true);
+                    setPhotoFile(null);
+                    if (photoPreview) URL.revokeObjectURL(photoPreview);
+                    setPhotoPreview(null);
+                  }}
                 />
-                {(existingPhoto || photoPreview) && !photoFile && (
-                  <Button
-                    variant="text"
-                    color="error"
-                    size="small"
-                    startIcon={<DeleteOutline />}
-                    onClick={() => {
-                      setRemovePhoto(true);
-                      setPhotoFile(null);
-                      if (photoPreview) URL.revokeObjectURL(photoPreview);
-                      setPhotoPreview(null);
-                    }}
-                    sx={{ alignSelf: "flex-start" }}
-                  >
-                    Удалить фото
-                  </Button>
-                )}
               </Stack>
 
               {/* ФИО */}
