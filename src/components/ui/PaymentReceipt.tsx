@@ -36,6 +36,14 @@ const RECEIPT_CSS = `
   @page {
     margin: 0;
     size: 80mm auto;
+    /* Отключаем стандартные колонтитулы браузера (URL, дата, номер страницы).
+       Работает в Chrome/Edge. В Firefox колонтитулы убираются только в настройках печати. */
+    @top-left   { content: ""; }
+    @top-center { content: ""; }
+    @top-right  { content: ""; }
+    @bottom-left   { content: ""; }
+    @bottom-center { content: ""; }
+    @bottom-right  { content: ""; }
   }
   * {
     margin: 0;
