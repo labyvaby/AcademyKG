@@ -189,11 +189,19 @@ export const mapAggregatedRowToAppointment = (
       const performerName = s.performerName ?? s.performer_name
         ?? (typeof s.performer === "object" ? (s.performer?.fullName ?? s.performer?.full_name ?? "") : null)
         ?? (doctorName || null); // фоллбэк — имя специалиста из самого приёма
-      const sellableId = typeof s.sellableItem === "string" ? s.sellableItem : s.sellableItem?.id ?? s.sellable_item?.id ?? s.id ?? null;
-      const sellableName = s.sellableItemName ?? s.serviceName ?? s.service_name ?? (typeof s.sellableItem === "object" ? (s.sellableItem?.displayName ?? s.sellableItem?.name ?? "") : null) ?? "Услуга";
+      // Бэк отдаёт snake_case: sellable_item: {id, display_name}
+      // Поддерживаем оба варианта: snake_case (REST API) и camelCase (legacy)
+      const sellableItemObj = s.sellable_item ?? s.sellableItem ?? null;
+      const sellableId =
+        typeof sellableItemObj === "string" ? sellableItemObj
+        : sellableItemObj?.id ?? null;
+      const sellableName =
+        (typeof sellableItemObj === "object" ? (sellableItemObj?.display_name ?? sellableItemObj?.displayName ?? sellableItemObj?.name ?? null) : null)
+        ?? s.sellableItemName ?? s.serviceName ?? s.service_name ?? s.name ?? "Услуга";
       return {
-        id: String(s.id ?? sellableId ?? ""),
-        service_id: String(sellableId ?? ""),
+        // id = UUID AppointmentService (для ключей), service_id = UUID SellableItem (для quick view)
+        id: String(s.id ?? ""),
+        service_id: String(sellableId ?? s.id ?? ""),
         name: sellableName,
         price: Number(s.price ?? 0),
         quantity: Number(s.quantity ?? 1),

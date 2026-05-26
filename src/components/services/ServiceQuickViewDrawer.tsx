@@ -149,16 +149,20 @@ export const ServiceQuickViewDrawer: React.FC<ServiceQuickViewDrawerProps> = ({
   const [service, setService] = useState<ServiceDetail | null>(null);
   const [employees, setEmployees] = useState<ServiceEmployee[]>([]);
   const [recentHistory, setRecentHistory] = useState<ServiceHistory[]>([]);
+  const [notFound, setNotFound] = useState(false);
 
   useEffect(() => {
     if (!serviceId || !open) {
       setService(null);
       setEmployees([]);
       setRecentHistory([]);
+      setNotFound(false);
       return;
     }
 
     let active = true;
+
+    setNotFound(false);
 
     const fetchServiceData = async () => {
       try {
@@ -276,8 +280,15 @@ export const ServiceQuickViewDrawer: React.FC<ServiceQuickViewDrawerProps> = ({
           // ignore history load errors
         }
         } // end if (item)
-      } catch (error) {
-        console.error("Ошибка при загрузке данных услуги:", error);
+      } catch (error: any) {
+        if (active) {
+          const is404 = error?.status === 404 || error?.message?.includes("не найдена") || error?.message?.includes("404");
+          if (is404) {
+            setNotFound(true);
+          } else {
+            console.error("Ошибка при загрузке данных услуги:", error);
+          }
+        }
       } finally {
         if (active) {
           setLoading(false);
@@ -343,6 +354,16 @@ export const ServiceQuickViewDrawer: React.FC<ServiceQuickViewDrawerProps> = ({
             <Skeleton variant="text" width="60%" />
             <Skeleton variant="text" width="80%" />
             <Skeleton variant="rectangular" height={200} />
+          </Stack>
+        ) : notFound ? (
+          <Stack spacing={2} alignItems="center" sx={{ pt: 4 }}>
+            <MedicalServicesIcon sx={{ fontSize: 48, color: "text.disabled" }} />
+            <Typography variant="body1" color="text.secondary" align="center">
+              Услуга недоступна или удалена
+            </Typography>
+            <Typography variant="caption" color="text.disabled" align="center">
+              Данные о ней сохранены в карточке приёма
+            </Typography>
           </Stack>
         ) : service ? (
           <Stack spacing={3}>

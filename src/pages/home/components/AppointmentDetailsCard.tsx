@@ -723,19 +723,21 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
 
                     const renderServiceItem = (svc: any, idx: number) => {
                       if (!svc) return null;
-                      const serviceId = svc.id ?? svc.service_id ?? null;
-                      const sidStr = serviceId ? String(serviceId) : null;
+                      // service_id = UUID SellableItem (для quick view endpoint /services/{id}/)
+                      // svc.id = UUID AppointmentService (только для ключей React)
+                      const sellableId = svc.service_id || null;
+                      const sidStr = sellableId ? String(sellableId) : null;
                       const serviceName = svc.name ?? svc.service_name ?? 'Услуга';
                       const servicePrice = Number(svc.price ?? svc.cost ?? 0);
                       const servicePhoto = svc.image_url || (sidStr && servicesPhotos ? servicesPhotos.get(sidStr) : null);
 
                       return (
                         <Paper
-                          key={idx}
+                          key={svc.id || idx}
                           variant="outlined"
                           onClick={() => {
-                            if (serviceId) {
-                              setSelectedServiceId(serviceId);
+                            if (sellableId) {
+                              setSelectedServiceId(sellableId);
                               setServiceDrawerOpen(true);
                             }
                           }}
@@ -746,9 +748,9 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
                             alignItems: 'center',
                             gap: 2,
                             bgcolor: 'background.paper',
-                            cursor: serviceId ? 'pointer' : 'default',
+                            cursor: sellableId ? 'pointer' : 'default',
                             transition: 'all 0.2s',
-                            '&:hover': serviceId ? {
+                            '&:hover': sellableId ? {
                               borderColor: 'primary.main',
                               bgcolor: (theme) => alpha(theme.palette.primary.main, 0.02),
                             } : {},
