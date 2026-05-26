@@ -1,4 +1,5 @@
 import React from "react";
+import AppAutocomplete from "../../components/ui/AppAutocomplete";
 import {
   Box,
   Button,
@@ -9,10 +10,9 @@ import {
   Stack,
   TextField,
   Typography,
-  Autocomplete,
   CardContent,
   Avatar,
-  Paper,
+  Paper
 } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import CloseOutlined from "@mui/icons-material/CloseOutlined";
@@ -49,8 +49,8 @@ export const EditExpenseDrawer: React.FC<EditExpenseDrawerProps> = ({ open, onCl
     category_id: record.category_id || null,
     photo: record.photo || null,
     photoFile: null,
-    created_at: record.created_at ? dayjs(record.created_at).format("YYYY-MM-DDTHH:mm") : dayjs().format("YYYY-MM-DDTHH:mm"),
-  }), [record]);
+    created_at: record.created_at ? dayjs(record.created_at).format("YYYY-MM-DDTHH:mm") : dayjs().format("YYYY-MM-DDTHH:mm")
+}), [record]);
 
   const [values, setValues] = React.useState<ExpenseFormValues>(initialValues);
   const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
@@ -106,8 +106,8 @@ export const EditExpenseDrawer: React.FC<EditExpenseDrawerProps> = ({ open, onCl
         category: values.category?.trim() || null,
         category_id: values.category_id || null,
         photo: values.photoFile || values.photo,
-        created_at: (values.created_at ? dayjs(values.created_at) : dayjs()).toISOString(),
-      });
+        created_at: (values.created_at ? dayjs(values.created_at) : dayjs()).toISOString()
+});
       if (updated && onUpdated) onUpdated(updated);
       notify?.({ type: "success", message: "Расход обновлен" });
       onClose();
@@ -174,7 +174,7 @@ export const EditExpenseDrawer: React.FC<EditExpenseDrawerProps> = ({ open, onCl
             {/* Категория */}
             <Stack spacing={0.5}>
               <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>Категория</Typography>
-              <Autocomplete
+              <AppAutocomplete
                 options={categories}
                 getOptionLabel={(o) => o.name}
                 isOptionEqualToValue={(o, v) => o.id === v.id}

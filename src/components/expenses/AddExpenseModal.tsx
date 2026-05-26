@@ -12,7 +12,7 @@ import {
   Avatar,
   CircularProgress,
 } from "@mui/material";
-import Autocomplete from "@mui/material/Autocomplete";
+import AppAutocomplete from "../../components/ui/AppAutocomplete";
 import { useNotification } from "@refinedev/core";
 import { fetchEmployees } from "../../services/employees";
 import { ExpensesService } from "../../services/expenses";
@@ -170,7 +170,7 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({
               />
             </Grid>
             <Grid item xs={12}>
-              <Autocomplete<EmployeesRow, false, false, false>
+              <AppAutocomplete<EmployeesRow, false, false, false>
                 options={employees}
                 noOptionsText=""
                 getOptionLabel={(option) =>

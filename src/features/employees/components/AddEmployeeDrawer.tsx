@@ -1,7 +1,7 @@
 import React from "react";
 import { Stack, TextField, InputAdornment, Checkbox, Typography, MenuItem } from "@mui/material";
 import CreditCardOutlined from "@mui/icons-material/CreditCardOutlined";
-import Autocomplete from "@mui/material/Autocomplete";
+import AppAutocomplete from "../../../components/ui/AppAutocomplete";
 import CheckBoxOutlineBlankIcon from "@mui/icons-material/CheckBoxOutlineBlank";
 import CheckBoxIcon from "@mui/icons-material/CheckBox";
 import DrawerBase from "./DrawerBase";
@@ -308,7 +308,7 @@ const AddEmployeeDrawer: React.FC<AddEmployeeDrawerProps> = ({ open, onClose, on
         {isTrainerRole && (
           <Stack spacing={0.5}>
             <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>Услуги</Typography>
-            <Autocomplete multiple limitTags={2} loading={servicesLoading} options={services}
+            <AppAutocomplete multiple limitTags={2} loading={servicesLoading} options={services}
               value={selectedServices} disableCloseOnSelect
               getOptionLabel={o => typeof o.price === 'number' ? `${o.name} (${o.price} с)` : o.name || ''}
               isOptionEqualToValue={(o, v) => o.id === v.id}

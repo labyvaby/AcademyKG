@@ -13,7 +13,8 @@ import {
   Tooltip,
   Checkbox,
 } from "@mui/material";
-import Autocomplete, { createFilterOptions } from "@mui/material/Autocomplete";
+import AppAutocomplete from "../../components/ui/AppAutocomplete";
+import { createFilterOptions } from "@mui/material/Autocomplete";
 import PersonAddAltOutlined from "@mui/icons-material/PersonAddAltOutlined";
 import type { EmployeesRow } from "../../pages/expenses/types";
 
@@ -48,7 +49,7 @@ const ServiceEmployeeSelector: React.FC<ServiceEmployeeSelectorProps> = ({
         Выберите сотрудника:
       </Typography>
       <Stack direction="row" alignItems="center" spacing={1}>
-        <Autocomplete
+        <AppAutocomplete
           multiple
           loading={loadingEmps}
           options={employees}

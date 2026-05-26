@@ -1,4 +1,5 @@
 import React from "react";
+import AppAutocomplete from "../../components/ui/AppAutocomplete";
 import {
   Box,
   Button,
@@ -9,10 +10,9 @@ import {
   Stack,
   TextField,
   Typography,
-  Autocomplete,
   CardContent,
   Avatar,
-  Paper,
+  Paper
 } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import CloseOutlined from "@mui/icons-material/CloseOutlined";
@@ -44,7 +44,7 @@ const defaultValues: ExpenseFormValues = {
   category: "",
   category_id: null,
   photo: null,
-  photoFile: null,
+  photoFile: null
 };
 
 type ExpenseCategory = { id: string; name: string };
@@ -113,8 +113,8 @@ export const AddExpenseDrawer: React.FC<AddExpenseDrawerProps> = ({ open, onClos
         category: values.category?.trim() || null,
         category_id: values.category_id || null,
         photo: values.photoFile,
-        created_at: (expenseDate ? dayjs(expenseDate) : dayjs()).toISOString(),
-      });
+        created_at: (expenseDate ? dayjs(expenseDate) : dayjs()).toISOString()
+});
       if (created && onCreated) onCreated(created);
       notify?.({ type: "success", message: "Расход добавлен" });
       onClose();
@@ -189,7 +189,7 @@ export const AddExpenseDrawer: React.FC<AddExpenseDrawerProps> = ({ open, onClos
             {/* Категория */}
             <Stack spacing={0.5}>
               <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>Категория</Typography>
-              <Autocomplete
+              <AppAutocomplete
                 options={categories}
                 loading={loadingCategories}
                 getOptionLabel={(o) => o.name}

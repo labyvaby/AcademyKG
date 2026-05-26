@@ -1,4 +1,5 @@
 import React from "react";
+import AppAutocomplete from "../../../components/ui/AppAutocomplete";
 import { CustomDateTimePicker } from "../../../components/ui";
 import {
   Box,
@@ -17,8 +18,7 @@ import {
   Typography,
   TextField,
   CircularProgress,
-  Autocomplete,
-  IconButton,
+  IconButton
 } from "@mui/material";
 import EditOutlined from "@mui/icons-material/EditOutlined";
 import DeleteOutlined from "@mui/icons-material/DeleteOutlined";
@@ -80,8 +80,8 @@ function participantToAppointment(p: GroupParticipant, group: AppointmentGroup):
     paid_bonuses: 0,
     discount: 0,
     debt: p.debt,
-    performer_ids: [group.performerId],
-  };
+    performer_ids: [group.performerId]
+};
 }
 
 const GroupAppointmentDetailsCard: React.FC<Props> = ({ group, onGroupUpdated, onClose }) => {
@@ -152,8 +152,8 @@ const GroupAppointmentDetailsCard: React.FC<Props> = ({ group, onGroupUpdated, o
       const updated = await updateGroup(group.id, {
         appointmentAt: editDateTime ? new Date(editDateTime).toISOString() : undefined,
         performerId: editPerformerId || undefined,
-        sellableItemId: editServiceId || undefined,
-      });
+        sellableItemId: editServiceId || undefined
+});
       onGroupUpdated(updated);
       setEditOpen(false);
     } catch { /* ignore */ }
@@ -225,8 +225,8 @@ const GroupAppointmentDetailsCard: React.FC<Props> = ({ group, onGroupUpdated, o
     try {
       const updated = await addParticipantToGroup(group.id, {
         patientId: addPatientInput.id,
-        patientName: addPatientInput.fio ?? addPatientInput.label ?? "",
-      });
+        patientName: addPatientInput.fio ?? addPatientInput.label ?? ""
+});
       onGroupUpdated(updated);
       setAddOpen(false);
       setAddPatientInput(null);
@@ -243,24 +243,24 @@ const GroupAppointmentDetailsCard: React.FC<Props> = ({ group, onGroupUpdated, o
     await updateParticipantStatus(group.id, participantId, status);
     onGroupUpdated({
       ...group,
-      participants: group.participants.map((p) => p.id === participantId ? { ...p, status } : p),
-    });
+      participants: group.participants.map((p) => p.id === participantId ? { ...p, status } : p)
+});
   };
 
   const handleAttendanceToggle = async (participantId: string, attended: boolean) => {
     await markAttendance(participantId, attended);
     onGroupUpdated({
       ...group,
-      participants: group.participants.map((p) => p.id === participantId ? { ...p, attended } : p),
-    });
+      participants: group.participants.map((p) => p.id === participantId ? { ...p, attended } : p)
+});
   };
 
   const handlePay = async (participantId: string, payment: { paidCash?: number; paidCard?: number; paidBalance?: number }) => {
     const updated = await payParticipant(group.id, participantId, payment);
     onGroupUpdated({
       ...group,
-      participants: group.participants.map((p) => p.id === participantId ? updated : p),
-    });
+      participants: group.participants.map((p) => p.id === participantId ? updated : p)
+});
     setPaymentParticipant(null);
   };
 
@@ -404,8 +404,8 @@ const GroupAppointmentDetailsCard: React.FC<Props> = ({ group, onGroupUpdated, o
               width: { xs: 340, sm: 420 },
               maxWidth: "100vw",
               p: 0,
-              transition: "transform 280ms cubic-bezier(0.4, 0, 0.2, 1) !important",
-            }
+              transition: "transform 280ms cubic-bezier(0.4, 0, 0.2, 1) !important"
+}
           }}
         >
           <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", px: 2, py: 1.5, borderBottom: "1px solid", borderColor: "divider" }}>
@@ -416,7 +416,7 @@ const GroupAppointmentDetailsCard: React.FC<Props> = ({ group, onGroupUpdated, o
           </Box>
 
           <Box sx={{ p: 2, flex: 1, overflowY: "auto" }}>
-            <Autocomplete
+            <AppAutocomplete
               options={addPatientResults}
               value={addPatientInput}
               onChange={(_, v) => setAddPatientInput(v)}
@@ -440,8 +440,8 @@ const GroupAppointmentDetailsCard: React.FC<Props> = ({ group, onGroupUpdated, o
                   fullWidth
                   InputProps={{
                     ...params.InputProps,
-                    endAdornment: <>{addPatientLoading && <CircularProgress size={14} />}{params.InputProps.endAdornment}</>,
-                  }}
+                    endAdornment: <>{addPatientLoading && <CircularProgress size={14} />}{params.InputProps.endAdornment}</>
+}}
                 />
               )}
             />
@@ -526,7 +526,7 @@ const GroupAppointmentDetailsCard: React.FC<Props> = ({ group, onGroupUpdated, o
 
               <Stack spacing={0.5}>
                 <Typography variant="body2" color="text.secondary" fontWeight={500}>Тренер</Typography>
-                <Autocomplete
+                <AppAutocomplete
                   options={editEmployees}
                   value={editEmployees.find(e => e.id === editPerformerId) ?? null}
                   onChange={(_, v) => setEditPerformerId(v?.id ?? "")}
@@ -540,7 +540,7 @@ const GroupAppointmentDetailsCard: React.FC<Props> = ({ group, onGroupUpdated, o
 
               <Stack spacing={0.5}>
                 <Typography variant="body2" color="text.secondary" fontWeight={500}>Услуга / Занятие</Typography>
-                <Autocomplete
+                <AppAutocomplete
                   options={editServices}
                   value={editServices.find(s => s.id === editServiceId) ?? null}
                   onChange={(_, v) => setEditServiceId(v?.id ?? "")}

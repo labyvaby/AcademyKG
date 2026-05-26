@@ -1,4 +1,5 @@
 import React from "react";
+import AppAutocomplete from "../../components/ui/AppAutocomplete";
 import {
   Box,
   Button,
@@ -10,8 +11,7 @@ import {
   Paper,
   Stack,
   TextField,
-  Typography,
-  Autocomplete,
+  Typography
 } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import CloseOutlined from "@mui/icons-material/CloseOutlined";
@@ -37,7 +37,7 @@ const defaultValues: PayrollFormValues = {
   name: "",
   cash_amount: 0,
   cashless_amount: 0,
-  comment: "",
+  comment: ""
 };
 
 export const AddPayrollDrawer: React.FC<AddPayrollDrawerProps> = ({ open, onClose, onCreated }) => {
@@ -74,8 +74,8 @@ export const AddPayrollDrawer: React.FC<AddPayrollDrawerProps> = ({ open, onClos
         name: values.name?.trim() || null,
         cash_amount: Number(values.cash_amount) || 0,
         cashless_amount: Number(values.cashless_amount) || 0,
-        comment: values.comment?.trim() || null,
-      });
+        comment: values.comment?.trim() || null
+});
       if (onCreated) onCreated(created);
       notify?.({ type: "success", message: "Транзакция добавлена" });
       onClose();
@@ -104,7 +104,7 @@ export const AddPayrollDrawer: React.FC<AddPayrollDrawerProps> = ({ open, onClos
             {/* Сотрудник */}
             <Stack spacing={0.5}>
               <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>Сотрудник *</Typography>
-              <Autocomplete
+              <AppAutocomplete
                 options={employees}
                 loading={loadingEmployees}
                 getOptionLabel={(o) => o.specialization ? `${o.full_name} — ${o.specialization}` : o.full_name}
@@ -116,8 +116,8 @@ export const AddPayrollDrawer: React.FC<AddPayrollDrawerProps> = ({ open, onClos
                   setValues((s) => ({
                     ...s,
                     employee_id: v?.id || null,
-                    name: kindLabel && empName && !s.name.trim() ? `${kindLabel} - ${empName}` : s.name,
-                  }));
+                    name: kindLabel && empName && !s.name.trim() ? `${kindLabel} - ${empName}` : s.name
+}));
                 }}
                 renderInput={(params) => (
                   <TextField {...params} placeholder="Выберите сотрудника" fullWidth
@@ -141,8 +141,8 @@ export const AddPayrollDrawer: React.FC<AddPayrollDrawerProps> = ({ open, onClos
                   setValues((s) => ({
                     ...s,
                     kind: newKind,
-                    name: kindLabel && emp?.full_name && !s.name.trim() ? `${kindLabel} - ${emp.full_name}` : s.name,
-                  }));
+                    name: kindLabel && emp?.full_name && !s.name.trim() ? `${kindLabel} - ${emp.full_name}` : s.name
+}));
                 }}
                 error={touched && !values.kind}
                 helperText={touched && !values.kind ? "Обязательное поле" : ""}
@@ -166,9 +166,9 @@ export const AddPayrollDrawer: React.FC<AddPayrollDrawerProps> = ({ open, onClos
                   textField: {
                     fullWidth: true,
                     error: touched && !values.affects_month,
-                    helperText: touched && !values.affects_month ? "Обязательное поле" : "",
-                  },
-                }}
+                    helperText: touched && !values.affects_month ? "Обязательное поле" : ""
+}
+}}
               />
             </Stack>
 

@@ -1,4 +1,5 @@
 import React from "react";
+import AppAutocomplete from "../../components/ui/AppAutocomplete";
 import {
     Drawer,
     Box,
@@ -8,8 +9,7 @@ import {
     Stack,
     TextField,
     MenuItem,
-    Button,
-    Autocomplete,
+    Button
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 
@@ -34,7 +34,7 @@ const ProductFilterDrawer: React.FC<Props> = ({
     filters,
     onApply,
     onReset,
-    availableCategories,
+    availableCategories
 }) => {
     const [localFilters, setLocalFilters] = React.useState<ProductFilters>(filters);
 
@@ -65,8 +65,8 @@ const ProductFilterDrawer: React.FC<Props> = ({
             open={open}
             onClose={onClose}
             PaperProps={{
-                sx: { width: { xs: 320, sm: 480, md: 520 }, maxWidth: "100vw" },
-            }}
+                sx: { width: { xs: 320, sm: 480, md: 520 }, maxWidth: "100vw" }
+}}
         >
             <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", p: 2 }}>
                 <Typography variant="h6">Фильтры</Typography>
@@ -84,13 +84,13 @@ const ProductFilterDrawer: React.FC<Props> = ({
                     scrollbarWidth: 'none',
                     msOverflowStyle: 'none',
                     '&::-webkit-scrollbar': {
-                        display: 'none',
-                    },
-                }}
+                        display: 'none'
+}
+}}
             >
                 <Stack spacing={3}>
                     {/* Category Filter */}
-                    <Autocomplete
+                    <AppAutocomplete
                         options={availableCategories}
                         value={localFilters.category}
                         onChange={(_, newValue) => handleChange("category", newValue)}

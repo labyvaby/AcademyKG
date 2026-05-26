@@ -22,7 +22,8 @@ import {
   alpha,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
-import Autocomplete, { createFilterOptions } from "@mui/material/Autocomplete";
+import AppAutocomplete from "../../../components/ui/AppAutocomplete";
+import { createFilterOptions } from "@mui/material/Autocomplete";
 import CloseOutlined from "@mui/icons-material/CloseOutlined";
 import PersonOutlined from "@mui/icons-material/PersonOutlined";
 import GroupsOutlined from "@mui/icons-material/GroupsOutlined";
@@ -1441,7 +1442,7 @@ export const HomeAddAppointmentDrawer: React.FC<
               <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
                 Тренер / Исполнитель *
               </Typography>
-              <Autocomplete
+              <AppAutocomplete
                 fullWidth
                 disabled={isWorkplaceNurse}
                 options={allDoctorsOpts}
@@ -1492,7 +1493,7 @@ export const HomeAddAppointmentDrawer: React.FC<
               <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
                 Услуга *
               </Typography>
-              <Autocomplete
+              <AppAutocomplete
                 fullWidth
                 options={serviceOptions}
                 loading={isServiceListLoading}
@@ -1576,7 +1577,7 @@ export const HomeAddAppointmentDrawer: React.FC<
                   />
                 </Box>
 
-                <Autocomplete
+                <AppAutocomplete
                   disabled={isBooking}
                   options={patientsSearchResults.length > 0 ? patientsSearchResults : patientsOpts}
                   loading={patientsLoading || isSearchingPatients}
@@ -1667,7 +1668,7 @@ export const HomeAddAppointmentDrawer: React.FC<
 
                   {!isFull && (
                     <Stack direction="row" spacing={1} alignItems="flex-start">
-                      <Autocomplete
+                      <AppAutocomplete
                         sx={{ flex: 1 }}
                         options={groupPatientResults}
                         value={groupPatientInput}

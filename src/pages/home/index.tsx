@@ -15,7 +15,8 @@ import {
   TextField,
   Grid,
 } from "@mui/material";
-import Autocomplete, { createFilterOptions } from "@mui/material/Autocomplete";
+import AppAutocomplete from "../../components/ui/AppAutocomplete";
+import { createFilterOptions } from "@mui/material/Autocomplete";
 import CloseOutlined from "@mui/icons-material/CloseOutlined";
 import { useTheme } from "@mui/material/styles";
 import { usePageTitle } from "../../hooks/usePageTitle";
@@ -559,7 +560,7 @@ export const HomePage: React.FC = () => {
 
 
           <Typography variant="subtitle2">Доктор</Typography>
-          <Autocomplete
+          <AppAutocomplete
             options={doctors}
             loading={doctorsLoading}
             value={doctors.find((d) => d.id === doctorId) || null}

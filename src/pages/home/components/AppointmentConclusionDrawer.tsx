@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import AppAutocomplete from "../../../components/ui/AppAutocomplete";
 import { useUpdate } from "@refinedev/core";
 import { apiFetch } from "../../../utility/apiClient";
 import {
@@ -9,8 +10,7 @@ import {
     Stack,
     Button,
     TextField,
-    Autocomplete,
-    CircularProgress,
+    CircularProgress
 } from "@mui/material";
 import CloseOutlined from "@mui/icons-material/CloseOutlined";
 import SaveOutlined from "@mui/icons-material/SaveOutlined";
@@ -42,7 +42,7 @@ export const AppointmentConclusionDrawer: React.FC<AppointmentConclusionDrawerPr
     initialDiagnosisCode,
     initialConclusion,
     initialDoctorComplaints,
-    onSuccess,
+    onSuccess
 }) => {
     const theme = useTheme();
 
@@ -113,9 +113,9 @@ export const AppointmentConclusionDrawer: React.FC<AppointmentConclusionDrawerPr
                 values: {
                     conclusion: conclusion,
                     doctor_complaints: doctorComplaints,
-                    diagnosis_code: selectedDiagnosis?.diagnosis_code || null,
-                },
-            });
+                    diagnosis_code: selectedDiagnosis?.diagnosis_code || null
+}
+});
             onSuccess?.();
             onClose();
         } catch (error) {
@@ -133,9 +133,9 @@ export const AppointmentConclusionDrawer: React.FC<AppointmentConclusionDrawerPr
             PaperProps={{
                 sx: {
                     width: { xs: "100%", md: 500 },
-                    p: 0,
-                },
-            }}
+                    p: 0
+}
+}}
         >
             {/* Header */}
             <Box
@@ -145,8 +145,8 @@ export const AppointmentConclusionDrawer: React.FC<AppointmentConclusionDrawerPr
                     justifyContent: "space-between",
                     px: 3,
                     py: 2,
-                    borderBottom: `1px solid ${theme.palette.divider}`,
-                }}
+                    borderBottom: `1px solid ${theme.palette.divider}`
+}}
             >
                 <Typography variant="h6">Заключение специалиста</Typography>
                 <IconButton onClick={onClose}>
@@ -165,7 +165,7 @@ export const AppointmentConclusionDrawer: React.FC<AppointmentConclusionDrawerPr
                         {isLoadingDiagnoses ? (
                             <CircularProgress size={20} />
                         ) : (
-                            <Autocomplete
+                            <AppAutocomplete
                                 options={diagnosesList}
                                 getOptionLabel={(option) => option.title || option.diagnosis_code || ""}
                                 value={selectedDiagnosis}
@@ -240,8 +240,8 @@ export const AppointmentConclusionDrawer: React.FC<AppointmentConclusionDrawerPr
                     borderTop: `1px solid ${theme.palette.divider}`,
                     display: "flex",
                     justifyContent: "flex-end",
-                    gap: 2,
-                }}
+                    gap: 2
+}}
             >
                 <Button variant="outlined" onClick={onClose} color="inherit">
                     Отмена

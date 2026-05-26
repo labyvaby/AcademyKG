@@ -1,4 +1,5 @@
 import React from "react";
+import AppAutocomplete from "../../components/ui/AppAutocomplete";
 import {
   Box,
   Button,
@@ -10,8 +11,7 @@ import {
   Paper,
   Stack,
   TextField,
-  Typography,
-  Autocomplete,
+  Typography
 } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import CloseOutlined from "@mui/icons-material/CloseOutlined";
@@ -42,8 +42,8 @@ export const EditPayrollDrawer: React.FC<EditPayrollDrawerProps> = ({ open, onCl
     name: record.name || "",
     cash_amount: record.cash_amount || 0,
     cashless_amount: record.cashless_amount || 0,
-    comment: record.comment || "",
-  }), [record]);
+    comment: record.comment || ""
+}), [record]);
 
   const [values, setValues] = React.useState<PayrollFormValues>(initialValues);
   const [busy, setBusy] = React.useState(false);
@@ -71,8 +71,8 @@ export const EditPayrollDrawer: React.FC<EditPayrollDrawerProps> = ({ open, onCl
         name: values.name?.trim() || null,
         cash_amount: Number(values.cash_amount) || 0,
         cashless_amount: Number(values.cashless_amount) || 0,
-        comment: values.comment?.trim() || null,
-      });
+        comment: values.comment?.trim() || null
+});
       if (onUpdated) onUpdated(updated);
       notify?.({ type: "success", message: "Транзакция обновлена" });
       onClose();
@@ -101,7 +101,7 @@ export const EditPayrollDrawer: React.FC<EditPayrollDrawerProps> = ({ open, onCl
             {/* Сотрудник */}
             <Stack spacing={0.5}>
               <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>Сотрудник *</Typography>
-              <Autocomplete
+              <AppAutocomplete
                 options={employees}
                 loading={loadingEmployees}
                 getOptionLabel={(o) => o.specialization ? `${o.full_name} — ${o.specialization}` : o.full_name}
@@ -140,9 +140,9 @@ export const EditPayrollDrawer: React.FC<EditPayrollDrawerProps> = ({ open, onCl
                   textField: {
                     fullWidth: true,
                     error: touched && !values.affects_month,
-                    helperText: touched && !values.affects_month ? "Обязательное поле" : "",
-                  },
-                }}
+                    helperText: touched && !values.affects_month ? "Обязательное поле" : ""
+}
+}}
               />
             </Stack>
 

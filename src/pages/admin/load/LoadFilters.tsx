@@ -1,5 +1,6 @@
 import React from 'react';
-import { Box, TextField, Autocomplete, Button, ButtonGroup, Paper } from '@mui/material';
+import AppAutocomplete from "../../../components/ui/AppAutocomplete";
+import { Box, TextField, Button, ButtonGroup, Paper } from '@mui/material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { useQuery } from '@tanstack/react-query';
 import { fetchEmployees } from '../../../services/employees';
@@ -15,13 +16,13 @@ interface Props {
 export const LoadFilters: React.FC<Props> = ({ selectedEmployees, onEmployeesChange, dateRange, onDateRangeChange }) => {
     const { data: employees } = useQuery({
         queryKey: ['employeesListAnalytics'],
-        queryFn: () => fetchEmployees(),
-    });
+        queryFn: () => fetchEmployees()
+});
 
     return (
         <Paper sx={{ p: 2, borderRadius: 3 }} elevation={1}>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-                <Autocomplete
+                <AppAutocomplete
                     multiple
                     options={employees || []}
                     getOptionLabel={(o) => o.full_name || ''}

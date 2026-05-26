@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
+import AppAutocomplete from "../../components/ui/AppAutocomplete";
 import { dayjsBishkek } from "../../utility/dayjsBishkek";
 import {
     Box,
@@ -9,9 +10,8 @@ import {
     Typography,
     Tabs,
     Tab,
-    Autocomplete,
     TextField,
-    Avatar,
+    Avatar
 } from "@mui/material";
 import { useNotification } from "@refinedev/core";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -126,8 +126,8 @@ const DoctorWorkPage: React.FC = () => {
         },
         enabled: !permLoading && (canSeeAll || !!employeeId),
         staleTime: 2 * 60 * 1000,
-        refetchOnWindowFocus: false,
-    });
+        refetchOnWindowFocus: false
+});
 
     // --- Счётчики дней (диапазон ±2 недели от выбранной даты) ---
     const rangeKey = useMemo(() => {
@@ -144,8 +144,8 @@ const DoctorWorkPage: React.FC = () => {
         end.setDate(end.getDate() + 14);
         return {
             dateFrom: start.toISOString().split("T")[0],
-            dateTo: end.toISOString().split("T")[0],
-        };
+            dateTo: end.toISOString().split("T")[0]
+};
     }, [rangeKey]);
 
     const { data: dayCounts = {} } = useQuery<Record<string, number>>({
@@ -168,16 +168,16 @@ const DoctorWorkPage: React.FC = () => {
         },
         enabled: !permLoading && (canSeeAll || !!employeeId),
         staleTime: 10 * 60 * 1000,
-        refetchOnWindowFocus: false,
-    });
+        refetchOnWindowFocus: false
+});
 
     // --- Список специалистов (для подстановки имён и фильтра суперадмина) ---
     const { data: doctors = [] } = useQuery<EmployeesRow[]>({
         queryKey: ["employees", "medical-staff"],
         queryFn: fetchMedicalStaff,
         staleTime: 5 * 60 * 1000,
-        refetchOnWindowFocus: false,
-    });
+        refetchOnWindowFocus: false
+});
 
     // API уже фильтрует по дате (?date=), просто сортируем
     const filteredAppointments = useMemo(() =>
@@ -203,13 +203,13 @@ const DoctorWorkPage: React.FC = () => {
                 height: {
                     xs: `calc(100dvh - ${theme.appLayout.viewportOffset.home.mobileOffset}px)`,
                     sm: `calc(100dvh - ${theme.appLayout.viewportOffset.home.desktopOffset}px)`,
-                    lg: `calc(100dvh - ${theme.appLayout.viewportOffset.home.desktopOffset}px)`,
-                },
+                    lg: `calc(100dvh - ${theme.appLayout.viewportOffset.home.desktopOffset}px)`
+},
                 display: "flex",
                 flexDirection: "column",
                 boxSizing: "border-box",
-                overflow: "hidden",
-            })}
+                overflow: "hidden"
+})}
         >
             <PageHeader
                 title="Кабинет специалиста"
@@ -225,7 +225,7 @@ const DoctorWorkPage: React.FC = () => {
 
             {canSeeAll && (
                 <Box sx={{ px: 2, pb: 1 }}>
-                    <Autocomplete
+                    <AppAutocomplete
                         size="small"
                         options={doctors}
                         value={doctors.find(d => d.id === selectedDoctorId) ?? null}
@@ -262,8 +262,8 @@ const DoctorWorkPage: React.FC = () => {
                 display: "flex",
                 flexDirection: "column",
                 overflow: "hidden",
-                px: theme.appLayout.page.paddingX,
-            })}>
+                px: theme.appLayout.page.paddingX
+})}>
                 <Grid container spacing={2} sx={{ flex: 1, minHeight: 0, height: 0, overflow: "hidden", alignItems: "flex-start", boxSizing: "border-box" }}>
                     <Grid item xs={12} md={6} sx={{ height: "100%", display: "flex", flexDirection: "column", overflow: "hidden", pr: { md: 1 } }}>
                         <AppointmentsList
@@ -303,8 +303,8 @@ const DoctorWorkPage: React.FC = () => {
                                     borderColor: "divider",
                                     borderRadius: 1,
                                     color: "text.secondary",
-                                    bgcolor: "background.paper",
-                                }}>
+                                    bgcolor: "background.paper"
+}}>
                                     Выберите прием из списка
                                 </Box>
                             )}

@@ -16,7 +16,8 @@ import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { CustomTimePicker, CustomDatePicker } from "../ui";
 import { useNotification } from "@refinedev/core";
-import Autocomplete, { createFilterOptions } from "@mui/material/Autocomplete";
+import AppAutocomplete from "../../components/ui/AppAutocomplete";
+import { createFilterOptions } from "@mui/material/Autocomplete";
 
 type Employee = {
   id: string;
@@ -201,7 +202,7 @@ const ShiftForm: React.FC<Props> = ({
         {/* Сотрудник */}
         <Box>
           <Label>Сотрудник *</Label>
-          <Autocomplete
+          <AppAutocomplete
             options={allEmployees}
             value={employee}
             disabled={isSpecialist}

@@ -30,7 +30,7 @@ import "dayjs/locale/ru";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { CustomTimePicker, CustomDatePicker, AppCard } from "../../../components/ui";
-import Autocomplete from "@mui/material/Autocomplete";
+import AppAutocomplete from "../../../components/ui/AppAutocomplete";
 import { Client, ClientShift } from "../model/types";
 import { fetchGroups, addParticipantToGroup } from "../../group-appointments/api/group-appointments.api";
 import type { AppointmentGroup } from "../../group-appointments/model/types";
@@ -289,7 +289,7 @@ const ClientShiftForm: React.FC<Props> = ({
           <Typography variant="body2" color="text.secondary">
             Клиент *
           </Typography>
-          <Autocomplete
+          <AppAutocomplete
             options={allClients}
             value={client}
             onChange={(_, v) => setClient(v)}
@@ -317,7 +317,7 @@ const ClientShiftForm: React.FC<Props> = ({
           <Typography variant="body2" color="text.secondary">
             Услуга
           </Typography>
-          <Autocomplete
+          <AppAutocomplete
             options={serviceOptions}
             value={service}
             onChange={(_, v) => setService(v)}

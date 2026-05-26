@@ -1,6 +1,6 @@
 import React, { useState } from "react";
+import AppAutocomplete from "../../../components/ui/AppAutocomplete";
 import {
-  Autocomplete,
   Avatar,
   Box,
   Button,
@@ -10,7 +10,7 @@ import {
   IconButton,
   Stack,
   TextField,
-  Typography,
+  Typography
 } from "@mui/material";
 import CloseOutlined from "@mui/icons-material/CloseOutlined";
 import PersonAddOutlined from "@mui/icons-material/PersonAddOutlined";
@@ -68,14 +68,14 @@ const CreateGroupAppointmentDrawer: React.FC<Props> = ({ open, onClose, onCreate
 
   const doctorOptions = (employees ?? []).map((d: any) => ({
     id: String(d.id),
-    label: d.full_name ?? d.fullName ?? d.name ?? String(d.id),
-  }));
+    label: d.full_name ?? d.fullName ?? d.name ?? String(d.id)
+}));
 
   const serviceOptions = availableServices.map((s) => ({
     id: s.id,
     label: s.name,
-    price: Number(s.price ?? 0),
-  }));
+    price: Number(s.price ?? 0)
+}));
 
   const searchPatients = async (query: string) => {
     if (query.length < 2) return;
@@ -88,8 +88,8 @@ const CreateGroupAppointmentDrawer: React.FC<Props> = ({ open, onClose, onCreate
         data.map((c) => ({
           id: String(c.id),
           label: c.fullName ?? c.full_name ?? c.fio ?? String(c.id),
-          phone: c.phone ?? c.phoneNumber ?? c.phone_number ?? null,
-        })),
+          phone: c.phone ?? c.phoneNumber ?? c.phone_number ?? null
+})),
       );
     } catch {
       setPatientOptions([]);
@@ -124,8 +124,8 @@ const CreateGroupAppointmentDrawer: React.FC<Props> = ({ open, onClose, onCreate
         sellableItemId: selectedService.id,
         price: Number(price),
         patientIds: participants.map((p) => p.id),
-        patientNames: participants.map((p) => p.label),
-      });
+        patientNames: participants.map((p) => p.label)
+});
       // Patch names from selections since mock doesn't resolve them
       group.performerName = selectedDoctor.label;
       group.sellableItemName = selectedService.label;
@@ -166,7 +166,7 @@ const CreateGroupAppointmentDrawer: React.FC<Props> = ({ open, onClose, onCreate
           {/* Trainer/performer */}
           <Stack spacing={0.5}>
             <Typography variant="body2" color="text.secondary" fontWeight={600}>Тренер / сотрудник</Typography>
-            <Autocomplete
+            <AppAutocomplete
               options={doctorOptions}
               value={selectedDoctor}
               onChange={(_, v) => setSelectedDoctor(v)}
@@ -179,7 +179,7 @@ const CreateGroupAppointmentDrawer: React.FC<Props> = ({ open, onClose, onCreate
           {/* Service */}
           <Stack spacing={0.5}>
             <Typography variant="body2" color="text.secondary" fontWeight={600}>Услуга</Typography>
-            <Autocomplete
+            <AppAutocomplete
               options={serviceOptions}
               value={selectedService}
               onChange={(_, v) => setSelectedService(v)}
@@ -206,7 +206,7 @@ const CreateGroupAppointmentDrawer: React.FC<Props> = ({ open, onClose, onCreate
           <Stack spacing={0.5}>
             <Typography variant="body2" color="text.secondary" fontWeight={600}>Участники</Typography>
             <Stack direction="row" spacing={1}>
-              <Autocomplete
+              <AppAutocomplete
                 sx={{ flex: 1 }}
                 options={patientOptions}
                 value={patientInput}
@@ -234,8 +234,8 @@ const CreateGroupAppointmentDrawer: React.FC<Props> = ({ open, onClose, onCreate
                           {patientLoading && <CircularProgress size={16} />}
                           {params.InputProps.endAdornment}
                         </>
-                      ),
-                    }}
+                      )
+}}
                   />
                 )}
               />
@@ -266,8 +266,8 @@ const CreateGroupAppointmentDrawer: React.FC<Props> = ({ open, onClose, onCreate
                         borderRadius: 2,
                         border: "1px solid",
                         borderColor: "divider",
-                        bgcolor: "background.paper",
-                      }}
+                        bgcolor: "background.paper"
+}}
                     >
                       <Avatar sx={{ width: 28, height: 28, fontSize: 11, bgcolor: "primary.main", flexShrink: 0 }}>
                         {initials}

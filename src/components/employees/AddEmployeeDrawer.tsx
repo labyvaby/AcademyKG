@@ -1,4 +1,5 @@
 import React from "react";
+import AppAutocomplete from "../../components/ui/AppAutocomplete";
 import dayjs from "dayjs";
 import { CustomDatePicker } from "../ui";
 import {
@@ -11,8 +12,7 @@ import {
   TextField,
   Typography,
   CircularProgress,
-  InputAdornment,
-  Autocomplete,
+  InputAdornment
 } from "@mui/material";
 import CloseOutlined from "@mui/icons-material/CloseOutlined";
 import { apiFetch } from "../../utility/apiClient";
@@ -21,7 +21,7 @@ import { PhoneCountryCodeSelect } from "../ui";
 import {
   composePhone,
   DEFAULT_PHONE_COUNTRY_CODE,
-  type PhoneCountryCode,
+  type PhoneCountryCode
 } from "../../utility/phone";
 
 export type CreatedEmployee = {
@@ -91,13 +91,13 @@ const AddEmployeeDrawer: React.FC<Props> = ({ open, onClose, onCreated }) => {
         employee_type: employeeType.trim() || null,
         specialization: selectedSpec ? selectedSpec.name : null,
         specialization_id: selectedSpec ? selectedSpec.id : null,
-        birth_date: birthDate || null,
-      };
+        birth_date: birthDate || null
+};
 
       const res: any = await apiFetch("/api/v1/employees/", {
         method: "POST",
-        body: JSON.stringify(payload),
-      });
+        body: JSON.stringify(payload)
+});
 
       const data = res?.data ?? res;
 
@@ -129,8 +129,8 @@ const AddEmployeeDrawer: React.FC<Props> = ({ open, onClose, onCreated }) => {
       employee_type: employeeType.trim() || null,
       specialization: selectedSpec?.name || null,
       specialization_id: selectedSpec?.id || null,
-      birth_date: birthDate || null,
-    };
+      birth_date: birthDate || null
+};
 
     onCreated?.(created);
     onClose();
@@ -149,8 +149,8 @@ const AddEmployeeDrawer: React.FC<Props> = ({ open, onClose, onCreated }) => {
           alignItems: "center",
           justifyContent: "space-between",
           px: 2,
-          py: 1,
-        }}
+          py: 1
+}}
       >
         <Typography variant="h6">Добавить сотрудника</Typography>
         <IconButton onClick={busy ? undefined : onClose} aria-label="Закрыть">
@@ -186,8 +186,8 @@ const AddEmployeeDrawer: React.FC<Props> = ({ open, onClose, onCreated }) => {
                     }}
                   />
                 </InputAdornment>
-              ),
-            }}
+              )
+}}
             inputProps={{ inputMode: "tel", pattern: "[0-9]*", maxLength: 9 }}
           />
 
@@ -198,7 +198,7 @@ const AddEmployeeDrawer: React.FC<Props> = ({ open, onClose, onCreated }) => {
             fullWidth
           />
 
-          <Autocomplete
+          <AppAutocomplete
             options={specs}
             loading={loadingSpecs}
             value={selectedSpec}

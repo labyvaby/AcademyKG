@@ -12,7 +12,8 @@ import {
   Tooltip,
 } from "@mui/material";
 import DeleteOutlined from "@mui/icons-material/DeleteOutlined";
-import Autocomplete, { createFilterOptions } from "@mui/material/Autocomplete";
+import AppAutocomplete from "../../../components/ui/AppAutocomplete";
+import { createFilterOptions } from "@mui/material/Autocomplete";
 import { CardContent } from "@mui/material";
 import { AppCard } from "../../../components/ui";
 
@@ -467,7 +468,7 @@ const EditAppointmentSidebar: React.FC<EditAppointmentSidebarProps> = ({
                   </Button>
                 )}
               </Stack>
-              <Autocomplete
+              <AppAutocomplete
                 disabled={isBooking}
                 options={patientSearchInput.length >= 2 ? patientsSearchResults : patients}
                 loading={patientsLoading || isSearchingPatients}
@@ -609,7 +610,7 @@ const EditAppointmentSidebar: React.FC<EditAppointmentSidebarProps> = ({
                                 </Typography>
                               )}
                               {/* Врач */}
-                              <Autocomplete
+                              <AppAutocomplete
                                 fullWidth
                                 disabled={isWorkplaceNurse}
                                 options={
@@ -680,7 +681,7 @@ const EditAppointmentSidebar: React.FC<EditAppointmentSidebarProps> = ({
                               )}
                               {/* Услуга */}
                               <Stack direction="row" spacing={1} alignItems="flex-start">
-                                <Autocomplete
+                                <AppAutocomplete
                                   sx={{ flex: 1 }}
                                   options={
                                     row.doctorId && employeeServicesCache[row.doctorId]
