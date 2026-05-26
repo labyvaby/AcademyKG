@@ -41,6 +41,7 @@ import CloseOutlined from "@mui/icons-material/CloseOutlined";
 import ZoomInOutlined from "@mui/icons-material/ZoomInOutlined";
 import { formatDateRu } from "../../../utility/format";
 import PhoneInTalkOutlined from "@mui/icons-material/PhoneInTalkOutlined";
+import FamilyRestroomOutlined from "@mui/icons-material/FamilyRestroomOutlined";
 import type { PatientBalance } from "../usePatientBalance";
 
 export type PatientDocument = {
@@ -64,6 +65,9 @@ export type PatientLite = {
   is_blacklisted?: boolean | null;
   blacklist_reason?: string | null;
   responsiblePersons?: ResponsiblePerson[];
+  is_employee_child?: boolean | null;
+  employee_parent_name?: string | null;
+  employee_child_discount_percent?: number | null;
 } | null;
 
 type Props = {
@@ -212,6 +216,50 @@ const PatientCard: React.FC<Props> = ({
                   <AlertTitle>В черном списке</AlertTitle>
                   {patient.blacklist_reason || "Причина не указана"}
                 </Alert>
+              )}
+
+              {patient.is_employee_child && (
+                <Box
+                  sx={(theme) => ({
+                    px: 1.5,
+                    py: 1,
+                    borderRadius: 1.5,
+                    border: "1px solid",
+                    borderColor: "success.light",
+                    bgcolor:
+                      theme.palette.mode === "dark"
+                        ? "rgba(46, 125, 50, 0.12)"
+                        : "rgba(46, 125, 50, 0.06)",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 0.5,
+                  })}
+                >
+                  <Stack direction="row" alignItems="center" gap={1} flexWrap="wrap">
+                    <Chip
+                      icon={<FamilyRestroomOutlined sx={{ fontSize: 16 }} />}
+                      label="Ребёнок сотрудника"
+                      size="small"
+                      color="success"
+                      variant="outlined"
+                      sx={{ fontWeight: 600, height: 24 }}
+                    />
+                    {typeof patient.employee_child_discount_percent === "number" && (
+                      <Chip
+                        label={`Скидка ${patient.employee_child_discount_percent}%`}
+                        size="small"
+                        color="success"
+                        sx={{ height: 24 }}
+                      />
+                    )}
+                  </Stack>
+                  <Typography variant="body2" color="text.secondary" sx={{ wordBreak: "break-word" }}>
+                    Сотрудник:{" "}
+                    <Typography component="span" variant="body2" color="text.primary" fontWeight={500}>
+                      {patient.employee_parent_name || "Не выбран"}
+                    </Typography>
+                  </Typography>
+                </Box>
               )}
 
               <Stack direction="row" alignItems="center" spacing={2}>

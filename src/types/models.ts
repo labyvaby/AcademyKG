@@ -11,6 +11,10 @@ export type Patient = {
   is_blacklisted?: boolean | null;
   blacklist_reason?: string | null;
   responsiblePersons?: { fullName: string; phone: string }[];
+  // Ребёнок сотрудника + автоматическая скидка при оплате (read-only снимок API).
+  is_employee_child?: boolean | null;
+  employee_parent_name?: string | null;
+  employee_child_discount_percent?: number | null;
 };
 
 // History row for patient's appointments (normalized view)

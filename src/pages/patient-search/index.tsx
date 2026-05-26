@@ -259,6 +259,9 @@ export const PatientSearchPage: React.FC = () => {
         is_blacklisted: selected.is_blacklisted ?? null,
         blacklist_reason: selected.blacklist_reason ?? null,
         responsiblePersons: selected.responsiblePersons,
+        is_employee_child: selected.is_employee_child ?? null,
+        employee_parent_name: selected.employee_parent_name ?? null,
+        employee_child_discount_percent: selected.employee_child_discount_percent ?? null,
       }
     : null;
 

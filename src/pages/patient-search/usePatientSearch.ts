@@ -33,6 +33,26 @@ function mapApiPatient(r: Record<string, unknown>): Patient {
         phone: String(p.phone ?? ""),
       }))
     : undefined;
+  // employee_parent на бэке отдаётся либо как UUID, либо как nested-объект с fullName
+  // (в зависимости от сериализатора). На фронте нам нужно только имя.
+  const employeeParentRaw = r["employeeParent"] ?? r["employee_parent"] ?? null;
+  const parentNested = typeof employeeParentRaw === "object" && employeeParentRaw !== null
+    ? (employeeParentRaw as any)
+    : null;
+  const employeeParentNameRaw =
+    (r["employeeParentName"] as string | undefined) ??
+    (r["employee_parent_name"] as string | undefined) ??
+    parentNested?.fullName ??
+    parentNested?.full_name ??
+    null;
+  const discountRaw =
+    r["employeeChildDiscountPercent"] ??
+    r["employee_child_discount_percent"] ??
+    null;
+  const discountNum =
+    discountRaw === null || discountRaw === undefined || discountRaw === ""
+      ? null
+      : Number(discountRaw);
   return {
     id: String(r["id"] ?? ""),
     fio: String(r["fullName"] ?? ""),
@@ -43,6 +63,9 @@ function mapApiPatient(r: Record<string, unknown>): Patient {
     is_blacklisted: (r["isBlacklisted"] as boolean) ?? false,
     blacklist_reason: (r["blacklistReason"] as string) ?? null,
     responsiblePersons,
+    is_employee_child: Boolean(r["isEmployeeChild"] ?? r["is_employee_child"] ?? false),
+    employee_parent_name: employeeParentNameRaw ? String(employeeParentNameRaw) : null,
+    employee_child_discount_percent: Number.isFinite(discountNum) ? (discountNum as number) : null,
   };
 }
 
