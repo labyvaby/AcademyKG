@@ -14,7 +14,7 @@ import {
     Avatar
 } from "@mui/material";
 import { useNotification } from "@refinedev/core";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import type { Appointment, AggregatedAppointmentRow } from "../home/types";
 import { mapAggregatedRowToAppointment, compareAppointmentsByStatus } from "../home/types";
@@ -59,8 +59,9 @@ const DoctorWorkPage: React.FC = () => {
     // --- Загрузка приёмов ---
     const queryKey = ["doctor-appointments-v2", date, employeeId, canSeeAll, selectedDoctorId];
 
-    const { data: appointments = [], isLoading, refetch } = useQuery<Appointment[]>({
+    const { data: appointments = [], isLoading, isFetching, isPlaceholderData, refetch } = useQuery<Appointment[]>({
         queryKey,
+        placeholderData: keepPreviousData,
         queryFn: async () => {
             const params = new URLSearchParams({ ordering: "appointmentAt", date, pageSize: "200" });
             if (!canSeeAll && employeeId) {
@@ -268,7 +269,7 @@ const DoctorWorkPage: React.FC = () => {
                     <Grid item xs={12} md={6} sx={{ height: "100%", display: "flex", flexDirection: "column", overflow: "hidden", pr: { md: 1 } }}>
                         <AppointmentsList
                             titleDate={ruDateFromInput}
-                            loading={isLoading}
+                            loading={isFetching || isPlaceholderData}
                             errorMsg={null}
                             items={filteredAppointments}
                             doctors={doctors}

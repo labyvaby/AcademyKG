@@ -188,7 +188,7 @@ export const HomePage: React.FC = () => {
     };
   }, [date]);
 
-  const { data: dailyAppointments = [], isLoading: dailyLoading, isFetching: dailyFetching, refetch: refetchAppointments } = useQuery<Appointment[]>({
+  const { data: dailyAppointments = [], isLoading: dailyLoading, isFetching: dailyFetching, isPlaceholderData: dailyIsStale, refetch: refetchAppointments } = useQuery<Appointment[]>({
     queryKey: ["appointments", "daily", dailyRange.key],
     queryFn: async () => {
       const [items, groups]: [AggregatedAppointmentRow[], AppointmentGroup[]] = await Promise.all([
@@ -391,7 +391,7 @@ export const HomePage: React.FC = () => {
           }}>
             <AppointmentsList
               titleDate={ruDateFromInput}
-              loading={dailyFetching}
+              loading={dailyFetching || dailyIsStale}
               errorMsg={null}
               items={filtered}
               onOpenFilters={() => setFiltersOpen(true)}

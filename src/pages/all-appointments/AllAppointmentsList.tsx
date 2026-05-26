@@ -76,8 +76,12 @@ export const AllAppointmentsList: React.FC = () => {
     // Services mode: selected employee to drill down
     const [selectedServiceEmployee, setSelectedServiceEmployee] = React.useState<string | null>(null);
 
+    // Guard against race conditions: each fetch gets a unique id; only the latest is committed
+    const fetchIdRef = React.useRef(0);
+
     // Fetch Data
     const fetchData = React.useCallback(async () => {
+        const myId = ++fetchIdRef.current;
         setLoading(true);
         try {
             // Fetch Doctors for avatars
@@ -85,6 +89,7 @@ export const AllAppointmentsList: React.FC = () => {
             let currentDoctors = doctors;
             if (currentDoctors.length === 0) {
                 currentDoctors = await fetchMedicalStaff();
+                if (fetchIdRef.current !== myId) return;
                 setDoctors(currentDoctors);
             }
 
@@ -99,6 +104,7 @@ export const AllAppointmentsList: React.FC = () => {
             }
 
             const data = await fetchAllPages<any>(`/api/v1/appointments/?${params.toString()}`);
+            if (fetchIdRef.current !== myId) return;
 
             // Группы подгружаются отдельно через useEffect при смене selectedDate
             // Здесь просто маппим обычные приёмы
@@ -111,12 +117,13 @@ export const AllAppointmentsList: React.FC = () => {
                 const { fetchGroupsByRange } = await import("../../features/group-appointments/api/group-appointments.api");
                 allGroups = await fetchGroupsByRange(`${selectedMonth}-01`, lastDay);
             }
+            if (fetchIdRef.current !== myId) return;
 
             // Exclude regular appointments that are actually group participants
             const groupParticipantIds = new Set<string>(
                 allGroups.flatMap(g => g.participants.map(p => p.id))
             );
-            
+
             const { mapGroupToAppointment } = await import("../home/types");
             const groupedAppointments = allGroups.map(mapGroupToAppointment);
 
@@ -171,9 +178,13 @@ export const AllAppointmentsList: React.FC = () => {
 
             setHistory(finalAppointments);
         } catch (error) {
-            console.error("Error fetching all appointments:", error);
+            if (fetchIdRef.current === myId) {
+                console.error("Error fetching all appointments:", error);
+            }
         } finally {
-            setLoading(false);
+            if (fetchIdRef.current === myId) {
+                setLoading(false);
+            }
         }
     }, [canViewAll, employeeId, employee, selectedYear, selectedMonth]);
 

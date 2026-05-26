@@ -65,19 +65,24 @@ export const AllProceduresList: React.FC = () => {
     const [selectedEmployeeFilter, setSelectedEmployeeFilter] = React.useState<string | null>(null);
     const [expandedEmployee, setExpandedEmployee] = React.useState<string | null>(null);
 
+    const fetchIdRef = React.useRef(0);
+
     // Fetch Data
     const fetchData = React.useCallback(async () => {
+        const myId = ++fetchIdRef.current;
         setLoading(true);
         try {
             let fetchedNurses = doctors;
             if (fetchedNurses.length === 0) {
                 fetchedNurses = await fetchMedicalStaff();
+                if (fetchIdRef.current !== myId) return;
                 setDoctors(fetchedNurses);
             }
 
             const params = new URLSearchParams({ pageSize: '500', ordering: '-appointmentAt' });
             if (!canViewAll && employeeId) params.set('specialist', employeeId);
             const res: any = await apiFetch(`/api/v1/appointments/?${params.toString()}`);
+            if (fetchIdRef.current !== myId) return;
             const data: any[] = res?.data?.results ?? res?.results ?? [];
 
             const mapped = data.map(r => mapAggregatedRowToAppointment(r as AggregatedAppointmentRow));
@@ -92,9 +97,13 @@ export const AllProceduresList: React.FC = () => {
             });
             setHistory(proceduresOnly);
         } catch (error) {
-            console.error("Error fetching all procedures:", error);
+            if (fetchIdRef.current === myId) {
+                console.error("Error fetching all procedures:", error);
+            }
         } finally {
-            setLoading(false);
+            if (fetchIdRef.current === myId) {
+                setLoading(false);
+            }
         }
     }, [canViewAll, employeeId]);
 
