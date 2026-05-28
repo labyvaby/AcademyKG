@@ -1,10 +1,20 @@
 import React from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   apiFetch,
   BRANCH_FILTER_STORAGE_KEY,
   clearBranchFilter,
   setBranchFilter,
 } from "../utility/apiClient";
+
+const BRANCH_DEPENDENT_KEYS = [
+  ["appointments"],
+  ["group-appointments"],
+  ["shifts"],
+  ["employees", "medical-staff"],
+  ["doctor-appointments-v2"],
+  ["doctor-counts"],
+] as const;
 
 export type BranchOption = { id: string; name: string };
 type BranchApiItem = { id: string | number; name?: string | null };
@@ -33,6 +43,7 @@ export const BranchProvider: React.FC<{ isSuperAdmin: boolean; children: React.R
   isSuperAdmin,
   children,
 }) => {
+  const queryClient = useQueryClient();
   const [branches, setBranches] = React.useState<BranchOption[]>([]);
   const [selectedBranch, setSelectedBranchState] = React.useState<BranchOption | null>(() => {
     if (!isSuperAdmin) return null;
@@ -92,7 +103,12 @@ export const BranchProvider: React.FC<{ isSuperAdmin: boolean; children: React.R
     } catch {
       /* ignore */
     }
-  }, []);
+    // Инвалидируем все филиальные кэши, чтобы при смене филиала
+    // не показывались stale данные предыдущего филиала.
+    for (const key of BRANCH_DEPENDENT_KEYS) {
+      queryClient.invalidateQueries({ queryKey: key });
+    }
+  }, [queryClient]);
 
   return (
     <BranchContext.Provider value={{ branches, selectedBranch, setSelectedBranch, loading }}>

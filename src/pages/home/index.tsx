@@ -46,6 +46,7 @@ import { PERMISSIONS } from "../../constants/permissions";
 
 import { useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { useSearchParams } from "react-router";
+import { useBranchContext } from "../../contexts/branch-context";
 
 
 /* Simple cache (оставляем только для услуг)
@@ -74,6 +75,8 @@ export const HomePage: React.FC = () => {
   const { setOnRefresh } = useRefresh();
   const theme = useTheme();
   const { hasPermission, employeeId } = usePermissions();
+  const { selectedBranch } = useBranchContext();
+  const branchId = selectedBranch?.id ?? null;
   const [searchParams, setSearchParams] = useSearchParams();
 
   // Handling deep link for creating appointment or selecting existing one
@@ -158,7 +161,7 @@ export const HomePage: React.FC = () => {
   // Fetch shifts for the selected date (and previous day for night shifts) — с кэшем
   const prevDate = React.useMemo(() => dayjs(date).subtract(1, 'day').format('YYYY-MM-DD'), [date]);
   const { data: shiftsData } = useQuery({
-    queryKey: ["shifts", date, prevDate],
+    queryKey: ["shifts", date, prevDate, branchId],
     queryFn: () => Promise.all([fetchShiftsForDate(date), fetchShiftsForDate(prevDate)]),
     staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
@@ -171,7 +174,7 @@ export const HomePage: React.FC = () => {
 
   // --- OPTIMIZATION: React Query for Doctors ---
   const { data: doctors = [], isLoading: doctorsLoading } = useQuery<EmployeesRow[]>({
-    queryKey: ["employees", "medical-staff"],
+    queryKey: ["employees", "medical-staff", branchId],
     queryFn: fetchMedicalStaff,
     staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
@@ -189,7 +192,7 @@ export const HomePage: React.FC = () => {
   }, [date]);
 
   const { data: dailyAppointments = [], isLoading: dailyLoading, isFetching: dailyFetching, isPlaceholderData: dailyIsStale, refetch: refetchAppointments } = useQuery<Appointment[]>({
-    queryKey: ["appointments", "daily", dailyRange.key],
+    queryKey: ["appointments", "daily", dailyRange.key, branchId],
     queryFn: async () => {
       const [items, groups]: [AggregatedAppointmentRow[], AppointmentGroup[]] = await Promise.all([
         fetchAllPages<AggregatedAppointmentRow>(`/api/v1/appointments/?ordering=appointmentAt&date=${dailyRange.key}`),
@@ -232,7 +235,7 @@ export const HomePage: React.FC = () => {
   }, [rangeKey]);
 
   const { data: rangeData = [] } = useQuery({
-    queryKey: ["appointments", "counts", rangeKey, hasPermission(PERMISSIONS.APPOINTMENTS_READ), employeeId],
+    queryKey: ["appointments", "counts", rangeKey, hasPermission(PERMISSIONS.APPOINTMENTS_READ), employeeId, branchId],
     queryFn: async () => {
       const { dateFrom, dateTo } = rangeParams;
       // excludeGroupParticipants=true — участники групп не попадают в счётчик (camelCase — как в схеме)
@@ -248,7 +251,7 @@ export const HomePage: React.FC = () => {
   });
 
   const { data: rangeGroupData = [] } = useQuery({
-    queryKey: ["group-appointments", "counts", rangeKey],
+    queryKey: ["group-appointments", "counts", rangeKey, branchId],
     queryFn: async () => {
       const { dateFrom, dateTo } = rangeParams;
       return fetchAllPages<any>(`/api/v1/appointment-groups/?dateFrom=${dateFrom}&dateTo=${dateTo}`);

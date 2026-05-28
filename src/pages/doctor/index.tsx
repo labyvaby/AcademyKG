@@ -28,6 +28,7 @@ import { PERMISSIONS } from "../../constants/permissions";
 import { fetchMedicalStaff } from "../../services/employees";
 import type { EmployeesRow } from "../expenses/types";
 import { apiFetch } from "../../utility/apiClient";
+import { useBranchContext } from "../../contexts/branch-context";
 
 const DoctorWorkPage: React.FC = () => {
     usePageTitle("Кабинет специалиста");
@@ -37,6 +38,8 @@ const DoctorWorkPage: React.FC = () => {
     const { setOnRefresh } = useRefresh();
     const { hasPermission, hasRole, loading: permLoading, employeeId, employee } = usePermissions();
     const queryClient = useQueryClient();
+    const { selectedBranch } = useBranchContext();
+    const branchId = selectedBranch?.id ?? null;
 
     // Тренер/specialist видит только свои приёмы, даже если у него есть appointments.read
     const isSpecialist = hasRole('specialist');
@@ -57,7 +60,7 @@ const DoctorWorkPage: React.FC = () => {
     }, [date]);
 
     // --- Загрузка приёмов ---
-    const queryKey = ["doctor-appointments-v2", date, employeeId, canSeeAll, selectedDoctorId];
+    const queryKey = ["doctor-appointments-v2", date, employeeId, canSeeAll, selectedDoctorId, branchId];
 
     const { data: appointments = [], isLoading, isFetching, isPlaceholderData, refetch } = useQuery<Appointment[]>({
         queryKey,
@@ -150,7 +153,7 @@ const DoctorWorkPage: React.FC = () => {
     }, [rangeKey]);
 
     const { data: dayCounts = {} } = useQuery<Record<string, number>>({
-        queryKey: ["doctor-counts", rangeKey, employeeId, canSeeAll, selectedDoctorId],
+        queryKey: ["doctor-counts", rangeKey, employeeId, canSeeAll, selectedDoctorId, branchId],
         queryFn: async () => {
             const { dateFrom, dateTo } = rangeParams;
             const params = new URLSearchParams({ dateFrom, dateTo, excludeGroupParticipants: "true", pageSize: "500" });
@@ -174,7 +177,7 @@ const DoctorWorkPage: React.FC = () => {
 
     // --- Список специалистов (для подстановки имён и фильтра суперадмина) ---
     const { data: doctors = [] } = useQuery<EmployeesRow[]>({
-        queryKey: ["employees", "medical-staff"],
+        queryKey: ["employees", "medical-staff", branchId],
         queryFn: fetchMedicalStaff,
         staleTime: 5 * 60 * 1000,
         refetchOnWindowFocus: false
