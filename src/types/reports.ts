@@ -136,6 +136,69 @@ export interface AvailableMonthsResponse {
     expensesMonths: string[];
 }
 
+export type LessonType = "individual" | "pair";
+export type PeriodHalf = "first" | "second";
+export type PayslipDetailScope = "month" | "first" | "second";
+
+export interface SpecialistPayslipSlot {
+    time: string;                       // "08:00"
+    patientName: string | null;         // null = слот пустой; при коллизиях бэк склеивает имена через запятую
+    lessonType: LessonType | null;      // "individual" | "pair" | null. "window" backend не возвращает
+    // "Поступила" = paid_cash + paid_card + paid_balance + paid_bonuses (включая бонусы).
+    sum: string;                        // decimal-строка ("1000.00")
+    // Доля специалиста за слот через payroll-формулу:
+    //   paymentFactor = (paid_cash + paid_card + paid_balance) / total_cost   // БЕЗ бонусов
+    //   earned        = service_price * paymentFactor * percent
+    // Неоплаченный приём → sum = "0.00", earned = "0.00".
+    earned: string;                     // decimal-строка
+}
+
+export interface SpecialistPayslipDay {
+    date: string;                       // YYYY-MM-DD
+    weekdayLabel: string;               // "Пятница"
+    // Backend всегда возвращает фиксированную сетку 08:00–18:00 (11 слотов),
+    // даже для дней без приёмов. Фронт не добивает пустые дни сам.
+    slots: SpecialistPayslipSlot[];
+    totals: {
+        count: number;
+        sumTotal: string;               // decimal-строка
+        sumEarned: string;              // decimal-строка
+    };
+}
+
+export interface SpecialistPayslipResponse {
+    employee: {
+        id: string;
+        fullName: string;
+        roleName: string;
+    };
+    period: {
+        month: string;                  // "YYYY-MM"
+        dateFrom: string;               // YYYY-MM-DD
+        dateTo: string;                 // YYYY-MM-DD
+        label: string;                  // готовая русская подпись от бэка
+        summaryScope: "month";          // summary ВСЕГДА считается за календарный месяц
+        detailScope: PayslipDetailScope;
+    };
+    // ВНИМАНИЕ: summary — за весь месяц. Слоты days[] могут не покрывать его
+    // полностью (приёмы вне сетки 08–18 в слоты не попадают, но в summary входят).
+    // Не сверять sum(days[].slots[].earned) с summary.percentSum.
+    summary: {
+        grossEarnings: string;
+        netSalary: string;
+        percentSum: string;
+        fixedSum: string;
+        advancesSum: string;
+        payoutsSum: string;
+        deductionsSum: string;
+        expensesSum: string;
+        dayHours: string;
+        nightHours: string;
+        paidAppointmentsCount: number;
+    };
+    days: SpecialistPayslipDay[];
+}
+
 export interface Envelope<T> {
     data: T;
     meta: any;
