@@ -253,23 +253,48 @@ export function buildReceiptHtml(data: ReceiptData): string {
 }
 
 /**
- * Открывает popup-окно, вставляет HTML чека и вызывает window.print().
- * Popup (не iframe) нужен чтобы браузер применил @page size:58mm из CSS.
- * onload не используется — ненадёжен после document.write;
- * даём 200ms на рендер стилей, затем вызываем print().
+ * Печатает чек через скрытый iframe с реальными размерами (58mm × 300mm).
+ * iframe не display:none и не width:0 — браузер видит его размеры и
+ * корректно применяет @page size:58mm из CSS документа.
+ * Видимого popup-окна нет — пользователь видит только системный print dialog.
  */
 export function printReceipt(data: ReceiptData): void {
   const html = buildReceiptHtml(data);
-  const popup = window.open("", "_blank", "width=300,height=600,scrollbars=no,toolbar=no,menubar=no,resizable=no");
-  if (!popup) return;
-  popup.document.open();
-  popup.document.write(html);
-  popup.document.close();
+
+  const iframe = document.createElement("iframe");
+  // Реальные размеры нужны браузеру для @page size; visibility:hidden скрывает от пользователя
+  iframe.style.cssText = [
+    "position:fixed",
+    "left:-10000px",
+    "top:0",
+    "width:58mm",
+    "height:300mm",
+    "border:0",
+    "visibility:hidden",
+  ].join(";");
+
+  document.body.appendChild(iframe);
+
+  const doc = iframe.contentWindow?.document;
+  if (!doc) { document.body.removeChild(iframe); return; }
+
+  doc.open();
+  doc.write(html);
+  doc.close();
+
+  const cleanup = () => {
+    if (document.body.contains(iframe)) document.body.removeChild(iframe);
+  };
+
+  // afterprint срабатывает когда диалог закрыт (поддерживается Chrome/Edge/FF)
+  iframe.contentWindow?.addEventListener("afterprint", cleanup);
+
   setTimeout(() => {
-    if (popup.closed) return;
-    popup.focus();
-    popup.print();
-    setTimeout(() => { if (!popup.closed) popup.close(); }, 1500);
+    if (!iframe.contentWindow) { cleanup(); return; }
+    iframe.contentWindow.focus();
+    iframe.contentWindow.print();
+    // Fallback: убираем iframe если afterprint не сработал
+    setTimeout(cleanup, 60000);
   }, 200);
 }
 
