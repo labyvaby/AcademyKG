@@ -1,6 +1,6 @@
 /**
- * PaymentReceipt — термочек 80mm для печати после оплаты.
- * Используется через usePrintReceipt: данные передаются в iframe, вызывается window.print().
+ * PaymentReceipt — термочек 58mm для печати после оплаты.
+ * Данные передаются в popup-окно, вызывается window.print().
  */
 import React from "react";
 import { dayjsBishkek } from "../../utility/dayjsBishkek";
@@ -39,44 +39,52 @@ const RECEIPT_CSS = `
     box-sizing: border-box;
   }
   html, body {
-    width: 80mm;
+    width: 58mm;
+    min-width: 58mm;
+    max-width: 58mm;
     height: auto;
     background: #fff;
-  }
-  body {
     font-family: 'Courier New', Courier, monospace;
     font-size: 11px;
     color: #000;
   }
   @media print {
     @page {
-      size: 80mm auto;
+      size: 58mm auto;
       margin: 0;
     }
     html, body {
-      width: 80mm;
-      margin: 0;
-      padding: 0;
+      width: 58mm !important;
+      min-width: 58mm !important;
+      max-width: 58mm !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      background: #fff !important;
     }
     body * {
-      visibility: hidden;
+      visibility: hidden !important;
     }
     .receipt-print-root,
     .receipt-print-root * {
-      visibility: visible;
+      visibility: visible !important;
     }
     .receipt-print-root {
-      position: absolute;
-      left: 0;
-      top: 0;
-      width: 80mm;
-      margin: 0;
-      padding: 4mm;
+      position: absolute !important;
+      left: 0 !important;
+      top: 0 !important;
+      width: 58mm !important;
+      max-width: 58mm !important;
+      margin: 0 !important;
+      padding: 2mm !important;
+      box-sizing: border-box !important;
+      font-family: 'Courier New', monospace !important;
+      color: #000 !important;
+      background: #fff !important;
     }
   }
   .receipt-print-root {
-    width: 80mm;
-    padding: 4mm;
+    width: 58mm;
+    padding: 2mm;
   }
   .center { text-align: center; }
   .right  { text-align: right; }
@@ -190,7 +198,7 @@ export function buildReceiptHtml(data: ReceiptData): string {
 <html lang="ru">
 <head>
 <meta charset="utf-8"/>
-<meta name="viewport" content="width=80mm"/>
+<meta name="viewport" content="width=58mm"/>
 <title>Чек #${receiptNo}</title>
 <style>${RECEIPT_CSS}</style>
 </head>
@@ -267,31 +275,30 @@ export function buildReceiptHtml(data: ReceiptData): string {
 }
 
 /**
- * Открывает невидимый iframe, вставляет HTML чека и вызывает window.print().
- * Iframe удаляется после печати.
+ * Открывает popup-окно 58mm, вставляет HTML чека и вызывает window.print().
+ * Popup позволяет браузеру правильно применить @page size:58mm auto,
+ * в отличие от скрытого iframe с width:0.
  */
 export function printReceipt(data: ReceiptData): void {
   const html = buildReceiptHtml(data);
-  const iframe = document.createElement("iframe");
-  iframe.style.cssText = "position:fixed;top:-9999px;left:-9999px;width:0;height:0;border:0;";
-  document.body.appendChild(iframe);
-  const doc = iframe.contentWindow?.document;
-  if (!doc) { document.body.removeChild(iframe); return; }
-  doc.open();
-  doc.write(html);
-  doc.close();
-  // Ждём загрузки шрифтов/стилей перед печатью
-  iframe.onload = () => {
-    try {
-      iframe.contentWindow?.focus();
-      iframe.contentWindow?.print();
-    } finally {
-      // Убираем iframe после того как диалог закрыт (небольшая задержка)
-      setTimeout(() => {
-        if (document.body.contains(iframe)) document.body.removeChild(iframe);
-      }, 2000);
-    }
+  // Открываем небольшое окно — браузер применит @page size из CSS
+  const popup = window.open("", "_blank", "width=300,height=600,scrollbars=no,toolbar=no,menubar=no");
+  if (!popup) return;
+  popup.document.open();
+  popup.document.write(html);
+  popup.document.close();
+  let printed = false;
+  const doPrint = () => {
+    if (printed || popup.closed) return;
+    printed = true;
+    popup.focus();
+    popup.print();
+    setTimeout(() => { if (!popup.closed) popup.close(); }, 1000);
   };
+  // Ждём загрузки перед печатью
+  popup.onload = doPrint;
+  // Fallback: если onload уже сработал до назначения обработчика
+  setTimeout(doPrint, 500);
 }
 
 // Компонент-заглушка (не используется напрямую, логика через printReceipt)
