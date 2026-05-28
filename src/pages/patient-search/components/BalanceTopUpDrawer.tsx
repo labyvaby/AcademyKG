@@ -29,6 +29,7 @@ import AddCircleOutlineOutlined from "@mui/icons-material/AddCircleOutlineOutlin
 import PersonOutlineOutlined from "@mui/icons-material/PersonOutlineOutlined";
 import { apiFetch } from "../../../utility/apiClient";
 import type { TopUpType, PaymentMethod, TopUpPayload } from "../usePatientBalance";
+import { useModalBackdropGuard } from "../../../hooks/useModalBackdropGuard";
 
 // ─── Типы ────────────────────────────────────────────────────────────────────
 
@@ -173,6 +174,13 @@ const BalanceTopUpDrawer: React.FC<Props> = ({
     onClose();
   };
 
+  const isDirty = !!(amount || note);
+  const { handleClose: handleBackdropClose, handleCloseButton, ConfirmLeaveDialog } = useModalBackdropGuard({
+    isDirty,
+    onClose: handleClose,
+    confirmMessage: "Введённая сумма и комментарий будут потеряны. Закрыть?",
+  });
+
   // ─── Отправка ────────────────────────────────────────────────────────────
 
   const handleSubmit = async () => {
@@ -207,10 +215,11 @@ const BalanceTopUpDrawer: React.FC<Props> = ({
   // ─── Рендер ──────────────────────────────────────────────────────────────
 
   return (
+    <>
     <Drawer
       anchor="right"
       open={open}
-      onClose={handleClose}
+      onClose={submitting ? undefined : handleBackdropClose}
       PaperProps={{ sx: { width: { xs: "100%", sm: 480 }, display: "flex", flexDirection: "column" } }}
     >
       {/* Header */}
@@ -222,7 +231,7 @@ const BalanceTopUpDrawer: React.FC<Props> = ({
             <Typography variant="caption" color="text.secondary">{patientFio}</Typography>
           </Box>
         </Stack>
-        <IconButton onClick={handleClose} size="small"><CloseOutlined /></IconButton>
+        <IconButton onClick={submitting ? undefined : handleCloseButton} size="small"><CloseOutlined /></IconButton>
       </Box>
 
       <Divider />
@@ -307,7 +316,7 @@ const BalanceTopUpDrawer: React.FC<Props> = ({
           <Divider />
           <Box sx={{ px: 3, py: 2, flexShrink: 0 }}>
             <Stack direction="row" spacing={1.5} justifyContent="flex-end">
-              <Button variant="outlined" onClick={handleClose} disabled={submitting}>Отмена</Button>
+              <Button variant="outlined" onClick={handleCloseButton} disabled={submitting}>Отмена</Button>
               <Button
                 variant="contained"
                 onClick={handleSubmit}
@@ -410,6 +419,8 @@ const BalanceTopUpDrawer: React.FC<Props> = ({
         </Box>
       )}
     </Drawer>
+    <ConfirmLeaveDialog />
+    </>
   );
 };
 

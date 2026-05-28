@@ -523,6 +523,7 @@ export const PatientSearchPage: React.FC = () => {
         onSubmit={visit.submit}
         submitting={visit.submitting}
         disabled={!selected}
+        isDirty={!!(visit.dateTime || visit.doctor || visit.service || visit.price !== "")}
       />
 
       {/* Dialog: Редактировать прием */}
@@ -541,6 +542,7 @@ export const PatientSearchPage: React.FC = () => {
         onClose={() => visitEdit.setOpen(false)}
         onSubmit={visitEdit.submit}
         submitting={visitEdit.submitting}
+        isDirty={!!(visitEdit.dateTime || visitEdit.doctor || visitEdit.service || visitEdit.price !== "")}
       />
 
       {/* Bottom Sheet: Детали клиента на мобильных */}

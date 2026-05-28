@@ -53,6 +53,7 @@ import { createGroup } from "../../../features/group-appointments/api/group-appo
 import { clientScheduleApi } from "../../../features/client-schedule/api/client-schedule.api";
 import { PaymentSidebar } from "./PaymentSidebar";
 import CalendarMonthOutlined from "@mui/icons-material/CalendarMonthOutlined";
+import { useModalBackdropGuard } from "../../../hooks/useModalBackdropGuard";
 
 export const noSpinnersSx = {
   "& input[type=number]": {
@@ -503,6 +504,20 @@ export const HomeAddAppointmentDrawer: React.FC<
     dayAppointmentsCacheRef.current = {};
     onClose();
   };
+
+  const isDirty = !!(
+    selectedPatient ||
+    visitDateTime ||
+    serviceRows.some((r) => r.serviceId || r.doctorId) ||
+    adminComment ||
+    groupParticipants.length > 0
+  );
+
+  const { handleClose: handleBackdropClose, handleCloseButton, ConfirmLeaveDialog } = useModalBackdropGuard({
+    isDirty,
+    onClose: handleClose,
+    confirmMessage: "Введённые данные приёма будут потеряны. Закрыть форму?",
+  });
 
   const normalizeDurationMinutes = React.useCallback((value: unknown, fallback = 30): number => {
     const parsed = Number(value);
@@ -1184,7 +1199,7 @@ export const HomeAddAppointmentDrawer: React.FC<
       <Drawer
         anchor="right"
         open={open}
-        onClose={handleClose}
+        onClose={isSaving ? undefined : handleBackdropClose}
         PaperProps={{
           sx: {
             width: { xs: 390, sm: 480, md: 520 },
@@ -1216,7 +1231,7 @@ export const HomeAddAppointmentDrawer: React.FC<
           }}
         >
           <Typography variant="h6">Добавить прием</Typography>
-          <IconButton onClick={handleClose}>
+          <IconButton onClick={isSaving ? undefined : handleCloseButton}>
             <CloseOutlined />
           </IconButton>
         </Box>
@@ -1901,6 +1916,7 @@ export const HomeAddAppointmentDrawer: React.FC<
           ]);
         }}
       />
+      <ConfirmLeaveDialog />
     </>
   );
 };

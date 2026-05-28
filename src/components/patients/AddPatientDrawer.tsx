@@ -39,6 +39,7 @@ import {
 } from "../../utility/phone";
 import { useHasRole, usePermissions } from "../../hooks/usePermissions";
 import { isValidPersonName, validateBirthDate, birthDateErrorMessage } from "../../utility/validation";
+import { useModalBackdropGuard } from "../../hooks/useModalBackdropGuard";
 
 type BranchRow = {
   id: string;
@@ -145,6 +146,12 @@ const AddPatientDrawer: React.FC<Props> = ({ open, onClose, onCreated, initialPh
   const [selectedBranchId, setSelectedBranchId] = React.useState("");
   const [fieldErrors, setFieldErrors] = React.useState<FieldErrors>({});
   const [responsiblePersonErrors, setResponsiblePersonErrors] = React.useState<ResponsiblePersonFieldErrors[]>([]);
+
+  const isDirty = !!(fio || phone || inn || birth || photoFile || docFiles.length > 0);
+  const { handleClose: handleBackdropClose, handleCloseButton, ConfirmLeaveDialog } = useModalBackdropGuard({
+    isDirty,
+    onClose,
+  });
 
   React.useEffect(() => {
     if (!open) return;
@@ -432,10 +439,11 @@ const AddPatientDrawer: React.FC<Props> = ({ open, onClose, onCreated, initialPh
   };
 
   return (
+    <>
     <Drawer
       anchor="right"
       open={open}
-      onClose={busy ? undefined : onClose}
+      onClose={busy ? undefined : handleBackdropClose}
       PaperProps={{
         sx: {
           width: { xs: 320, sm: 480, md: 520 },
@@ -448,7 +456,7 @@ const AddPatientDrawer: React.FC<Props> = ({ open, onClose, onCreated, initialPh
       <Box sx={{ width: 1, minWidth: 0, height: "100%", display: "flex", flexDirection: "column" }}>
         <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", px: 2, py: 1 }}>
           <Typography variant="h6">Добавить клиента</Typography>
-          <IconButton onClick={busy ? undefined : onClose} aria-label="Закрыть">
+          <IconButton onClick={busy ? undefined : handleCloseButton} aria-label="Закрыть">
             <CloseOutlined />
           </IconButton>
         </Box>
@@ -718,7 +726,7 @@ const AddPatientDrawer: React.FC<Props> = ({ open, onClose, onCreated, initialPh
 
         <Box sx={{ p: 2, borderTop: 1, borderColor: "divider", bgcolor: "background.paper" }}>
           <Stack direction="row" gap={1}>
-            <Button fullWidth onClick={onClose} disabled={busy}>
+            <Button fullWidth onClick={handleCloseButton} disabled={busy}>
               Отмена
             </Button>
             <Button
@@ -740,6 +748,8 @@ const AddPatientDrawer: React.FC<Props> = ({ open, onClose, onCreated, initialPh
         </Box>
       </Box>
     </Drawer>
+    <ConfirmLeaveDialog />
+    </>
   );
 };
 

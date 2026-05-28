@@ -17,6 +17,7 @@ import {
   Button,
 } from "@mui/material";
 import { roundDateTimeLocalToStep } from "../../../utility/time";
+import { useModalBackdropGuard } from "../../../hooks/useModalBackdropGuard";
 
 type Props = {
   open: boolean;
@@ -43,6 +44,7 @@ type Props = {
   submitting?: boolean;
   disabled?: boolean; // например, когда клиент не выбран
   touched?: boolean; // показывать ли ошибки валидации
+  isDirty?: boolean; // есть ли введённые данные
 };
 
 const VisitCreateDialog: React.FC<Props> = ({
@@ -64,68 +66,78 @@ const VisitCreateDialog: React.FC<Props> = ({
   submitting = false,
   disabled = false,
   touched = false,
+  isDirty = false,
 }) => {
   const isEdit = mode === "edit";
   const resolvedTitle = titleText ?? (isEdit ? "Редактировать прием" : "Создать прием");
   const resolvedSubmit = submitLabel ?? (isEdit ? "Сохранить" : "Создать");
+
+  const { handleClose, handleCloseButton, ConfirmLeaveDialog } = useModalBackdropGuard({
+    isDirty,
+    onClose,
+  });
+
   return (
-    <Dialog
-      open={open}
-      onClose={onClose}
-      fullWidth
-      maxWidth="sm"
-      fullScreen={fullScreen}
-    >
-      <DialogTitle>{resolvedTitle}</DialogTitle>
-      <DialogContent>
-        {/* Секция: Поля формы приема */}
-        <Stack spacing={2} sx={{ mt: 1 }}>
-          <CustomDateTimePicker
-            label="Дата и время *"
-            value={dateTime ? dayjs(dateTime) : null}
-            onChange={(val) => onChangeDateTime(val ? val.format("YYYY-MM-DDTHH:mm") : "")}
-            minutesStep={5}
-            slotProps={{
-              textField: {
-                fullWidth: true,
-                error: touched && !dateTime,
-                helperText: touched && !dateTime ? "Обязательное поле" : "",
-              }
-            }}
-          />
-          <TextField
-            label="Доктор (ФИО или ID)"
-            value={doctor}
-            onChange={(e) => onChangeDoctor(e.target.value)}
-            fullWidth
-          />
-          <TextField
-            label="Услуга (ID или название)"
-            value={service}
-            onChange={(e) => onChangeService(e.target.value)}
-            fullWidth
-          />
-          <TextField
-            label="Стоимость"
-            type="number"
-            value={price}
-            onChange={(e) => onChangePrice(e.target.value === "" ? "" : Number(e.target.value))}
-            fullWidth
-          />
-        </Stack>
-      </DialogContent>
-      <DialogActions>
-        {/* Секция: Кнопки управления */}
-        <Button onClick={onClose} disabled={submitting}>Отмена</Button>
-        <Button
-          onClick={onSubmit}
-          variant="contained"
-          disabled={disabled || submitting || !dateTime}
-        >
-          {resolvedSubmit}
-        </Button>
-      </DialogActions>
-    </Dialog>
+    <>
+      <Dialog
+        open={open}
+        onClose={submitting ? undefined : handleClose}
+        fullWidth
+        maxWidth="sm"
+        fullScreen={fullScreen}
+      >
+        <DialogTitle>{resolvedTitle}</DialogTitle>
+        <DialogContent>
+          {/* Секция: Поля формы приема */}
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <CustomDateTimePicker
+              label="Дата и время *"
+              value={dateTime ? dayjs(dateTime) : null}
+              onChange={(val) => onChangeDateTime(val ? val.format("YYYY-MM-DDTHH:mm") : "")}
+              minutesStep={5}
+              slotProps={{
+                textField: {
+                  fullWidth: true,
+                  error: touched && !dateTime,
+                  helperText: touched && !dateTime ? "Обязательное поле" : "",
+                }
+              }}
+            />
+            <TextField
+              label="Доктор (ФИО или ID)"
+              value={doctor}
+              onChange={(e) => onChangeDoctor(e.target.value)}
+              fullWidth
+            />
+            <TextField
+              label="Услуга (ID или название)"
+              value={service}
+              onChange={(e) => onChangeService(e.target.value)}
+              fullWidth
+            />
+            <TextField
+              label="Стоимость"
+              type="number"
+              value={price}
+              onChange={(e) => onChangePrice(e.target.value === "" ? "" : Number(e.target.value))}
+              fullWidth
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          {/* Секция: Кнопки управления */}
+          <Button onClick={handleCloseButton} disabled={submitting}>Отмена</Button>
+          <Button
+            onClick={onSubmit}
+            variant="contained"
+            disabled={disabled || submitting || !dateTime}
+          >
+            {resolvedSubmit}
+          </Button>
+        </DialogActions>
+      </Dialog>
+      <ConfirmLeaveDialog />
+    </>
   );
 };
 
