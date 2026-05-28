@@ -843,7 +843,7 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
                                 Печать чека
                             </Button>
                             <Typography variant="caption" color="text.secondary" align="center">
-                                Для термопринтера выберите размер бумаги 58 мм в настройках принтера.
+                                Если предпросмотр показывает A4 — откройте «Дополнительные настройки» и выберите размер бумаги 58 мм / Receipt / Roll в настройках принтера.
                             </Typography>
                         </>
                     )}

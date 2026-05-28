@@ -60,22 +60,23 @@ const RECEIPT_CSS = `
     padding: 2mm !important;
     box-sizing: border-box !important;
     font-family: "Courier New", monospace !important;
-    font-size: 10px !important;
-    line-height: 1.2 !important;
+    font-size: 11px !important;
+    line-height: 1.3 !important;
     color: #000 !important;
+    background: #fff !important;
   }
   .center { text-align: center; }
   .right  { text-align: right; }
   .bold   { font-weight: bold; }
-  .lg     { font-size: 12px; }
-  .sm     { font-size: 9px; }
+  .lg     { font-size: 13px; }
+  .sm     { font-size: 10px; }
   .sep    { border-top: 1px dashed #000; margin: 3px 0; }
   .sep2   { border-top: 1px solid #000; margin: 3px 0; }
   .row    { display: flex; justify-content: space-between; margin: 2px 0; }
   .row-l  { flex: 1; padding-right: 4px; word-break: break-word; }
   .row-r  { flex-shrink: 0; white-space: nowrap; }
   table   { width: 100%; border-collapse: collapse; margin: 3px 0; }
-  th, td  { padding: 1px 2px; font-size: 9px; vertical-align: top; }
+  th, td  { padding: 1px 2px; font-size: 10px; vertical-align: top; }
   th      { text-align: left; font-weight: bold; border-bottom: 1px solid #000; }
   td.num  { text-align: center; }
   td.amt  { text-align: right; white-space: nowrap; }
