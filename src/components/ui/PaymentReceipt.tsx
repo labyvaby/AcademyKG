@@ -32,72 +32,50 @@ export type ReceiptData = {
   orgName?: string;
 };
 
+// CSS встраивается прямо в popup-документ — никаких @media print,
+// потому что popup открывается исключительно для печати.
+// @page size: 58mm 300mm — явный fallback (auto ненадёжен в Chrome/Edge).
 const RECEIPT_CSS = `
+  @page {
+    size: 58mm 300mm;
+    margin: 0;
+  }
   * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
   }
   html, body {
-    width: 58mm;
-    min-width: 58mm;
-    max-width: 58mm;
-    height: auto;
-    background: #fff;
-    font-family: 'Courier New', Courier, monospace;
-    font-size: 11px;
-    color: #000;
-  }
-  @media print {
-    @page {
-      size: 58mm auto;
-      margin: 0;
-    }
-    html, body {
-      width: 58mm !important;
-      min-width: 58mm !important;
-      max-width: 58mm !important;
-      margin: 0 !important;
-      padding: 0 !important;
-      background: #fff !important;
-    }
-    body * {
-      visibility: hidden !important;
-    }
-    .receipt-print-root,
-    .receipt-print-root * {
-      visibility: visible !important;
-    }
-    .receipt-print-root {
-      position: absolute !important;
-      left: 0 !important;
-      top: 0 !important;
-      width: 58mm !important;
-      max-width: 58mm !important;
-      margin: 0 !important;
-      padding: 2mm !important;
-      box-sizing: border-box !important;
-      font-family: 'Courier New', monospace !important;
-      color: #000 !important;
-      background: #fff !important;
-    }
+    width: 58mm !important;
+    min-width: 58mm !important;
+    max-width: 58mm !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: white !important;
   }
   .receipt-print-root {
-    width: 58mm;
-    padding: 2mm;
+    width: 58mm !important;
+    max-width: 58mm !important;
+    margin: 0 !important;
+    padding: 2mm !important;
+    box-sizing: border-box !important;
+    font-family: "Courier New", monospace !important;
+    font-size: 10px !important;
+    line-height: 1.2 !important;
+    color: #000 !important;
   }
   .center { text-align: center; }
   .right  { text-align: right; }
   .bold   { font-weight: bold; }
-  .lg     { font-size: 13px; }
-  .sm     { font-size: 10px; }
-  .sep    { border-top: 1px dashed #000; margin: 4px 0; }
-  .sep2   { border-top: 1px solid #000; margin: 4px 0; }
+  .lg     { font-size: 12px; }
+  .sm     { font-size: 9px; }
+  .sep    { border-top: 1px dashed #000; margin: 3px 0; }
+  .sep2   { border-top: 1px solid #000; margin: 3px 0; }
   .row    { display: flex; justify-content: space-between; margin: 2px 0; }
   .row-l  { flex: 1; padding-right: 4px; word-break: break-word; }
   .row-r  { flex-shrink: 0; white-space: nowrap; }
   table   { width: 100%; border-collapse: collapse; margin: 3px 0; }
-  th, td  { padding: 1px 2px; font-size: 10px; vertical-align: top; }
+  th, td  { padding: 1px 2px; font-size: 9px; vertical-align: top; }
   th      { text-align: left; font-weight: bold; border-bottom: 1px solid #000; }
   td.num  { text-align: center; }
   td.amt  { text-align: right; white-space: nowrap; }
@@ -275,30 +253,24 @@ export function buildReceiptHtml(data: ReceiptData): string {
 }
 
 /**
- * Открывает popup-окно 58mm, вставляет HTML чека и вызывает window.print().
- * Popup позволяет браузеру правильно применить @page size:58mm auto,
- * в отличие от скрытого iframe с width:0.
+ * Открывает popup-окно, вставляет HTML чека и вызывает window.print().
+ * Popup (не iframe) нужен чтобы браузер применил @page size:58mm из CSS.
+ * onload не используется — ненадёжен после document.write;
+ * даём 200ms на рендер стилей, затем вызываем print().
  */
 export function printReceipt(data: ReceiptData): void {
   const html = buildReceiptHtml(data);
-  // Открываем небольшое окно — браузер применит @page size из CSS
-  const popup = window.open("", "_blank", "width=300,height=600,scrollbars=no,toolbar=no,menubar=no");
+  const popup = window.open("", "_blank", "width=300,height=600,scrollbars=no,toolbar=no,menubar=no,resizable=no");
   if (!popup) return;
   popup.document.open();
   popup.document.write(html);
   popup.document.close();
-  let printed = false;
-  const doPrint = () => {
-    if (printed || popup.closed) return;
-    printed = true;
+  setTimeout(() => {
+    if (popup.closed) return;
     popup.focus();
     popup.print();
-    setTimeout(() => { if (!popup.closed) popup.close(); }, 1000);
-  };
-  // Ждём загрузки перед печатью
-  popup.onload = doPrint;
-  // Fallback: если onload уже сработал до назначения обработчика
-  setTimeout(doPrint, 500);
+    setTimeout(() => { if (!popup.closed) popup.close(); }, 1500);
+  }, 200);
 }
 
 // Компонент-заглушка (не используется напрямую, логика через printReceipt)

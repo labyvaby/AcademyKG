@@ -832,15 +832,20 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
             <Box sx={{ p: 2, borderTop: '1px solid', borderColor: 'divider' }}>
                 <Stack spacing={1}>
                     {lastReceiptData && (
-                        <Button
-                            fullWidth
-                            variant="outlined"
-                            size="large"
-                            startIcon={<PrintOutlinedIcon />}
-                            onClick={() => printReceipt(lastReceiptData)}
-                        >
-                            Печать чека
-                        </Button>
+                        <>
+                            <Button
+                                fullWidth
+                                variant="outlined"
+                                size="large"
+                                startIcon={<PrintOutlinedIcon />}
+                                onClick={() => printReceipt(lastReceiptData)}
+                            >
+                                Печать чека
+                            </Button>
+                            <Typography variant="caption" color="text.secondary" align="center">
+                                Для термопринтера выберите размер бумаги 58 мм в настройках принтера.
+                            </Typography>
+                        </>
                     )}
                     <Button
                         fullWidth
