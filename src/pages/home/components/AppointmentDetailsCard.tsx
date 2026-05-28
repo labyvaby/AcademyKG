@@ -574,12 +574,6 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
                     Печать чека
                   </Button>
                 )}
-                {((item.paid_cash ?? 0) > 0 || (item.paid_card ?? 0) > 0 ||
-                  (item.paid_balance ?? 0) > 0 || (item.paid_bonuses ?? 0) > 0) && (
-                  <Typography variant="caption" color="text.secondary">
-                    Если предпросмотр показывает A4 — откройте «Дополнительные настройки» и выберите размер бумаги 58 мм / Receipt / Roll.
-                  </Typography>
-                )}
                 <Divider />
               </>
             )}
@@ -945,12 +939,6 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
                   >
                     Печать чека
                   </Button>
-                )}
-                {((item.paid_cash ?? 0) > 0 || (item.paid_card ?? 0) > 0 ||
-                  (item.paid_balance ?? 0) > 0 || (item.paid_bonuses ?? 0) > 0) && (
-                  <Typography variant="caption" color="text.secondary">
-                    Если предпросмотр показывает A4 — откройте «Дополнительные настройки» и выберите размер бумаги 58 мм / Receipt / Roll.
-                  </Typography>
                 )}
               </>
             )}

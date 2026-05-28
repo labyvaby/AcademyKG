@@ -832,20 +832,15 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
             <Box sx={{ p: 2, borderTop: '1px solid', borderColor: 'divider' }}>
                 <Stack spacing={1}>
                     {lastReceiptData && (
-                        <>
-                            <Button
-                                fullWidth
-                                variant="outlined"
-                                size="large"
-                                startIcon={<PrintOutlinedIcon />}
-                                onClick={() => printReceipt(lastReceiptData)}
-                            >
-                                Печать чека
-                            </Button>
-                            <Typography variant="caption" color="text.secondary" align="center">
-                                Если предпросмотр показывает A4 — откройте «Дополнительные настройки» и выберите размер бумаги 58 мм / Receipt / Roll в настройках принтера.
-                            </Typography>
-                        </>
+                        <Button
+                            fullWidth
+                            variant="outlined"
+                            size="large"
+                            startIcon={<PrintOutlinedIcon />}
+                            onClick={() => printReceipt(lastReceiptData)}
+                        >
+                            Печать чека
+                        </Button>
                     )}
                     <Button
                         fullWidth

@@ -32,12 +32,10 @@ export type ReceiptData = {
   orgName?: string;
 };
 
-// CSS встраивается прямо в popup-документ — никаких @media print,
-// потому что popup открывается исключительно для печати.
-// @page size: 58mm 300mm — явный fallback (auto ненадёжен в Chrome/Edge).
+// Чек печатается как узкая полоса 58mm слева на любой бумаге (A4 или термолента).
+// @page margin:0 убирает поля браузера; сам чек шириной 58mm прижат к левому краю.
 const RECEIPT_CSS = `
   @page {
-    size: 58mm 300mm;
     margin: 0;
   }
   * {
@@ -47,7 +45,7 @@ const RECEIPT_CSS = `
   }
   html, body {
     width: 58mm !important;
-    min-width: 58mm !important;
+    min-width: 0 !important;
     max-width: 58mm !important;
     margin: 0 !important;
     padding: 0 !important;
