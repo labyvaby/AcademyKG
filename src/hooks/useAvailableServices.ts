@@ -4,6 +4,7 @@ import { apiFetch } from "../utility/apiClient";
 import type { ServiceRow } from "../services/services";
 import { isValidSellableService, mapSellableToServiceRow } from "../utils/sellableServiceFilters";
 import { useValidServiceIds } from "./useValidServiceIds";
+import { useBranchContext } from "../contexts/branch-context";
 
 export const SELLABLE_SERVICES_QUERY_KEY = "sellable-services";
 
@@ -28,11 +29,13 @@ export function useAvailableServices(options?: {
   enabled?: boolean;
 }): { services: ServiceRow[]; isLoading: boolean } {
   const { employeeId, enabled = true } = options ?? {};
+  const { selectedBranch } = useBranchContext();
+  const branchId = selectedBranch?.id ?? null;
 
   const { validServiceIds } = useValidServiceIds();
 
   const { data: rawItems = [], isLoading: itemsLoading } = useQuery({
-    queryKey: [SELLABLE_SERVICES_QUERY_KEY, { employeeId: employeeId ?? null }],
+    queryKey: [SELLABLE_SERVICES_QUERY_KEY, { employeeId: employeeId ?? null, branchId }],
     queryFn: () => fetchSellableServiceItems(employeeId),
     enabled,
     staleTime: 5 * 60 * 1000,

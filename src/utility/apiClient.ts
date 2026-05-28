@@ -178,7 +178,8 @@ async function refreshAccessToken(): Promise<string | null> {
   }
 }
 
-// Эндпоинты, для которых НЕ нужно подставлять branch (справочники, аутентификация)
+// Эндпоинты, для которых НЕ нужно подставлять branch (аутентификация, оргструктура).
+// /api/v1/clients/ и /api/v1/services/ удалены — они теперь branch-scoped.
 const BRANCH_FILTER_SKIP = [
   "/api/v1/branches/",
   "/api/v1/auth/",
@@ -186,8 +187,6 @@ const BRANCH_FILTER_SKIP = [
   "/api/v1/roles/",
   "/api/v1/permissions/",
   "/api/v1/organizations/",
-  "/api/v1/clients/",
-  "/api/v1/services/",
 ];
 
 // UUID regex — детальные запросы по ID не должны фильтроваться по филиалу

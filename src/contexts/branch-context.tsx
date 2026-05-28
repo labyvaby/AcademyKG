@@ -14,6 +14,10 @@ const BRANCH_DEPENDENT_KEYS = [
   ["employees", "medical-staff"],
   ["doctor-appointments-v2"],
   ["doctor-counts"],
+  // Clients and services are now branch-scoped
+  ["dictionaries"],
+  ["sellable-services"],
+  ["valid-service-ids"],
 ] as const;
 
 export type BranchOption = { id: string; name: string };

@@ -2,6 +2,7 @@ import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { apiFetch } from "../utility/apiClient";
 import { fetchMedicalStaff } from "../services/employees";
 import type { PatientOption } from "../pages/home/types";
+import { useBranchContext } from "../contexts/branch-context";
 
 // Types
 type DictionariesByType = {
@@ -41,8 +42,11 @@ const EMPTY_PATIENTS: PatientOption[] = [];
 const EMPTY_EMPLOYEES: any[] = [];
 
 export function useDictionaries(enabled: boolean = true) {
+  const { selectedBranch } = useBranchContext();
+  const branchId = selectedBranch?.id ?? null;
+
   const { data, isLoading } = useQuery({
-    queryKey: ["dictionaries", "all"],
+    queryKey: ["dictionaries", "all", branchId],
     queryFn: fetchAllDictionaries,
     enabled,
     staleTime: 10 * 60 * 1000,

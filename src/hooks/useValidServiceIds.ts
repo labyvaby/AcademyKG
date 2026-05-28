@@ -1,8 +1,9 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "../utility/apiClient";
 import { fetchAllPages } from "../utility/pagination";
+import { useBranchContext } from "../contexts/branch-context";
 
-export const VALID_SERVICE_IDS_QUERY_KEY = ["valid-service-ids"] as const;
+export const VALID_SERVICE_IDS_QUERY_KEY = "valid-service-ids" as const;
 
 // Пустой Set вынесен за пределы компонента — не создаётся заново на каждом рендере,
 // что предотвращает лишние срабатывания useMemo в useAvailableServices.
@@ -32,8 +33,11 @@ async function fetchValidServiceIds(): Promise<Set<string>> {
  * вызови invalidateValidServiceIds() из useValidServiceIdsInvalidation().
  */
 export function useValidServiceIds() {
+  const { selectedBranch } = useBranchContext();
+  const branchId = selectedBranch?.id ?? null;
+
   const { data = EMPTY_SET, isLoading } = useQuery({
-    queryKey: VALID_SERVICE_IDS_QUERY_KEY,
+    queryKey: [VALID_SERVICE_IDS_QUERY_KEY, branchId],
     queryFn: fetchValidServiceIds,
     staleTime: Infinity,
     gcTime: 60 * 60 * 1000, // 1 час
@@ -54,5 +58,5 @@ export function useValidServiceIds() {
 export function useValidServiceIdsInvalidation() {
   const queryClient = useQueryClient();
   return () =>
-    queryClient.invalidateQueries({ queryKey: VALID_SERVICE_IDS_QUERY_KEY });
+    queryClient.invalidateQueries({ queryKey: [VALID_SERVICE_IDS_QUERY_KEY] });
 }
