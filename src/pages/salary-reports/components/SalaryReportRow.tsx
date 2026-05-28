@@ -23,10 +23,12 @@ import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import ReportProblemIcon from '@mui/icons-material/ReportProblem';
 import WbSunnyOutlinedIcon from '@mui/icons-material/WbSunnyOutlined';
 import NightsStayOutlinedIcon from '@mui/icons-material/NightsStayOutlined';
+import PictureAsPdfOutlinedIcon from '@mui/icons-material/PictureAsPdfOutlined';
 import { formatKGS } from "../../../utility/format";
 import { PayrollRow } from "../../../types/reports";
 import { fetchShifts, Shift } from "../../../services/shifts";
 import dayjs from "dayjs";
+import SpecialistPayslipDialog from "./SpecialistPayslipDialog";
 
 interface SalaryReportRowProps {
     row: PayrollRow;
@@ -173,6 +175,12 @@ const DailyBreakdown: React.FC<{ employeeId: string; month: string }> = ({ emplo
 const SalaryReportRow: React.FC<SalaryReportRowProps> = ({ row, isMobile, month }) => {
     const theme = useTheme();
     const [open, setOpen] = useState(false);
+    const [payslipOpen, setPayslipOpen] = useState(false);
+
+    const openPayslip = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        setPayslipOpen(true);
+    };
 
     const statusColor = row.status?.code === 'green'
         ? COLORS.paid
@@ -180,8 +188,19 @@ const SalaryReportRow: React.FC<SalaryReportRowProps> = ({ row, isMobile, month 
             ? COLORS.deduction
             : COLORS.day;
 
+    const payslipDialog = (
+        <SpecialistPayslipDialog
+            open={payslipOpen}
+            onClose={() => setPayslipOpen(false)}
+            employeeId={row.employeeId}
+            employeeName={row.fullName}
+            month={month}
+        />
+    );
+
     if (isMobile) {
         return (
+            <>
             <Card
                 variant="outlined"
                 sx={{
@@ -207,6 +226,11 @@ const SalaryReportRow: React.FC<SalaryReportRowProps> = ({ row, isMobile, month 
                             </Box>
                         </Stack>
                         <Stack direction="row" alignItems="center" spacing={0.5}>
+                            <Tooltip title="Скачать расчётный лист (PDF)">
+                                <IconButton size="small" onClick={openPayslip} sx={{ p: 0.5, color: COLORS.netSalary }}>
+                                    <PictureAsPdfOutlinedIcon sx={{ fontSize: '1.05rem' }} />
+                                </IconButton>
+                            </Tooltip>
                             <Box textAlign="right">
                                 <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.6rem', display: 'block' }}>К выплате</Typography>
                                 <Typography fontWeight={800} sx={{ color: COLORS.netSalary, fontSize: '0.95rem', lineHeight: 1.1 }}>
@@ -272,6 +296,8 @@ const SalaryReportRow: React.FC<SalaryReportRowProps> = ({ row, isMobile, month 
                     </Box>
                 </Collapse>
             </Card>
+            {payslipDialog}
+            </>
         );
     }
 
@@ -306,6 +332,11 @@ const SalaryReportRow: React.FC<SalaryReportRowProps> = ({ row, isMobile, month 
                         {row.paidOut && (
                             <Chip label="Выплачено" size="small" sx={{ height: 18, fontSize: '0.62rem', bgcolor: alpha(COLORS.paid, 0.1), color: COLORS.paid, fontWeight: 700, '& .MuiChip-label': { px: 0.75 } }} />
                         )}
+                        <Tooltip title="Скачать расчётный лист (PDF)">
+                            <IconButton size="small" onClick={openPayslip} sx={{ p: 0.5, color: COLORS.netSalary }}>
+                                <PictureAsPdfOutlinedIcon sx={{ fontSize: '1.05rem' }} />
+                            </IconButton>
+                        </Tooltip>
                     </Stack>
                 </TableCell>
                 <TableCell align="center">
@@ -338,6 +369,7 @@ const SalaryReportRow: React.FC<SalaryReportRowProps> = ({ row, isMobile, month 
                     </Collapse>
                 </TableCell>
             </TableRow>
+            {payslipDialog}
         </>
     );
 };

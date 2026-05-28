@@ -4,6 +4,8 @@ import {
     PayrollReportResponse,
     ExpensesMonthlyReportResponse,
     AvailableMonthsResponse,
+    SpecialistPayslipResponse,
+    PeriodHalf,
     Envelope,
 } from "../types/reports";
 
@@ -51,6 +53,28 @@ export const getExpensesMonthlyReport = async (
 
     return apiFetch<Envelope<ExpensesMonthlyReportResponse>>(
         `/api/v1/reports/expenses-monthly/?${params.toString()}`,
+        { signal },
+    );
+};
+
+export const getSpecialistPayslip = async (
+    employeeId: string,
+    month: string,                  // YYYY-MM
+    periodHalf?: PeriodHalf,        // "first" | "second"; пусто = весь месяц
+    branch?: string,
+    organization?: string,
+    signal?: AbortSignal,
+): Promise<Envelope<SpecialistPayslipResponse>> => {
+    const params = new URLSearchParams({
+        employee: employeeId,
+        month,
+    });
+    if (periodHalf) params.append("periodHalf", periodHalf);
+    if (branch) params.append("branch", branch);
+    if (organization) params.append("organization", organization);
+
+    return apiFetch<Envelope<SpecialistPayslipResponse>>(
+        `/api/v1/reports/specialist-payslip/?${params.toString()}`,
         { signal },
     );
 };
