@@ -32,8 +32,7 @@ export type ReceiptData = {
   orgName?: string;
 };
 
-// Чек печатается как узкая полоса 58mm. @page margin:0 убирает поля браузера.
-// print-color-adjust: exact — гарантирует чёрный текст без осветления браузером.
+// Термочек 58mm. Точно по референсу с фото.
 const RECEIPT_CSS = `
   @page {
     margin: 0;
@@ -54,53 +53,63 @@ const RECEIPT_CSS = `
     padding: 0 !important;
     background: #fff !important;
     -webkit-font-smoothing: none;
-    font-smoothing: none;
   }
   .receipt-print-root {
     width: 58mm !important;
     max-width: 58mm !important;
     margin: 0 !important;
-    padding: 2mm 2.5mm !important;
+    padding: 3mm 3mm 4mm !important;
     box-sizing: border-box !important;
     font-family: "Courier New", Courier, monospace !important;
     font-size: 12px !important;
-    line-height: 1.4 !important;
+    line-height: 1.35 !important;
     color: #000 !important;
     background: #fff !important;
-    text-rendering: optimizeLegibility;
   }
-  .center  { text-align: center; }
-  .right   { text-align: right; }
-  .bold    { font-weight: 700; }
-  .xl      { font-size: 18px; font-weight: 700; line-height: 1.2; }
-  .lg      { font-size: 14px; font-weight: 700; }
-  .md      { font-size: 12px; }
-  .sm      { font-size: 11px; }
-  /* пунктирная линия-разделитель */
-  .sep     { border-top: 1px dashed #000; margin: 4px 0; }
-  /* сплошная линия */
-  .sep2    { border-top: 1px solid #000; margin: 4px 0; }
-  /* строка символов — для термопринтеров надёжнее border */
-  .dash    { letter-spacing: 1px; font-size: 11px; color: #000; margin: 3px 0; }
-  /* отрывная линия вверху/внизу */
-  .tear    { border-top: 2px dashed #000; margin: 4px 0 6px; letter-spacing: 3px;
-             font-size: 10px; text-align: center; padding-top: 3px; }
-  .row     { display: flex; justify-content: space-between; align-items: baseline; margin: 2px 0; }
-  .row-l   { flex: 1; padding-right: 4px; word-break: break-word; }
-  .row-r   { flex-shrink: 0; white-space: nowrap; font-weight: 700; }
-  /* таблица услуг */
-  table    { width: 100%; border-collapse: collapse; margin: 3px 0; }
-  th, td   { padding: 2px 2px; font-size: 11px; vertical-align: top; color: #000; }
-  th       { text-align: left; font-weight: 700; border-bottom: 1px solid #000; font-size: 11px; }
-  td.num   { text-align: center; white-space: nowrap; }
-  td.amt   { text-align: right; white-space: nowrap; font-weight: 700; }
-  col.c1   { width: auto; }
-  col.c2   { width: 20mm; }
-  col.c3   { width: 18mm; }
+  .center { text-align: center; }
+  .bold   { font-weight: 700; }
+  /* Название организации — центр, средний */
+  .org    { text-align: center; font-size: 13px; font-weight: 700; margin-bottom: 1mm; }
+  /* Строка "1 Чек #XXXXX" */
+  .chek   { font-size: 12px; font-weight: 400; margin: 1mm 0; }
+  /* Дата+время на одной строке — крупно */
+  .datetime { font-size: 18px; font-weight: 700; margin: 1.5mm 0 1mm; line-height: 1.1; }
+  /* Менеджер */
+  .manager  { font-size: 12px; margin-bottom: 1mm; }
+  /* Имя клиента — крупно, слева */
+  .client   { font-size: 18px; font-weight: 700; margin: 1.5mm 0 1mm; line-height: 1.1; }
+  /* Тип операции */
+  .optype   { font-size: 12px; margin-bottom: 1mm; }
+  /* Разделитель — пунктир */
+  .sep  { border-top: 1px dashed #000; margin: 2mm 0; }
+  /* Разделитель — сплошной */
+  .sep2 { border-top: 1px solid #000; margin: 2mm 0; }
+  /* Строка ключ-значение */
+  .row    { display: flex; justify-content: space-between; align-items: baseline; margin: 0.5mm 0; }
+  .row-l  { flex: 1; padding-right: 2mm; word-break: break-word; font-size: 12px; }
+  .row-r  { flex-shrink: 0; white-space: nowrap; font-size: 12px; }
+  /* Итого */
+  .total-row { display: flex; justify-content: space-between; align-items: baseline; margin: 1mm 0; }
+  .total-l   { font-size: 14px; font-weight: 700; }
+  .total-r   { font-size: 14px; font-weight: 700; white-space: nowrap; }
+  /* Таблица услуг */
+  table  { width: 100%; border-collapse: collapse; margin: 1mm 0; }
+  th, td { padding: 1px 1px; font-size: 12px; vertical-align: top; color: #000; }
+  th     { font-weight: 700; border-bottom: 1px solid #000; }
+  th:first-child, td:first-child { text-align: left; }
+  th.num, td.num { text-align: center; width: 14mm; }
+  th.amt, td.amt { text-align: right; width: 16mm; white-space: nowrap; }
+  /* Нижняя отрывная — только одна линия */
+  .tear { border-top: 2px dashed #000; margin: 3mm 0 2mm; }
 `;
 
+// Формат как на референсе: "800.00" без знака валюты в таблице/строках
 function formatMoney(v: number): string {
-  return v.toLocaleString("ru-KG") + " с";
+  return v.toFixed(2);
+}
+// Для строки "Сом" снизу — без суффикса
+function formatTotal(v: number): string {
+  return v.toFixed(2);
 }
 
 function shortId(id: string): string {
@@ -138,15 +147,14 @@ export function buildReceiptHtml(data: ReceiptData): string {
     orgName = "Академия",
   } = data;
 
-  const now = dayjsBishkek(appointment.appointment_at);
-  const dateStr   = now.format("DD.MM.YYYY");
-  const timeStr   = now.format("HH:mm:ss");
+  const now       = dayjsBishkek(appointment.appointment_at);
+  const datetimeStr = now.format("DD.MM.YYYY HH:mm:ss"); // одна строка, как на референсе
   const receiptNo = shortId(appointment.id);
   const services  = parseServices(appointment);
   const totalPaid = cashPaid + cardPaid + balancePaid + bonusesPaid;
   const isBulk    = Boolean(bulkCount && bulkCount > 1);
 
-  // ── Строки таблицы услуг ──────────────────────────────────────────────
+  // ── Строки таблицы услуг ─────────────────────────────────────────────
   let servicesRows = "";
   if (services.length > 0) {
     servicesRows = services.map((s) => {
@@ -156,7 +164,7 @@ export function buildReceiptHtml(data: ReceiptData): string {
       const total = price * qty;
       return `<tr>
         <td>${name}</td>
-        <td class="num">${qty}</td>
+        <td class="num">${qty.toFixed(2)}</td>
         <td class="amt">${formatMoney(total)}</td>
       </tr>`;
     }).join("");
@@ -167,7 +175,7 @@ export function buildReceiptHtml(data: ReceiptData): string {
     const label       = isBulk ? `${serviceName} (период)` : serviceName;
     servicesRows = `<tr>
       <td>${label}</td>
-      <td class="num">${qty}</td>
+      <td class="num">${qty.toFixed(2)}</td>
       <td class="amt">${formatMoney(perItem * qty)}</td>
     </tr>`;
   }
@@ -190,7 +198,7 @@ export function buildReceiptHtml(data: ReceiptData): string {
     paymentLines.push(`<div class="row"><span class="row-l">Оплата</span><span class="row-r">${formatMoney(totalPaid)}</span></div>`);
   }
 
-  // ── HTML ─────────────────────────────────────────────────────────────
+  // ── HTML — точно по референсу ─────────────────────────────────────────
   return `<!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -202,48 +210,33 @@ export function buildReceiptHtml(data: ReceiptData): string {
 <body>
 <div class="receipt-print-root">
 
-  <!-- Верхняя отрывная линия -->
-  <div class="tear">- - - - - - - - - - - - - - -</div>
+  <!-- Название организации по центру -->
+  <div class="org">${orgName}</div>
 
-  <!-- Название организации -->
-  <div class="center bold lg" style="margin-bottom:2px">${orgName}</div>
+  <!-- "1 Чек #XXXXX" — слева, обычный размер -->
+  <div class="chek">1 Чек #${receiptNo}</div>
 
-  <div class="sep"></div>
+  <!-- Дата и время — крупно, НА ОДНОЙ СТРОКЕ -->
+  <div class="datetime">${datetimeStr}</div>
 
-  <!-- Номер чека + дата крупно -->
-  <div class="row md">
-    <span class="row-l">1 Чек #${receiptNo}</span>
-    <span style="font-size:11px;font-weight:400">Разовая оплата</span>
-  </div>
+  <!-- Менеджер — если есть -->
+  ${cashierName ? `<div class="manager">Менеджер: ${cashierName}</div>` : ""}
 
-  <!-- Крупная дата и время — как в референсе -->
-  <div class="center xl" style="margin:4px 0 2px">${dateStr} ${timeStr}</div>
-
-  <!-- Менеджер/кассир -->
-  ${cashierName ? `<div class="sm" style="margin-bottom:2px">Менеджер: <b>${cashierName}</b></div>` : ""}
-
-  <div class="sep"></div>
-
-  <!-- Имя клиента — крупно -->
-  ${appointment.patient_name ? `<div class="center xl" style="margin:4px 0">${appointment.patient_name}</div>` : ""}
+  <!-- Имя клиента — крупно, слева -->
+  ${appointment.patient_name ? `<div class="client">${appointment.patient_name}</div>` : ""}
 
   <!-- Тип операции -->
-  <div class="md" style="margin-bottom:3px">Разовая оплата</div>
+  <div class="optype">Разовая оплата</div>
 
   <div class="sep"></div>
 
   <!-- Таблица услуг -->
   <table>
-    <colgroup>
-      <col class="c1"/>
-      <col class="c2" style="width:14mm"/>
-      <col class="c3" style="width:16mm"/>
-    </colgroup>
     <thead>
       <tr>
         <th>Услуги</th>
-        <th style="text-align:center">Кол-во</th>
-        <th style="text-align:right">Сумма</th>
+        <th class="num">Кол-во</th>
+        <th class="amt">Сумма</th>
       </tr>
     </thead>
     <tbody>${servicesRows}</tbody>
@@ -253,39 +246,41 @@ export function buildReceiptHtml(data: ReceiptData): string {
 
   <!-- Скидка, если есть -->
   ${discountPercent > 0 ? `
-  <div class="row md">
+  <div class="row">
     <span class="row-l">Скидка ${discountPercent}%</span>
-    <span class="row-r" style="font-weight:400">- ${formatMoney(discountAmount)}</span>
+    <span class="row-r">-${formatMoney(discountAmount)}</span>
   </div>` : ""}
 
-  <!-- ИТОГО — крупно и жирно -->
-  <div class="row" style="margin:3px 0">
-    <span class="row-l lg">Всего:</span>
-    <span class="row-r lg">${formatMoney(finalPrice)}</span>
+  <!-- Всего -->
+  <div class="total-row">
+    <span class="total-l">Всего:</span>
+    <span class="total-r">${formatTotal(finalPrice)}</span>
   </div>
 
-  <div class="sep2"></div>
+  <div class="sep"></div>
 
   <!-- Способы оплаты -->
-  <div class="sm bold" style="margin-bottom:2px">Оплата:</div>
   ${paymentLines.join("")}
-
-  <div class="sep2"></div>
 
   <!-- Долг, если есть -->
   ${appointment.debt > 0 ? `
-  <div class="row md">
-    <span class="row-l">Остаток долга</span>
-    <span class="row-r" style="font-weight:700">${formatMoney(appointment.debt)}</span>
+  <div class="sep"></div>
+  <div class="row">
+    <span class="row-l bold">Остаток долга</span>
+    <span class="row-r bold">${formatMoney(appointment.debt)}</span>
+  </div>` : ""}
+
+  <!-- Нижняя строка "Сом + итог" как в референсе -->
+  <div class="sep"></div>
+  <div class="row" style="font-size:12px">
+    <span class="row-l bold">Сом</span>
+    <span class="row-r bold">${formatTotal(totalPaid)}</span>
+    <span style="width:2mm"></span>
+    <span class="row-r bold">${formatTotal(totalPaid)}</span>
   </div>
-  <div class="sep"></div>` : ""}
 
-  <div class="center md bold" style="margin:4px 0">Сом</div>
-
-  <!-- Нижняя отрывная линия -->
-  <div class="tear" style="margin-top:6px">- - - - - - - - - - - - - - -</div>
-
-  <div class="center sm" style="margin:3px 0 2px">Спасибо за визит!</div>
+  <!-- Нижняя отрывная линия — только одна -->
+  <div class="tear"></div>
 
 </div>
 </body>
