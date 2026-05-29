@@ -89,8 +89,9 @@ const AddEmployeeDrawer: React.FC<AddEmployeeDrawerProps> = ({ open, onClose, on
     (async () => {
       try {
         setServicesLoading(true);
+        const activeBranchId = getBranchFilter();
         const [srvItems, specs, apiRoles, branchesRes] = await Promise.all([
-          employeeFormUtils.fetchServices(),
+          employeeFormUtils.fetchServices(activeBranchId ?? undefined),
           employeeFormUtils.fetchSpecializations(),
           fetchRoles(),
           apiFetch("/api/v1/branches/").then((r: any) => r?.data?.results ?? r?.results ?? []).catch(() => []),
@@ -106,7 +107,6 @@ const AddEmployeeDrawer: React.FC<AddEmployeeDrawerProps> = ({ open, onClose, on
           }));
           setBranches(mappedBranches);
           // Подставляем текущий выбранный филиал по умолчанию
-          const activeBranchId = getBranchFilter();
           if (activeBranchId && mappedBranches.some((b) => b.id === activeBranchId)) {
             setBranchId(activeBranchId);
             setOrganizationId(mappedBranches.find((b) => b.id === activeBranchId)?.organizationId ?? "");
@@ -272,6 +272,13 @@ const AddEmployeeDrawer: React.FC<AddEmployeeDrawerProps> = ({ open, onClose, on
               const nextBranchId = e.target.value;
               setBranchId(nextBranchId);
               setOrganizationId(branches.find((b) => b.id === nextBranchId)?.organizationId ?? "");
+              // Перегружаем услуги для выбранного филиала
+              setSelectedServices([]);
+              setServicesLoading(true);
+              employeeFormUtils.fetchServices(nextBranchId)
+                .then(items => setServices(Array.from(new Map(items.map(s => [s.id, s])).values())))
+                .catch(() => setServices([]))
+                .finally(() => setServicesLoading(false));
             }}
             fullWidth
             required

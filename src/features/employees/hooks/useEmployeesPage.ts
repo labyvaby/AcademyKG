@@ -337,7 +337,7 @@ export const employeeFormUtils = {
   isKGLocalValid,
   composeKGPhone,
   parseKGLocalFrom,
-  fetchServices: fetchSellableServices,
+  fetchServices: (branchId?: string | null) => fetchSellableServices(branchId),
   translateAuthError,
   createEmployeeApi,
   updateEmployeeApi,

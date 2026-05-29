@@ -114,8 +114,9 @@ const EditEmployeeDrawer: React.FC<EditEmployeeDrawerProps> = ({ record, onClose
     (async () => {
       try {
         setServicesLoading(true);
-        const [allSrv, specs, apiRoles, empDetailRaw, branchesRes] = await Promise.all([
-          employeeFormUtils.fetchServices(),
+
+        // Этап 1: грузим детали сотрудника и справочники параллельно
+        const [specs, apiRoles, empDetailRaw, branchesRes] = await Promise.all([
           employeeFormUtils.fetchSpecializations(),
           fetchRoles(),
           apiFetch(`/api/v1/employees/${record.id}/`),
@@ -124,6 +125,11 @@ const EditEmployeeDrawer: React.FC<EditEmployeeDrawerProps> = ({ record, onClose
         if (cancelled) return;
 
         const d = (empDetailRaw as any)?.data ?? empDetailRaw as any;
+
+        // Этап 2: грузим услуги филиала сотрудника (теперь знаем его branchId)
+        const empBranchId = d?.branch?.id ?? d?.branchId ?? null;
+        const allSrv = await employeeFormUtils.fetchServices(empBranchId ? String(empBranchId) : undefined);
+        if (cancelled) return;
 
         // Телефон и email из detail (userPhoneNumber / userEmail)
         const rawPhone = d?.userPhoneNumber ?? d?.phoneNumber ?? record.phone ?? "";

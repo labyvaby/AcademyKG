@@ -81,12 +81,14 @@ const fetchServicesBase = async (page?: number, pageSize?: number): Promise<{ it
   return { items: mapped, total: count };
 };
 
-// Для привязки услуг к сотруднику — грузит ВСЕ услуги без branch-фильтра.
-// _noBranch=1 — маркер для apiClient, который не даёт добавить ?branch=<id>.
-// Каталог услуг глобальный: сотруднику можно привязать услугу из любого филиала,
-// иначе в новом филиале без услуг список был бы пуст.
-export const fetchSellableServices = async (): Promise<ServiceRow[]> => {
-  const results = await fetchAllPages<any>("/api/v1/services/?_noBranch=1&ordering=name&pageSize=200");
+// Для привязки услуг к сотруднику.
+// Если передан branchId — грузим услуги конкретного филиала.
+// Если не передан — грузим все без branch-фильтра (_noBranch=1).
+export const fetchSellableServices = async (branchId?: string | null): Promise<ServiceRow[]> => {
+  const url = branchId
+    ? `/api/v1/services/?_noBranch=1&branch=${branchId}&ordering=name&pageSize=200`
+    : `/api/v1/services/?_noBranch=1&ordering=name&pageSize=200`;
+  const results = await fetchAllPages<any>(url);
 
   return Array.from(
     new Map(
