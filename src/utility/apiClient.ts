@@ -1,4 +1,11 @@
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || "https://academy.operator.kg";
+// В dev-режиме с Vite proxy BASE_URL должен быть пустым (""), чтобы запросы
+// шли на тот же origin и проксировались через vite.config.ts → academy.operator.kg.
+// Если VITE_API_BASE_URL явно задан как "0" — признак "использовать proxy".
+const _rawBase = import.meta.env.VITE_API_BASE_URL;
+const BASE_URL: string =
+  _rawBase === "0" || _rawBase === ""
+    ? ""
+    : (_rawBase || "https://academy.operator.kg");
 export const API_BASE_URL = BASE_URL;
 
 export function resolveApiUrl(url: string | null | undefined): string | null {

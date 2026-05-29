@@ -18,7 +18,19 @@ export default defineConfig({
     },
   },
   server: {
-    host: true
+    host: true,
+    proxy: {
+      "/api": {
+        target: "https://academy.operator.kg",
+        changeOrigin: true,
+        secure: true,
+      },
+      "/media": {
+        target: "https://academy.operator.kg",
+        changeOrigin: true,
+        secure: true,
+      },
+    },
   },
   build: {
     modulePreload: {
