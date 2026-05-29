@@ -4,7 +4,6 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "@tanstack/react-query": "^5.90.10",
     "@emotion/react": "^11.8.2",
     "@emotion/styled": "^11.8.1",
     "@mui/icons-material": "^6.1.6",
@@ -20,6 +19,7 @@
     "@refinedev/react-hook-form": "^5.0.4",
     "@refinedev/react-router": "^2.0.0",
     "@refinedev/simple-rest": "^6.0.0",
+    "@tanstack/react-query": "^5.90.10",
     "dayjs": "^1.11.19",
     "framer-motion": "^12.34.0",
     "html2canvas": "^1.4.1",
