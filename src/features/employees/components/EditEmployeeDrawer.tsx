@@ -177,24 +177,37 @@ const EditEmployeeDrawer: React.FC<EditEmployeeDrawerProps> = ({ record, onClose
 
         // Услуги из detail
         const empServices: any[] = Array.isArray(d?.services) ? d.services : [];
+
+        // Нормализуем id услуги из разных форматов ответа бэкенда:
+        // строка-uuid, { id }, { sellableItem }, { sellable_item }
+        const empServiceIds = empServices.map((s: any) =>
+          typeof s === 'string' ? s : String(s?.sellableItem ?? s?.sellable_item ?? s?.id ?? "")
+        ).filter(Boolean);
+
+        const allSrvMap = new Map(allSrvUniq.map(s => [String(s.id), s]));
+
+        // detailServices: только те у которых есть имя (бэк иногда возвращает объект с name)
         const detailServices = empServices
-          .map((s: any): ServiceRow => ({
-            id: String(s?.sellableItem ?? s?.sellable_item ?? s?.id ?? ""),
-            name: s?.name ?? s?.displayName ?? "",
-            price: s?.priceSom ?? s?.price ?? undefined,
-          }))
-          .filter((s) => s.id && s.name);
+          .map((s: any): ServiceRow | null => {
+            const id = String(s?.sellableItem ?? s?.sellable_item ?? s?.id ?? "");
+            if (!id) return null;
+            // Предпочитаем данные из allSrvUniq — там гарантировано есть name
+            if (allSrvMap.has(id)) return allSrvMap.get(id)!;
+            const name = s?.name ?? s?.displayName ?? "";
+            if (!name) return null;
+            return { id, name, price: s?.priceSom ?? s?.price ?? undefined };
+          })
+          .filter((s): s is ServiceRow => s !== null);
+
         const mergedServices = Array.from(
           new Map(
             [...allSrvUniq, ...detailServices].map((service) => [String(service.id), service])
           ).values()
         );
         setServices(mergedServices);
-        if (empServices.length > 0) {
-          const empServiceIds = empServices.map((s: any) =>
-            typeof s === 'string' ? s : String(s.sellableItem ?? s.sellable_item ?? s.id)
-          );
-          setSelectedServices(mergedServices.filter(s => empServiceIds.includes(String(s.id))));
+        if (empServiceIds.length > 0) {
+          const mergedMap = new Map(mergedServices.map(s => [String(s.id), s]));
+          setSelectedServices(empServiceIds.map(id => mergedMap.get(id)).filter((s): s is ServiceRow => Boolean(s)));
         }
       } catch { /* ignore */ } finally {
         if (!cancelled) setServicesLoading(false);

@@ -1,4 +1,4 @@
-import { apiFetch, resolveApiUrl } from "../utility/apiClient";
+import { apiFetch, resolveApiUrl, getBranchFilter, setBranchFilter } from "../utility/apiClient";
 import { fetchAllPages } from "../utility/pagination";
 
 function resolveUrl(url: string | null | undefined): string | undefined {
@@ -81,13 +81,18 @@ const fetchServicesBase = async (page?: number, pageSize?: number): Promise<{ it
   return { items: mapped, total: count };
 };
 
-// Для привязки услуг к сотруднику — грузит из /api/v1/sellable-items/?type=service
-// Используем тот же источник, что и страница "Услуги", чтобы не показывать
-// удаленные/устаревшие записи в форме привязки сотруднику.
+// Для привязки услуг к сотруднику — грузит ВСЕ услуги без branch-фильтра.
+// Branch-фильтр здесь не нужен: сотруднику можно привязать услугу из любого филиала,
+// а в новом филиале без услуг список иначе был бы пуст.
 export const fetchSellableServices = async (): Promise<ServiceRow[]> => {
-  const results = await fetchAllPages<any>(
-    "/api/v1/services/?ordering=name&pageSize=200"
-  );
+  const savedBranch = getBranchFilter();
+  if (savedBranch) setBranchFilter(null);
+  let results: any[] = [];
+  try {
+    results = await fetchAllPages<any>("/api/v1/services/?ordering=name&pageSize=200");
+  } finally {
+    if (savedBranch) setBranchFilter(savedBranch);
+  }
 
   return Array.from(
     new Map(
