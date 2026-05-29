@@ -5,6 +5,7 @@ import {
   BRANCH_FILTER_STORAGE_KEY,
   clearBranchFilter,
   setBranchFilter,
+  getBranchFilter,
 } from "../utility/apiClient";
 
 const BRANCH_DEPENDENT_KEYS = [
@@ -14,7 +15,6 @@ const BRANCH_DEPENDENT_KEYS = [
   ["employees", "medical-staff"],
   ["doctor-appointments-v2"],
   ["doctor-counts"],
-  // Clients and services are now branch-scoped
   ["dictionaries"],
   ["sellable-services"],
   ["valid-service-ids"],
@@ -32,6 +32,8 @@ type BranchContextValue = {
   selectedBranch: BranchOption | null; // null = все филиалы
   setSelectedBranch: (branch: BranchOption | null) => void;
   loading: boolean;
+  /** true когда branch уже синхронизирован с localStorage и списком филиалов */
+  branchHydrated: boolean;
 };
 
 export const BranchContext = React.createContext<BranchContextValue>({
@@ -39,9 +41,26 @@ export const BranchContext = React.createContext<BranchContextValue>({
   selectedBranch: null,
   setSelectedBranch: () => {},
   loading: false,
+  branchHydrated: false,
 });
 
 export const useBranchContext = () => React.useContext(BranchContext);
+
+// Читаем сохранённый BranchOption из localStorage один раз при загрузке модуля.
+// Используется как начальное значение state — до монтирования компонентов.
+function _loadSavedBranch(): BranchOption | null {
+  try {
+    const raw = localStorage.getItem(BRANCH_FILTER_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed.id === "string" && typeof parsed.name === "string") {
+      return parsed as BranchOption;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
 
 export const BranchProvider: React.FC<{ isSuperAdmin: boolean; children: React.ReactNode }> = ({
   isSuperAdmin,
@@ -50,30 +69,48 @@ export const BranchProvider: React.FC<{ isSuperAdmin: boolean; children: React.R
   const queryClient = useQueryClient();
   const [branches, setBranches] = React.useState<BranchOption[]>([]);
 
-  // Инициализируем selectedBranch И вызываем setBranchFilter синхронно в одном
-  // lazy-initializer, до первого рендера. Это гарантирует что _activeBranchId
-  // установлен раньше любых API-запросов дочерних компонентов.
+  // Читаем сохранённый branch ИЗ МОДУЛЬНОГО уровня (уже прочитан при импорте
+  // apiClient и установлен в _activeBranchId). Здесь только синхронизируем state.
+  // Не зависим от isSuperAdmin — он может быть false до загрузки auth.
   const [selectedBranch, setSelectedBranchState] = React.useState<BranchOption | null>(() => {
-    if (!isSuperAdmin) return null;
-    try {
-      const saved = localStorage.getItem(BRANCH_FILTER_STORAGE_KEY);
-      const parsed: BranchOption | null = saved ? JSON.parse(saved) : null;
-      // Синхронно ставим глобальный фильтр ДО первого рендера.
-      setBranchFilter(parsed?.id ?? null);
-      return parsed;
-    } catch {
-      return null;
-    }
+    return _loadSavedBranch();
+  });
+
+  // branchHydrated = false пока не загружен список филиалов и не провалидирован
+  // сохранённый branch. Компоненты могут использовать этот флаг чтобы отложить
+  // запросы, зависящие от branch.
+  const [branchHydrated, setBranchHydrated] = React.useState<boolean>(() => {
+    // Если в localStorage ничего не было — уже гидратированы (null = «Все филиалы»).
+    return _loadSavedBranch() === null;
   });
 
   const [loading, setLoading] = React.useState(false);
 
-  // Загружаем список филиалов и валидируем сохранённый branch.
+  // При монтировании: убеждаемся что _activeBranchId соответствует state.
+  // Это нужно на случай если apiClient был импортирован ДО того как
+  // branch-context прочитал localStorage (порядок импортов может меняться).
+  React.useLayoutEffect(() => {
+    const saved = _loadSavedBranch();
+    const activeId = getBranchFilter();
+    if (saved && activeId !== saved.id) {
+      setBranchFilter(saved.id);
+    }
+  }, []);
+
+  // Загружаем список филиалов.
+  // Если isSuperAdmin ещё false (auth грузится), ждём — не вызываем clearBranchFilter.
   React.useEffect(() => {
+    // Пока auth ещё не известен — не трогаем состояние.
+    // isSuperAdmin=false может быть как "нет прав", так и "ещё не загружен".
+    // BranchAwareLayout рендерится внутри RequireAuth, значит к этому моменту
+    // пользователь точно авторизован. isSuperAdmin=false → обычный пользователь.
     if (!isSuperAdmin) {
-      setBranches([]);
+      // Обычный пользователь: branch определяется правами на сервере.
+      // Очищаем любой сохранённый superadmin-branch.
       clearBranchFilter();
       setSelectedBranchState(null);
+      setBranches([]);
+      setBranchHydrated(true);
       return;
     }
 
@@ -83,22 +120,38 @@ export const BranchProvider: React.FC<{ isSuperAdmin: boolean; children: React.R
         setLoading(true);
         const res = await apiFetch<BranchListResponse>("/api/v1/branches/");
         if (cancelled) return;
+
         const list = res?.data?.results ?? res?.results ?? [];
-        const fetched = list.map((b) => ({ id: String(b.id), name: b.name ?? "" }));
+        const fetched: BranchOption[] = list.map((b) => ({
+          id: String(b.id),
+          name: b.name ?? "",
+        }));
         setBranches(fetched);
 
-        // Валидируем сохранённый branch: если он больше не существует — сброс.
-        setSelectedBranchState((prev) => {
-          if (!prev) return null;
-          const stillExists = fetched.some((b) => b.id === prev.id);
-          if (stillExists) return prev; // всё ок, оставляем
-          // Филиал удалён/недоступен — сбрасываем фильтр и localStorage.
+        // Валидируем сохранённый branch против реального списка.
+        const saved = _loadSavedBranch();
+        if (!saved) {
+          // Явно «Все филиалы» — ничего не меняем, уже гидратированы.
+          setBranchHydrated(true);
+          return;
+        }
+
+        const stillExists = fetched.some((b) => b.id === saved.id);
+        if (stillExists) {
+          // Филиал доступен — устанавливаем (или оставляем) его.
+          setSelectedBranchState(saved);
+          setBranchFilter(saved.id);
+        } else {
+          // Филиал удалён или недоступен — сбрасываем на «Все филиалы».
+          setSelectedBranchState(null);
           setBranchFilter(null);
           try { localStorage.removeItem(BRANCH_FILTER_STORAGE_KEY); } catch { /* ignore */ }
-          return null;
-        });
+        }
+        setBranchHydrated(true);
       } catch {
-        /* ignore network errors */
+        // Сеть недоступна: оставляем сохранённый branch как есть, помечаем гидратированным
+        // чтобы не блокировать UI вечно.
+        setBranchHydrated(true);
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -111,19 +164,21 @@ export const BranchProvider: React.FC<{ isSuperAdmin: boolean; children: React.R
     setSelectedBranchState(branch);
     setBranchFilter(branch?.id ?? null);
     try {
-      if (branch) localStorage.setItem(BRANCH_FILTER_STORAGE_KEY, JSON.stringify(branch));
-      else localStorage.removeItem(BRANCH_FILTER_STORAGE_KEY);
+      if (branch) {
+        localStorage.setItem(BRANCH_FILTER_STORAGE_KEY, JSON.stringify(branch));
+      } else {
+        localStorage.removeItem(BRANCH_FILTER_STORAGE_KEY);
+      }
     } catch {
       /* ignore */
     }
-    // Инвалидируем все филиальные кэши при смене филиала.
     for (const key of BRANCH_DEPENDENT_KEYS) {
       queryClient.invalidateQueries({ queryKey: key });
     }
   }, [queryClient]);
 
   return (
-    <BranchContext.Provider value={{ branches, selectedBranch, setSelectedBranch, loading }}>
+    <BranchContext.Provider value={{ branches, selectedBranch, setSelectedBranch, loading, branchHydrated }}>
       {children}
     </BranchContext.Provider>
   );
