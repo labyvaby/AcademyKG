@@ -135,7 +135,7 @@ const ServicesPage: React.FC = () => {
   usePageTitle("Услуги");
   const { open: notify } = useNotification();
   const { hasPermission } = usePermissions();
-  const { selectedBranch } = useBranchContext();
+  const { selectedBranch, branchHydrated } = useBranchContext();
   const canCreate = hasPermission(PERMISSIONS.SERVICES_CREATE);
   const canEdit = hasPermission(PERMISSIONS.SERVICES_UPDATE);
   const canDelete = hasPermission(PERMISSIONS.SERVICES_DELETE);
@@ -223,9 +223,10 @@ const ServicesPage: React.FC = () => {
   }, []);
 
   React.useEffect(() => {
+    if (!branchHydrated) return;
     loadAll();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [branchId]);
+  }, [branchId, branchHydrated]);
 
 
   // Поиск
