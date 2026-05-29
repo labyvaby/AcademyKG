@@ -1,4 +1,4 @@
-import { apiFetch, resolveApiUrl, getBranchFilter, setBranchFilter } from "../utility/apiClient";
+import { apiFetch, resolveApiUrl } from "../utility/apiClient";
 import { fetchAllPages } from "../utility/pagination";
 
 function resolveUrl(url: string | null | undefined): string | undefined {
@@ -82,17 +82,11 @@ const fetchServicesBase = async (page?: number, pageSize?: number): Promise<{ it
 };
 
 // Для привязки услуг к сотруднику — грузит ВСЕ услуги без branch-фильтра.
-// Branch-фильтр здесь не нужен: сотруднику можно привязать услугу из любого филиала,
-// а в новом филиале без услуг список иначе был бы пуст.
+// _noBranch=1 — маркер для apiClient, который не даёт добавить ?branch=<id>.
+// Каталог услуг глобальный: сотруднику можно привязать услугу из любого филиала,
+// иначе в новом филиале без услуг список был бы пуст.
 export const fetchSellableServices = async (): Promise<ServiceRow[]> => {
-  const savedBranch = getBranchFilter();
-  if (savedBranch) setBranchFilter(null);
-  let results: any[] = [];
-  try {
-    results = await fetchAllPages<any>("/api/v1/services/?ordering=name&pageSize=200");
-  } finally {
-    if (savedBranch) setBranchFilter(savedBranch);
-  }
+  const results = await fetchAllPages<any>("/api/v1/services/?_noBranch=1&ordering=name&pageSize=200");
 
   return Array.from(
     new Map(
