@@ -144,7 +144,7 @@ export function buildReceiptHtml(data: ReceiptData): string {
     finalPrice,
     bulkCount,
     cashierName,
-    orgName = "Академия",
+    orgName = "Аутизм победим KG",
   } = data;
 
   const now       = dayjsBishkek(appointment.appointment_at);
