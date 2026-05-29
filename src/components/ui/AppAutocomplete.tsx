@@ -28,14 +28,21 @@ function AppAutocomplete<
   // Баг 5: не очищать inputValue при blur без выбора
   const [inputVal, setInputVal] = React.useState("");
 
-  // При внешнем выборе value (например reset после submit) — синхронизируем inputVal
+  // При внешнем сбросе value (после submit/reset формы) — синхронизируем inputVal.
+  // ВАЖНО: onInputChange намеренно исключён из deps — это inline-функция которая
+  // пересоздаётся при каждом рендере родителя и вызывала бы сброс inputVal на каждый
+  // ввод символа (баг: введённый текст стирался сразу).
   const valueProp = (rest as any).value;
+  const prevValueRef = React.useRef(valueProp);
   React.useEffect(() => {
-    if (!onInputChange) return;
-    if (valueProp == null || valueProp === "") {
+    const prev = prevValueRef.current;
+    prevValueRef.current = valueProp;
+    // Сбрасываем только если value реально обнулилось (null/undefined после не-null).
+    if ((valueProp == null || valueProp === "") && prev != null && prev !== "") {
       setInputVal("");
     }
-  }, [valueProp, onInputChange]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [valueProp]);
 
   const handleOpen: typeof onOpen = (e) => {
     if (!isControlled) setOpenState(true);

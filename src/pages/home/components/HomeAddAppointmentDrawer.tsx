@@ -265,6 +265,15 @@ export const HomeAddAppointmentDrawer: React.FC<
     return () => clearTimeout(timer);
   }, [patientSearchInput, fetchPatientsServerSide]);
 
+  // Стабильные callbacks для onInputChange — не пересоздаются при каждом рендере.
+  // Inline-функции в JSX пересоздавались бы и вызывали сброс inputVal в AppAutocomplete.
+  const handlePatientInputChange = React.useCallback((_: React.SyntheticEvent, val: string) => {
+    setPatientSearchInput(val);
+  }, []);
+  const handleGroupPatientInputChange = React.useCallback((_: React.SyntheticEvent, val: string) => {
+    setGroupPatientSearch(val);
+  }, []);
+
   // Поиск для группового режима
   const fetchGroupPatients = React.useCallback(async (query: string) => {
     setGroupPatientLoading(true);
@@ -1597,7 +1606,7 @@ export const HomeAddAppointmentDrawer: React.FC<
                   options={patientsSearchResults.length > 0 ? patientsSearchResults : patientsOpts}
                   loading={patientsLoading || isSearchingPatients}
                   value={selectedPatient}
-                  onInputChange={(_, val) => setPatientSearchInput(val)}
+                  onInputChange={handlePatientInputChange}
                   onChange={(_, v) => setSelectedPatient(v)}
                   getOptionLabel={(o: PatientOption) => {
                     const fio = o["ФИО клиента"] ?? o.fio ?? "";
@@ -1688,7 +1697,7 @@ export const HomeAddAppointmentDrawer: React.FC<
                         options={groupPatientResults}
                         value={groupPatientInput}
                         onChange={(_, v) => setGroupPatientInput(v)}
-                        onInputChange={(_, val) => setGroupPatientSearch(val)}
+                        onInputChange={handleGroupPatientInputChange}
                         getOptionLabel={(o: PatientOption) => {
                           const fio = o["ФИО клиента"] ?? o.fio ?? "";
                           const phone = o["Телефон"] ?? o.phone ?? "";

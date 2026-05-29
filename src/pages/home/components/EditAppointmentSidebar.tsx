@@ -244,6 +244,10 @@ const EditAppointmentSidebar: React.FC<EditAppointmentSidebarProps> = ({
     return () => clearTimeout(timer);
   }, [patientSearchInput, fetchPatientsServerSide]);
 
+  const handlePatientInputChange = React.useCallback((_: React.SyntheticEvent, val: string) => {
+    setPatientSearchInput(val);
+  }, []);
+
   // Use cached dictionaries (пациенты и сотрудники — не услуги)
   const {
     patients: dictPatients,
@@ -473,7 +477,7 @@ const EditAppointmentSidebar: React.FC<EditAppointmentSidebarProps> = ({
                 options={patientSearchInput.length >= 2 ? patientsSearchResults : patients}
                 loading={patientsLoading || isSearchingPatients}
                 value={selectedPatient}
-                onInputChange={(_, val) => setPatientSearchInput(val)}
+                onInputChange={handlePatientInputChange}
                 onChange={(_, v) => setSelectedPatient(v)}
                 getOptionLabel={(o: PatientOption) => {
                   const fio = o["ФИО клиента"] ?? o.fio ?? "";

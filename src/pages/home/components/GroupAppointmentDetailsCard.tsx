@@ -219,6 +219,10 @@ const GroupAppointmentDetailsCard: React.FC<Props> = ({ group, onGroupUpdated, o
     return () => clearTimeout(t);
   }, [addPatientSearch, addOpen]);
 
+  const handleAddPatientInputChange = React.useCallback((_: React.SyntheticEvent, val: string) => {
+    setAddPatientSearch(val);
+  }, []);
+
   const handleAddParticipant = async () => {
     if (!addPatientInput) return;
     setAddBusy(true);
@@ -420,7 +424,7 @@ const GroupAppointmentDetailsCard: React.FC<Props> = ({ group, onGroupUpdated, o
               options={addPatientResults}
               value={addPatientInput}
               onChange={(_, v) => setAddPatientInput(v)}
-              onInputChange={(_, val) => setAddPatientSearch(val)}
+              onInputChange={handleAddPatientInputChange}
               getOptionLabel={(o: PatientOption) => `${o["ФИО клиента"] ?? o.fio ?? ""} — ${o["Телефон"] ?? o.phone ?? ""}`}
               filterOptions={(x) => x}
               isOptionEqualToValue={(a, b) => a.id === b.id}
