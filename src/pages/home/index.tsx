@@ -76,7 +76,7 @@ export const HomePage: React.FC = () => {
   const queryClient = useQueryClient();
   const { setOnRefresh } = useRefresh();
   const theme = useTheme();
-  const { hasPermission, employeeId } = usePermissions();
+  const { hasPermission, employeeId, loading: permissionsLoading } = usePermissions();
   const { selectedBranch } = useBranchContext();
   const branchId = selectedBranch?.id ?? null;
   const [searchParams, setSearchParams] = useSearchParams();
@@ -236,20 +236,23 @@ export const HomePage: React.FC = () => {
     };
   }, [rangeKey]);
 
+  // canReadAll вычисляется один раз после загрузки прав — стабильное значение для queryKey
+  const canReadAllAppointments = !permissionsLoading && hasPermission(PERMISSIONS.APPOINTMENTS_READ);
+
   const { data: rangeData = EMPTY_ARRAY } = useQuery({
-    queryKey: ["appointments", "counts", rangeKey, hasPermission(PERMISSIONS.APPOINTMENTS_READ), employeeId, branchId],
+    queryKey: ["appointments", "counts", rangeKey, canReadAllAppointments, employeeId, branchId],
     queryFn: async () => {
       const { dateFrom, dateTo } = rangeParams;
-      // excludeGroupParticipants=true — участники групп не попадают в счётчик (camelCase — как в схеме)
-      let url = `/api/v1/appointments/?excludeGroupParticipants=true&dateFrom=${dateFrom}&dateTo=${dateTo}&pageSize=500`;
-      if (!hasPermission(PERMISSIONS.APPOINTMENTS_READ) && employeeId) {
+      let url = `/api/v1/appointments/?excludeGroupParticipants=true&dateFrom=${dateFrom}&dateTo=${dateTo}`;
+      if (!canReadAllAppointments && employeeId) {
         url += `&employee=${employeeId}`;
       }
-
-      return fetchAllPages<any>(url.replace("&pageSize=500", ""));
+      return fetchAllPages<any>(url);
     },
     staleTime: 10 * 60 * 1000,
     refetchOnWindowFocus: false,
+    // Не запускать пока права не загружены — иначе ключ изменится и запрос повторится
+    enabled: !permissionsLoading,
   });
 
   const { data: rangeGroupData = EMPTY_ARRAY } = useQuery({

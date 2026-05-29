@@ -288,7 +288,12 @@ function App() {
                               staleTime: 5 * 60 * 1000, // 5 minutes
                               gcTime: 10 * 60 * 1000, // 10 minutes
                               refetchOnWindowFocus: false,
-                              retry: 1,
+                              retry: (failureCount, error) => {
+                                const status = (error as { status?: number })?.status;
+                                // Не ретраить клиентские ошибки: 400, 401, 403, 404, 422, 429
+                                if (status !== undefined && status >= 400 && status < 500) return false;
+                                return failureCount < 1;
+                              },
                             },
                           },
                         },
