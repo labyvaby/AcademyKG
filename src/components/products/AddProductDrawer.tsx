@@ -21,6 +21,7 @@ import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import { useNotification } from "@refinedev/core";
 import { createProduct, CreateProductData } from "../../services/products";
 import { AppCard } from "../ui";
+import { useBranchContext } from "../../contexts/branch-context";
 
 // Custom styles for the toggle tabs
 const toggleTabStyles = (theme: any, color: string) => ({
@@ -63,6 +64,8 @@ export const AddProductDrawer: React.FC<AddProductDrawerProps> = ({
     onCreated,
 }) => {
     const { open: notify } = useNotification();
+    const { selectedBranch } = useBranchContext();
+    const branchId = selectedBranch?.id ?? null;
     const [values, setValues] = React.useState<CreateProductData>(defaultValues);
     const [photoFile, setPhotoFile] = React.useState<File | null>(null);
     const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
@@ -93,6 +96,10 @@ export const AddProductDrawer: React.FC<AddProductDrawerProps> = ({
 
     const handleSubmit = async () => {
         setTouched(true);
+        if (!branchId) {
+            notify?.({ type: "error", message: "Выберите филиал, чтобы создать товар" });
+            return;
+        }
         if (!values.name.trim()) {
             notify?.({ type: "error", message: "Название товара обязательно" });
             return;
@@ -102,6 +109,7 @@ export const AddProductDrawer: React.FC<AddProductDrawerProps> = ({
         try {
             await createProduct({
                 ...values,
+                branchId,
                 image_url: photoFile || values.image_url,
                 name: values.name.trim(),
                 barcode: values.barcode?.trim() || undefined,
@@ -116,13 +124,9 @@ export const AddProductDrawer: React.FC<AddProductDrawerProps> = ({
             if (onCreated) onCreated();
             notify?.({ type: "success", message: "Товар добавлен" });
             onClose();
-        } catch (e: any) {
+        } catch (e: unknown) {
             console.error("Create product failed:", e);
-            if (e?.code === "NO_BRANCH") {
-                notify?.({ type: "error", message: "Выберите филиал, чтобы создать товар" });
-            } else {
-                notify?.({ type: "error", message: "Не удалось создать товар" });
-            }
+            notify?.({ type: "error", message: "Не удалось создать товар" });
         } finally {
             setBusy(false);
         }

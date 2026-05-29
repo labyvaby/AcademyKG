@@ -8,6 +8,7 @@
 import React from "react";
 import { useNotification } from "@refinedev/core";
 import { createService } from "../../services/services";
+import { useBranchContext } from "../../contexts/branch-context";
 
 export type CreatedService = {
   id: string;
@@ -29,6 +30,8 @@ type UseAddServiceFormArgs = {
 
 export function useAddServiceForm({ open, onClose, onCreated }: UseAddServiceFormArgs) {
   const { open: notify } = useNotification();
+  const { selectedBranch } = useBranchContext();
+  const branchId = selectedBranch?.id ?? null;
   const [name, setName] = React.useState("");
   const [price, setPrice] = React.useState("");
   const [description, setDescription] = React.useState("");
@@ -89,6 +92,10 @@ export function useAddServiceForm({ open, onClose, onCreated }: UseAddServiceFor
   // Сабмит формы
   const handleSubmit = React.useCallback(async () => {
     setTouched(true);
+    if (!branchId) {
+      notify?.({ type: "error", message: "Выберите филиал, чтобы создать услугу" });
+      return;
+    }
     const priceNum = Number(price);
     if (!name.trim() || !price || !Number.isFinite(priceNum) || priceNum <= 0) {
       notify?.({ type: "error", message: "Заполните название и положительную стоимость услуги" });
@@ -105,6 +112,7 @@ export function useAddServiceForm({ open, onClose, onCreated }: UseAddServiceFor
       const created = await createService({
         name: name.trim(),
         priceSom: priceNum,
+        branchId,
         description: description.trim(),
         isActive,
         isGroup,
@@ -130,15 +138,11 @@ export function useAddServiceForm({ open, onClose, onCreated }: UseAddServiceFor
       onClose();
     } catch (e: any) {
       console.error("Create service failed:", e);
-      if (e?.code === "NO_BRANCH") {
-        notify?.({ type: "error", message: "Выберите филиал, чтобы создать услугу" });
-      } else {
-        notify?.({ type: "error", message: "Не удалось создать услугу" });
-      }
+      notify?.({ type: "error", message: "Не удалось создать услугу" });
     } finally {
       setBusy(false);
     }
-  }, [name, price, photoFile, description, isActive, onClose, onCreated, notify]);
+  }, [name, price, photoFile, description, isActive, isGroup, maxParticipants, durationMinutes, branchId, onClose, onCreated, notify]);
 
   const submitDisabled =
     !name.trim() ||

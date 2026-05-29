@@ -1,4 +1,4 @@
-import { apiFetch, getBranchFilter } from "../utility/apiClient";
+import { apiFetch } from "../utility/apiClient";
 
 export type Product = {
   sellable_item_id: string; // Map from 'id' in API
@@ -92,14 +92,9 @@ export const getProducts = async (): Promise<Product[]> => {
     return products.map((p: any) => mapApiToProduct(p, pricesMap));
 };
 
-export const createProduct = async (productData: CreateProductData) => {
-    const branchId = getBranchFilter();
-    if (!branchId) {
-        throw Object.assign(new Error("Выберите филиал перед созданием товара"), { code: "NO_BRANCH" });
-    }
-
+export const createProduct = async (productData: CreateProductData & { branchId: string }) => {
     const formData = new FormData();
-    formData.append("branch", branchId);
+    formData.append("branch", productData.branchId);
 
     const mapping: Record<string, string> = {
         name: 'name',
