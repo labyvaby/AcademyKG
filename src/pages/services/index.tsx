@@ -181,6 +181,7 @@ const ServicesPage: React.FC = () => {
   const loadAll = React.useCallback(async () => {
     setLoading(true);
     setErrorMsg(null);
+    setAllServices([]);
     try {
       const { apiFetch } = await import("../../utility/apiClient");
       // Собираем все страницы
