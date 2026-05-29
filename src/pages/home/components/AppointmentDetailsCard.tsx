@@ -41,6 +41,7 @@ import DoctorQuickViewDrawer from "../../../components/employees/DoctorQuickView
 import { PaymentInfoBlock } from "../../../components/ui";
 import PrintOutlinedIcon from "@mui/icons-material/PrintOutlined";
 import { printReceipt } from "../../../components/ui/PaymentReceipt";
+import { useBranchContext } from "../../../contexts/branch-context";
 
 import { apiFetch } from "../../../utility/apiClient";
 import { markAttendance } from "../../../features/group-appointments/api/group-appointments.api";
@@ -110,6 +111,7 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
   const [deleting, setDeleting] = React.useState(false);
   const { isSuperAdmin, hasPermission, employeeId } = usePermissions();
   const canDelete = isSuperAdmin() || hasPermission(PERMISSIONS.APPOINTMENTS_DELETE);
+  const { selectedBranch } = useBranchContext();
 
   const canManageAppointment = hasPermission(PERMISSIONS.APPOINTMENTS_UPDATE);
   const canViewAsSpecialist = canViewSpecialistContent(hasPermission);
@@ -568,6 +570,7 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
                         basePrice: baseTotal,
                         finalPrice: Math.max(0, baseTotal - disc),
                         cashierName: item.updated_by_name ?? item.created_by_name ?? null,
+                        branchName: selectedBranch?.name ?? null,
                       });
                     }}
                   >
@@ -934,6 +937,7 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
                         basePrice: baseTotal,
                         finalPrice: Math.max(0, baseTotal - disc),
                         cashierName: item.updated_by_name ?? item.created_by_name ?? null,
+                        branchName: selectedBranch?.name ?? null,
                       });
                     }}
                   >

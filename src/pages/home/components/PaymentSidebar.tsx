@@ -28,6 +28,7 @@ import { useNotification } from "@refinedev/core";
 import { useQueryClient } from "@tanstack/react-query";
 import { usePatientBalance } from "../../patient-search/usePatientBalance";
 import { printReceipt, type ReceiptData } from "../../../components/ui/PaymentReceipt";
+import { useBranchContext } from "../../../contexts/branch-context";
 
 type PaymentSidebarProps = {
     open: boolean;
@@ -69,6 +70,7 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
 }) => {
     const isBulkMode = Boolean(bulkAppointmentIds && bulkAppointmentIds.length > 0);
     const { open: notify } = useNotification();
+    const { selectedBranch } = useBranchContext();
 
     // Автоматическая скидка для ребёнка сотрудника: подгружаем клиента и читаем процент.
     const [employeeChildPercent, setEmployeeChildPercent] = useState<number | null>(null);
@@ -467,6 +469,7 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
                     finalPrice,
                     bulkCount: bulkCount,
                     cashierName: appointment.updated_by_name ?? appointment.created_by_name ?? null,
+                    branchName: selectedBranch?.name ?? null,
                 });
             }
 

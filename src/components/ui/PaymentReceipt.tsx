@@ -30,6 +30,8 @@ export type ReceiptData = {
   cashierName?: string | null;
   /** Название организации */
   orgName?: string;
+  /** Название филиала */
+  branchName?: string | null;
 };
 
 // Термочек 58mm. Точно по референсу с фото.
@@ -72,8 +74,8 @@ const RECEIPT_CSS = `
   .org    { text-align: center; font-size: 13px; font-weight: 700; margin-bottom: 1mm; }
   /* Строка "1 Чек #XXXXX" */
   .chek   { font-size: 12px; font-weight: 400; margin: 1mm 0; }
-  /* Дата+время на одной строке — крупно */
-  .datetime { font-size: 18px; font-weight: 700; margin: 1.5mm 0 1mm; line-height: 1.1; }
+  /* Дата+время — одна строка, 14px чтобы влезло в 58mm */
+  .datetime { font-size: 14px; font-weight: 700; margin: 1.5mm 0 1mm; line-height: 1.2; white-space: nowrap; }
   /* Менеджер */
   .manager  { font-size: 12px; margin-bottom: 1mm; }
   /* Имя клиента — крупно, слева */
@@ -145,25 +147,36 @@ export function buildReceiptHtml(data: ReceiptData): string {
     bulkCount,
     cashierName,
     orgName = "Аутизм победим KG",
+    branchName = null,
   } = data;
 
   const now       = dayjsBishkek(appointment.appointment_at);
-  const datetimeStr = now.format("DD.MM.YYYY HH:mm:ss"); // одна строка, как на референсе
+  const datetimeStr = now.format("DD.MM.YYYY HH:mm:ss");
   const receiptNo = shortId(appointment.id);
   const services  = parseServices(appointment);
   const totalPaid = cashPaid + cardPaid + balancePaid + bonusesPaid;
   const isBulk    = Boolean(bulkCount && bulkCount > 1);
 
   // ── Строки таблицы услуг ─────────────────────────────────────────────
+  // Под названием услуги — тренер и филиал мелким текстом
+  function serviceSubline(performerName: string | null | undefined): string {
+    const parts: string[] = [];
+    if (performerName) parts.push(performerName);
+    if (branchName)    parts.push(branchName);
+    if (!parts.length) return "";
+    return `<br/><span style="font-size:10px;font-weight:400">${parts.join(" · ")}</span>`;
+  }
+
   let servicesRows = "";
   if (services.length > 0) {
     servicesRows = services.map((s) => {
-      const name  = s.name || s.service_name || "Услуга";
-      const qty   = s.quantity ?? 1;
-      const price = Number(s.price ?? s.cost ?? 0);
-      const total = price * qty;
+      const name     = s.name || s.service_name || "Услуга";
+      const qty      = s.quantity ?? 1;
+      const price    = Number(s.price ?? s.cost ?? 0);
+      const total    = price * qty;
+      const perfName = s.performer_name || s.doctor_name || null;
       return `<tr>
-        <td>${name}</td>
+        <td>${name}${serviceSubline(perfName)}</td>
         <td class="num">${qty.toFixed(2)}</td>
         <td class="amt">${formatMoney(total)}</td>
       </tr>`;
@@ -173,8 +186,9 @@ export function buildReceiptHtml(data: ReceiptData): string {
     const qty         = isBulk ? (bulkCount ?? 1) : 1;
     const perItem     = isBulk && qty > 0 ? (basePrice / qty) : basePrice;
     const label       = isBulk ? `${serviceName} (период)` : serviceName;
+    const perfName    = appointment.doctor_name || null;
     servicesRows = `<tr>
-      <td>${label}</td>
+      <td>${label}${serviceSubline(perfName)}</td>
       <td class="num">${qty.toFixed(2)}</td>
       <td class="amt">${formatMoney(perItem * qty)}</td>
     </tr>`;
@@ -270,16 +284,14 @@ export function buildReceiptHtml(data: ReceiptData): string {
     <span class="row-r bold">${formatMoney(appointment.debt)}</span>
   </div>` : ""}
 
-  <!-- Нижняя строка "Сом + итог" как в референсе -->
+  <!-- Нижняя строка "Сом + итог" -->
   <div class="sep"></div>
   <div class="row" style="font-size:12px">
     <span class="row-l bold">Сом</span>
     <span class="row-r bold">${formatTotal(totalPaid)}</span>
-    <span style="width:2mm"></span>
-    <span class="row-r bold">${formatTotal(totalPaid)}</span>
   </div>
 
-  <!-- Нижняя отрывная линия — только одна -->
+  <!-- Нижняя отрывная линия -->
   <div class="tear"></div>
 
 </div>
