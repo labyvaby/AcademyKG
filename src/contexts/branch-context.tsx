@@ -49,53 +49,62 @@ export const BranchProvider: React.FC<{ isSuperAdmin: boolean; children: React.R
 }) => {
   const queryClient = useQueryClient();
   const [branches, setBranches] = React.useState<BranchOption[]>([]);
+
+  // Инициализируем selectedBranch И вызываем setBranchFilter синхронно в одном
+  // lazy-initializer, до первого рендера. Это гарантирует что _activeBranchId
+  // установлен раньше любых API-запросов дочерних компонентов.
   const [selectedBranch, setSelectedBranchState] = React.useState<BranchOption | null>(() => {
     if (!isSuperAdmin) return null;
     try {
       const saved = localStorage.getItem(BRANCH_FILTER_STORAGE_KEY);
-      return saved ? JSON.parse(saved) : null;
+      const parsed: BranchOption | null = saved ? JSON.parse(saved) : null;
+      // Синхронно ставим глобальный фильтр ДО первого рендера.
+      setBranchFilter(parsed?.id ?? null);
+      return parsed;
     } catch {
       return null;
     }
   });
+
   const [loading, setLoading] = React.useState(false);
 
+  // Загружаем список филиалов и валидируем сохранённый branch.
   React.useEffect(() => {
     if (!isSuperAdmin) {
       setBranches([]);
-      setLoading(false);
+      clearBranchFilter();
+      setSelectedBranchState(null);
       return;
     }
+
+    let cancelled = false;
     (async () => {
       try {
         setLoading(true);
         const res = await apiFetch<BranchListResponse>("/api/v1/branches/");
+        if (cancelled) return;
         const list = res?.data?.results ?? res?.results ?? [];
-        setBranches(list.map((b) => ({ id: String(b.id), name: b.name ?? "" })));
+        const fetched = list.map((b) => ({ id: String(b.id), name: b.name ?? "" }));
+        setBranches(fetched);
+
+        // Валидируем сохранённый branch: если он больше не существует — сброс.
+        setSelectedBranchState((prev) => {
+          if (!prev) return null;
+          const stillExists = fetched.some((b) => b.id === prev.id);
+          if (stillExists) return prev; // всё ок, оставляем
+          // Филиал удалён/недоступен — сбрасываем фильтр и localStorage.
+          setBranchFilter(null);
+          try { localStorage.removeItem(BRANCH_FILTER_STORAGE_KEY); } catch { /* ignore */ }
+          return null;
+        });
       } catch {
-        /* ignore */
+        /* ignore network errors */
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     })();
-  }, [isSuperAdmin]);
 
-  React.useEffect(() => {
-    if (!isSuperAdmin) {
-      setSelectedBranchState(null);
-      clearBranchFilter();
-      return;
-    }
-
-    try {
-      const saved = localStorage.getItem(BRANCH_FILTER_STORAGE_KEY);
-      const parsed = saved ? (JSON.parse(saved) as BranchOption) : null;
-      setSelectedBranchState(parsed);
-      setBranchFilter(parsed?.id ?? null);
-    } catch {
-      setSelectedBranchState(null);
-      clearBranchFilter();
-    }
+    return () => { cancelled = true; };
   }, [isSuperAdmin]);
 
   const setSelectedBranch = React.useCallback((branch: BranchOption | null) => {
@@ -107,8 +116,7 @@ export const BranchProvider: React.FC<{ isSuperAdmin: boolean; children: React.R
     } catch {
       /* ignore */
     }
-    // Инвалидируем все филиальные кэши, чтобы при смене филиала
-    // не показывались stale данные предыдущего филиала.
+    // Инвалидируем все филиальные кэши при смене филиала.
     for (const key of BRANCH_DEPENDENT_KEYS) {
       queryClient.invalidateQueries({ queryKey: key });
     }
