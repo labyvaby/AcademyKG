@@ -216,7 +216,11 @@ const UUID_PATH_RE = /\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]
 function injectBranchParam(path: string, method: string): string {
   // Явный маркер "не добавлять branch" — удаляем маркер из URL перед отправкой
   if (path.includes("_noBranch=1")) {
-    return path.replace(/[?&]_noBranch=1/, "").replace(/\?$/, "");
+    // Убираем маркер корректно: ?_noBranch=1&rest → ?rest, &_noBranch=1 → "", ?_noBranch=1 → ""
+    const cleaned = path
+      .replace(/\?_noBranch=1&/, "?")
+      .replace(/[?&]_noBranch=1/, "");
+    return cleaned;
   }
   if (!_activeBranchId) return path;
   if (method && method !== "GET") return path;
