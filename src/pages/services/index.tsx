@@ -26,6 +26,7 @@ import { usePermissions } from "../../hooks/usePermissions";
 import { PERMISSIONS } from "../../constants/permissions";
 import ServiceQuickViewDrawer from "../../components/services/ServiceQuickViewDrawer";
 import { resolveApiUrl } from "../../utility/apiClient";
+import { useBranchContext } from "../../contexts/branch-context";
 
 function resolveImageUrl(url: string | null | undefined): string | null {
   return resolveApiUrl(url);
@@ -134,6 +135,7 @@ const ServicesPage: React.FC = () => {
   usePageTitle("Услуги");
   const { open: notify } = useNotification();
   const { hasPermission } = usePermissions();
+  const { selectedBranch } = useBranchContext();
   const canCreate = hasPermission(PERMISSIONS.SERVICES_CREATE);
   const canEdit = hasPermission(PERMISSIONS.SERVICES_UPDATE);
   const canDelete = hasPermission(PERMISSIONS.SERVICES_DELETE);
@@ -172,6 +174,8 @@ const ServicesPage: React.FC = () => {
   // Подтверждение удаления
   const [confirmOpen, setConfirmOpen] = React.useState(false);
   const [confirmRow, setConfirmRow] = React.useState<AggregatedService | null>(null);
+
+  const branchId = selectedBranch?.id ?? null;
 
   // Загрузка услуг через REST API
   const loadAll = React.useCallback(async () => {
@@ -219,7 +223,8 @@ const ServicesPage: React.FC = () => {
 
   React.useEffect(() => {
     loadAll();
-  }, [loadAll]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [branchId]);
 
 
   // Поиск

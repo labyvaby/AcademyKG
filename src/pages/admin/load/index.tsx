@@ -8,15 +8,18 @@ import { LoadFilters } from './LoadFilters';
 import { LoadChart } from './LoadChart';
 import { LoadSummaryCard } from './LoadSummaryCard';
 import { usePageTitle } from '../../../hooks/usePageTitle';
+import { useBranchContext } from '../../../contexts/branch-context';
 
 export const LoadAnalyticsPage: React.FC = () => {
     usePageTitle("Нагрузка");
+    const { selectedBranch } = useBranchContext();
+    const branchId = selectedBranch?.id ?? "all";
     const [selectedEmployees, setSelectedEmployees] = useState<string[]>([]);
     const [dateRange, setDateRange] = useState<[Dayjs | null, Dayjs | null]>([dayjs().startOf('day'), dayjs().endOf('day')]);
 
     // Fetch appointments for the selected date range
     const { data: appointments, isLoading } = useQuery({
-        queryKey: ['appointmentsLoad', dateRange[0]?.toISOString(), dateRange[1]?.toISOString()],
+        queryKey: ['appointmentsLoad', branchId, dateRange[0]?.toISOString(), dateRange[1]?.toISOString()],
         queryFn: async () => {
             const params = new URLSearchParams({ pageSize: '500', excludeStatus: 'cancelled' });
             if (dateRange[0]) params.set('dateFrom', dateRange[0].startOf('day').toISOString());

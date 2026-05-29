@@ -11,6 +11,7 @@ import type { EmployesRow } from "../types";
 import { apiFetch } from "../../../utility/apiClient";
 import { fetchSellableServices } from "../../../services/services";
 import { useSimplePageCache } from "../../../hooks/useSimplePageCache";
+import { useBranchContext } from "../../../contexts/branch-context";
 
 const PAGE_SIZE = 30;
 const EMPLOYEE_WRITE_FIELDS = new Set([
@@ -71,6 +72,9 @@ export function translateAuthError(rawError: unknown): string {
 }
 
 export function useEmployeesPageState() {
+  const { selectedBranch } = useBranchContext();
+  const branchId = selectedBranch?.id ?? null;
+
   const [items, setItems] = React.useState<EmployesRow[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
@@ -131,14 +135,14 @@ export function useEmployeesPageState() {
       setLoading(false);
       setLoadingMore(false);
     }
-  }, [qDebounced]);
+  }, [qDebounced, branchId]);
 
   const isInitializedRef = React.useRef(false);
   React.useEffect(() => {
     if (!isInitializedRef.current) {
       isInitializedRef.current = true;
       const cached = restoreState();
-      if (cached) {
+      if (cached && !branchId) {
         setItems(cached.items);
         setQ(cached.q);
         setDetailsOpen(cached.detailsOpen);
@@ -149,7 +153,7 @@ export function useEmployeesPageState() {
     setPage(0);
     fetchEmployees(0, true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [qDebounced, fetchEmployees]);
+  }, [qDebounced, branchId]);
 
   const loadMore = React.useCallback(() => {
     if (!loadingMore && hasMore && !loading) {

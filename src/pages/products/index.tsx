@@ -33,9 +33,12 @@ import { EditProductDrawer } from "../../components/products/EditProductDrawer";
 import ProductFilterDrawer, { ProductFilters } from "../../components/products/ProductFilterDrawer";
 import { usePermissions } from "../../hooks/usePermissions";
 import { PERMISSIONS } from "../../constants/permissions";
+import { useBranchContext } from "../../contexts/branch-context";
 
 const ProductsPage: React.FC = () => {
   usePageTitle("Товары");
+  const { selectedBranch } = useBranchContext();
+  const branchId = selectedBranch?.id ?? null;
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const { open: notify } = useNotification();
@@ -84,7 +87,8 @@ const ProductsPage: React.FC = () => {
 
   React.useEffect(() => {
     fetchProducts();
-  }, [fetchProducts]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [branchId]);
 
 
 

@@ -4,6 +4,7 @@ import { Box, TextField, Button, ButtonGroup, Paper } from '@mui/material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { useQuery } from '@tanstack/react-query';
 import { fetchEmployees } from '../../../services/employees';
+import { useBranchContext } from '../../../contexts/branch-context';
 import dayjs, { Dayjs } from 'dayjs';
 
 interface Props {
@@ -14,10 +15,12 @@ interface Props {
 }
 
 export const LoadFilters: React.FC<Props> = ({ selectedEmployees, onEmployeesChange, dateRange, onDateRangeChange }) => {
+    const { selectedBranch } = useBranchContext();
+    const branchId = selectedBranch?.id ?? "all";
     const { data: employees } = useQuery({
-        queryKey: ['employeesListAnalytics'],
-        queryFn: () => fetchEmployees()
-});
+        queryKey: ['employeesListAnalytics', branchId],
+        queryFn: () => fetchEmployees(),
+    });
 
     return (
         <Paper sx={{ p: 2, borderRadius: 3 }} elevation={1}>

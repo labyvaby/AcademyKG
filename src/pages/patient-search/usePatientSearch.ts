@@ -1,5 +1,6 @@
 import React from "react";
 import { apiFetch, resolveApiUrl } from "../../utility/apiClient";
+import { useBranchContext } from "../../contexts/branch-context";
 import type { Patient } from "../../types/models";
 
 const PER_PAGE = 30;
@@ -73,6 +74,9 @@ function mapApiPatient(r: Record<string, unknown>): Patient {
  * Управляет списком клиентов: поиск и бесконечная прокрутка через /api/v1/clients/
  */
 export function usePatientList(options?: UsePatientListOptions) {
+  const { selectedBranch } = useBranchContext();
+  const branchId = selectedBranch?.id ?? null;
+
   const [loading, setLoading] = React.useState(false);
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
   const [patients, setPatients] = React.useState<Patient[]>(options?.initialPatients ?? []);
@@ -147,6 +151,20 @@ export function usePatientList(options?: UsePatientListOptions) {
     setErrorMsg(null);
     void fetchChunk(0, debouncedQuery);
   }, [debouncedQuery, fetchChunk]);
+
+  // Сброс при смене филиала
+  React.useEffect(() => {
+    currentPageRef.current = 0;
+    setPatients([]);
+    setHasMore(true);
+    setErrorMsg(null);
+    skipInitialFetchRef.current = false;
+    void fetchChunk(0, debouncedQuery);
+    return () => {
+      if (abortRef.current) abortRef.current.abort();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [branchId]);
 
   // Сброс и первичная загрузка при изменении поискового запроса
   React.useEffect(() => {
