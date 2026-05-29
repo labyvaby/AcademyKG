@@ -37,7 +37,7 @@ import { useBranchContext } from "../../contexts/branch-context";
 
 const ProductsPage: React.FC = () => {
   usePageTitle("Товары");
-  const { selectedBranch } = useBranchContext();
+  const { selectedBranch, branchHydrated } = useBranchContext();
   const branchId = selectedBranch?.id ?? null;
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
@@ -86,9 +86,10 @@ const ProductsPage: React.FC = () => {
   }, [notify]);
 
   React.useEffect(() => {
+    if (!branchHydrated) return;
     fetchProducts();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [branchId]);
+  }, [branchId, branchHydrated]);
 
 
 

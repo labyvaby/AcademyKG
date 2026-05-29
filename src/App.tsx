@@ -79,8 +79,8 @@ const AuthHelper = () => null;
 
 // Оборачивает layout в BranchProvider с доступом к isSuperAdmin
 const BranchAwareLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isSuperAdmin } = usePermissions();
-  return <BranchProvider isSuperAdmin={isSuperAdmin()}>{children}</BranchProvider>;
+  const { isSuperAdmin, loading } = usePermissions();
+  return <BranchProvider isSuperAdmin={isSuperAdmin()} permissionsLoading={loading}>{children}</BranchProvider>;
 };
 
 // Вспомогательный компонент для защиты корневого редиректа

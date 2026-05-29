@@ -65,8 +65,9 @@ function _loadSavedBranch(): BranchOption | null {
   }
 }
 
-export const BranchProvider: React.FC<{ isSuperAdmin: boolean; children: React.ReactNode }> = ({
+export const BranchProvider: React.FC<{ isSuperAdmin: boolean; permissionsLoading?: boolean; children: React.ReactNode }> = ({
   isSuperAdmin,
+  permissionsLoading = false,
   children,
 }) => {
   const queryClient = useQueryClient();
@@ -101,12 +102,12 @@ export const BranchProvider: React.FC<{ isSuperAdmin: boolean; children: React.R
   }, []);
 
   // Загружаем список филиалов.
-  // Если isSuperAdmin ещё false (auth грузится), ждём — не вызываем clearBranchFilter.
+  // Если permissions ещё грузятся — ждём, не трогаем branch.
   React.useEffect(() => {
-    // Пока auth ещё не известен — не трогаем состояние.
-    // isSuperAdmin=false может быть как "нет прав", так и "ещё не загружен".
-    // BranchAwareLayout рендерится внутри RequireAuth, значит к этому моменту
-    // пользователь точно авторизован. isSuperAdmin=false → обычный пользователь.
+    // Пока роль ещё не загружена — не трогаем состояние.
+    // isSuperAdmin=false + permissionsLoading=true означает "ещё грузится".
+    if (permissionsLoading) return;
+
     if (!isSuperAdmin) {
       // Обычный пользователь: branch определяется правами на сервере.
       // Очищаем любой сохранённый superadmin-branch.
@@ -161,7 +162,7 @@ export const BranchProvider: React.FC<{ isSuperAdmin: boolean; children: React.R
     })();
 
     return () => { cancelled = true; };
-  }, [isSuperAdmin]);
+  }, [isSuperAdmin, permissionsLoading]);
 
   const setSelectedBranch = React.useCallback((branch: BranchOption | null) => {
     setSelectedBranchState(branch);
