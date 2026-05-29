@@ -333,30 +333,27 @@ const LoginPage: React.FC = () => {
         </Tabs>
 
         <AnimatePresence mode="wait">
-          {isLocked && (
-            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}>
+          {isLocked ? (
+            <motion.div key="alert-locked" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}>
               <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }}>
                 Слишком много неудачных попыток. Вход заблокирован на {Math.floor(lockCountdown / 60)}:{String(lockCountdown % 60).padStart(2, "0")}
               </Alert>
             </motion.div>
-          )}
-          {!isLocked && failCount > 0 && failCount < MAX_ATTEMPTS && (
-            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}>
+          ) : failCount > 0 && failCount < MAX_ATTEMPTS ? (
+            <motion.div key="alert-fail" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}>
               <Alert severity="warning" sx={{ mb: 3, borderRadius: 2 }}>
                 Неверные данные. Осталось попыток: {MAX_ATTEMPTS - failCount}
               </Alert>
             </motion.div>
-          )}
-          {!isLocked && errorMsg && (
-            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}>
+          ) : errorMsg ? (
+            <motion.div key="alert-error" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}>
               <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }}>{errorMsg}</Alert>
             </motion.div>
-          )}
-          {infoMsg && (
-            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}>
+          ) : infoMsg ? (
+            <motion.div key="alert-info" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}>
               <Alert severity="info" sx={{ mb: 3, borderRadius: 2 }}>{infoMsg}</Alert>
             </motion.div>
-          )}
+          ) : null}
         </AnimatePresence>
 
         <AnimatePresence mode="wait">
