@@ -112,8 +112,8 @@ export const BranchProvider: React.FC<{ isSuperAdmin: boolean; permissionsLoadin
       // Обычный пользователь: branch определяется правами на сервере.
       // Очищаем любой сохранённый superadmin-branch.
       clearBranchFilter();
-      setSelectedBranchState(null);
-      setBranches([]);
+      setSelectedBranchState((prev) => (prev !== null ? null : prev));
+      setBranches((prev) => (prev.length > 0 ? [] : prev));
       setBranchHydrated(true);
       return;
     }
@@ -142,8 +142,8 @@ export const BranchProvider: React.FC<{ isSuperAdmin: boolean; permissionsLoadin
 
         const stillExists = fetched.some((b) => b.id === saved.id);
         if (stillExists) {
-          // Филиал доступен — устанавливаем (или оставляем) его.
-          setSelectedBranchState(saved);
+          // Филиал доступен — устанавливаем только если id изменился (identity guard).
+          setSelectedBranchState((prev) => (prev?.id === saved.id ? prev : saved));
           setBranchFilter(saved.id);
         } else {
           // Филиал удалён или недоступен — сбрасываем на «Все филиалы».
