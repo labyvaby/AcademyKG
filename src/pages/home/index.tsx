@@ -57,6 +57,8 @@ import { useBranchContext } from "../../contexts/branch-context";
 // Helper to format today like 15.11.2025 (delegates to shared util)
 const formatRuDate = (d: Date) => formatDateRu(d);
 
+const EMPTY_ARRAY: never[] = [];
+
 // Debounce helper (как на странице поиска пациентов)
 function useDebouncedValue<T>(value: T, delay = 300) {
   const [debounced, setDebounced] = React.useState(value);
@@ -234,7 +236,7 @@ export const HomePage: React.FC = () => {
     };
   }, [rangeKey]);
 
-  const { data: rangeData = [] } = useQuery({
+  const { data: rangeData = EMPTY_ARRAY } = useQuery({
     queryKey: ["appointments", "counts", rangeKey, hasPermission(PERMISSIONS.APPOINTMENTS_READ), employeeId, branchId],
     queryFn: async () => {
       const { dateFrom, dateTo } = rangeParams;
@@ -250,7 +252,7 @@ export const HomePage: React.FC = () => {
     refetchOnWindowFocus: false,
   });
 
-  const { data: rangeGroupData = [] } = useQuery({
+  const { data: rangeGroupData = EMPTY_ARRAY } = useQuery({
     queryKey: ["group-appointments", "counts", rangeKey, branchId],
     queryFn: async () => {
       const { dateFrom, dateTo } = rangeParams;
