@@ -1484,9 +1484,10 @@ export const HomeAddAppointmentDrawer: React.FC<
                 getOptionLabel={(o) => `${o.full_name || o.id}${o.specialization ? ` — ${o.specialization}` : ""}`}
                 filterOptions={doctorFilter}
                 isOptionEqualToValue={(o, v) => o.id === v.id}
-                renderOption={(props, o) => (
-                  <li {...props} key={o.id}>{o.full_name || o.id}{o.specialization ? ` — ${o.specialization}` : ""}</li>
-                )}
+                renderOption={(props, o) => {
+                  const { key, ...optionProps } = props;
+                  return <li key={key} {...optionProps}>{o.full_name || o.id}{o.specialization ? ` — ${o.specialization}` : ""}</li>;
+                }}
                 openOnFocus
                 blurOnSelect="touch"
                 slotProps={{
@@ -1542,9 +1543,10 @@ export const HomeAddAppointmentDrawer: React.FC<
                 getOptionLabel={(o) => `${o.name}${o.price ? ` — ${o.price} сом` : ""}`}
                 filterOptions={serviceFilter}
                 isOptionEqualToValue={(o, v) => o.id === v.id}
-                renderOption={(props, o) => (
-                  <li {...props} key={o.id}>{o.name}{o.price ? ` — ${o.price} сом` : ""}</li>
-                )}
+                renderOption={(props, o) => {
+                  const { key, ...optionProps } = props;
+                  return <li key={key} {...optionProps}>{o.name}{o.price ? ` — ${o.price} сом` : ""}</li>;
+                }}
                 openOnFocus
                 blurOnSelect="touch"
                 slotProps={{
@@ -1616,9 +1618,10 @@ export const HomeAddAppointmentDrawer: React.FC<
                   filterOptions={(x) => x}
                   isOptionEqualToValue={(o, v) => o.id === (v?.id || "")}
                   renderOption={(props, option) => {
+                    const { key, ...optionProps } = props;
                     const fio = option["ФИО клиента"] ?? option.fio ?? "";
                     const phone = option["Телефон"] ?? option.phone ?? "";
-                    return <li {...props} key={option.id}>{`${fio || "Нет ФИО"} — ${phone || "Нет телефона"}`}</li>;
+                    return <li key={key} {...optionProps}>{`${fio || "Нет ФИО"} — ${phone || "Нет телефона"}`}</li>;
                   }}
                   openOnFocus
                   blurOnSelect="touch"
@@ -1708,9 +1711,10 @@ export const HomeAddAppointmentDrawer: React.FC<
                         loading={groupPatientLoading}
                         noOptionsText="Введите имя клиента"
                         renderOption={(props, option) => {
+                          const { key, ...optionProps } = props;
                           const fio = option["ФИО клиента"] ?? option.fio ?? "";
                           const phone = option["Телефон"] ?? option.phone ?? "";
-                          return <li {...props} key={option.id}>{`${fio || "Нет ФИО"} — ${phone || "Нет телефона"}`}</li>;
+                          return <li key={key} {...optionProps}>{`${fio || "Нет ФИО"} — ${phone || "Нет телефона"}`}</li>;
                         }}
                         openOnFocus
                         blurOnSelect="touch"

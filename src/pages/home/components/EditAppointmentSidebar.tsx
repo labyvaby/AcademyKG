@@ -487,10 +487,11 @@ const EditAppointmentSidebar: React.FC<EditAppointmentSidebarProps> = ({
                 filterOptions={(x) => x}
                 isOptionEqualToValue={(o, v) => o.id === (v?.id || "")}
                 renderOption={(props, option) => {
+                  const { key, ...optionProps } = props;
                   const fio = option["ФИО клиента"] ?? option.fio ?? "";
                   const phone = option["Телефон"] ?? option.phone ?? "";
                   return (
-                    <li {...props} key={option.id}>{`${fio || "Нет ФИО"} — ${phone || "Нет телефона"
+                    <li key={key} {...optionProps}>{`${fio || "Нет ФИО"} — ${phone || "Нет телефона"
                       }`}</li>
                   );
                 }}

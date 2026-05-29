@@ -237,16 +237,19 @@ const DoctorWorkPage: React.FC = () => {
                         getOptionLabel={(d) => d.full_name ?? ""}
                         isOptionEqualToValue={(a, b) => a.id === b.id}
                         noOptionsText="Нет специалистов"
-                        renderOption={(props, d) => (
-                            <li {...props} key={d.id}>
-                                <Stack direction="row" spacing={1} alignItems="center">
-                                    <Avatar sx={{ width: 24, height: 24, fontSize: 12 }}>
-                                        {(d.full_name ?? "?")[0]}
-                                    </Avatar>
-                                    <Typography variant="body2">{d.full_name}</Typography>
-                                </Stack>
-                            </li>
-                        )}
+                        renderOption={(props, d) => {
+                            const { key, ...optionProps } = props;
+                            return (
+                                <li key={key} {...optionProps}>
+                                    <Stack direction="row" spacing={1} alignItems="center">
+                                        <Avatar sx={{ width: 24, height: 24, fontSize: 12 }}>
+                                            {(d.full_name ?? "?")[0]}
+                                        </Avatar>
+                                        <Typography variant="body2">{d.full_name}</Typography>
+                                    </Stack>
+                                </li>
+                            );
+                        }}
                         renderInput={(params) => (
                             <TextField
                                 {...params}

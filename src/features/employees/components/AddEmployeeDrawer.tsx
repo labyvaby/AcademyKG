@@ -313,12 +313,15 @@ const AddEmployeeDrawer: React.FC<AddEmployeeDrawerProps> = ({ open, onClose, on
               getOptionLabel={o => typeof o.price === 'number' ? `${o.name} (${o.price} с)` : o.name || ''}
               isOptionEqualToValue={(o, v) => o.id === v.id}
               onChange={(_, v) => setSelectedServices(v)}
-              renderOption={(props, option, { selected }) => (
-                <li {...props}>
-                  <Checkbox icon={<CheckBoxOutlineBlankIcon fontSize="small" />} checkedIcon={<CheckBoxIcon fontSize="small" />} style={{ marginRight: 8 }} checked={selected} />
-                  {option.name} {typeof option.price === 'number' ? `(${option.price} с)` : ""}
-                </li>
-              )}
+              renderOption={(props, option, { selected }) => {
+                const { key, ...optionProps } = props;
+                return (
+                  <li key={key} {...optionProps}>
+                    <Checkbox icon={<CheckBoxOutlineBlankIcon fontSize="small" />} checkedIcon={<CheckBoxIcon fontSize="small" />} style={{ marginRight: 8 }} checked={selected} />
+                    {option.name} {typeof option.price === 'number' ? `(${option.price} с)` : ""}
+                  </li>
+                );
+              }}
               renderInput={params => <TextField {...params} placeholder="Выберите услуги" />}
             />
           </Stack>

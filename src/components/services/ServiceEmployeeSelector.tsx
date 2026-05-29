@@ -60,12 +60,15 @@ const ServiceEmployeeSelector: React.FC<ServiceEmployeeSelectorProps> = ({
           filterOptions={filterEmployees}
           isOptionEqualToValue={(o, v) => o.id === v.id}
           onChange={(_, v) => onSelectChange(v ?? [])}
-          renderOption={(props, option, { selected }) => (
-            <li {...props}>
-              <Checkbox size="small" style={{ marginRight: 8 }} checked={selected} />
-              {optionLabel(option)}
-            </li>
-          )}
+          renderOption={(props, option, { selected }) => {
+            const { key, ...optionProps } = props;
+            return (
+              <li key={key} {...optionProps}>
+                <Checkbox size="small" style={{ marginRight: 8 }} checked={selected} />
+                {optionLabel(option)}
+              </li>
+            );
+          }}
           renderInput={(params) => (
             <TextField {...params} placeholder="Сотрудник(и)" fullWidth size="small" />
           )}

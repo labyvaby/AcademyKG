@@ -1,4 +1,4 @@
-import { apiFetch, resolveApiUrl } from "../utility/apiClient";
+import { apiFetch, resolveApiUrl, getBranchFilter } from "../utility/apiClient";
 import { fetchAllPages } from "../utility/pagination";
 
 function resolveUrl(url: string | null | undefined): string | undefined {
@@ -156,11 +156,17 @@ export type CreateServiceData = {
 export type UpdateServiceData = Partial<CreateServiceData>;
 
 export const createService = async (data: CreateServiceData): Promise<ServiceRow> => {
+  const branchId = getBranchFilter();
+  if (!branchId) {
+    throw Object.assign(new Error("Выберите филиал перед созданием услуги"), { code: "NO_BRANCH" });
+  }
+
   const fd = new FormData();
   fd.append("name", data.name);
   fd.append("priceSom", String(data.priceSom));
   fd.append("isActive", String(data.isActive ?? true));
   fd.append("isGroup", String(data.isGroup ?? false));
+  fd.append("branch", branchId);
   if (data.isGroup && data.maxParticipants != null) {
     fd.append("maxParticipants", String(data.maxParticipants));
   }

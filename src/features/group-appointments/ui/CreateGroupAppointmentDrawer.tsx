@@ -212,11 +212,14 @@ const CreateGroupAppointmentDrawer: React.FC<Props> = ({ open, onClose, onCreate
                 value={patientInput}
                 onChange={(_, v) => setPatientInput(v)}
                 getOptionLabel={(o) => `${o.label || "Нет ФИО"} — ${o.phone || "Нет телефона"}`}
-                renderOption={(props, option) => (
-                  <li {...props} key={option.id}>
-                    {`${option.label || "Нет ФИО"} — ${option.phone || "Нет телефона"}`}
-                  </li>
-                )}
+                renderOption={(props, option) => {
+                  const { key, ...optionProps } = props;
+                  return (
+                    <li key={key} {...optionProps}>
+                      {`${option.label || "Нет ФИО"} — ${option.phone || "Нет телефона"}`}
+                    </li>
+                  );
+                }}
                 isOptionEqualToValue={(a, b) => a.id === b.id}
                 loading={patientLoading}
                 onInputChange={(_, val) => searchPatients(val)}

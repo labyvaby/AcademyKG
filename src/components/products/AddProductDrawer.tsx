@@ -116,9 +116,13 @@ export const AddProductDrawer: React.FC<AddProductDrawerProps> = ({
             if (onCreated) onCreated();
             notify?.({ type: "success", message: "Товар добавлен" });
             onClose();
-        } catch (e: unknown) {
+        } catch (e: any) {
             console.error("Create product failed:", e);
-            notify?.({ type: "error", message: "Не удалось создать товар" });
+            if (e?.code === "NO_BRANCH") {
+                notify?.({ type: "error", message: "Выберите филиал, чтобы создать товар" });
+            } else {
+                notify?.({ type: "error", message: "Не удалось создать товар" });
+            }
         } finally {
             setBusy(false);
         }

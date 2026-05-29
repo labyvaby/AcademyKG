@@ -128,9 +128,13 @@ export function useAddServiceForm({ open, onClose, onCreated }: UseAddServiceFor
       onCreated?.(out);
       notify?.({ type: "success", message: "Услуга создана" });
       onClose();
-    } catch (e) {
+    } catch (e: any) {
       console.error("Create service failed:", e);
-      notify?.({ type: "error", message: "Не удалось создать услугу" });
+      if (e?.code === "NO_BRANCH") {
+        notify?.({ type: "error", message: "Выберите филиал, чтобы создать услугу" });
+      } else {
+        notify?.({ type: "error", message: "Не удалось создать услугу" });
+      }
     } finally {
       setBusy(false);
     }

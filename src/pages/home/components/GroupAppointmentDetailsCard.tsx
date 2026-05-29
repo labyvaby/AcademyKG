@@ -430,11 +430,14 @@ const GroupAppointmentDetailsCard: React.FC<Props> = ({ group, onGroupUpdated, o
               isOptionEqualToValue={(a, b) => a.id === b.id}
               loading={addPatientLoading}
               noOptionsText="Нет клиентов"
-              renderOption={(props, option) => (
-                <li {...props} key={option.id}>
-                  {option["ФИО клиента"] ?? option.fio ?? ""} — {option["Телефон"] ?? option.phone ?? ""}
-                </li>
-              )}
+              renderOption={(props, option) => {
+                const { key, ...optionProps } = props;
+                return (
+                  <li key={key} {...optionProps}>
+                    {option["ФИО клиента"] ?? option.fio ?? ""} — {option["Телефон"] ?? option.phone ?? ""}
+                  </li>
+                );
+              }}
               renderInput={(params) => (
                 <TextField
                   {...params}
