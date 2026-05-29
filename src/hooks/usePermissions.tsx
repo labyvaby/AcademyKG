@@ -103,27 +103,38 @@ async function fetchPermissions(opts: { force?: boolean } = {}): Promise<void> {
         emp = user.employee;
       }
 
-      // Fallback: поиск по authUser
+      // Fallback: поиск по authUser с точной проверкой совпадения id
       if (!emp) {
         try {
           const empByAuthRes: any = await apiFetch(`/api/v1/employees/?authUser=${user.id}`);
           const empByAuth = empByAuthRes?.data?.results ?? empByAuthRes?.results ?? [];
           if (Array.isArray(empByAuth) && empByAuth.length > 0) {
-            emp = empByAuth[0];
+            // Проверяем что найденный сотрудник действительно привязан к этому user.id
+            const matched = empByAuth.find((e: any) => {
+              const authUserId = e.authUser ?? e.auth_user ?? e.user?.id ?? e.userId;
+              return authUserId && authUserId === user.id;
+            });
+            if (matched) emp = matched;
           }
         } catch {
           // ignore — may return 403 for non-admins
         }
       }
 
-      // Fallback: поиск по телефону
+      // Fallback: поиск по телефону с точной проверкой совпадения
       if (!emp && user.phoneNumber) {
         try {
           const phone = user.phoneNumber.replace(/[^0-9]/g, '').slice(-9);
           const empListRes: any = await apiFetch(`/api/v1/employees/?search=${phone}`);
           const empList = empListRes?.data?.results ?? empListRes?.results ?? [];
           if (Array.isArray(empList) && empList.length > 0) {
-            emp = empList[0];
+            const userPhoneNorm = user.phoneNumber.replace(/[^0-9]/g, '').slice(-9);
+            const matched = empList.find((e: any) => {
+              const empPhone = (e.phoneNumber ?? e.phone ?? e.userPhoneNumber ?? '')
+                .replace(/[^0-9]/g, '').slice(-9);
+              return empPhone && empPhone === userPhoneNorm;
+            });
+            if (matched) emp = matched;
           }
         } catch {
           // ignore
