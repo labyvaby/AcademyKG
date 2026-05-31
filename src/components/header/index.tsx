@@ -498,7 +498,8 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
 
           <IconButton
             color="inherit"
-            onClick={() => {
+            onClick={(e) => {
+              e.currentTarget.blur();
               if (onRefresh) triggerRefresh();
               else window.location.reload();
             }}
@@ -516,6 +517,7 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
                 boxShadow: (theme) => `0 4px 12px ${theme.palette.primary.main}40`,
               },
               '&:active': { transform: 'rotate(180deg) scale(0.9)' },
+              '&.Mui-focusVisible': { outline: 'none' },
             }}
           >
             <RefreshOutlined sx={{ fontSize: { xs: 18, sm: 20 } }} />
