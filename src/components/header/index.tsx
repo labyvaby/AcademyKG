@@ -509,15 +509,24 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
               p: { xs: 0.5, sm: 1 },
               bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)',
               borderRadius: '50%',
-              transition: 'background-color 0.2s, color 0.2s',
+              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
               '@media (hover: hover)': {
                 '&:hover': {
                   bgcolor: (theme) => theme.palette.primary.main,
                   color: (theme) => theme.palette.primary.contrastText,
+                  transform: 'rotate(180deg)',
                   boxShadow: (theme) => `0 4px 12px ${theme.palette.primary.main}40`,
                 },
+                '&:active': {
+                  transform: 'rotate(180deg) scale(0.9)',
+                },
               },
-              '&:active': { opacity: 0.7 },
+              '@media (hover: none)': {
+                '&:active': {
+                  bgcolor: (theme) => theme.palette.primary.main,
+                  color: (theme) => theme.palette.primary.contrastText,
+                },
+              },
               '&.Mui-focusVisible': { outline: 'none' },
             }}
           >
