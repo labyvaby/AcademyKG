@@ -339,20 +339,30 @@ const SalaryReportsPage: React.FC = () => {
                                             WebkitOverflowScrolling: 'touch',
                                         }}
                                     >
-                                        <Table size="small" sx={{ minWidth: 880, '& th, & td': { whiteSpace: 'nowrap' } }}>
+                                        {/*
+                                          Шапка таблицы (11 колонок) и строки сотрудника (11 ячеек)
+                                          были согласованы, но строка ИТОГО ранее имела colSpan={7}
+                                          + 5 ячеек = 12 — браузер растягивал таблицу до 12 колонок,
+                                          создавая «пустой хвост» справа и сдвигая значения totals
+                                          на одну колонку. Сейчас: colSpan={6} (Сотрудник..Оклад) +
+                                          5 ячеек = 11, выровнено по шапке.
+                                          tableLayout:'fixed' + явные ширины делают сетку
+                                          предсказуемой и стабильной при любом контенте.
+                                        */}
+                                        <Table size="small" sx={{ tableLayout: 'fixed', minWidth: 1100, '& th, & td': { whiteSpace: 'nowrap' } }}>
                                             <TableHead>
                                                 <TableRow sx={{ bgcolor: '#E6E6FA' }}>
-                                                    <TableCell sx={{ fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: 0.4, color: 'text.secondary', pl: 1.5 }}>Сотрудник</TableCell>
-                                                    <TableCell align="center" sx={{ fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: 0.4, color: C.day }}>Часы</TableCell>
-                                                    <TableCell align="center" sx={{ fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: 0.4, color: 'text.secondary' }}>Приемы</TableCell>
-                                                    <TableCell align="center" sx={{ fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: 0.4, color: C.day }}>Распред.</TableCell>
-                                                    <TableCell align="right" sx={{ fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: 0.4, color: 'text.secondary' }}>ЗП (%)</TableCell>
-                                                    <TableCell align="right" sx={{ fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: 0.4, color: 'text.secondary' }}>Оклад</TableCell>
-                                                    <TableCell align="right" sx={{ fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: 0.4, color: C.advance }}>Аванс</TableCell>
-                                                    <TableCell align="right" sx={{ fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: 0.4, color: C.payout }}>Выплаты</TableCell>
-                                                    <TableCell align="right" sx={{ fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: 0.4, color: C.deduction }}>Удерж.</TableCell>
-                                                    <TableCell align="right" sx={{ fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: 0.4, color: 'text.secondary' }}>Списано</TableCell>
-                                                    <TableCell align="right" sx={{ fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: 0.4, color: C.net }}>К выплате</TableCell>
+                                                    <TableCell sx={{ width: 240, fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: 0.4, color: 'text.secondary', pl: 1.5 }}>Сотрудник</TableCell>
+                                                    <TableCell align="center" sx={{ width: 70, fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: 0.4, color: C.day }}>Часы</TableCell>
+                                                    <TableCell align="center" sx={{ width: 80, fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: 0.4, color: 'text.secondary' }}>Приемы</TableCell>
+                                                    <TableCell align="center" sx={{ width: 90, fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: 0.4, color: C.day }}>Распред.</TableCell>
+                                                    <TableCell align="right" sx={{ width: 90, fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: 0.4, color: 'text.secondary' }}>ЗП (%)</TableCell>
+                                                    <TableCell align="right" sx={{ width: 90, fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: 0.4, color: 'text.secondary' }}>Оклад</TableCell>
+                                                    <TableCell align="right" sx={{ width: 100, fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: 0.4, color: C.advance }}>Аванс</TableCell>
+                                                    <TableCell align="right" sx={{ width: 110, fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: 0.4, color: C.payout }}>Выплаты</TableCell>
+                                                    <TableCell align="right" sx={{ width: 95, fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: 0.4, color: C.deduction }}>Удерж.</TableCell>
+                                                    <TableCell align="right" sx={{ width: 100, fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: 0.4, color: 'text.secondary' }}>Списано</TableCell>
+                                                    <TableCell align="right" sx={{ width: 115, fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: 0.4, color: C.net }}>К выплате</TableCell>
                                                 </TableRow>
                                             </TableHead>
                                             <TableBody>
@@ -360,7 +370,7 @@ const SalaryReportsPage: React.FC = () => {
                                                     <SalaryReportRow key={row.employeeId} row={row} month={month} />
                                                 ))}
                                                 <TableRow sx={{ bgcolor: alpha(C.net, 0.04), '& td': { borderTop: `1px solid ${alpha(C.net, 0.15)}` } }}>
-                                                    <TableCell colSpan={7} sx={{ fontWeight: 800, fontSize: '0.75rem', color: 'text.secondary', pl: 1.5 }}>ИТОГО {group.title.toUpperCase()}</TableCell>
+                                                    <TableCell colSpan={6} sx={{ fontWeight: 800, fontSize: '0.75rem', color: 'text.secondary', pl: 1.5 }}>ИТОГО {group.title.toUpperCase()}</TableCell>
                                                     <TableCell align="right" sx={{ fontWeight: 800, color: C.advance }}>{formatKGS(group.totals.advancesSum)}</TableCell>
                                                     <TableCell align="right" sx={{ fontWeight: 800, color: C.payout }}>{formatKGS(group.totals.payoutsSum)}</TableCell>
                                                     <TableCell align="right" sx={{ fontWeight: 800, color: C.deduction }}>{formatKGS(group.totals.deductionsSum)}</TableCell>
