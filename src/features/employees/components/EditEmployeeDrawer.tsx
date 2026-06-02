@@ -72,6 +72,7 @@ const EditEmployeeDrawer: React.FC<EditEmployeeDrawerProps> = ({ record, onClose
   const [branchId, setBranchId] = React.useState("");
   const [organizationId, setOrganizationId] = React.useState("");
   const [branches, setBranches] = React.useState<BranchRow[]>([]);
+  const [allowedBranches, setAllowedBranches] = React.useState<BranchRow[]>([]);
 
   const selectedRole = roles.find(r => r.id === roleId);
   const isTrainerRole = selectedRole?.name === "specialist";
@@ -97,7 +98,7 @@ const EditEmployeeDrawer: React.FC<EditEmployeeDrawerProps> = ({ record, onClose
       setPhotoPreview(null); setServices([]); setSelectedServices([]);
       setPhotoFile(null);
       setPassportPhotos([]); setPassportFiles([]); setRemovedPassportUrls([]);
-      setBranchId(""); setOrganizationId(""); setPhoneApiError("");
+      setBranchId(""); setOrganizationId(""); setPhoneApiError(""); setAllowedBranches([]);
       return;
     }
 
@@ -178,6 +179,20 @@ const EditEmployeeDrawer: React.FC<EditEmployeeDrawerProps> = ({ record, onClose
         const currentBranchId = d?.branch?.id ?? d?.branchId ?? "";
         if (currentBranchId) setBranchId(String(currentBranchId));
         setOrganizationId(String(d?.organization?.id ?? d?.organizationId ?? d?.organization ?? ""));
+
+        // Доступные филиалы
+        const mappedBranches: BranchRow[] = branchesRes.map((b: any) => ({
+          id: String(b.id ?? b.uuid ?? ""),
+          name: b.name ?? b.displayName ?? "",
+          organizationId: String(b.organization?.id ?? b.organizationId ?? b.organization ?? ""),
+        }));
+        const branchById = new Map(mappedBranches.map(b => [b.id, b]));
+        const rawAllowed: any[] = Array.isArray(d?.allowedBranches) ? d.allowedBranches : [];
+        setAllowedBranches(
+          rawAllowed
+            .map((b: any) => branchById.get(String(b?.id ?? b)))
+            .filter((b): b is BranchRow => Boolean(b))
+        );
 
         // Специализации
         const specList: any[] = Array.isArray(d?.specializations) ? d.specializations : [];
@@ -305,6 +320,14 @@ const EditEmployeeDrawer: React.FC<EditEmployeeDrawerProps> = ({ record, onClose
       }
 
       await employeeFormUtils.updateEmployeeApi(String(record.id), payload);
+
+      // Обновляем доступные филиалы отдельным PATCH
+      await apiFetch(`/api/v1/employees/${record.id}/allowed-branches/`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          allowedBranches: allowedBranches.map(b => b.id),
+        }),
+      });
 
       // Загружаем новые документы если есть
       if (passportFiles.length > 0) {
@@ -469,6 +492,31 @@ const EditEmployeeDrawer: React.FC<EditEmployeeDrawerProps> = ({ record, onClose
           >
             {branches.map(b => <MenuItem key={b.id} value={b.id}>{b.name}</MenuItem>)}
           </TextField>
+        </Stack>
+
+        <Stack spacing={0.5}>
+          <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>Доступные филиалы</Typography>
+          <AppAutocomplete
+            multiple
+            options={branches.filter(b => b.id !== branchId)}
+            value={allowedBranches}
+            getOptionLabel={b => b.name}
+            isOptionEqualToValue={(o, v) => o.id === v.id}
+            onChange={(_, v) => setAllowedBranches(v as BranchRow[])}
+            renderOption={(props, option, { selected }) => {
+              const { key, ...optionProps } = props;
+              return (
+                <li key={key} {...optionProps}>
+                  <Checkbox icon={<CheckBoxOutlineBlankIcon fontSize="small" />} checkedIcon={<CheckBoxIcon fontSize="small" />} style={{ marginRight: 8 }} checked={selected} />
+                  {option.name}
+                </li>
+              );
+            }}
+            renderInput={params => <TextField {...params} placeholder="Выберите дополнительные филиалы" />}
+          />
+          <Typography variant="caption" color="text.disabled">
+            Сотрудник будет виден в этих филиалах дополнительно к основному.
+          </Typography>
         </Stack>
 
         {isTrainerRole && (

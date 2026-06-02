@@ -44,6 +44,7 @@ const AddEmployeeDrawer: React.FC<AddEmployeeDrawerProps> = ({ open, onClose, on
   const [phoneCountryCode, setPhoneCountryCode] = React.useState<PhoneCountryCode>(DEFAULT_PHONE_COUNTRY_CODE);
   const [phoneError, setPhoneError] = React.useState(false);
   const [phoneApiError, setPhoneApiError] = React.useState("");
+  const [phoneDuplicateHint, setPhoneDuplicateHint] = React.useState(false);
   const [roleId, setRoleId] = React.useState("");
   const [roles, setRoles] = React.useState<RoleRow[]>([]);
   const [birthDate, setBirthDate] = React.useState("");
@@ -67,6 +68,7 @@ const AddEmployeeDrawer: React.FC<AddEmployeeDrawerProps> = ({ open, onClose, on
   const [branchId, setBranchId] = React.useState("");
   const [organizationId, setOrganizationId] = React.useState("");
   const [branches, setBranches] = React.useState<BranchRow[]>([]);
+  const [allowedBranches, setAllowedBranches] = React.useState<BranchRow[]>([]);
 
   const selectedRole = roles.find(r => r.id === roleId);
   const isTrainerRole = selectedRole?.name === "specialist";
@@ -81,7 +83,7 @@ const AddEmployeeDrawer: React.FC<AddEmployeeDrawerProps> = ({ open, onClose, on
       setTelegramId(""); setEmail(""); setEmailErrorMsg("");
       setSelectedServices([]);
       setNickname(""); setPassportPhotos([]); setPassportFiles([]); setBusy(false);
-      setBranchId(""); setOrganizationId(""); setPhoneApiError("");
+      setBranchId(""); setOrganizationId(""); setPhoneApiError(""); setPhoneDuplicateHint(false); setAllowedBranches([]);
     }
   }, [open]);
 
@@ -174,6 +176,16 @@ const AddEmployeeDrawer: React.FC<AddEmployeeDrawerProps> = ({ open, onClose, on
       const created: any = await employeeFormUtils.createEmployeeApi(payload);
       const createdId = created?.id ?? created?.data?.id;
 
+      // Назначаем доступные филиалы если выбраны
+      if (createdId && allowedBranches.length > 0) {
+        await apiFetch(`/api/v1/employees/${createdId}/allowed-branches/`, {
+          method: "PATCH",
+          body: JSON.stringify({
+            allowedBranches: allowedBranches.map(b => b.id),
+          }),
+        });
+      }
+
       // Загружаем документы если есть
       if (createdId && passportFiles.length > 0) {
         await Promise.allSettled(passportFiles.map(file => {
@@ -193,6 +205,7 @@ const AddEmployeeDrawer: React.FC<AddEmployeeDrawerProps> = ({ open, onClose, on
         const phoneField = e.fieldErrors["userPhoneNumber"] ?? e.fieldErrors["user_phone_number"];
         if (phoneField) {
           setPhoneApiError(phoneField);
+          setPhoneDuplicateHint(true);
           return;
         }
         const firstField = Object.values(e.fieldErrors)[0];
@@ -245,7 +258,7 @@ const AddEmployeeDrawer: React.FC<AddEmployeeDrawerProps> = ({ open, onClose, on
               const maxLen = getPhoneLocalMaxLength(phoneCountryCode);
               const v = e.target.value.replace(/[^\d]/g, "").slice(0, maxLen);
               setPhone(v); setPhoneError(v.length > 0 && v.length !== maxLen);
-              if (phoneApiError) setPhoneApiError("");
+              if (phoneApiError) { setPhoneApiError(""); setPhoneDuplicateHint(false); }
             }}
             error={(phone.trim().length > 0 && phoneError) || !!phoneApiError}
             helperText={
@@ -264,6 +277,11 @@ const AddEmployeeDrawer: React.FC<AddEmployeeDrawerProps> = ({ open, onClose, on
               ),
             }}
           />
+          {phoneDuplicateHint && (
+            <Typography variant="caption" color="warning.main">
+              Сотрудник с таким номером уже существует. Найдите его карточку и добавьте нужный филиал в «Доступные филиалы».
+            </Typography>
+          )}
         </Stack>
 
         <Stack spacing={0.5}>
@@ -306,6 +324,31 @@ const AddEmployeeDrawer: React.FC<AddEmployeeDrawerProps> = ({ open, onClose, on
           >
             {branches.map(b => <MenuItem key={b.id} value={b.id}>{b.name}</MenuItem>)}
           </TextField>
+        </Stack>
+
+        <Stack spacing={0.5}>
+          <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>Доступные филиалы</Typography>
+          <AppAutocomplete
+            multiple
+            options={branches.filter(b => b.id !== branchId)}
+            value={allowedBranches}
+            getOptionLabel={b => b.name}
+            isOptionEqualToValue={(o, v) => o.id === v.id}
+            onChange={(_, v) => setAllowedBranches(v as BranchRow[])}
+            renderOption={(props, option, { selected }) => {
+              const { key, ...optionProps } = props;
+              return (
+                <li key={key} {...optionProps}>
+                  <Checkbox icon={<CheckBoxOutlineBlankIcon fontSize="small" />} checkedIcon={<CheckBoxIcon fontSize="small" />} style={{ marginRight: 8 }} checked={selected} />
+                  {option.name}
+                </li>
+              );
+            }}
+            renderInput={params => <TextField {...params} placeholder="Выберите дополнительные филиалы" />}
+          />
+          <Typography variant="caption" color="text.disabled">
+            Сотрудник будет виден в этих филиалах дополнительно к основному.
+          </Typography>
         </Stack>
 
         {isTrainerRole && (
