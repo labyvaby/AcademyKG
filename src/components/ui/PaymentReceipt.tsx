@@ -227,7 +227,7 @@ export function buildReceiptHtml(data: ReceiptData): string {
 <html lang="ru">
 <head>
 <meta charset="utf-8"/>
-<meta name="viewport" content="width=58mm"/>
+<meta name="viewport" content="width=220"/>
 <title>Чек #${receiptNo}</title>
 <style>${RECEIPT_CSS}</style>
 </head>
