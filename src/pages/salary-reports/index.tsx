@@ -9,6 +9,7 @@ import {
     Table,
     TableBody,
     TableCell,
+    TableContainer,
     TableHead,
     TableRow,
     alpha,
@@ -313,7 +314,7 @@ const SalaryReportsPage: React.FC = () => {
                     ) : (
                         groups.map((group: PayrollGroup) => (
                             <Box key={group.key}>
-                                <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1, px: 0.5 }}>
+                                <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1, px: 0.5, pr: { xs: 1, md: 1.5 } }}>
                                     <Typography variant="subtitle2" fontWeight={800} sx={{ color: C.net, fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: 0.5 }}>
                                         {group.title}
                                     </Typography>
@@ -328,8 +329,17 @@ const SalaryReportsPage: React.FC = () => {
                                         ))}
                                     </Stack>
                                 ) : (
-                                    <Paper variant="outlined" sx={{ borderRadius: 2, overflow: 'hidden', borderColor: alpha(theme.palette.divider, 0.6) }}>
-                                        <Table size="small">
+                                    <TableContainer
+                                        component={Paper}
+                                        variant="outlined"
+                                        sx={{
+                                            borderRadius: 2,
+                                            borderColor: alpha(theme.palette.divider, 0.6),
+                                            overflowX: 'auto',
+                                            WebkitOverflowScrolling: 'touch',
+                                        }}
+                                    >
+                                        <Table size="small" sx={{ minWidth: 880, '& th, & td': { whiteSpace: 'nowrap' } }}>
                                             <TableHead>
                                                 <TableRow sx={{ bgcolor: '#E6E6FA' }}>
                                                     <TableCell sx={{ fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: 0.4, color: 'text.secondary', pl: 1.5 }}>Сотрудник</TableCell>
@@ -359,7 +369,7 @@ const SalaryReportsPage: React.FC = () => {
                                                 </TableRow>
                                             </TableBody>
                                         </Table>
-                                    </Paper>
+                                    </TableContainer>
                                 )}
                             </Box>
                         ))
