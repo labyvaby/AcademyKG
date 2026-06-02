@@ -374,13 +374,104 @@ type NetworkSettingsProps = {
   branches: { id: string; name: string }[];
 };
 
+// Форма создания/редактирования настройки СКУД для конкретного филиала
+type SkudSettingFormProps = {
+  branchId: string;
+  branchName: string;
+  existing: SkudSetting | null;
+  currentIp: string;
+  onSave: (branchId: string, values: { allowedIp: string; allowedSsid: string; enabled: boolean }) => Promise<void>;
+  onCancel: () => void;
+  saving: boolean;
+};
+
+const SkudSettingForm: React.FC<SkudSettingFormProps> = ({
+  existing, currentIp, onSave, onCancel, saving, branchId,
+}) => {
+  const [allowedIp, setAllowedIp] = useState(existing?.allowedIp ?? "");
+  const [allowedSsid, setAllowedSsid] = useState(existing?.allowedSsid ?? "");
+  const [enabled, setEnabled] = useState(existing?.enabled ?? false);
+
+  const handleSubmit = () => {
+    void onSave(branchId, { allowedIp, allowedSsid, enabled });
+  };
+
+  return (
+    <Stack spacing={2} pt={0.5}>
+      <FormControlLabel
+        control={
+          <Switch checked={enabled} onChange={(e) => setEnabled(e.target.checked)} color="success" />
+        }
+        label={<Typography variant="body2">Включить проверку сети перед отметкой</Typography>}
+      />
+
+      <Box>
+        <Typography variant="body2" color="text.secondary" mb={0.5}>
+          Разрешённый IP-адрес или CIDR
+        </Typography>
+        <Stack direction="row" spacing={1}>
+          <TextField
+            size="small"
+            fullWidth
+            placeholder="например: 192.168.1.0/24 или 10.0.0.5"
+            value={allowedIp}
+            onChange={(e) => setAllowedIp(e.target.value)}
+          />
+          {currentIp && (
+            <Tooltip title={`Вставить мой IP: ${currentIp}`}>
+              <Button
+                variant="outlined"
+                size="small"
+                sx={{ flexShrink: 0, whiteSpace: "nowrap" }}
+                onClick={() => setAllowedIp(currentIp)}
+              >
+                Мой IP
+              </Button>
+            </Tooltip>
+          )}
+        </Stack>
+      </Box>
+
+      <Box>
+        <Typography variant="body2" color="text.secondary" mb={0.5}>
+          Название Wi-Fi сети (SSID) — опционально
+        </Typography>
+        <TextField
+          size="small"
+          fullWidth
+          placeholder="например: Office_WiFi"
+          value={allowedSsid}
+          onChange={(e) => setAllowedSsid(e.target.value)}
+        />
+      </Box>
+
+      <Stack direction="row" spacing={1} justifyContent="flex-end">
+        <Button size="small" color="inherit" onClick={onCancel} disabled={saving}>
+          Отмена
+        </Button>
+        <Button
+          variant="contained"
+          disableElevation
+          size="small"
+          startIcon={saving ? <CircularProgress size={14} color="inherit" /> : <SaveOutlined />}
+          disabled={saving}
+          onClick={handleSubmit}
+        >
+          Сохранить
+        </Button>
+      </Stack>
+    </Stack>
+  );
+};
+
 const NetworkSettingsPanel: React.FC<NetworkSettingsProps> = ({ branches }) => {
   const [settings, setSettings] = useState<SkudSetting[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<string | null>(null);
   const [currentIp, setCurrentIp] = useState<string>("");
-  const [editValues, setEditValues] = useState<Record<string, Partial<SkudSetting>>>({});
   const [panelError, setPanelError] = useState<string | null>(null);
+  // branchId → "create" | "edit" | null
+  const [editingBranch, setEditingBranch] = useState<string | null>(null);
 
   const loadSettings = useCallback(async () => {
     setLoading(true);
@@ -411,50 +502,39 @@ const NetworkSettingsPanel: React.FC<NetworkSettingsProps> = ({ branches }) => {
 
   useEffect(() => { void loadSettings(); }, [loadSettings]);
 
-  useEffect(() => {
-    const init: Record<string, Partial<SkudSetting>> = {};
-    settings.forEach((s) => {
-      init[s.id] = { allowedIp: s.allowedIp, allowedSsid: s.allowedSsid, enabled: s.enabled };
-    });
-    setEditValues(init);
-  }, [settings]);
-
-  const setValue = (id: string, field: keyof SkudSetting, value: any) => {
-    setEditValues((prev) => ({ ...prev, [id]: { ...prev[id], [field]: value } }));
-  };
-
-  const handleSave = async (s: SkudSetting) => {
-    setSaving(s.id);
+  const handleSave = async (
+    branchId: string,
+    values: { allowedIp: string; allowedSsid: string; enabled: boolean },
+  ) => {
+    const existing = settings.find((s) => s.branch === branchId) ?? null;
+    const key = existing ? existing.id : "new_" + branchId;
+    setSaving(key);
     setPanelError(null);
     try {
-      const ev = editValues[s.id] ?? {};
-      await apiFetch(`/api/v1/skud-settings/${s.id}/`, {
-        method: "PATCH",
-        body: JSON.stringify({
-          allowed_ip: ev.allowedIp ?? s.allowedIp,
-          allowed_ssid: ev.allowedSsid ?? s.allowedSsid,
-          enabled: ev.enabled ?? s.enabled,
-        }),
-      });
+      if (existing) {
+        await apiFetch(`/api/v1/skud-settings/${existing.id}/`, {
+          method: "PATCH",
+          body: JSON.stringify({
+            allowed_ip: values.allowedIp,
+            allowed_ssid: values.allowedSsid,
+            enabled: values.enabled,
+          }),
+        });
+      } else {
+        await apiFetch("/api/v1/skud-settings/", {
+          method: "POST",
+          body: JSON.stringify({
+            branch: branchId,
+            allowed_ip: values.allowedIp,
+            allowed_ssid: values.allowedSsid,
+            enabled: values.enabled,
+          }),
+        });
+      }
+      setEditingBranch(null);
       await loadSettings();
     } catch (e: any) {
       setPanelError(e?.message || "Не удалось сохранить настройки СКУД");
-    } finally {
-      setSaving(null);
-    }
-  };
-
-  const handleCreate = async (branchId: string) => {
-    setSaving("new_" + branchId);
-    setPanelError(null);
-    try {
-      await apiFetch("/api/v1/skud-settings/", {
-        method: "POST",
-        body: JSON.stringify({ branch: branchId, allowed_ip: "", allowed_ssid: "", enabled: false }),
-      });
-      await loadSettings();
-    } catch (e: any) {
-      setPanelError(e?.message || "Не удалось создать настройки СКУД");
     } finally {
       setSaving(null);
     }
@@ -495,29 +575,32 @@ const NetworkSettingsPanel: React.FC<NetworkSettingsProps> = ({ branches }) => {
       )}
 
       {branches.map((branch) => {
-        const s = settingByBranch.get(branch.id);
-        const ev = s ? (editValues[s.id] ?? {}) : null;
+        const s = settingByBranch.get(branch.id) ?? null;
+        const isEditing = editingBranch === branch.id;
+        const isSavingThis = saving === (s ? s.id : "new_" + branch.id);
 
         return (
-          <Card key={branch.id} elevation={0} sx={{ border: "1px solid", borderColor: "divider", borderRadius: 2 }}>
+          <Card key={branch.id} elevation={0} sx={{ border: "1px solid", borderColor: isEditing ? "primary.main" : "divider", borderRadius: 2 }}>
             <CardContent sx={{ p: { xs: 2, sm: 2.5 }, "&:last-child": { pb: { xs: 2, sm: 2.5 } } }}>
               <Stack spacing={2}>
+                {/* Header */}
                 <Stack direction="row" alignItems="center" justifyContent="space-between">
                   <Stack direction="row" spacing={1} alignItems="center">
                     <WifiOutlined color={s?.enabled ? "success" : "disabled"} />
                     <Typography variant="subtitle1" fontWeight={600}>{branch.name}</Typography>
                   </Stack>
-                  {s && (
+                  {s && !isEditing && (
                     <Chip
                       size="small"
-                      label={s.enabled ? "Проверка IP включена" : "Проверка выключена"}
+                      label={s.enabled ? "Проверка включена" : "Проверка выключена"}
                       color={s.enabled ? "success" : "default"}
                       sx={{ height: 22, fontSize: 11 }}
                     />
                   )}
                 </Stack>
 
-                {!s ? (
+                {/* No settings yet */}
+                {!s && !isEditing && (
                   <Box>
                     <Typography variant="body2" color="text.secondary" mb={1.5}>
                       Настройки для этого филиала ещё не созданы.
@@ -526,79 +609,57 @@ const NetworkSettingsPanel: React.FC<NetworkSettingsProps> = ({ branches }) => {
                       variant="outlined"
                       size="small"
                       startIcon={<AddOutlined />}
-                      onClick={() => handleCreate(branch.id)}
-                      disabled={saving === "new_" + branch.id}
+                      onClick={() => { setPanelError(null); setEditingBranch(branch.id); }}
                     >
-                      {saving === "new_" + branch.id ? <CircularProgress size={14} /> : "Создать настройки"}
+                      Создать настройки
                     </Button>
                   </Box>
-                ) : (
+                )}
+
+                {/* Settings exist, view mode */}
+                {s && !isEditing && (
                   <>
                     <Divider />
-
-                    <FormControlLabel
-                      control={
-                        <Switch
-                          checked={ev?.enabled ?? s.enabled}
-                          onChange={(e) => setValue(s.id, "enabled", e.target.checked)}
-                          color="success"
-                        />
-                      }
-                      label={<Typography variant="body2">Включить проверку сети перед отметкой</Typography>}
-                    />
-
-                    <Box>
-                      <Typography variant="body2" color="text.secondary" mb={0.5}>
-                        Разрешённый IP-адрес (или CIDR)
-                      </Typography>
-                      <Stack direction="row" spacing={1}>
-                        <TextField
-                          size="small"
-                          fullWidth
-                          placeholder="например: 192.168.1.0/24 или 10.0.0.5"
-                          value={ev?.allowedIp ?? s.allowedIp}
-                          onChange={(e) => setValue(s.id, "allowedIp", e.target.value)}
-                        />
-                        {currentIp && (
-                          <Tooltip title={`Вставить мой IP: ${currentIp}`}>
-                            <Button
-                              variant="outlined"
-                              size="small"
-                              sx={{ flexShrink: 0, whiteSpace: "nowrap" }}
-                              onClick={() => setValue(s.id, "allowedIp", currentIp)}
-                            >
-                              Мой IP
-                            </Button>
-                          </Tooltip>
-                        )}
-                      </Stack>
-                    </Box>
-
-                    <Box>
-                      <Typography variant="body2" color="text.secondary" mb={0.5}>
-                        Название Wi-Fi сети (SSID) — опционально
-                      </Typography>
-                      <TextField
-                        size="small"
-                        fullWidth
-                        placeholder="например: Office_WiFi"
-                        value={ev?.allowedSsid ?? s.allowedSsid}
-                        onChange={(e) => setValue(s.id, "allowedSsid", e.target.value)}
-                      />
-                    </Box>
-
+                    <Stack spacing={0.75}>
+                      {s.allowedIp ? (
+                        <Typography variant="body2" color="text.secondary">
+                          IP/CIDR: <Typography component="span" variant="body2" fontWeight={600} color="text.primary">{s.allowedIp}</Typography>
+                        </Typography>
+                      ) : (
+                        <Typography variant="body2" color="text.disabled">IP не ограничен</Typography>
+                      )}
+                      {s.allowedSsid && (
+                        <Typography variant="body2" color="text.secondary">
+                          SSID: <Typography component="span" variant="body2" fontWeight={600} color="text.primary">{s.allowedSsid}</Typography>
+                        </Typography>
+                      )}
+                    </Stack>
                     <Stack direction="row" justifyContent="flex-end">
                       <Button
-                        variant="contained"
-                        disableElevation
+                        variant="outlined"
                         size="small"
-                        startIcon={saving === s.id ? <CircularProgress size={14} color="inherit" /> : <SaveOutlined />}
-                        disabled={saving === s.id}
-                        onClick={() => handleSave(s)}
+                        startIcon={<EditOutlined />}
+                        onClick={() => { setPanelError(null); setEditingBranch(branch.id); }}
                       >
-                        Сохранить
+                        Изменить настройки
                       </Button>
                     </Stack>
+                  </>
+                )}
+
+                {/* Edit / Create form */}
+                {isEditing && (
+                  <>
+                    <Divider />
+                    <SkudSettingForm
+                      branchId={branch.id}
+                      branchName={branch.name}
+                      existing={s}
+                      currentIp={currentIp}
+                      saving={isSavingThis}
+                      onSave={handleSave}
+                      onCancel={() => setEditingBranch(null)}
+                    />
                   </>
                 )}
               </Stack>
