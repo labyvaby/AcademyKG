@@ -54,7 +54,15 @@ const REFRESH_KEY = "academy_refresh_token";
 const SESSION_STARTED_AT_KEY = "academy_session_started_at";
 const LOGOUT_AT_KEY = "academy_logout_at";
 
-type ApiError = Error & { status?: number; retryAfterSeconds?: number };
+export type ApiError = Error & {
+  status?: number;
+  retryAfterSeconds?: number;
+  fieldErrors?: Record<string, string>;
+};
+
+export function isApiError(e: unknown): e is ApiError {
+  return e instanceof Error && ("status" in e || "fieldErrors" in e);
+}
 
 const CLIENT_RATE_LIMITS = {
   auth: { windowMs: 5 * 60 * 1000, max: 5 },
@@ -63,10 +71,16 @@ const CLIENT_RATE_LIMITS = {
 
 const requestHistory = new Map<string, number[]>();
 
-function createApiError(detail: string, status?: number, retryAfterSeconds?: number): ApiError {
+function createApiError(
+  detail: string,
+  status?: number,
+  retryAfterSeconds?: number,
+  fieldErrors?: Record<string, string>,
+): ApiError {
   const err = new Error(detail) as ApiError;
   if (status !== undefined) err.status = status;
   if (retryAfterSeconds !== undefined) err.retryAfterSeconds = retryAfterSeconds;
+  if (fieldErrors) err.fieldErrors = fieldErrors;
   return err;
 }
 
@@ -252,6 +266,7 @@ export async function apiFetch<T = unknown>(
 
   const buildHeaders = (token?: string | null): HeadersInit => {
     const headers: Record<string, string> = {
+      Accept: "application/json",
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(options.headers as Record<string, string> | undefined),
     };
@@ -329,16 +344,29 @@ export async function apiFetch<T = unknown>(
 
   if (!response.ok) {
     let errorDetail = `HTTP ${response.status}`;
+    let fieldErrors: Record<string, string> | undefined;
     const retryAfterHeader = response.headers.get("Retry-After");
     const retryAfterSeconds = retryAfterHeader ? Number.parseInt(retryAfterHeader, 10) : undefined;
     try {
       const errJson = await response.json();
-      const firstError = errJson?.errors?.[0];
-      if (firstError?.detail) {
-        errorDetail = firstError.attr
-          ? `[${firstError.attr}] ${firstError.detail}`
-          : firstError.detail;
-      } else if (errJson?.detail) errorDetail = errJson.detail;
+      const errors: Array<{ attr?: string; detail?: string }> = errJson?.errors ?? [];
+      if (errors.length > 0) {
+        // Собираем все полевые ошибки
+        const collected: Record<string, string> = {};
+        for (const e of errors) {
+          if (e.attr && e.detail) collected[e.attr] = e.detail;
+        }
+        if (Object.keys(collected).length > 0) fieldErrors = collected;
+
+        const firstError = errors[0];
+        if (firstError?.detail) {
+          errorDetail = firstError.attr
+            ? `[${firstError.attr}] ${firstError.detail}`
+            : firstError.detail;
+        }
+      } else if (errJson?.detail) {
+        errorDetail = errJson.detail;
+      }
     } catch {
       // ignore
     }
@@ -349,7 +377,7 @@ export async function apiFetch<T = unknown>(
       if (process.env.NODE_ENV === 'development') {
         console.warn(`[apiFetch] 403 Forbidden: ${path}`, errorDetail);
       }
-      throw createApiError(errorDetail, 403);
+      throw createApiError(errorDetail, 403, undefined, fieldErrors);
     }
 
     if (response.status === 429) {
@@ -359,11 +387,12 @@ export async function apiFetch<T = unknown>(
       throw createApiError(
         errorDetail !== `HTTP ${response.status}` ? errorDetail : friendlyMsg,
         429,
-        retryAfterSeconds
+        retryAfterSeconds,
+        fieldErrors,
       );
     }
 
-    throw createApiError(errorDetail, response.status, retryAfterSeconds);
+    throw createApiError(errorDetail, response.status, retryAfterSeconds, fieldErrors);
   }
 
   // 204 No Content

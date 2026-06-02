@@ -21,6 +21,7 @@ import {
 } from "../../../utility/phone";
 import { usePermissions } from "../../../hooks/usePermissions";
 import { PERMISSIONS } from "../../../constants/permissions";
+import { isApiError } from "../../../utility/apiClient";
 
 export type AddEmployeeDrawerProps = {
   open: boolean;
@@ -42,6 +43,7 @@ const AddEmployeeDrawer: React.FC<AddEmployeeDrawerProps> = ({ open, onClose, on
   const [phone, setPhone] = React.useState("");
   const [phoneCountryCode, setPhoneCountryCode] = React.useState<PhoneCountryCode>(DEFAULT_PHONE_COUNTRY_CODE);
   const [phoneError, setPhoneError] = React.useState(false);
+  const [phoneApiError, setPhoneApiError] = React.useState("");
   const [roleId, setRoleId] = React.useState("");
   const [roles, setRoles] = React.useState<RoleRow[]>([]);
   const [birthDate, setBirthDate] = React.useState("");
@@ -79,7 +81,7 @@ const AddEmployeeDrawer: React.FC<AddEmployeeDrawerProps> = ({ open, onClose, on
       setTelegramId(""); setEmail(""); setEmailErrorMsg("");
       setSelectedServices([]);
       setNickname(""); setPassportPhotos([]); setPassportFiles([]); setBusy(false);
-      setBranchId(""); setOrganizationId("");
+      setBranchId(""); setOrganizationId(""); setPhoneApiError("");
     }
   }, [open]);
 
@@ -187,6 +189,18 @@ const AddEmployeeDrawer: React.FC<AddEmployeeDrawerProps> = ({ open, onClose, on
       onCreated({} as unknown as EmployesRow);
       onClose();
     } catch (e: unknown) {
+      if (isApiError(e) && e.fieldErrors) {
+        const phoneField = e.fieldErrors["userPhoneNumber"] ?? e.fieldErrors["user_phone_number"];
+        if (phoneField) {
+          setPhoneApiError(phoneField);
+          return;
+        }
+        const firstField = Object.values(e.fieldErrors)[0];
+        if (firstField) {
+          notify?.({ type: "error", message: firstField });
+          return;
+        }
+      }
       const msg = e instanceof Error ? e.message : "Не удалось создать сотрудника";
       notify?.({ type: "error", message: msg });
     } finally {
@@ -231,9 +245,16 @@ const AddEmployeeDrawer: React.FC<AddEmployeeDrawerProps> = ({ open, onClose, on
               const maxLen = getPhoneLocalMaxLength(phoneCountryCode);
               const v = e.target.value.replace(/[^\d]/g, "").slice(0, maxLen);
               setPhone(v); setPhoneError(v.length > 0 && v.length !== maxLen);
+              if (phoneApiError) setPhoneApiError("");
             }}
-            error={phone.trim().length > 0 && phoneError}
-            helperText={phone.trim().length > 0 && phoneError ? `Введите ${getPhoneLocalMaxLength(phoneCountryCode)} цифр` : ""}
+            error={(phone.trim().length > 0 && phoneError) || !!phoneApiError}
+            helperText={
+              phoneApiError
+                ? phoneApiError
+                : phone.trim().length > 0 && phoneError
+                  ? `Введите ${getPhoneLocalMaxLength(phoneCountryCode)} цифр`
+                  : ""
+            }
             fullWidth
             InputProps={{
               startAdornment: (
