@@ -103,6 +103,8 @@ const RECEIPT_CSS = `
   th.amt, td.amt { text-align: right; width: 16mm; white-space: nowrap; }
   /* Нижняя отрывная — только одна линия */
   .tear { border-top: 2px dashed #000; margin: 3mm 0 2mm; }
+  /* Второй чек — разрыв страницы перед ним */
+  .receipt-copy { page-break-before: always; width: 58mm !important; max-width: 58mm !important; margin: 0 !important; padding: 3mm 3mm 4mm !important; box-sizing: border-box !important; font-family: "Courier New", Courier, monospace !important; font-size: 12px !important; line-height: 1.35 !important; color: #000 !important; background: #fff !important; }
 `;
 
 // Формат как на референсе: "800.00" без знака валюты в таблице/строках
@@ -158,39 +160,47 @@ export function buildReceiptHtml(data: ReceiptData): string {
   const isBulk    = Boolean(bulkCount && bulkCount > 1);
 
   // ── Строки таблицы услуг ─────────────────────────────────────────────
-  // Под названием услуги — тренер и филиал мелким текстом
-  function serviceSubline(performerName: string | null | undefined): string {
+  function metaRow(performerName: string | null | undefined, cols: number): string {
     const parts: string[] = [];
-    if (performerName) parts.push(performerName);
     if (branchName)    parts.push(branchName);
+    if (performerName) parts.push(performerName);
     if (!parts.length) return "";
-    return `<br/><span style="font-size:10px;font-weight:400">${parts.join(" · ")}</span>`;
+    return `<tr><td colspan="${cols}" style="font-size:9px;font-weight:400;padding-bottom:0;word-break:break-word">${parts.join(" / ")}</td></tr>`;
   }
 
   let servicesRows = "";
+  let servicesRowsNoAmt = "";
   if (services.length > 0) {
-    servicesRows = services.map((s) => {
+    services.forEach((s) => {
       const name     = s.name || s.service_name || "Услуга";
       const qty      = s.quantity ?? 1;
       const price    = Number(s.price ?? s.cost ?? 0);
       const total    = price * qty;
       const perfName = s.performer_name || s.doctor_name || null;
-      return `<tr>
-        <td>${name}${serviceSubline(perfName)}</td>
+      servicesRows += `${metaRow(perfName, 3)}<tr>
+        <td>${name}</td>
         <td class="num">${qty.toFixed(2)}</td>
         <td class="amt">${formatMoney(total)}</td>
       </tr>`;
-    }).join("");
+      servicesRowsNoAmt += `${metaRow(perfName, 2)}<tr>
+        <td>${name}</td>
+        <td class="num">${qty.toFixed(2)}</td>
+      </tr>`;
+    });
   } else {
     const serviceName = appointment.service_names || "Услуга";
     const qty         = isBulk ? (bulkCount ?? 1) : 1;
     const perItem     = isBulk && qty > 0 ? (basePrice / qty) : basePrice;
     const label       = isBulk ? `${serviceName} (период)` : serviceName;
     const perfName    = appointment.doctor_name || null;
-    servicesRows = `<tr>
-      <td>${label}${serviceSubline(perfName)}</td>
+    servicesRows = `${metaRow(perfName, 3)}<tr>
+      <td>${label}</td>
       <td class="num">${qty.toFixed(2)}</td>
       <td class="amt">${formatMoney(perItem * qty)}</td>
+    </tr>`;
+    servicesRowsNoAmt = `${metaRow(perfName, 2)}<tr>
+      <td>${label}</td>
+      <td class="num">${qty.toFixed(2)}</td>
     </tr>`;
   }
 
@@ -291,7 +301,30 @@ export function buildReceiptHtml(data: ReceiptData): string {
     <span class="row-r bold">${formatTotal(totalPaid)}</span>
   </div>
 
-  <!-- Нижняя отрывная линия -->
+  <!-- Нижняя отрывная линия / линия отреза между чеками -->
+  <div class="tear"></div>
+
+</div>
+
+<!-- ===== КОПИЯ ЧЕКА ===== -->
+<div class="receipt-copy">
+
+  ${appointment.patient_name ? `<div class="client">${appointment.patient_name}</div>` : ""}
+  ${cashierName ? `<div class="manager">Менеджер: ${cashierName}</div>` : ""}
+  <div class="manager">Дата: ${datetimeStr}</div>
+
+  <div class="sep"></div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Услуги</th>
+        <th class="num">Кол-во</th>
+      </tr>
+    </thead>
+    <tbody>${servicesRowsNoAmt}</tbody>
+  </table>
+
   <div class="tear"></div>
 
 </div>
