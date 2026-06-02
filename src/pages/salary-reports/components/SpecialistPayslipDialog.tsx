@@ -23,7 +23,6 @@ import "dayjs/locale/ru";
 
 import { getSpecialistPayslip } from "../../../services/reports";
 import { generateSpecialistPayslipPDF } from "../../../utility/specialistPayslipPdf";
-import { buildMockPayslip } from "../../../utility/specialistPayslipMock";
 import { useBranchContext } from "../../../contexts/branch-context";
 import type { PeriodHalf } from "../../../types/reports";
 
@@ -121,27 +120,6 @@ const SpecialistPayslipDialog: React.FC<SpecialistPayslipDialogProps> = ({
         }
     };
 
-    const handleMock = async () => {
-        setLoading(true);
-        setError(null);
-        try {
-            const data = buildMockPayslip(
-                { id: employeeId, fullName: employeeName, roleName: "Специалист" },
-                monthStart.format("YYYY-MM"),
-                half,
-            );
-            await renderPdf(data);
-            onClose();
-        } catch (e: any) {
-            console.error(e);
-            setError(e?.message || "Не удалось сформировать mock PDF");
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const showMockButton = import.meta.env.DEV;
-
     return (
         <Dialog open={open} onClose={loading ? undefined : onClose} maxWidth="xs" fullWidth>
             <DialogTitle sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", pr: 1 }}>
@@ -205,21 +183,7 @@ const SpecialistPayslipDialog: React.FC<SpecialistPayslipDialogProps> = ({
                 </Stack>
             </DialogContent>
 
-            <DialogActions sx={{ px: 3, py: 2, justifyContent: "space-between" }}>
-                <Box>
-                    {showMockButton && (
-                        <Button
-                            onClick={handleMock}
-                            disabled={loading}
-                            size="small"
-                            color="warning"
-                            variant="outlined"
-                            sx={{ fontSize: "0.72rem" }}
-                        >
-                            Тест (mock)
-                        </Button>
-                    )}
-                </Box>
+            <DialogActions sx={{ px: 3, py: 2, justifyContent: "flex-end" }}>
                 <Stack direction="row" spacing={1}>
                     <Button onClick={onClose} disabled={loading}>Отмена</Button>
                     <Button
