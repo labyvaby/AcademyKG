@@ -115,6 +115,7 @@ function AppAutocomplete<
   };
 
   // Баг 4: для multiple — chips в scrollable контейнере, поле не растягивается
+  const getOptionLabelFn = (rest as any).getOptionLabel as ((option: Value) => string) | undefined;
   const renderTagsMultiple = multiple
     ? (tagValue: Value[], getTagProps: any) => (
         <Box
@@ -132,7 +133,8 @@ function AppAutocomplete<
         >
           {tagValue.map((option, index) => {
             const { key, ...tagProps } = getTagProps({ index });
-            return <Chip key={key} size="small" {...tagProps} />;
+            const label = getOptionLabelFn ? getOptionLabelFn(option) : String(option);
+            return <Chip key={key} size="small" label={label} {...tagProps} />;
           })}
         </Box>
       )
