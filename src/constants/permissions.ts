@@ -217,6 +217,13 @@ const _USERS = {
   DELETE: 'users.delete',
 } as const;
 
+const _SKUD_SETTINGS = {
+  CREATE: 'skud_settings.create',
+  READ:   'skud_settings.read',
+  UPDATE: 'skud_settings.update',
+  DELETE: 'skud_settings.delete',
+} as const;
+
 const _WORK_SHIFTS = {
   CREATE:         'work_shifts.create',
   READ:           'work_shifts.read',
@@ -259,6 +266,7 @@ export const PERMISSIONS = {
   SELLABLE_ITEMS:          _SELLABLE_ITEMS,
   SERVICE_SALARY_RULES:    _SERVICE_SALARY_RULES,
   SERVICES:                _SERVICES,
+  SKUD_SETTINGS:           _SKUD_SETTINGS,
   SPECIALIZATIONS:         _SPECIALIZATIONS,
   USERS:                   _USERS,
   WORK_SHIFTS:             _WORK_SHIFTS,
@@ -409,6 +417,11 @@ export const PERMISSIONS = {
   USERS_READ:                        _USERS.READ,
   USERS_UPDATE:                      _USERS.UPDATE,
   USERS_DELETE:                      _USERS.DELETE,
+  // Настройки СКУД
+  SKUD_SETTINGS_CREATE:              _SKUD_SETTINGS.CREATE,
+  SKUD_SETTINGS_READ:                _SKUD_SETTINGS.READ,
+  SKUD_SETTINGS_UPDATE:              _SKUD_SETTINGS.UPDATE,
+  SKUD_SETTINGS_DELETE:              _SKUD_SETTINGS.DELETE,
   // Рабочие смены
   WORK_SHIFTS_CREATE:                _WORK_SHIFTS.CREATE,
   WORK_SHIFTS_READ:                  _WORK_SHIFTS.READ,
@@ -567,6 +580,11 @@ export const P = {
   USERS_READ:                        _USERS.READ,
   USERS_UPDATE:                      _USERS.UPDATE,
   USERS_DELETE:                      _USERS.DELETE,
+  // Настройки СКУД
+  SKUD_SETTINGS_CREATE:              _SKUD_SETTINGS.CREATE,
+  SKUD_SETTINGS_READ:                _SKUD_SETTINGS.READ,
+  SKUD_SETTINGS_UPDATE:              _SKUD_SETTINGS.UPDATE,
+  SKUD_SETTINGS_DELETE:              _SKUD_SETTINGS.DELETE,
   // Рабочие смены
   WORK_SHIFTS_CREATE:                _WORK_SHIFTS.CREATE,
   WORK_SHIFTS_READ:                  _WORK_SHIFTS.READ,

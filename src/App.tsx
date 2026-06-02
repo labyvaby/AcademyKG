@@ -43,7 +43,7 @@ import { usePermissions } from "./hooks/usePermissions";
 import { API_BASE_URL } from "./utility/apiClient";
 import { getDefaultAuthorizedRoute } from "./utils/permissionHelpers";
 import dataProvider from "@refinedev/simple-rest";
-// import { ShiftStartBanner } from "./components/skud/ShiftStartBanner";
+import { ShiftStartBanner } from "./components/skud/ShiftStartBanner";
 
 // ОПТИМИЗАЦИЯ: Все страницы загружаются через lazy() для code splitting
 const UnderConstruction = lazy(() =>
@@ -71,7 +71,7 @@ const ClientSchedulePage = lazy(() => import("./pages/ClientSchedulePage"));
 const RolesPage = lazy(() => import("./pages/roles"));
 const CategoriesPage = lazy(() => import("./pages/categories/index.tsx"));
 const BranchManagePage = lazy(() => import("./pages/branches/BranchManagePage"));
-// const SkudPage = lazy(() => import("./pages/skud"));
+const SkudPage = lazy(() => import("./pages/skud"));
 
 
 // Вспомогательный компонент для обработки глобальных событий аутентификации
@@ -327,7 +327,7 @@ function App() {
                                   }
                                 }}
                               >
-                                {/* <ShiftStartBanner /> */}
+                                <ShiftStartBanner />
                                 <Outlet />
                               </ThemedLayout>
                             </MobileSidebarProvider>
@@ -492,7 +492,7 @@ function App() {
                           }
                         />
 
-                        {/* <Route
+                        <Route
                           path="skud"
                           element={
                             <ProtectedRoute requiredPermissions={['work_shifts.read']}>
@@ -501,7 +501,7 @@ function App() {
                               </Suspense>
                             </ProtectedRoute>
                           }
-                        /> */}
+                        />
 
 
                         <Route
