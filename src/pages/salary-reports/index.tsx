@@ -38,7 +38,6 @@ import SalaryReportRow from "./components/SalaryReportRow";
 // Гармоничная палитра
 const C = {
     day: '#3B82F6',
-    night: '#8B5CF6',
     advance: '#F59E0B',
     payout: '#10B981',
     deduction: '#EF4444',
@@ -62,7 +61,6 @@ const normalizePayrollReport = (report: PayrollReportResponse | null | undefined
                     ? group.rows.map((row) => ({
                         ...row,
                         dayHours: toNumber(row.dayHours),
-                        nightHours: toNumber(row.nightHours),
                         paidAppointmentsCount: toNumber(row.paidAppointmentsCount),
                         distributedAppointmentsCount: toNumber(row.distributedAppointmentsCount),
                         advancesSum: toNumber(row.advancesSum),
@@ -188,7 +186,6 @@ const SalaryReportsPage: React.FC = () => {
             'Сотрудник',
             'Группа',
             'День (ч)',
-            'Ночь (ч)',
             'Оплаченные приемы',
             '% ЗП',
             'Оклад',
@@ -204,7 +201,6 @@ const SalaryReportsPage: React.FC = () => {
                     row.fullName,
                     group.title,
                     row.dayHours ?? 0,
-                    row.nightHours ?? 0,
                     row.paidAppointmentsCount ?? 0,
                     row.percentSum ?? 0,
                     row.fixedSum ?? 0,
@@ -273,7 +269,7 @@ const SalaryReportsPage: React.FC = () => {
                     <Stack direction="row" spacing={1} justifyContent="center" alignItems="center" flexWrap="wrap" useFlexGap sx={{ px: 0.5 }}>
                         {[
                             { icon: <ReportProblemIcon sx={{ fontSize: { xs: '0.85rem', md: '1.2rem' } }} />, color: C.advance, value: summary.warningsCount || 0, label: 'Предупр.' },
-                            { icon: <AccessTimeIcon sx={{ fontSize: { xs: '0.85rem', md: '1.2rem' } }} />, color: C.night, value: summary.openShiftsCount || 0, label: 'Откр. смен' },
+                            { icon: <AccessTimeIcon sx={{ fontSize: { xs: '0.85rem', md: '1.2rem' } }} />, color: C.day, value: summary.openShiftsCount || 0, label: 'Откр. смен' },
                             { icon: <CheckCircleOutlineIcon sx={{ fontSize: { xs: '0.85rem', md: '1.2rem' } }} />, color: C.payout, value: summary.paidOutCount || 0, label: 'Выплачено' },
                             { icon: <Typography fontWeight={800} sx={{ fontSize: { xs: '0.55rem', md: '0.72rem' }, lineHeight: 1 }}>KGS</Typography>, color: C.net, value: formatKGS(netSalaryTotal), label: 'К выплате' },
                         ].map((item, i) => (
@@ -337,8 +333,7 @@ const SalaryReportsPage: React.FC = () => {
                                             <TableHead>
                                                 <TableRow sx={{ bgcolor: '#E6E6FA' }}>
                                                     <TableCell sx={{ fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: 0.4, color: 'text.secondary', pl: 1.5 }}>Сотрудник</TableCell>
-                                                    <TableCell align="center" sx={{ fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: 0.4, color: C.day }}>День (ч)</TableCell>
-                                                    <TableCell align="center" sx={{ fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: 0.4, color: C.night }}>Ночь (ч)</TableCell>
+                                                    <TableCell align="center" sx={{ fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: 0.4, color: C.day }}>Часы</TableCell>
                                                     <TableCell align="center" sx={{ fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: 0.4, color: 'text.secondary' }}>Приемы</TableCell>
                                                     <TableCell align="center" sx={{ fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: 0.4, color: C.day }}>Распред.</TableCell>
                                                     <TableCell align="right" sx={{ fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: 0.4, color: 'text.secondary' }}>ЗП (%)</TableCell>

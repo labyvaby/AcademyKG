@@ -41,7 +41,6 @@ export interface PayrollRow {
     fullName: string;
     roleName: string;
     dayHours: number;
-    nightHours: number;
     paidAppointmentsCount: number;
     distributedAppointmentsCount: number;
     advancesSum: number;
@@ -193,7 +192,6 @@ export interface SpecialistPayslipResponse {
         deductionsSum: string;
         expensesSum: string;
         dayHours: string;
-        nightHours: string;
         paidAppointmentsCount: number;
     };
     days: SpecialistPayslipDay[];

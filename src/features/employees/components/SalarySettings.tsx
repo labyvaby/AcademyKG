@@ -33,25 +33,6 @@ import {
     Close,
 } from "@mui/icons-material";
 
-/**
- * --- JSON Data Structure Example ---
- * {
- *   "fixed_salary": {
- *     "enabled": true,
- *     "night_hourly_rate": 500,
- *     "day_hourly_rate": 300,
- *     "appointment_rate": 200
- *   },
- *   "dynamic_rules": [
- *     {
- *       "services": ["УЗИ", "Консультация"],
- *       "percent": 20,
- *       "fixed_amount": 0
- *     }
- *   ]
- * }
- */
-
 interface SalaryRule {
     id: string;
     services: string[];
@@ -62,7 +43,6 @@ interface SalaryRule {
 interface SalaryState {
     fixed_salary: {
         enabled: boolean;
-        night_hourly_rate: number;
         day_hourly_rate: number;
         appointment_rate: number;
     };
@@ -82,7 +62,6 @@ const SalarySettings: React.FC<SalarySettingsProps> = ({ employeeId, initialValu
     const [state, setState] = useState<SalaryState>(initialValue || {
         fixed_salary: {
             enabled: false,
-            night_hourly_rate: 0,
             day_hourly_rate: 0,
             appointment_rate: 0,
         },
@@ -99,7 +78,6 @@ const SalarySettings: React.FC<SalarySettingsProps> = ({ employeeId, initialValu
             setState({
                 fixed_salary: {
                     enabled: false,
-                    night_hourly_rate: 0,
                     day_hourly_rate: 0,
                     appointment_rate: 0,
                 },
@@ -245,7 +223,7 @@ const SalarySettings: React.FC<SalarySettingsProps> = ({ employeeId, initialValu
                 <Box
                     sx={{
                         display: "grid",
-                        gridTemplateColumns: "1fr 1fr 1fr",
+                        gridTemplateColumns: "1fr 1fr",
                         gap: 1,
                         opacity: state.fixed_salary.enabled ? 1 : 0.4,
                         pointerEvents: state.fixed_salary.enabled ? "auto" : "none",
@@ -253,9 +231,8 @@ const SalarySettings: React.FC<SalarySettingsProps> = ({ employeeId, initialValu
                     }}
                 >
                     {[
-                        { label: "Ночь", key: "night_hourly_rate" },
-                        { label: "День", key: "day_hourly_rate" },
-                        { label: "Прием", key: "appointment_rate" },
+                        { label: "Ставка (день/час)", key: "day_hourly_rate" },
+                        { label: "Ставка за прием", key: "appointment_rate" },
                     ].map((item) => (
                         <Stack key={item.key} spacing={0.5}>
                             <Typography variant="caption" sx={{ fontSize: "0.6rem", color: "text.secondary", textAlign: "center", fontWeight: 500 }}>

@@ -152,7 +152,6 @@ const EditEmployeeDrawer: React.FC<EditEmployeeDrawerProps> = ({ record, onClose
           setSalaryRules({
             fixed_salary: {
               enabled: sr.fixedSalary?.enabled ?? false,
-              night_hourly_rate: Number(sr.fixedSalary?.nightHourlyRate ?? 0),
               day_hourly_rate: Number(sr.fixedSalary?.dayHourlyRate ?? 0),
               appointment_rate: Number(sr.fixedSalary?.appointmentRate ?? 0),
             },
@@ -305,7 +304,6 @@ const EditEmployeeDrawer: React.FC<EditEmployeeDrawerProps> = ({ record, onClose
         payload.salaryRules = {
           fixedSalary: {
             enabled: salaryRules.fixed_salary?.enabled ?? false,
-            nightHourlyRate: String(salaryRules.fixed_salary?.night_hourly_rate ?? 0),
             dayHourlyRate: String(salaryRules.fixed_salary?.day_hourly_rate ?? 0),
             appointmentRate: String(salaryRules.fixed_salary?.appointment_rate ?? 0),
           },

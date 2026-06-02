@@ -140,7 +140,6 @@ export const buildMockPayslip = (
       deductionsSum: money(deductionsSum),
       expensesSum: "0.00",
       dayHours: "120.00",
-      nightHours: "0.00",
       paidAppointmentsCount: monthCount,
     },
     days,

@@ -3,7 +3,6 @@ import dayjs from "dayjs";
 export interface SalaryRules {
     fixed_salary?: {
         enabled?: boolean;
-        night_hourly_rate?: number;
         day_hourly_rate?: number;
         appointment_rate?: number;
     };
@@ -16,10 +15,8 @@ export interface SalaryRules {
 
 export interface CalculationResult {
     dayHours: number;
-    nightHours: number;
     hoursSum: number;
     dayHoursSum: number;
-    nightHoursSum: number;
     distributedAppointments: number;
     createdByCount: number;
     appointmentsCount: number;
@@ -44,13 +41,12 @@ export function calculateEmployeeSalary(
     expenses: any[] = [],
     distributedCountOverride?: number
 ): CalculationResult {
-    const fixed = (rules.fixed_salary && rules.fixed_salary.enabled) 
-        ? rules.fixed_salary 
-        : { night_hourly_rate: 0, day_hourly_rate: 0, appointment_rate: 0 };
-    
+    const fixed = (rules.fixed_salary && rules.fixed_salary.enabled)
+        ? rules.fixed_salary
+        : { day_hourly_rate: 0, appointment_rate: 0 };
+
     // 1. Calculate hours from shifts
     let dayHours = 0;
-    let nightHours = 0;
     let hasWarning = false;
 
     shifts.forEach(s => {
@@ -60,49 +56,17 @@ export function calculateEmployeeSalary(
             let totalDuration = end.diff(start, 'hour', true);
 
             if (totalDuration > 0) {
-                // Safety Cap: If shift > 36h, it's likely a forgotten clock-out
                 if (totalDuration > 36) {
                     end = start.add(36, 'hour');
                     totalDuration = 36;
                     hasWarning = true;
                 }
-
-                // Optimized splitting: Calculate overlaps with day periods
-                const DAY_START_H = 9;  // 09:00
-                const DAY_END_H = 18;   // 18:00
-                
-                let shiftDayHours = 0;
-                let shiftNightHours = 0;
-
-                // Process each day involved in the shift
-                let current = start;
-                while (current.isBefore(end)) {
-                    const nextDay = current.add(1, 'day').startOf('day');
-                    const segmentEnd = nextDay.isAfter(end) ? end : nextDay;
-                    
-                    const dayStart = current.set('hour', DAY_START_H).set('minute', 0).set('second', 0).set('millisecond', 0);
-                    const dayEnd = current.set('hour', DAY_END_H).set('minute', 0).set('second', 0).set('millisecond', 0);
-                    
-                    // Intersection with Day (09:00-18:00)
-                    const dayOverlapStart = current.isAfter(dayStart) ? current : dayStart;
-                    const dayOverlapEnd = segmentEnd.isBefore(dayEnd) ? segmentEnd : dayEnd;
-                    
-                    const overlapDay = Math.max(0, dayOverlapEnd.diff(dayOverlapStart, 'hour', true));
-                    const totalSegment = segmentEnd.diff(current, 'hour', true);
-                    
-                    shiftDayHours += overlapDay;
-                    shiftNightHours += (totalSegment - overlapDay);
-                    
-                    current = segmentEnd;
-                }
-
-                dayHours += shiftDayHours;
-                nightHours += shiftNightHours;
+                dayHours += totalDuration;
             }
         }
     });
 
-    // 2. Metrics calculation (using all appointments provided)
+    // 2. Metrics calculation
     let totalCount = 0;
     let waitingCount = 0;
     let cancelledCount = 0;
@@ -123,19 +87,12 @@ export function calculateEmployeeSalary(
 
         totalCount++;
 
-        if (a.status === 'Ожидаем' || a.status === 'Пациент здесь') {
-            waitingCount++;
-        }
-
-        if (a.status === 'Отменено' || a.status === 'Пациент не пришел') {
-            cancelledCount++;
-        }
-
+        if (a.status === 'Ожидаем' || a.status === 'Пациент здесь') waitingCount++;
+        if (a.status === 'Отменено' || a.status === 'Пациент не пришел') cancelledCount++;
         if (a.status === 'Со скидкой' || a.status === 'Бесплатно') {
             discountedCount++;
             discountSum += Number(a.discount || 0);
         }
-
         if (a.status === 'Оплачено' || a.status === 'Частично оплачено' || a.status === 'Со скидкой' || a.status === 'Бесплатно' || a.status === 'Завершено') {
             paidCount++;
             paidSum += Number(a.paid_cash || 0) + Number(a.paid_card || 0);
@@ -144,14 +101,13 @@ export function calculateEmployeeSalary(
         return true;
     });
 
-    // 2.1 filter only NOT cancelled for salary calculation
     const validAppointments = empAppointments.filter(a => a.status !== "Отменено");
-    const paidAppointments = validAppointments.filter(a => a.status === "Оплачено" || a.status === "Частично оплачено" || a.status === "Со скидкой" || a.status === "Бесплатно" || a.status === "Завершено");
+    const paidAppointments = validAppointments.filter(a =>
+        a.status === "Оплачено" || a.status === "Частично оплачено" ||
+        a.status === "Со скидкой" || a.status === "Бесплатно" || a.status === "Завершено"
+    );
 
-    const dayHoursPay = dayHours * (fixed.day_hourly_rate || 0);
-    const nightHoursPay = nightHours * (fixed.night_hourly_rate || 0);
-    const hoursPay = dayHoursPay + nightHoursPay;
-    // For registrators: use distributed count instead of directly linked appointments
+    const hoursPay = dayHours * (fixed.day_hourly_rate || 0);
     const effectiveApptCount = distributedCountOverride !== undefined
         ? distributedCountOverride
         : paidAppointments.length;
@@ -166,16 +122,13 @@ export function calculateEmployeeSalary(
         let servicesArr: any[] = [];
 
         if (typeof servicesJSON === 'string') {
-            try { servicesArr = JSON.parse(servicesJSON); } catch { /* ignore malformed JSON */ }
+            try { servicesArr = JSON.parse(servicesJSON); } catch { /* ignore */ }
         } else if (Array.isArray(servicesJSON)) {
             servicesArr = servicesJSON;
         }
 
         servicesArr.forEach((srv: any) => {
-            // Check if this employee is the performer for this service
             const srvPerformerId = srv.performer_id || srv.doctor_id;
-            
-            // Normalize performer_ids to array
             let performerIds: string[] = [];
             if (Array.isArray(appt.performer_ids)) {
                 performerIds = appt.performer_ids;
@@ -183,14 +136,14 @@ export function calculateEmployeeSalary(
                 performerIds = appt.performer_ids.replace(/{|}/g, '').split(',').map((s: string) => s.trim());
             }
 
-            const isPerformer = srvPerformerId === employeeId || 
-                               (appt.doctor_id === employeeId && !srvPerformerId) ||
-                               (performerIds.includes(employeeId) && !srvPerformerId);
+            const isPerformer = srvPerformerId === employeeId ||
+                (appt.doctor_id === employeeId && !srvPerformerId) ||
+                (performerIds.includes(employeeId) && !srvPerformerId);
 
             if (isPerformer) {
                 const rawName = srv.service_name || srv.name || "";
                 const serviceName = String(rawName).trim().toLowerCase();
-                
+
                 const rule = dynamicRules.find((r: any) =>
                     Array.isArray(r.services) && r.services.some((sn: string) => {
                         const ruleSvcName = String(sn).trim().toLowerCase();
@@ -199,15 +152,11 @@ export function calculateEmployeeSalary(
                 );
 
                 if (rule) {
-                    // Support multiple price field names
                     const servicePriceFromSrv = Number(srv.price ?? srv.cost ?? srv.total ?? srv.amount ?? 0);
-                    
-                    // Fallback to appointment total if needed
                     let finalPrice = servicePriceFromSrv;
                     if (finalPrice <= 0 && servicesArr.length === 1) {
                         finalPrice = Number(appt.total_amount || appt.total_cost || 0);
                     }
-
                     if (Number(rule.percent || 0) > 0 && finalPrice > 0) {
                         percentSum += (finalPrice * Number(rule.percent || 0)) / 100;
                     }
@@ -219,7 +168,6 @@ export function calculateEmployeeSalary(
         });
     });
 
-    // 3. Calculate expenses (both "Аванс" and "Заработная плата" categories)
     const expensesSum = expenses
         .filter(exp => {
             if (exp.employee_id !== employeeId) return false;
@@ -233,10 +181,8 @@ export function calculateEmployeeSalary(
 
     return {
         dayHours: Math.round(dayHours * 10) / 10,
-        nightHours: Math.round(nightHours * 10) / 10,
         hoursSum: Math.round((hoursPay + apptsFixedPay) * 100) / 100,
-        dayHoursSum: Math.round(dayHoursPay * 100) / 100,
-        nightHoursSum: Math.round(nightHoursPay * 100) / 100,
+        dayHoursSum: Math.round(hoursPay * 100) / 100,
         distributedAppointments: 0,
         createdByCount: 0,
         appointmentsCount: validAppointments.length,
@@ -250,6 +196,6 @@ export function calculateEmployeeSalary(
         paidSum: Math.round(paidSum * 100) / 100,
         expensesSum: Math.round(expensesSum * 100) / 100,
         totalSalary: Math.round(netSalary * 100) / 100,
-        hasWarning
+        hasWarning,
     };
 }

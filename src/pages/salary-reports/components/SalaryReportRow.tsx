@@ -22,7 +22,6 @@ import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import ReportProblemIcon from '@mui/icons-material/ReportProblem';
 import WbSunnyOutlinedIcon from '@mui/icons-material/WbSunnyOutlined';
-import NightsStayOutlinedIcon from '@mui/icons-material/NightsStayOutlined';
 import PictureAsPdfOutlinedIcon from '@mui/icons-material/PictureAsPdfOutlined';
 import { formatKGS } from "../../../utility/format";
 import { PayrollRow } from "../../../types/reports";
@@ -36,15 +35,14 @@ interface SalaryReportRowProps {
     month: string; // YYYY-MM
 }
 
-// Цветовая палитра — нейтральная и гармоничная
+// Цветовая палитра
 const COLORS = {
-    day: '#3B82F6',       // синий — дневные часы
-    night: '#8B5CF6',     // фиолетовый — ночные часы
-    advance: '#F59E0B',   // янтарный — аванс
-    payout: '#10B981',    // изумрудный — выплаты
-    deduction: '#EF4444', // красный — удержания
-    netSalary: '#0EA5E9', // голубой — к выплате
-    paid: '#10B981',      // зелёный — выплачено
+    day: '#3B82F6',
+    advance: '#F59E0B',
+    payout: '#10B981',
+    deduction: '#EF4444',
+    netSalary: '#0EA5E9',
+    paid: '#10B981',
 };
 
 function calcShiftHours(shift: Shift): number {
@@ -118,7 +116,6 @@ const DailyBreakdown: React.FC<{ employeeId: string; month: string }> = ({ emplo
                 <TableBody>
                     {shifts.map((shift, idx) => {
                         const hours = calcShiftHours(shift);
-                        const isNight = shift.isNightShift;
                         const hasClockIn = !!shift.clockIn;
                         const hasClockOut = !!shift.clockOut;
                         const isOpen = hasClockIn && !hasClockOut;
@@ -141,10 +138,7 @@ const DailyBreakdown: React.FC<{ employeeId: string; month: string }> = ({ emplo
                                     </Typography>
                                 </TableCell>
                                 <TableCell align="center">
-                                    {isNight
-                                        ? <NightsStayOutlinedIcon sx={{ fontSize: '0.9rem', color: COLORS.night, verticalAlign: 'middle' }} />
-                                        : <WbSunnyOutlinedIcon sx={{ fontSize: '0.9rem', color: COLORS.day, verticalAlign: 'middle' }} />
-                                    }
+                                    <WbSunnyOutlinedIcon sx={{ fontSize: '0.9rem', color: COLORS.day, verticalAlign: 'middle' }} />
                                 </TableCell>
                                 <TableCell align="center" sx={{ color: 'text.secondary' }}>
                                     {shift.startTime || '—'}
@@ -152,7 +146,7 @@ const DailyBreakdown: React.FC<{ employeeId: string; month: string }> = ({ emplo
                                 <TableCell align="center" sx={{ color: 'text.secondary' }}>
                                     {shift.endTime || '—'}
                                 </TableCell>
-                                <TableCell align="center" sx={{ fontWeight: 700, color: isNight ? COLORS.night : COLORS.day }}>
+                                <TableCell align="center" sx={{ fontWeight: 700, color: COLORS.day }}>
                                     {hours > 0 ? `${hours}ч` : '—'}
                                 </TableCell>
                                 <TableCell align="center">
@@ -245,12 +239,8 @@ const SalaryReportRow: React.FC<SalaryReportRowProps> = ({ row, isMobile, month 
 
                     <Grid2 container spacing={1} sx={{ mt: 1 }}>
                         <Grid2 size={4}>
-                            <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.6rem', display: 'block' }}>День / Ночь</Typography>
-                            <Typography sx={{ fontSize: '0.78rem', fontWeight: 700 }}>
-                                <Box component="span" sx={{ color: COLORS.day }}>{row.dayHours}</Box>
-                                <Box component="span" sx={{ color: 'text.disabled', mx: 0.3 }}>/</Box>
-                                <Box component="span" sx={{ color: COLORS.night }}>{row.nightHours}</Box>
-                            </Typography>
+                            <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.6rem', display: 'block' }}>Часы</Typography>
+                            <Typography sx={{ fontSize: '0.78rem', fontWeight: 700, color: COLORS.day }}>{row.dayHours}</Typography>
                         </Grid2>
                         <Grid2 size={4}>
                             <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.6rem', display: 'block' }}>Приемы</Typography>
@@ -342,9 +332,6 @@ const SalaryReportRow: React.FC<SalaryReportRowProps> = ({ row, isMobile, month 
                 <TableCell align="center">
                     <Typography variant="body2" fontWeight={600} sx={{ color: COLORS.day }}>{row.dayHours}</Typography>
                 </TableCell>
-                <TableCell align="center">
-                    <Typography variant="body2" fontWeight={600} sx={{ color: COLORS.night }}>{row.nightHours}</Typography>
-                </TableCell>
                 <TableCell align="center">{row.paidAppointmentsCount}</TableCell>
                 {row.distributedAppointmentsCount !== undefined && (
                     <TableCell align="center" sx={{ color: COLORS.day, fontWeight: 600 }}>{row.distributedAppointmentsCount}</TableCell>
@@ -358,7 +345,7 @@ const SalaryReportRow: React.FC<SalaryReportRowProps> = ({ row, isMobile, month 
                 <TableCell align="right" sx={{ fontWeight: 800, color: COLORS.netSalary }}>{formatKGS(row.netSalary)}</TableCell>
             </TableRow>
             <TableRow sx={{ '& td': { py: 0, border: 0 } }}>
-                <TableCell colSpan={12} sx={{ p: 0 }}>
+                <TableCell colSpan={11} sx={{ p: 0 }}>
                     <Collapse in={open} timeout="auto" unmountOnExit>
                         <Box sx={{ bgcolor: alpha(COLORS.netSalary, 0.02), borderBottom: `1px solid`, borderColor: 'divider' }}>
                             <Typography variant="caption" color="text.disabled" sx={{ px: 3, pt: 1.5, pb: 0.5, display: 'block', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, fontSize: '0.65rem' }}>
