@@ -374,7 +374,7 @@ const SidebarSecondary: React.FC = () => {
     { to: "/specialist", icon: <LocalHospitalOutlined />, label: "Кабинет специалиста", category: "work", visible: hasPermission(PERMISSIONS.APPOINTMENTS_READ) },
     { to: "/all-appointments", icon: <HistoryOutlined />, label: "Все услуги", category: "work", visible: hasPermission(PERMISSIONS.APPOINTMENTS_READ) },
     { to: "/schedule", icon: <CalendarMonthOutlined />, label: "Расписание", category: "work", visible: hasPermission(PERMISSIONS.EMPLOYEE_SCHEDULES_READ) },
-    { to: "/skud", icon: <SecurityOutlined />, label: "СКУД", category: "work", visible: hasPermission(PERMISSIONS.WORK_SHIFTS_READ) },
+    { to: "/skud", icon: <SecurityOutlined />, label: "СКУД", category: "work", visible: hasPermission(PERMISSIONS.WORK_SHIFTS_READ) || hasPermission(PERMISSIONS.WORK_SHIFTS_SELF_CLOCK_IN) },
     { to: "/client-schedule", icon: <CalendarMonthOutlined />, label: "Клиентское расписание", category: "work", visible: hasPermission(PERMISSIONS.CLIENT_SCHEDULES_READ) },
     { to: "/patient-search", icon: <SearchOutlined />, label: "Поиск клиентов", category: "work", visible: hasPermission(PERMISSIONS.CLIENTS_READ) },
 

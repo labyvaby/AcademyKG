@@ -495,7 +495,7 @@ function App() {
                         <Route
                           path="skud"
                           element={
-                            <ProtectedRoute requiredPermissions={['work_shifts.read']}>
+                            <ProtectedRoute anyOfPermissions={['work_shifts.read', 'work_shifts.self_clock_in']}>
                               <Suspense fallback={<LinearProgress />}>
                                 <SkudPage />
                               </Suspense>

@@ -690,9 +690,11 @@ const SkudPage: React.FC = () => {
   const isManager       = canCreate || canEdit || isSuperAdmin();
   // canSelfClockIn — обычный сотрудник, может только отметиться сам
   const canSelfClockIn  = hasPermission(PERMISSIONS.WORK_SHIFTS_SELF_CLOCK_IN);
-  // Вкладка «Настройки сети» завязана на отдельное право skud_settings.read,
-  // т.к. endpoint /api/v1/skud-settings/ требует именно его (иначе 403).
-  const canViewSkudSettings = hasPermission(PERMISSIONS.SKUD_SETTINGS_READ) || isSuperAdmin();
+  // Административный СКУД (вкладка «Настройки сети», CRUD настроек, разрешённые
+  // Wi-Fi/IP/SSID) — только для superadmin. skud_settings.* по умолчанию не
+  // выдаётся обычным ролям (см. role_permission_defaults на бэкенде), а endpoint
+  // /api/v1/skud-settings/ дополнительно требует skud_settings.read.
+  const canViewSkudSettings = isSuperAdmin();
   const canSettings     = canViewSkudSettings;
 
   const [activeTab, setActiveTab] = useState<"shifts" | "settings">("shifts");
