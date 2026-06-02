@@ -112,13 +112,6 @@ const _EXPENSES = {
   DELETE: 'expenses.delete',
 } as const;
 
-const _INCOMING_CALLS = {
-  CREATE: 'incoming_calls.create',
-  READ:   'incoming_calls.read',
-  UPDATE: 'incoming_calls.update',
-  DELETE: 'incoming_calls.delete',
-} as const;
-
 const _ORGANIZATIONS = {
   CREATE: 'organizations.create',
   READ:   'organizations.read',
@@ -253,7 +246,6 @@ export const PERMISSIONS = {
   EMPLOYEES:               _EMPLOYEES,
   EXPENSE_CATEGORIES:      _EXPENSE_CATEGORIES,
   EXPENSES:                _EXPENSES,
-  INCOMING_CALLS:          _INCOMING_CALLS,
   ORGANIZATIONS:           _ORGANIZATIONS,
   PAYMENTS:                _PAYMENTS,
   PRODUCTS:                _PRODUCTS,
@@ -343,10 +335,6 @@ export const PERMISSIONS = {
   EXPENSES_UPDATE:                   _EXPENSES.UPDATE,
   EXPENSES_DELETE:                   _EXPENSES.DELETE,
   // Входящие звонки
-  INCOMING_CALLS_CREATE:             _INCOMING_CALLS.CREATE,
-  INCOMING_CALLS_READ:               _INCOMING_CALLS.READ,
-  INCOMING_CALLS_UPDATE:             _INCOMING_CALLS.UPDATE,
-  INCOMING_CALLS_DELETE:             _INCOMING_CALLS.DELETE,
   // Организации
   ORGANIZATIONS_CREATE:              _ORGANIZATIONS.CREATE,
   ORGANIZATIONS_READ:                _ORGANIZATIONS.READ,
@@ -506,10 +494,6 @@ export const P = {
   EXPENSES_UPDATE:                   _EXPENSES.UPDATE,
   EXPENSES_DELETE:                   _EXPENSES.DELETE,
   // Входящие звонки
-  INCOMING_CALLS_CREATE:             _INCOMING_CALLS.CREATE,
-  INCOMING_CALLS_READ:               _INCOMING_CALLS.READ,
-  INCOMING_CALLS_UPDATE:             _INCOMING_CALLS.UPDATE,
-  INCOMING_CALLS_DELETE:             _INCOMING_CALLS.DELETE,
   // Организации
   ORGANIZATIONS_CREATE:              _ORGANIZATIONS.CREATE,
   ORGANIZATIONS_READ:                _ORGANIZATIONS.READ,
