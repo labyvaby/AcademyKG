@@ -380,6 +380,7 @@ const NetworkSettingsPanel: React.FC<NetworkSettingsProps> = ({ branches }) => {
   const [saving, setSaving] = useState<string | null>(null);
   const [currentIp, setCurrentIp] = useState<string>("");
   const [editValues, setEditValues] = useState<Record<string, Partial<SkudSetting>>>({});
+  const [panelError, setPanelError] = useState<string | null>(null);
 
   const loadSettings = useCallback(async () => {
     setLoading(true);
@@ -424,13 +425,20 @@ const NetworkSettingsPanel: React.FC<NetworkSettingsProps> = ({ branches }) => {
 
   const handleSave = async (s: SkudSetting) => {
     setSaving(s.id);
+    setPanelError(null);
     try {
-      const patch = editValues[s.id] ?? {};
+      const ev = editValues[s.id] ?? {};
       await apiFetch(`/api/v1/skud-settings/${s.id}/`, {
         method: "PATCH",
-        body: JSON.stringify(patch),
+        body: JSON.stringify({
+          allowed_ip: ev.allowedIp ?? s.allowedIp,
+          allowed_ssid: ev.allowedSsid ?? s.allowedSsid,
+          enabled: ev.enabled ?? s.enabled,
+        }),
       });
       await loadSettings();
+    } catch (e: any) {
+      setPanelError(e?.message || "Не удалось сохранить настройки СКУД");
     } finally {
       setSaving(null);
     }
@@ -438,12 +446,15 @@ const NetworkSettingsPanel: React.FC<NetworkSettingsProps> = ({ branches }) => {
 
   const handleCreate = async (branchId: string) => {
     setSaving("new_" + branchId);
+    setPanelError(null);
     try {
       await apiFetch("/api/v1/skud-settings/", {
         method: "POST",
-        body: JSON.stringify({ branch: branchId, allowedIp: "", allowedSsid: "", enabled: false }),
+        body: JSON.stringify({ branch: branchId, allowed_ip: "", allowed_ssid: "", enabled: false }),
       });
       await loadSettings();
+    } catch (e: any) {
+      setPanelError(e?.message || "Не удалось создать настройки СКУД");
     } finally {
       setSaving(null);
     }
@@ -457,6 +468,12 @@ const NetworkSettingsPanel: React.FC<NetworkSettingsProps> = ({ branches }) => {
 
   return (
     <Stack spacing={2}>
+      {panelError && (
+        <Alert severity="error" sx={{ borderRadius: 2 }} onClose={() => setPanelError(null)}>
+          {panelError}
+        </Alert>
+      )}
+
       {currentIp && (
         <Alert
           severity="info"
