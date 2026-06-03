@@ -34,7 +34,6 @@ import { PERMISSIONS } from "../../../constants/permissions";
 import { isOwnOnlySpecialist } from "../../../utils/permissionHelpers";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAvailableServices, SELLABLE_SERVICES_QUERY_KEY } from "../../../hooks/useAvailableServices";
-import { useValidServiceIds, useValidServiceIdsInvalidation } from "../../../hooks/useValidServiceIds";
 import { isValidSellableService, mapSellableToServiceRow } from "../../../utils/sellableServiceFilters";
 
 
@@ -115,8 +114,6 @@ const EditAppointmentSidebar: React.FC<EditAppointmentSidebarProps> = ({
   const [loadingEmps, setLoadingEmps] = React.useState(false);
 
   const queryClient = useQueryClient();
-  const { validServiceIds } = useValidServiceIds();
-  const invalidateValidServiceIds = useValidServiceIdsInvalidation();
 
   // Все услуги — источник для поиска по serviceId и автоподсчёта суммы
   const { services: allServices, isLoading: servicesLoading } = useAvailableServices({ enabled: isOpen });
@@ -134,11 +131,11 @@ const EditAppointmentSidebar: React.FC<EditAppointmentSidebarProps> = ({
         return results;
       })();
       return raw
-        .filter((item) => isValidSellableService(item, validServiceIds))
+        .filter((item) => isValidSellableService(item))
         .map(mapSellableToServiceRow)
         .filter((s) => s.id && s.name);
     } catch { return []; }
-  }, [queryClient, validServiceIds]);
+  }, [queryClient]);
 
   // Per-employee services cache для дропдаунов (employeeId → ServiceRow[])
   const [employeeServicesCache, setEmployeeServicesCache] = React.useState<Record<string, ServiceRow[]>>({});
@@ -913,7 +910,6 @@ const EditAppointmentSidebar: React.FC<EditAppointmentSidebarProps> = ({
         onClose={() => setIsServiceDrawerOpen(false)}
         onCreated={(rec) => {
           // Инвалидируем кэш чтобы новая услуга появилась в списке
-          invalidateValidServiceIds();
           queryClient.invalidateQueries({ queryKey: [SELLABLE_SERVICES_QUERY_KEY] });
           setServiceRows((prev) => [
             ...prev,

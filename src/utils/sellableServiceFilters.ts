@@ -17,26 +17,16 @@ function isNotDeleted(item: any): boolean {
 /**
  * Проверяет, можно ли показывать sellable-item в списке услуг для продажи.
  *
- * validServiceIds — Set ID-ов из /api/v1/services/?isActive=true.
- * Используется как единственный способ отфильтровать soft-deleted сервисы,
- * поскольку API sellable-items не возвращает поля isDeleted и не гарантирует
- * их отсутствие при запросе isActive=true.
- * Если Set пустой (запрос ещё не загружен) — проверка по нему пропускается.
+ * Backend (commit a3f7b95) гарантирует, что GET /api/v1/sellable-items/?type=service&isActive=true
+ * не возвращает soft-deleted сервисы — дополнительный запрос к /api/v1/services/ не нужен.
  */
-export function isValidSellableService(
-  item: any,
-  validServiceIds: Set<string>
-): boolean {
+export function isValidSellableService(item: any): boolean {
   if (!isItemActive(item)) return false;
   if (!isServiceActive(item)) return false;
   if (!isNotDeleted(item)) return false;
 
   const serviceId = item?.service?.id;
   if (!serviceId) return false;
-
-  if (validServiceIds.size > 0) {
-    return validServiceIds.has(String(serviceId));
-  }
 
   return true;
 }
