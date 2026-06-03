@@ -14,6 +14,7 @@ export type ConclusionPDFData = {
   objective: string;
   recommendations: string;
   doctorFio: string;
+  clinicName?: string;
 };
 
 export type CertificatePDFData = {
@@ -22,6 +23,7 @@ export type CertificatePDFData = {
   conclusion: string;
   doctorFio: string;
   issueDate: string;
+  clinicName?: string;
 };
 
 export const generateConclusionPDF = async (data: ConclusionPDFData): Promise<Blob> => {
@@ -132,6 +134,7 @@ export const generateCertificatePDF = async (data: CertificatePDFData): Promise<
     conclusion,
     doctorFio,
     issueDate,
+    clinicName = "Academy KG",
   } = data;
 
   const container = document.createElement("div");
@@ -184,7 +187,7 @@ export const generateCertificatePDF = async (data: CertificatePDFData): Promise<
 
       <div style="margin-bottom: 10mm; font-size: 13pt;">
         В том, что ребенок был на амбулаторном лечении<br/>
-        в «Academy KG»
+        в «${clinicName}»
       </div>
 
       <div style="margin-bottom: 5mm;">

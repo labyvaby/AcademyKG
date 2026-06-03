@@ -570,6 +570,7 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
                         basePrice: baseTotal,
                         finalPrice: Math.max(0, baseTotal - disc),
                         cashierName: item.updated_by_name ?? item.created_by_name ?? null,
+                        orgName: selectedBranch?.brandName || selectedBranch?.name,
                         branchName: selectedBranch?.name ?? null,
                       });
                     }}
@@ -937,6 +938,7 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
                         basePrice: baseTotal,
                         finalPrice: Math.max(0, baseTotal - disc),
                         cashierName: item.updated_by_name ?? item.created_by_name ?? null,
+                        orgName: selectedBranch?.brandName || selectedBranch?.name,
                         branchName: selectedBranch?.name ?? null,
                       });
                     }}
