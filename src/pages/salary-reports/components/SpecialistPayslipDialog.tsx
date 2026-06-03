@@ -36,18 +36,23 @@ interface SpecialistPayslipDialogProps {
     month: string; // YYYY-MM
 }
 
-type Half = PeriodHalf;
+// "first" | "second" — половина месяца; "month" — весь календарный месяц
+// (в запрос periodHalf не уходит, бэк отдаёт detailScope: "month").
+type RangeMode = PeriodHalf | "month";
 
 const capitalize = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1);
 
-const computeRange = (monthStart: Dayjs, half: Half): { from: Dayjs; to: Dayjs } => {
-    if (half === "first") {
+const computeRange = (monthStart: Dayjs, mode: RangeMode): { from: Dayjs; to: Dayjs } => {
+    if (mode === "first") {
         return { from: monthStart.date(1), to: monthStart.date(15) };
     }
-    return { from: monthStart.date(16), to: monthStart.endOf("month") };
+    if (mode === "second") {
+        return { from: monthStart.date(16), to: monthStart.endOf("month") };
+    }
+    return { from: monthStart.date(1), to: monthStart.endOf("month") };
 };
 
-const defaultHalfFor = (monthStart: Dayjs): Half => {
+const defaultHalfFor = (monthStart: Dayjs): RangeMode => {
     const today = dayjs();
     if (today.format("YYYY-MM") !== monthStart.format("YYYY-MM")) return "first";
     return today.date() <= 15 ? "first" : "second";
@@ -62,7 +67,7 @@ const SpecialistPayslipDialog: React.FC<SpecialistPayslipDialogProps> = ({
 }) => {
     const { selectedBranch } = useBranchContext();
     const [monthStart, setMonthStart] = useState<Dayjs>(() => dayjs(`${month}-01`).startOf("month"));
-    const [half, setHalf] = useState<Half>(() => defaultHalfFor(dayjs(`${month}-01`)));
+    const [half, setHalf] = useState<RangeMode>(() => defaultHalfFor(dayjs(`${month}-01`)));
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -103,7 +108,7 @@ const SpecialistPayslipDialog: React.FC<SpecialistPayslipDialogProps> = ({
             const res = await getSpecialistPayslip(
                 employeeId,
                 monthStart.format("YYYY-MM"),
-                half,
+                half === "month" ? undefined : half,
                 selectedBranch?.id ?? undefined,
             );
             if (!res?.data) throw new Error("Пустой ответ от сервера");
@@ -135,7 +140,7 @@ const SpecialistPayslipDialog: React.FC<SpecialistPayslipDialogProps> = ({
             <DialogContent dividers>
                 <Stack spacing={2}>
                     <Typography variant="body2" color="text.secondary">
-                        Выберите месяц и половину месяца.
+                        Выберите месяц и период: половину месяца или весь месяц.
                     </Typography>
 
                     <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1}>
@@ -165,7 +170,7 @@ const SpecialistPayslipDialog: React.FC<SpecialistPayslipDialogProps> = ({
                         value={half}
                         exclusive
                         size="small"
-                        onChange={(_, v: Half | null) => v && setHalf(v)}
+                        onChange={(_, v: RangeMode | null) => v && setHalf(v)}
                         disabled={loading}
                         fullWidth
                     >
@@ -173,6 +178,7 @@ const SpecialistPayslipDialog: React.FC<SpecialistPayslipDialogProps> = ({
                         <ToggleButton value="second">
                             16 – {monthStart.endOf("month").format("DD")}
                         </ToggleButton>
+                        <ToggleButton value="month">Весь месяц</ToggleButton>
                     </ToggleButtonGroup>
 
                     {error && (

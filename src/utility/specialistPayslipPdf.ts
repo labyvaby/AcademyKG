@@ -1,13 +1,8 @@
 import html2canvas from "html2canvas";
 import { jsPDF } from "jspdf";
-import dayjs from "dayjs";
-import isoWeek from "dayjs/plugin/isoWeek";
 import type { SpecialistPayslipResponse, SpecialistPayslipDay } from "../types/reports";
 
-dayjs.extend(isoWeek);
-
-const WORK_DAYS = 5;          // Пн–Пт (Сб/Вс — выходные)
-const PAGE_CELLS = 6;         // 2×3: 5 дней + 1 ячейка (сводка/пусто)
+const PAGE_CELLS = 6;         // сетка 2×3 = 6 ячеек на страницу
 
 const escapeHtml = (value: string | null | undefined): string => {
   if (value === null || value === undefined) return "";
@@ -245,46 +240,40 @@ interface PageBuild {
   html: string;
 }
 
-// Группируем дни по ISO-неделе (берём только Пн–Пт). На странице
-// каждый день стоит в своей колонке: индекс 0 — Пн, ... 4 — Пт.
-// 6-я ячейка — пустая (или сводка на последней странице).
+const isWeekend = (iso: string): boolean => {
+  const [y, m, day] = iso.split("-").map(Number);
+  const dow = new Date(Date.UTC(y, m - 1, day)).getUTCDay(); // 0=Вс, 6=Сб
+  return dow === 0 || dow === 6;
+};
+
+// Дни идут подряд (хронологически), без привязки к колонкам недели —
+// чтобы не было «пропусков» вроде страницы с одной пятничной таблицей.
+// Показываем только будни (Пн–Пт), даже с 0 приёмов. Сб/Вс не показываем вообще.
+// Общий итог (summary) — первой ячейкой первой страницы.
 const buildPages = (data: SpecialistPayslipResponse): PageBuild[] => {
   const { days, employee } = data;
   const summaryHtml = renderSummaryCell(data);
 
-  type WeekBucket = (SpecialistPayslipDay | null)[];
-  const weeks = new Map<string, WeekBucket>();
+  const visibleDays: SpecialistPayslipDay[] = [...days]
+    .filter((d) => !isWeekend(d.date))
+    .sort((a, b) => a.date.localeCompare(b.date));
 
-  days.forEach((d) => {
-    const date = dayjs(d.date);
-    const dow = date.isoWeekday(); // 1..7
-    if (dow > WORK_DAYS) return; // Сб/Вс пропускаем
-    const weekKey = `${date.isoWeekYear()}-W${String(date.isoWeek()).padStart(2, "0")}`;
-    if (!weeks.has(weekKey)) {
-      weeks.set(weekKey, Array(WORK_DAYS).fill(null));
-    }
-    weeks.get(weekKey)![dow - 1] = d;
-  });
+  const cells: string[] = [
+    summaryHtml,
+    ...visibleDays.map((d) => renderDayCard(d, employee.fullName)),
+  ];
 
-  const sortedKeys = Array.from(weeks.keys()).sort();
-  const totalPages = Math.max(1, sortedKeys.length);
+  // добиваем до кратности PAGE_CELLS пустыми ячейками, чтобы сетка не «съезжала»
+  while (cells.length % PAGE_CELLS !== 0) cells.push(renderEmptyCell());
 
-  const pageBuckets: WeekBucket[] = sortedKeys.length
-    ? sortedKeys.map((k) => weeks.get(k)!)
-    : [Array(WORK_DAYS).fill(null)];
-
-  return pageBuckets.map((bucket, idx) => {
-    const isLast = idx === totalPages - 1;
-    const cells: string[] = bucket.map((d) =>
-      d ? renderDayCard(d, employee.fullName) : renderEmptyCell(),
-    );
-    // 6-я ячейка
-    cells.push(isLast ? summaryHtml : renderEmptyCell());
-    while (cells.length < PAGE_CELLS) cells.push(renderEmptyCell());
-    return {
-      html: `<div class="payslip"><style>${STYLES}</style><div class="grid">${cells.join("")}</div></div>`,
-    };
-  });
+  const pages: PageBuild[] = [];
+  for (let i = 0; i < cells.length; i += PAGE_CELLS) {
+    const pageCells = cells.slice(i, i + PAGE_CELLS);
+    pages.push({
+      html: `<div class="payslip"><style>${STYLES}</style><div class="grid">${pageCells.join("")}</div></div>`,
+    });
+  }
+  return pages;
 };
 
 export const generateSpecialistPayslipPDF = async (
