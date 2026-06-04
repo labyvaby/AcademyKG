@@ -23,8 +23,20 @@ const BRANCH_DEPENDENT_KEYS = [
   ["valid-service-ids"],
 ] as const;
 
-export type BranchOption = { id: string; name: string };
-type BranchApiItem = { id: string | number; name?: string | null };
+export type BranchOption = {
+  id: string;
+  name: string;
+  brandName?: string;
+  logoUrl?: string | null;
+};
+type BranchApiItem = {
+  id: string | number;
+  name?: string | null;
+  brandName?: string | null;
+  brand_name?: string | null;
+  logoUrl?: string | null;
+  logo_url?: string | null;
+};
 type BranchListResponse = {
   data?: { results?: BranchApiItem[] };
   results?: BranchApiItem[];
@@ -129,10 +141,14 @@ export const BranchProvider: React.FC<{ isSuperAdmin: boolean; permissionsLoadin
         const fetched: BranchOption[] = list.map((b) => ({
           id: String(b.id),
           name: b.name ?? "",
+          brandName: b.brandName ?? b.brand_name ?? "",
+          logoUrl: b.logoUrl ?? b.logo_url ?? null,
         }));
         setBranches(fetched);
 
         // Валидируем сохранённый branch против реального списка.
+        // Всегда берём полную версию из fetched — чтобы brandName/logoUrl
+        // из localStorage не устарели после обновления данных на сервере.
         const saved = _loadSavedBranch();
         if (!saved) {
           // Явно «Все филиалы» — ничего не меняем, уже гидратированы.
@@ -140,10 +156,10 @@ export const BranchProvider: React.FC<{ isSuperAdmin: boolean; permissionsLoadin
           return;
         }
 
-        const stillExists = fetched.some((b) => b.id === saved.id);
-        if (stillExists) {
-          // Филиал доступен — устанавливаем только если id изменился (identity guard).
-          setSelectedBranchState((prev) => (prev?.id === saved.id ? prev : saved));
+        const freshBranch = fetched.find((b) => b.id === saved.id) ?? null;
+        if (freshBranch) {
+          // Филиал доступен — устанавливаем свежую версию с brandName/logoUrl.
+          setSelectedBranchState(freshBranch);
           setBranchFilter(saved.id);
         } else {
           // Филиал удалён или недоступен — сбрасываем на «Все филиалы».

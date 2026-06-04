@@ -35,7 +35,6 @@ import "dayjs/locale/ru";
 import { CustomDateTimePicker } from "../../../components/ui";
 import { useDictionaries } from "../../../hooks/useDictionaries";
 import { useAvailableServices, SELLABLE_SERVICES_QUERY_KEY } from "../../../hooks/useAvailableServices";
-import { useValidServiceIdsInvalidation } from "../../../hooks/useValidServiceIds";
 import { useQueryClient } from "@tanstack/react-query";
 import { isValidSellableService, mapSellableToServiceRow } from "../../../utils/sellableServiceFilters";
 import AddPatientDrawer from "../../../components/patients/AddPatientDrawer";
@@ -136,7 +135,6 @@ export const HomeAddAppointmentDrawer: React.FC<
   const canReception = hasPermission(PERMISSIONS.RECEPTION_READ);
 
   const queryClient = useQueryClient();
-  const invalidateValidServiceIds = useValidServiceIdsInvalidation();
 
   // Все услуги (без врача) — для выбора услуги первой
   const { services: allServicesOpts, isLoading: servicesLoading } = useAvailableServices({ enabled: open });
@@ -444,7 +442,7 @@ export const HomeAddAppointmentDrawer: React.FC<
           return results;
         })();
         raw
-          .filter((item: any) => isValidSellableService(item, new Set()))
+          .filter((item: any) => isValidSellableService(item))
           .forEach((item: any) => {
             const sid = String(item?.id ?? "");
             if (!sid) return;
@@ -1921,7 +1919,6 @@ export const HomeAddAppointmentDrawer: React.FC<
         onClose={() => setIsServiceDrawerOpen(false)}
         onCreated={(rec) => {
           // Инвалидируем кэш чтобы новая услуга появилась в списке
-          invalidateValidServiceIds();
           queryClient.invalidateQueries({ queryKey: [SELLABLE_SERVICES_QUERY_KEY] });
           setServiceRows((prev) => [
             ...prev,

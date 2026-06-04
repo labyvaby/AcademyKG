@@ -3,7 +3,6 @@ import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { apiFetch } from "../utility/apiClient";
 import type { ServiceRow } from "../services/services";
 import { isValidSellableService, mapSellableToServiceRow } from "../utils/sellableServiceFilters";
-import { useValidServiceIds } from "./useValidServiceIds";
 import { useBranchContext } from "../contexts/branch-context";
 
 export const SELLABLE_SERVICES_QUERY_KEY = "sellable-services";
@@ -21,7 +20,8 @@ async function fetchSellableServiceItems(employeeId?: string): Promise<any[]> {
  * - Без employeeId: все доступные услуги (для выбора услуги без врача)
  * - С employeeId: только услуги конкретного врача
  *
- * Фильтрует удалённые сервисы через validServiceIds (из useValidServiceIds).
+ * Backend гарантирует отсутствие soft-deleted сервисов в ответе —
+ * дополнительный запрос к /api/v1/services/ не нужен.
  * placeholderData: keepPreviousData — нет "мигания" при смене employeeId.
  */
 export function useAvailableServices(options?: {
@@ -32,9 +32,7 @@ export function useAvailableServices(options?: {
   const { selectedBranch } = useBranchContext();
   const branchId = selectedBranch?.id ?? null;
 
-  const { validServiceIds } = useValidServiceIds();
-
-  const { data: rawItems = [], isLoading: itemsLoading } = useQuery({
+  const { data: rawItems = [], isLoading } = useQuery({
     queryKey: [SELLABLE_SERVICES_QUERY_KEY, { employeeId: employeeId ?? null, branchId }],
     queryFn: () => fetchSellableServiceItems(employeeId),
     enabled,
@@ -47,11 +45,11 @@ export function useAvailableServices(options?: {
   const services = useMemo(
     () =>
       rawItems
-        .filter((item) => isValidSellableService(item, validServiceIds))
+        .filter((item) => isValidSellableService(item))
         .map(mapSellableToServiceRow)
         .filter((s) => s.id && s.name),
-    [rawItems, validServiceIds]
+    [rawItems]
   );
 
-  return { services, isLoading: itemsLoading };
+  return { services, isLoading };
 }

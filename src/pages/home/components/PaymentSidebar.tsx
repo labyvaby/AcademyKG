@@ -470,6 +470,7 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
                     finalPrice,
                     bulkCount: bulkCount,
                     cashierName: appointment.updated_by_name ?? appointment.created_by_name ?? null,
+                    orgName: selectedBranch?.brandName || selectedBranch?.name,
                     branchName: selectedBranch?.name ?? null,
                 };
                 setLastReceiptData(receiptData);
