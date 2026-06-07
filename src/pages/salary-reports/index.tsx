@@ -35,6 +35,7 @@ import { PayrollReportResponse, PayrollGroup } from "../../types/reports";
 import { useBranchContext } from "../../contexts/branch-context";
 import dayjs from "dayjs";
 import SalaryReportRow from "./components/SalaryReportRow";
+import DailySummaryDialog from "./components/DailySummaryDialog";
 
 // Гармоничная палитра
 const C = {
@@ -117,6 +118,7 @@ const SalaryReportsPage: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [reportData, setReportData] = useState<PayrollReportResponse | null>(null);
+    const [dailySummaryOpen, setDailySummaryOpen] = useState(false);
     const activeMonths = useAvailableReportMonths("payrollMonths");
     const month = useMemo(() => dayjs(selectedDate).format('YYYY-MM'), [selectedDate]);
     const branchKey = selectedBranch?.id ?? "all";
@@ -265,6 +267,18 @@ const SalaryReportsPage: React.FC = () => {
                 minHeight: 0
             })}>
                 <Stack spacing={{ xs: 2, md: 3 }} sx={{ display: 'flex', flexDirection: 'column' }}>
+
+                    {/* Действия отчёта */}
+                    <Stack direction="row" justifyContent="flex-end" sx={{ px: 0.5 }}>
+                        <Button
+                            variant="outlined"
+                            size="small"
+                            startIcon={<PrintOutlined />}
+                            onClick={() => setDailySummaryOpen(true)}
+                        >
+                            Сводка дня
+                        </Button>
+                    </Stack>
 
                     {/* Summary Indicators */}
                     <Stack direction="row" spacing={1} justifyContent="center" alignItems="center" flexWrap="wrap" useFlexGap sx={{ px: 0.5 }}>
@@ -422,6 +436,12 @@ const SalaryReportsPage: React.FC = () => {
                         </Paper>
                     )}
                 </Stack>
+
+                <DailySummaryDialog
+                    open={dailySummaryOpen}
+                    onClose={() => setDailySummaryOpen(false)}
+                    initialDate={selectedDate}
+                />
             </Box>
         </Box>
     );

@@ -5,6 +5,7 @@ import {
     ExpensesMonthlyReportResponse,
     AvailableMonthsResponse,
     SpecialistPayslipResponse,
+    DailySummaryResponse,
     PeriodHalf,
     Envelope,
 } from "../types/reports";
@@ -75,6 +76,24 @@ export const getSpecialistPayslip = async (
 
     return apiFetch<Envelope<SpecialistPayslipResponse>>(
         `/api/v1/reports/specialist-payslip/?${params.toString()}`,
+        { signal },
+    );
+};
+
+// Сводка дня: единый ендпоинт, отдаёт блоки day / monthToDate / cashPosition.
+// branch ОБЯЗАТЕЛЕН. responsibleEmployee (UUID) опц. — включает расходы сотрудника
+// и вычитает их в actualCash.
+export const getDailySummary = async (
+    branch: string,                 // UUID, обязателен
+    date: string,                   // YYYY-MM-DD
+    responsibleEmployee?: string,   // UUID
+    signal?: AbortSignal,
+): Promise<Envelope<DailySummaryResponse>> => {
+    const params = new URLSearchParams({ branch, date });
+    if (responsibleEmployee) params.append("responsibleEmployee", responsibleEmployee);
+
+    return apiFetch<Envelope<DailySummaryResponse>>(
+        `/api/v1/reports/daily-summary/?${params.toString()}`,
         { signal },
     );
 };
