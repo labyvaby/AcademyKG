@@ -98,6 +98,7 @@ export interface ExpensesMonthlyTotals {
     totalExpenses: number;
     payrollExpenses: number;
     advanceExpenses: number;
+    deductionExpenses: number;   // удержания/штрафы (есть в OpenAPI)
     operationalExpenses: number;
     otherExpenses?: number;
     cashExpenses: number;
@@ -200,4 +201,57 @@ export interface SpecialistPayslipResponse {
 export interface Envelope<T> {
     data: T;
     meta: any;
+}
+
+// ── Сводка дня (GET /api/v1/reports/daily-summary/) ──────────────────────
+// Денежные поля приходят строками-decimal; парсим на фронте.
+export interface DailySummaryIncome {
+    cash: string;
+    cashless: string;
+    balance: string;
+    bonuses: string;
+    total: string;
+    byKind: { group: string; individual: string };
+    byCategory: { afk: string; lfk: string; acupuncture: string; other: string };
+}
+export interface DailySummaryCountsBlock {
+    appointmentsCount: number;
+    uniquePatientsCount: number;
+    individualSpecialistsCount: number;
+    afkPaymentsCount: number;
+    lfkPaymentsCount: number;
+    lfkRecalculationCount: number;
+}
+export interface DailySummaryExpensesBlock {
+    operationalExpenses: string;
+    advanceExpenses: string;
+    deductionExpenses: string;
+    payrollExpenses: string;
+    responsibleEmployeeExpenses: string;
+    totalExpenses: string;
+}
+export interface DailySummaryRangeBlock {
+    income: DailySummaryIncome;
+    counts: DailySummaryCountsBlock;
+    expenses: DailySummaryExpensesBlock;
+    debt: { debtSum: string };
+    cash: { netCash: string };
+}
+export interface DailySummaryCashPosition {
+    previousDayCashNet: string;
+    currentDayCashNet: string;
+    monthToDateCashNet: string;
+    actualCash: string;          // НЕ пересчитывать на фронте — брать как есть
+    responsibleEmployeeId: string | null;
+}
+export interface DailySummaryResponse {
+    date: string;
+    branch: { id: string; name: string; brandName: string };
+    ranges: {
+        day: { dateFrom: string; dateTo: string };
+        monthToDate: { dateFrom: string; dateTo: string };
+    };
+    day: DailySummaryRangeBlock;
+    monthToDate: DailySummaryRangeBlock;
+    cashPosition: DailySummaryCashPosition;
 }

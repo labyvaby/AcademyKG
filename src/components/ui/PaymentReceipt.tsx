@@ -63,48 +63,50 @@ const RECEIPT_CSS = `
     padding: 3mm 3mm 4mm !important;
     box-sizing: border-box !important;
     font-family: "Courier New", Courier, monospace !important;
-    font-size: 12px !important;
-    line-height: 1.35 !important;
+    font-size: 14px !important;
+    line-height: 1.4 !important;
     color: #000 !important;
     background: #fff !important;
   }
   .center { text-align: center; }
   .bold   { font-weight: 700; }
   /* Название организации — центр, средний */
-  .org    { text-align: center; font-size: 13px; font-weight: 700; margin-bottom: 1mm; }
+  .org    { text-align: center; font-size: 15px; font-weight: 700; margin-bottom: 1mm; }
   /* Строка "1 Чек #XXXXX" */
-  .chek   { font-size: 12px; font-weight: 400; margin: 1mm 0; }
-  /* Дата+время — одна строка, 14px чтобы влезло в 58mm */
-  .datetime { font-size: 14px; font-weight: 700; margin: 1.5mm 0 1mm; line-height: 1.2; white-space: nowrap; }
+  .chek   { font-size: 13px; font-weight: 400; margin: 1mm 0; }
+  /* Дата+время — одна строка, влезает в 58mm */
+  .datetime { font-size: 15px; font-weight: 700; margin: 1.5mm 0 1mm; line-height: 1.2; white-space: nowrap; }
   /* Менеджер */
-  .manager  { font-size: 12px; margin-bottom: 1mm; }
+  .manager  { font-size: 13px; margin-bottom: 1mm; }
   /* Имя клиента — крупно, слева */
-  .client   { font-size: 18px; font-weight: 700; margin: 1.5mm 0 1mm; line-height: 1.1; }
+  .client   { font-size: 20px; font-weight: 700; margin: 1.5mm 0 1mm; line-height: 1.1; }
   /* Тип операции */
-  .optype   { font-size: 12px; margin-bottom: 1mm; }
+  .optype   { font-size: 13px; margin-bottom: 1mm; }
   /* Разделитель — пунктир */
   .sep  { border-top: 1px dashed #000; margin: 2mm 0; }
   /* Разделитель — сплошной */
   .sep2 { border-top: 1px solid #000; margin: 2mm 0; }
   /* Строка ключ-значение */
   .row    { display: flex; justify-content: space-between; align-items: baseline; margin: 0.5mm 0; }
-  .row-l  { flex: 1; padding-right: 2mm; word-break: break-word; font-size: 12px; }
-  .row-r  { flex-shrink: 0; white-space: nowrap; font-size: 12px; }
+  .row-l  { flex: 1; padding-right: 2mm; word-break: break-word; font-size: 13px; }
+  .row-r  { flex-shrink: 0; white-space: nowrap; font-size: 13px; }
   /* Итого */
   .total-row { display: flex; justify-content: space-between; align-items: baseline; margin: 1mm 0; }
-  .total-l   { font-size: 14px; font-weight: 700; }
-  .total-r   { font-size: 14px; font-weight: 700; white-space: nowrap; }
+  .total-l   { font-size: 16px; font-weight: 700; }
+  .total-r   { font-size: 16px; font-weight: 700; white-space: nowrap; }
   /* Таблица услуг */
   table  { width: 100%; border-collapse: collapse; margin: 1mm 0; }
-  th, td { padding: 1px 1px; font-size: 12px; vertical-align: top; color: #000; }
+  th, td { padding: 1px 1px; font-size: 13px; vertical-align: top; color: #000; }
   th     { font-weight: 700; border-bottom: 1px solid #000; }
   th:first-child, td:first-child { text-align: left; }
+  /* Название услуги — жирным */
+  tbody td:first-child { font-weight: 700; }
   th.num, td.num { text-align: center; width: 14mm; }
   th.amt, td.amt { text-align: right; width: 16mm; white-space: nowrap; }
   /* Нижняя отрывная — только одна линия */
   .tear { border-top: 2px dashed #000; margin: 3mm 0 2mm; }
   /* Второй чек — разрыв страницы перед ним */
-  .receipt-copy { page-break-before: always; width: 58mm !important; max-width: 58mm !important; margin: 0 !important; padding: 3mm 3mm 4mm !important; box-sizing: border-box !important; font-family: "Courier New", Courier, monospace !important; font-size: 12px !important; line-height: 1.35 !important; color: #000 !important; background: #fff !important; }
+  .receipt-copy { page-break-before: always; width: 58mm !important; max-width: 58mm !important; margin: 0 !important; padding: 3mm 3mm 4mm !important; box-sizing: border-box !important; font-family: "Courier New", Courier, monospace !important; font-size: 14px !important; line-height: 1.4 !important; color: #000 !important; background: #fff !important; }
 `;
 
 // Формат как на референсе: "800.00" без знака валюты в таблице/строках
@@ -152,7 +154,8 @@ export function buildReceiptHtml(data: ReceiptData): string {
     branchName = null,
   } = data;
 
-  const now       = dayjsBishkek(appointment.appointment_at);
+  // Фактическое время оплаты/печати чека, а не плановое время приёма
+  const now       = dayjsBishkek(new Date().toISOString());
   const datetimeStr = now.format("DD.MM.YYYY HH:mm:ss");
   const receiptNo = shortId(appointment.id);
   const services  = parseServices(appointment);
@@ -165,7 +168,7 @@ export function buildReceiptHtml(data: ReceiptData): string {
     if (branchName)    parts.push(branchName);
     if (performerName) parts.push(performerName);
     if (!parts.length) return "";
-    return `<tr><td colspan="${cols}" style="font-size:9px;font-weight:400;padding-bottom:0;word-break:break-word">${parts.join(" / ")}</td></tr>`;
+    return `<tr><td colspan="${cols}" style="font-size:13px;font-weight:700;padding-bottom:0;word-break:break-word">${parts.join(" / ")}</td></tr>`;
   }
 
   let servicesRows = "";
@@ -296,7 +299,7 @@ export function buildReceiptHtml(data: ReceiptData): string {
 
   <!-- Нижняя строка "Сом + итог" -->
   <div class="sep"></div>
-  <div class="row" style="font-size:12px">
+  <div class="row" style="font-size:13px">
     <span class="row-l bold">Сом</span>
     <span class="row-r bold">${formatTotal(totalPaid)}</span>
   </div>

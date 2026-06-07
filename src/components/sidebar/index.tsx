@@ -50,6 +50,7 @@ import SavingsOutlined from "@mui/icons-material/SavingsOutlined";
 import { useThemedLayoutContext } from "@refinedev/mui";
 import { logout } from "../../services/auth";
 import { Link as RouterLink, useLocation } from "react-router";
+import { useBranchContext } from "../../contexts/branch-context";
 import { useMobileSidebar } from "./mobile-context";
 import { SettingsModal } from "./SettingsModal";
 import { usePermissions } from "../../hooks/usePermissions";
@@ -214,6 +215,9 @@ const SidebarContainer: React.FC<React.PropsWithChildren<{ stickyTop?: React.Rea
 // Mobile header with logo (< 768px - мобильные и планшеты)
 const MobileSidebarHeader: React.FC = () => {
   const { mobileOpen, setMobileOpen } = useMobileSidebar();
+  const { selectedBranch } = useBranchContext();
+  const logoSrc = selectedBranch?.logoUrl || appLogo;
+  const brandLabel = selectedBranch?.brandName || selectedBranch?.name || "";
 
   return (
     <Box
@@ -233,11 +237,16 @@ const MobileSidebarHeader: React.FC = () => {
         <Stack direction="row" alignItems="center" spacing={1.5}>
           <Box
             component="img"
-            src={appLogo}
-            alt="Academy KG"
+            src={logoSrc}
+            onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
+              if (e.currentTarget.src !== appLogo) e.currentTarget.src = appLogo;
+            }}
+            alt={selectedBranch?.brandName || selectedBranch?.name || "Academy KG"}
             sx={{
               height: 36,
               width: "auto",
+              maxWidth: 120,
+              objectFit: "contain",
             }}
           />
           <Typography
@@ -248,9 +257,15 @@ const MobileSidebarHeader: React.FC = () => {
               background: "linear-gradient(45deg, #1e3c72 0%, #2a5298 100%)",
               WebkitBackgroundClip: "text",
               WebkitTextFillColor: "transparent",
+              // Длинное название филиала: переносим на 2 строки и уменьшаем шрифт
+              maxWidth: 220,
+              textAlign: "center",
+              wordBreak: "break-word",
+              lineHeight: 1.15,
+              fontSize: brandLabel.length > 16 ? "1.15rem" : undefined,
             }}
           >
-            Academy<span style={{ fontWeight: 400 }}>KG</span>
+            {brandLabel ? brandLabel : <>Academy<span style={{ fontWeight: 400 }}>KG</span></>}
           </Typography>
         </Stack>
       </RouterLink>
@@ -261,6 +276,9 @@ const MobileSidebarHeader: React.FC = () => {
 // Desktop header with logo and burger button on same level (>= 768px)
 const DesktopSidebarHeader: React.FC = () => {
   const { siderCollapsed, setSiderCollapsed } = useThemedLayoutContext();
+  const { selectedBranch } = useBranchContext();
+  const logoSrc = selectedBranch?.logoUrl || appLogo;
+  const brandLabel = selectedBranch?.brandName || selectedBranch?.name || "";
 
   const handleClick = () => {
     setSiderCollapsed?.(!siderCollapsed);
@@ -290,26 +308,40 @@ const DesktopSidebarHeader: React.FC = () => {
           <Stack direction="row" alignItems="center" spacing={1}>
             <Box
               component="img"
-              src={appLogo}
-              alt="Academy KG"
+              src={logoSrc}
+              onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
+                if (e.currentTarget.src !== appLogo) e.currentTarget.src = appLogo;
+              }}
+              alt={selectedBranch?.brandName || selectedBranch?.name || "Academy KG"}
               sx={{
                 height: 28,
                 width: "auto",
+                maxWidth: 110,
+                objectFit: "contain",
               }}
             />
             <Typography
               variant="h6"
+              title={brandLabel || undefined}
               sx={{
                 fontWeight: 850,
-                fontSize: "1.1rem",
+                fontSize: brandLabel.length > 14 ? "0.95rem" : "1.1rem",
                 letterSpacing: "-0.4px",
                 background: "linear-gradient(45deg, #1e3c72 0%, #2a5298 100%)",
                 WebkitBackgroundClip: "text",
                 WebkitTextFillColor: "transparent",
-                whiteSpace: "nowrap"
+                // Длинное название переносим максимум на 2 строки (не толкает бургер)
+                display: "-webkit-box",
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: "vertical",
+                overflow: "hidden",
+                whiteSpace: "normal",
+                wordBreak: "break-word",
+                lineHeight: 1.1,
+                maxWidth: 170,
               }}
             >
-              Academy<span style={{ fontWeight: 450 }}>KG</span>
+              {brandLabel ? brandLabel : <>Academy<span style={{ fontWeight: 450 }}>KG</span></>}
             </Typography>
           </Stack>
         </RouterLink>

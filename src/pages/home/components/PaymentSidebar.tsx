@@ -455,9 +455,10 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
 
             reloadBalance();
 
-            // Сохраняем данные для печати чека
+            // Сохраняем данные для печати чека и сразу отправляем на печать.
+            // Кнопка «Печать чека» остаётся для повторной печати.
             if (appointment) {
-                setLastReceiptData({
+                const receiptData: ReceiptData = {
                     appointment,
                     cashPaid: cashNum,
                     cardPaid: cardNum,
@@ -471,7 +472,9 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
                     cashierName: appointment.updated_by_name ?? appointment.created_by_name ?? null,
                     orgName: selectedBranch?.brandName || selectedBranch?.name,
                     branchName: selectedBranch?.name ?? null,
-                });
+                };
+                setLastReceiptData(receiptData);
+                printReceipt(receiptData);
             }
 
             notify?.({
