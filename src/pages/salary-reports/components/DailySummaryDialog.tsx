@@ -97,7 +97,7 @@ const DailySummaryDialog: React.FC<DailySummaryDialogProps> = ({ open, onClose, 
     };
 
     return (
-        <Dialog open={open} onClose={loading ? undefined : onClose} maxWidth="xs" fullWidth>
+        <Dialog open={open} onClose={loading ? undefined : onClose} maxWidth="sm" fullWidth>
             <DialogTitle sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", pr: 1 }}>
                 <Box>
                     <Typography variant="subtitle1" fontWeight={800}>Сводка дня</Typography>
@@ -135,6 +135,18 @@ const DailySummaryDialog: React.FC<DailySummaryDialogProps> = ({ open, onClose, 
                         disabled={loading}
                         size="small"
                         fullWidth
+                        // В узком диалоге список нельзя клиппить внутри DialogContent
+                        // (overflow:auto) — портализуем дропдаун наружу и возвращаем
+                        // flip/preventOverflow, чтобы он сам подбирал положение и высоту.
+                        slotProps={{
+                            popper: {
+                                disablePortal: false,
+                                modifiers: [
+                                    { name: "flip", enabled: true },
+                                    { name: "preventOverflow", enabled: true },
+                                ],
+                            },
+                        }}
                         renderInput={(params) => (
                             <TextField
                                 {...params}
