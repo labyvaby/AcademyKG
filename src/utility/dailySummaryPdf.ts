@@ -1,8 +1,7 @@
 /**
  * «Сводка дня» — PDF-генератор (A4 портрет, одна страница), html2pdf.js.
  * Структура 1:1 с образцом-фото (photo_2026-05-20_17-34-15.jpg):
- * таблица «строка = значение», секции-заголовки, красные/синие смысловые строки,
- * внизу — пустое место под подпись.
+ * таблица «строка = значение», секции-заголовки, красные/синие смысловые строки.
  *
  * Данные собирает services/dailySummary.ts (assembleDailySummary).
  * Поля-пробелы (АФК/ЛФК/перерасчёт/спецы) пока приходят нулями — см. backend ТЗ.
@@ -86,14 +85,6 @@ const buildHtml = (d: DailySummaryData): string => {
         ${row("Оплата за ЛФК общая количество", lfkValue)}
         ${row(`Итого штрафов с ${d.periodFrom} по ${d.periodTo}`, fmt(d.penaltiesPeriod))}
       </table>
-
-      <!-- Место под подпись -->
-      <div style="margin-top:14mm;display:flex;justify-content:flex-end;">
-        <div style="width:60mm;text-align:center;">
-          <div style="border-bottom:1px solid #000;height:12mm;"></div>
-          <div style="font-size:9pt;color:#555;margin-top:1mm;">(подпись)</div>
-        </div>
-      </div>
     </div>`;
 };
 
