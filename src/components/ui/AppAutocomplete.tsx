@@ -90,7 +90,10 @@ function AppAutocomplete<
     ...slotProps,
     popupIndicator: {
       ...(slotProps as any)?.popupIndicator,
-      onMouseDown: handleArrowInteraction,
+      // ТОЛЬКО touch: на мобиле гасим focus (клавиатура) и тоггл делаем вручную,
+      // т.к. preventDefault на touchstart подавляет синтетический click.
+      // На десктопе НЕ вешаем onMouseDown — иначе ручной тоггл + нативный click
+      // MUI (open контролируется ниже) дают двойное переключение («двойной клик»).
       onTouchStart: handleArrowInteraction,
     },
     popper: {
