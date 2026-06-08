@@ -639,15 +639,12 @@ export const HomeAddAppointmentDrawer: React.FC<
     isSavingRef.current = true;
 
     setTouched(true);
-    const now = dayjs();
-    const yesterday = now.subtract(1, "day").startOf("day");
     if (scheduleMode === "once") {
       const chosen = visitDateTime ? dayjs(visitDateTime) : null;
-      if (!chosen || !chosen.isValid() || chosen.isBefore(yesterday)) {
+      if (!chosen || !chosen.isValid()) {
         notify?.({
           type: "error",
-          message: "Нельзя создавать приём раньше вчерашнего дня",
-          description: "Выберите вчерашнюю, текущую или будущую дату и время.",
+          message: "Выберите корректную дату и время приёма",
         });
         isSavingRef.current = false;
         return;
@@ -674,17 +671,6 @@ export const HomeAddAppointmentDrawer: React.FC<
 
         const baseTime = visitDateTime ? dayjs(visitDateTime) : dayjs().hour(9).minute(0).second(0);
         const timeStr = baseTime.format("HH:mm");
-        const hasPastDate = periodDates.some((date) => dayjs(`${date}T${timeStr}:00`).isBefore(yesterday));
-        if (hasPastDate) {
-          notify?.({
-            type: "error",
-            message: "Нельзя создавать приём раньше вчерашнего дня",
-            description: "Уберите даты раньше вчерашнего из периода и попробуйте снова.",
-          });
-          setIsSaving(false);
-          isSavingRef.current = false;
-          return;
-        }
         const rowsForConflictCheck = validServiceRows.map((row) => {
           const svc = allServicesOpts.find((s) => s.id === row.serviceId);
           return {
