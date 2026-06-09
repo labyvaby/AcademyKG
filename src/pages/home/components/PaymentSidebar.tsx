@@ -17,11 +17,9 @@ import {
 import CloseOutlined from "@mui/icons-material/CloseOutlined";
 import AccountBalanceWalletOutlined from "@mui/icons-material/AccountBalanceWalletOutlined";
 import CreditCardOutlined from "@mui/icons-material/CreditCardOutlined";
-import CardGiftcardOutlined from "@mui/icons-material/CardGiftcardOutlined";
 import PrintOutlinedIcon from "@mui/icons-material/PrintOutlined";
 // AccountBalanceWalletOutlined и CreditCardOutlined используются в полях оплаты (Наличные/Безналичные)
 
-import { APPOINTMENT_STATUSES } from "../../../config/appointmentStatuses";
 import { Appointment, type AppointmentServiceJson } from "../types";
 import { apiFetch } from "../../../utility/apiClient";
 import { useNotification } from "@refinedev/core";
@@ -276,59 +274,9 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
 
     if (!appointment && !isBulkMode) return null;
 
-    const handleSaveFree = async () => {
-        if (loading || !appointment) return;
-        
-        const prevDetails = queryClient.getQueryData<any>(['appointment-details', appointment.id]);
-        const updates = {
-            status: APPOINTMENT_STATUSES.FREE,
-            paid_cash: 0,
-            paid_card: 0,
-            discount: basePrice,
-            debt: 0,
-            admin_comment: adminComment,
-        };
-
-        // Optimistic update
-        if (prevDetails) {
-            queryClient.setQueryData(['appointment-details', appointment.id], {
-                ...prevDetails,
-                item: { ...prevDetails.item, ...updates },
-            });
-        }
-        queryClient.setQueriesData({ queryKey: ["appointments", "daily"] }, (old: any) => {
-            if (!Array.isArray(old)) return old;
-            return old.map((a: any) => a.id === appointment.id ? { ...a, ...updates } : a);
-        });
-
-        try {
-            setLoading(true);
-            await apiFetch(`/api/v1/appointments/${appointment.id}/`, {
-                method: "PATCH",
-                body: JSON.stringify({
-                    status: "free",
-                    paidCash: 0,
-                    paidCard: 0,
-                    discount: basePrice,
-                    debt: 0,
-                    adminComment: adminComment,
-                })
-            });
-
-            notify?.({ type: "success", message: "Приём отмечен как бесплатный" });
-            onSaved();
-            onClose();
-        } catch (e: unknown) {
-            console.error("Failed to save free appointment:", e);
-            if (prevDetails) {
-                queryClient.setQueryData(['appointment-details', appointment.id], prevDetails);
-            }
-            queryClient.invalidateQueries({ queryKey: ["appointments", "daily"] });
-            notify?.({ type: "error", message: "Ошибка при сохранении" });
-        } finally {
-            setLoading(false);
-        }
-    };
+    // Примечание: отдельной кнопки/статуса «Бесплатно» нет. 100%-скидка проводится
+    // обычной оплатой (discountPercent=100, finalPrice=0): бэкенд при debt==0 сам
+    // переводит приём в статус `paid`. См. handleSave.
 
     const handleSaveBulk = async () => {
         if (loading) return;
