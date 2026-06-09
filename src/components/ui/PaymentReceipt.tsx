@@ -32,6 +32,8 @@ export type ReceiptData = {
   orgName?: string;
   /** Название филиала */
   branchName?: string | null;
+  /** Повторная печать чека (из карточки/истории, а не сразу после оплаты) */
+  isReprint?: boolean;
 };
 
 // Термочек 58mm. Точно по референсу с фото.
@@ -71,6 +73,8 @@ const RECEIPT_CSS = `
   }
   .center { text-align: center; }
   .bold   { font-weight: 700; }
+  /* Пометка повторной печати */
+  .reprint { text-align: center; font-size: 16px; font-weight: 700; border: 2px solid #000; padding: 1mm 0; margin: 0 0 2mm; letter-spacing: 1px; }
   /* Название организации — центр, средний */
   .org    { text-align: center; font-size: 17px; font-weight: 700; margin-bottom: 1mm; }
   /* Строка "1 Чек #XXXXX" */
@@ -155,6 +159,7 @@ export function buildReceiptHtml(data: ReceiptData): string {
     cashierName,
     orgName = "Аутизм победим KG",
     branchName = null,
+    isReprint = false,
   } = data;
 
   // Фактическое время оплаты/печати чека
@@ -244,6 +249,9 @@ export function buildReceiptHtml(data: ReceiptData): string {
 <body>
 <div class="receipt-print-root">
 
+  <!-- Пометка повторной печати -->
+  ${isReprint ? `<div class="reprint">ПОВТОРНЫЙ ЧЕК</div>` : ""}
+
   <!-- Название организации по центру -->
   <div class="org">${orgName}</div>
 
@@ -317,8 +325,8 @@ export function buildReceiptHtml(data: ReceiptData): string {
 
 </div>
 
-<!-- ===== КОПИЯ ЧЕКА ===== -->
-<div class="receipt-copy">
+<!-- ===== КОПИЯ ЧЕКА (не печатается при повторной печати) ===== -->
+${isReprint ? "" : `<div class="receipt-copy">
 
   ${appointment.patient_name ? `<div class="client">${appointment.patient_name}</div>` : ""}
   ${cashierName ? `<div class="manager">Менеджер: ${cashierName}</div>` : ""}
@@ -339,7 +347,7 @@ export function buildReceiptHtml(data: ReceiptData): string {
 
   <div class="tear"></div>
 
-</div>
+</div>`}
 </body>
 </html>`;
 }
