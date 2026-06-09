@@ -88,6 +88,17 @@ export const Sidebar: React.FC = () => {
   );
 };
 
+// Cache-busting токен на сессию: если бэк переотдаёт новый логотип филиала
+// по тому же URL, браузер/CDN могут вернуть старый из кэша. Добавляем ?v=,
+// чтобы при перезагрузке страницы всегда подтягивался актуальный логотип.
+const LOGO_CACHE_BUST = String(Date.now());
+function withLogoCacheBust(url?: string | null): string | null {
+  if (!url) return null;
+  if (url.startsWith("data:") || url.startsWith("blob:")) return url;
+  const sep = url.includes("?") ? "&" : "?";
+  return `${url}${sep}v=${LOGO_CACHE_BUST}`;
+}
+
 // Container responsible for width/collapsed behavior
 const SidebarContainer: React.FC<React.PropsWithChildren<{ stickyTop?: React.ReactNode; footer?: React.ReactNode }>> = ({ children, stickyTop, footer }) => {
   const { siderCollapsed, setSiderCollapsed } = useThemedLayoutContext();
@@ -216,7 +227,7 @@ const SidebarContainer: React.FC<React.PropsWithChildren<{ stickyTop?: React.Rea
 const MobileSidebarHeader: React.FC = () => {
   const { mobileOpen, setMobileOpen } = useMobileSidebar();
   const { selectedBranch } = useBranchContext();
-  const logoSrc = selectedBranch?.logoUrl || appLogo;
+  const logoSrc = withLogoCacheBust(selectedBranch?.logoUrl) || appLogo;
   const brandLabel = selectedBranch?.brandName || selectedBranch?.name || "";
 
   return (
@@ -277,7 +288,7 @@ const MobileSidebarHeader: React.FC = () => {
 const DesktopSidebarHeader: React.FC = () => {
   const { siderCollapsed, setSiderCollapsed } = useThemedLayoutContext();
   const { selectedBranch } = useBranchContext();
-  const logoSrc = selectedBranch?.logoUrl || appLogo;
+  const logoSrc = withLogoCacheBust(selectedBranch?.logoUrl) || appLogo;
   const brandLabel = selectedBranch?.brandName || selectedBranch?.name || "";
 
   const handleClick = () => {
