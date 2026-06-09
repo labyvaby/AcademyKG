@@ -109,9 +109,12 @@ export function usePatientHistory(selected: Patient | null) {
           // ignore cache errors
         }
 
-        // Load from REST API
+        // Load from REST API. Передаём signal — при быстром переключении
+        // карточек клиентов прежний запрос отменяется штатно (AbortError),
+        // а не «зависает» и не всплывает ошибкой.
         const rows = await fetchAllPages<any>(
-          `/api/v1/appointments/?patient=${selectedId}&ordering=-appointmentAt`
+          `/api/v1/appointments/?patient=${selectedId}&ordering=-appointmentAt`,
+          { signal: ctrl.signal }
         );
 
         if (ctrl.signal.aborted) return;
