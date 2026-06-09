@@ -572,6 +572,7 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
                         cashierName: item.updated_by_name ?? item.created_by_name ?? null,
                         orgName: selectedBranch?.brandName || selectedBranch?.name,
                         branchName: selectedBranch?.name ?? null,
+                        isReprint: true,
                       });
                     }}
                   >
@@ -940,6 +941,7 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
                         cashierName: item.updated_by_name ?? item.created_by_name ?? null,
                         orgName: selectedBranch?.brandName || selectedBranch?.name,
                         branchName: selectedBranch?.name ?? null,
+                        isReprint: true,
                       });
                     }}
                   >

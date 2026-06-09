@@ -32,6 +32,8 @@ export type ReceiptData = {
   orgName?: string;
   /** Название филиала */
   branchName?: string | null;
+  /** Повторная печать чека (из карточки/истории, а не сразу после оплаты) */
+  isReprint?: boolean;
 };
 
 // Термочек 58mm. Точно по референсу с фото.
@@ -63,40 +65,45 @@ const RECEIPT_CSS = `
     padding: 3mm 3mm 4mm !important;
     box-sizing: border-box !important;
     font-family: "Courier New", Courier, monospace !important;
-    font-size: 14px !important;
+    font-size: 16px !important;
+    font-weight: 700 !important;
     line-height: 1.4 !important;
     color: #000 !important;
     background: #fff !important;
   }
   .center { text-align: center; }
   .bold   { font-weight: 700; }
+  /* Пометка повторной печати */
+  .reprint { text-align: center; font-size: 16px; font-weight: 700; border: 2px solid #000; padding: 1mm 0; margin: 0 0 2mm; letter-spacing: 1px; }
   /* Название организации — центр, средний */
-  .org    { text-align: center; font-size: 15px; font-weight: 700; margin-bottom: 1mm; }
+  .org    { text-align: center; font-size: 17px; font-weight: 700; margin-bottom: 1mm; }
   /* Строка "1 Чек #XXXXX" */
-  .chek   { font-size: 13px; font-weight: 400; margin: 1mm 0; }
-  /* Дата+время — одна строка, влезает в 58mm */
-  .datetime { font-size: 15px; font-weight: 700; margin: 1.5mm 0 1mm; line-height: 1.2; white-space: nowrap; }
+  .chek   { font-size: 15px; font-weight: 700; margin: 1mm 0; }
+  /* Дата+время — строка "метка слева / значение справа", влезает в 58mm */
+  .datetime-row { margin: 0.5mm 0; }
+  .datetime-row .row-l { flex: 0 0 auto; white-space: nowrap; font-size: 14px; }
+  .datetime-row .row-r { white-space: nowrap; font-size: 14px; }
   /* Менеджер */
-  .manager  { font-size: 13px; margin-bottom: 1mm; }
+  .manager  { font-size: 15px; font-weight: 700; margin-bottom: 1mm; }
   /* Имя клиента — крупно, слева */
-  .client   { font-size: 20px; font-weight: 700; margin: 1.5mm 0 1mm; line-height: 1.1; }
+  .client   { font-size: 22px; font-weight: 700; margin: 1.5mm 0 1mm; line-height: 1.1; }
   /* Тип операции */
-  .optype   { font-size: 13px; margin-bottom: 1mm; }
+  .optype   { font-size: 15px; font-weight: 700; margin-bottom: 1mm; }
   /* Разделитель — пунктир */
   .sep  { border-top: 1px dashed #000; margin: 2mm 0; }
   /* Разделитель — сплошной */
   .sep2 { border-top: 1px solid #000; margin: 2mm 0; }
   /* Строка ключ-значение */
   .row    { display: flex; justify-content: space-between; align-items: baseline; margin: 0.5mm 0; }
-  .row-l  { flex: 1; padding-right: 2mm; word-break: break-word; font-size: 13px; }
-  .row-r  { flex-shrink: 0; white-space: nowrap; font-size: 13px; }
+  .row-l  { flex: 1; padding-right: 2mm; word-break: break-word; font-size: 15px; font-weight: 700; }
+  .row-r  { flex-shrink: 0; white-space: nowrap; font-size: 15px; font-weight: 700; }
   /* Итого */
   .total-row { display: flex; justify-content: space-between; align-items: baseline; margin: 1mm 0; }
-  .total-l   { font-size: 16px; font-weight: 700; }
-  .total-r   { font-size: 16px; font-weight: 700; white-space: nowrap; }
+  .total-l   { font-size: 18px; font-weight: 700; }
+  .total-r   { font-size: 18px; font-weight: 700; white-space: nowrap; }
   /* Таблица услуг */
   table  { width: 100%; border-collapse: collapse; margin: 1mm 0; }
-  th, td { padding: 1px 1px; font-size: 13px; vertical-align: top; color: #000; }
+  th, td { padding: 1px 1px; font-size: 15px; font-weight: 700; vertical-align: top; color: #000; }
   th     { font-weight: 700; border-bottom: 1px solid #000; }
   th:first-child, td:first-child { text-align: left; }
   /* Название услуги — жирным */
@@ -106,7 +113,7 @@ const RECEIPT_CSS = `
   /* Нижняя отрывная — только одна линия */
   .tear { border-top: 2px dashed #000; margin: 3mm 0 2mm; }
   /* Второй чек — разрыв страницы перед ним */
-  .receipt-copy { page-break-before: always; width: 58mm !important; max-width: 58mm !important; margin: 0 !important; padding: 3mm 3mm 4mm !important; box-sizing: border-box !important; font-family: "Courier New", Courier, monospace !important; font-size: 14px !important; line-height: 1.4 !important; color: #000 !important; background: #fff !important; }
+  .receipt-copy { page-break-before: always; width: 58mm !important; max-width: 58mm !important; margin: 0 !important; padding: 3mm 3mm 4mm !important; box-sizing: border-box !important; font-family: "Courier New", Courier, monospace !important; font-size: 16px !important; font-weight: 700 !important; line-height: 1.4 !important; color: #000 !important; background: #fff !important; }
 `;
 
 // Формат как на референсе: "800.00" без знака валюты в таблице/строках
@@ -152,11 +159,16 @@ export function buildReceiptHtml(data: ReceiptData): string {
     cashierName,
     orgName = "Аутизм победим KG",
     branchName = null,
+    isReprint = false,
   } = data;
 
-  // Фактическое время оплаты/печати чека, а не плановое время приёма
+  // Фактическое время оплаты/печати чека
   const now       = dayjsBishkek(new Date().toISOString());
-  const datetimeStr = now.format("DD.MM.YYYY HH:mm:ss");
+  const datetimeStr = now.format("DD.MM.YYYY HH:mm");
+  // Плановое время приёма (когда записан пациент)
+  const apptStr = appointment.appointment_at
+    ? dayjsBishkek(appointment.appointment_at).format("DD.MM.YYYY HH:mm")
+    : (appointment.formatted_date || "");
   const receiptNo = shortId(appointment.id);
   const services  = parseServices(appointment);
   const totalPaid = cashPaid + cardPaid + balancePaid + bonusesPaid;
@@ -168,7 +180,7 @@ export function buildReceiptHtml(data: ReceiptData): string {
     if (branchName)    parts.push(branchName);
     if (performerName) parts.push(performerName);
     if (!parts.length) return "";
-    return `<tr><td colspan="${cols}" style="font-size:13px;font-weight:700;padding-bottom:0;word-break:break-word">${parts.join(" / ")}</td></tr>`;
+    return `<tr><td colspan="${cols}" style="font-size:15px;font-weight:700;padding-bottom:0;word-break:break-word">${parts.join(" / ")}</td></tr>`;
   }
 
   let servicesRows = "";
@@ -237,14 +249,18 @@ export function buildReceiptHtml(data: ReceiptData): string {
 <body>
 <div class="receipt-print-root">
 
+  <!-- Пометка повторной печати -->
+  ${isReprint ? `<div class="reprint">ПОВТОРНЫЙ ЧЕК</div>` : ""}
+
   <!-- Название организации по центру -->
   <div class="org">${orgName}</div>
 
   <!-- "1 Чек #XXXXX" — слева, обычный размер -->
   <div class="chek">1 Чек #${receiptNo}</div>
 
-  <!-- Дата и время — крупно, НА ОДНОЙ СТРОКЕ -->
-  <div class="datetime">${datetimeStr}</div>
+  <!-- Время приёма (плановое) и время оплаты (фактическое) — выровнены -->
+  ${apptStr ? `<div class="row datetime-row"><span class="row-l">Приём</span><span class="row-r">${apptStr}</span></div>` : ""}
+  <div class="row datetime-row"><span class="row-l">Оплата</span><span class="row-r">${datetimeStr}</span></div>
 
   <!-- Менеджер — если есть -->
   ${cashierName ? `<div class="manager">Менеджер: ${cashierName}</div>` : ""}
@@ -299,7 +315,7 @@ export function buildReceiptHtml(data: ReceiptData): string {
 
   <!-- Нижняя строка "Сом + итог" -->
   <div class="sep"></div>
-  <div class="row" style="font-size:13px">
+  <div class="row" style="font-size:16px">
     <span class="row-l bold">Сом</span>
     <span class="row-r bold">${formatTotal(totalPaid)}</span>
   </div>
@@ -309,12 +325,13 @@ export function buildReceiptHtml(data: ReceiptData): string {
 
 </div>
 
-<!-- ===== КОПИЯ ЧЕКА ===== -->
-<div class="receipt-copy">
+<!-- ===== КОПИЯ ЧЕКА (не печатается при повторной печати) ===== -->
+${isReprint ? "" : `<div class="receipt-copy">
 
   ${appointment.patient_name ? `<div class="client">${appointment.patient_name}</div>` : ""}
   ${cashierName ? `<div class="manager">Менеджер: ${cashierName}</div>` : ""}
-  <div class="manager">Дата: ${datetimeStr}</div>
+  ${apptStr ? `<div class="row datetime-row"><span class="row-l">Приём</span><span class="row-r">${apptStr}</span></div>` : ""}
+  <div class="row datetime-row"><span class="row-l">Оплата</span><span class="row-r">${datetimeStr}</span></div>
 
   <div class="sep"></div>
 
@@ -330,7 +347,7 @@ export function buildReceiptHtml(data: ReceiptData): string {
 
   <div class="tear"></div>
 
-</div>
+</div>`}
 </body>
 </html>`;
 }

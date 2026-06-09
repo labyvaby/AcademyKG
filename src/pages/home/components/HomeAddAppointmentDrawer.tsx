@@ -1038,11 +1038,14 @@ export const HomeAddAppointmentDrawer: React.FC<
         }
       }
 
+      let createdAppointmentId = "";
       try {
-        await apiFetch("/api/v1/appointments/", {
+        const res: any = await apiFetch("/api/v1/appointments/", {
           method: "POST",
           body: JSON.stringify(requestPayload),
         });
+        const created = res?.data ?? res;
+        createdAppointmentId = String(created?.id ?? "");
       } catch (err: any) {
         console.error("API Error creating appointment:", err);
         // Сбрасываем кеш дня чтобы следующая попытка загрузила актуальные данные
@@ -1079,6 +1082,25 @@ export const HomeAddAppointmentDrawer: React.FC<
         return;
       }
 
+      // Снимок данных для авто-открытия оплаты — берём ДО сброса формы.
+      const payPatient = selectedPatient;
+      const payVisitIso = dayjs(visitDateTime).toISOString();
+      const paySvcLines = validServiceRows.map((row) => {
+        const svc = allServicesOpts.find((s) => s.id === row.serviceId);
+        const docName = doctorsOpts.find((d) => d.id === row.doctorId)?.full_name
+          ?? allDoctorsOpts.find((d) => d.id === row.doctorId)?.full_name
+          ?? "";
+        return {
+          name: svc?.name ?? "Услуга",
+          price: Number(svc?.price ?? 0),
+          quantity: 1,
+          performer_name: docName,
+        };
+      });
+      const paySvcTotal = paySvcLines.reduce((acc, s) => acc + s.price * s.quantity, 0);
+      const paySvcNames = paySvcLines.map((s) => s.name).join(", ");
+      const payDocName = paySvcLines[0]?.performer_name ?? "";
+
       // Сброс локального состояния
       setSelectedPatient(null);
       setServiceRows([{ serviceId: "", doctorId: "", quantity: 1 }]);
@@ -1097,6 +1119,35 @@ export const HomeAddAppointmentDrawer: React.FC<
         type: "success",
         message: "Прием успешно создан!",
       });
+
+      // Авто-открытие окна оплаты сразу после создания (меньше кликов).
+      // Только для реального пациента — бронь без клиента оплату не открывает.
+      if (createdAppointmentId && payPatient?.id) {
+        const ctx: import("../types").Appointment = {
+          id: createdAppointmentId,
+          appointment_at: payVisitIso,
+          formatted_date: "",
+          doctor_name: payDocName,
+          patient_name: payPatient.fio ?? payPatient["ФИО клиента"] ?? "",
+          patient_id: payPatient.id,
+          service_names: paySvcNames,
+          parsed_services: paySvcLines as any,
+          status: "scheduled",
+          is_night: false,
+          total_cost: paySvcTotal,
+          total_amount: paySvcTotal,
+          paid_cash: 0,
+          paid_card: 0,
+          paid_balance: 0,
+          paid_bonuses: 0,
+          discount: 0,
+          debt: paySvcTotal,
+        };
+        setPeriodCreatedAppointments([]);
+        setPeriodPaymentTotal(0);
+        setPeriodPaymentContext(ctx);
+        setPeriodPaymentOpen(true);
+      }
     } catch (e: unknown) {
        
       console.error(e);
@@ -1326,6 +1377,8 @@ export const HomeAddAppointmentDrawer: React.FC<
               }}
               ampm={false}
               minutesStep={15}
+              // Бэк: приём задним числом — не более 5 календарных дней.
+              minDate={dayjs().subtract(5, "day").startOf("day")}
               slotProps={{
                 textField: {
                   fullWidth: true,
@@ -1371,6 +1424,8 @@ export const HomeAddAppointmentDrawer: React.FC<
                     <Typography variant="body2" color="text.secondary" fontWeight={500}>Начало</Typography>
                     <CustomDatePicker
                       value={periodStartDate ? dayjs(periodStartDate) : null}
+                      // Бэк: приём задним числом — не более 5 календарных дней.
+                      minDate={dayjs().subtract(5, "day").startOf("day")}
                       onChange={(val) => {
                         const v = val ? val.format("YYYY-MM-DD") : "";
                         setPeriodStartDate(v);
