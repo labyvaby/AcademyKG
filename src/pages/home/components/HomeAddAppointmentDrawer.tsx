@@ -1377,6 +1377,8 @@ export const HomeAddAppointmentDrawer: React.FC<
               }}
               ampm={false}
               minutesStep={15}
+              // Бэк: приём задним числом — не более 5 календарных дней.
+              minDate={dayjs().subtract(5, "day").startOf("day")}
               slotProps={{
                 textField: {
                   fullWidth: true,
@@ -1422,6 +1424,8 @@ export const HomeAddAppointmentDrawer: React.FC<
                     <Typography variant="body2" color="text.secondary" fontWeight={500}>Начало</Typography>
                     <CustomDatePicker
                       value={periodStartDate ? dayjs(periodStartDate) : null}
+                      // Бэк: приём задним числом — не более 5 календарных дней.
+                      minDate={dayjs().subtract(5, "day").startOf("day")}
                       onChange={(val) => {
                         const v = val ? val.format("YYYY-MM-DD") : "";
                         setPeriodStartDate(v);
