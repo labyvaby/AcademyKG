@@ -44,6 +44,7 @@ export type Appointment = {
   discount: number;
   debt: number;
   admin_comment?: string | null;
+  cancellation_reason?: string | null; // Причина отмены (только при status=cancelled)
   complaints?: string | null;
   doctor_complaints?: string | null;
   diagnosis_code?: string | null; // Код диагноза по МКБ-10
@@ -98,6 +99,7 @@ export type AggregatedAppointmentRow = {
   discount?: number | null;
   debt?: number | null;
   admin_comment?: string | null;
+  cancellation_reason?: string | null;
   complaints?: string | null;
   doctor_complaints?: string | null;
   diagnosis_code?: string | null;
@@ -133,6 +135,7 @@ export type AggregatedAppointmentRow = {
   paidBalance?: number | null;
   paidBonuses?: number | null;
   adminComment?: string | null;
+  cancellationReason?: string | null;
   doctorComplaints?: string | null;
   diagnosisCode?: string | null;
   clinicDiagnosisId?: string | null;
@@ -289,6 +292,7 @@ export const mapAggregatedRowToAppointment = (
     discount: n(r.discount),
     debt: n(r.debt),
     admin_comment: r.admin_comment ?? r.adminComment ?? null,
+    cancellation_reason: r.cancellation_reason ?? r.cancellationReason ?? null,
     complaints: r.complaints ?? null,
     doctor_complaints: r.doctor_complaints ?? r.doctorComplaints ?? null,
     diagnosis_code: r.diagnosis_code ?? r.diagnosisCode ?? null,

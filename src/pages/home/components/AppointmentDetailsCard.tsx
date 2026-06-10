@@ -17,6 +17,7 @@ import {
   DialogContent,
   DialogContentText,
   DialogActions,
+  TextField,
   Paper,
   Dialog,
   Avatar,
@@ -162,12 +163,14 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
   // Confirmation Dialog State
   const [confirmOpen, setConfirmOpen] = React.useState(false);
   const [confirmAction, setConfirmAction] = React.useState<"cancel" | "delete" | "not_came" | null>(null);
+  // Причина отмены — обязательна при переводе приёма в статус "Отменено"
+  const [cancellationReason, setCancellationReason] = React.useState("");
 
 
   const queryClient = useQueryClient();
 
 
-  const handleStatusUpdate = async (newStatus: string) => {
+  const handleStatusUpdate = async (newStatus: string, reason?: string) => {
     if (!item || !appointmentId) return;
 
     const STATUS_API_MAP: Record<string, string> = {
@@ -176,11 +179,17 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
     };
     const apiStatus = STATUS_API_MAP[newStatus] ?? newStatus;
 
+    // Бэк требует cancellationReason при новом переводе в "cancelled"
+    const body: Record<string, unknown> = { status: apiStatus };
+    if (apiStatus === "cancelled" && reason?.trim()) {
+      body.cancellationReason = reason.trim();
+    }
+
     try {
       setActionLoading(true);
       await apiFetch(`/api/v1/appointments/${appointmentId}/`, {
         method: "PATCH",
-        body: JSON.stringify({ status: apiStatus }),
+        body: JSON.stringify(body),
       });
       open?.({ message: "Статус обновлён", type: "success" });
       handleRefresh();
@@ -198,7 +207,8 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
   const handleConfirmAction = async () => {
     setConfirmOpen(false);
     if (confirmAction === 'cancel') {
-      await handleStatusUpdate(APPOINTMENT_STATUSES.CANCELLED);
+      await handleStatusUpdate(APPOINTMENT_STATUSES.CANCELLED, cancellationReason);
+      setCancellationReason("");
     } else if (confirmAction === 'not_came') {
       await handleStatusUpdate(APPOINTMENT_STATUSES.PATIENT_NOT_CAME);
     } else if (confirmAction === 'delete') {
@@ -248,6 +258,7 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
   };
 
   const promptCancel = () => {
+    setCancellationReason("");
     setConfirmAction('cancel');
     setConfirmOpen(true);
   };
@@ -857,6 +868,29 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
             </Box>
 
 
+            {/* Причина отмены — показываем для отменённых приёмов */}
+            {item.status?.startsWith("Отмен") && (
+              <Box>
+                <Typography variant="subtitle2" color="error.main" gutterBottom>
+                  Причина отмены
+                </Typography>
+                <Typography
+                  variant="body2"
+                  sx={{
+                    bgcolor: (theme) => alpha(theme.palette.error.main, 0.04),
+                    p: 1,
+                    borderRadius: 1,
+                    border: "1px solid",
+                    borderColor: (theme) => alpha(theme.palette.error.main, 0.2),
+                    color: item.cancellation_reason ? "text.primary" : "text.secondary",
+                    fontStyle: item.cancellation_reason ? "normal" : "italic",
+                  }}
+                >
+                  {item.cancellation_reason || "Причина не указана"}
+                </Typography>
+              </Box>
+            )}
+
             {/* Комментарий администратора */}
             {item.admin_comment && (
               <Box>
@@ -998,6 +1032,21 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
               ? "Прием будет отмечен как 'Клиент не пришел'."
               : "Запись будет переведена в статус 'Отменено'. Она не удалится из истории."}
           </DialogContentText>
+          {confirmAction === 'cancel' && (
+            <TextField
+              label="Причина отмены"
+              required
+              fullWidth
+              multiline
+              minRows={2}
+              autoFocus
+              value={cancellationReason}
+              onChange={(e) => setCancellationReason(e.target.value)}
+              error={cancellationReason.length > 0 && !cancellationReason.trim()}
+              helperText="Укажите причину отмены приёма"
+              sx={{ mt: 2 }}
+            />
+          )}
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setConfirmOpen(false)}>Назад</Button>
@@ -1005,7 +1054,8 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
             onClick={handleConfirmAction}
             color={confirmAction === 'not_came' ? "warning" : "error"}
             variant="contained"
-            autoFocus
+            autoFocus={confirmAction !== 'cancel'}
+            disabled={confirmAction === 'cancel' && !cancellationReason.trim()}
           >
             {confirmAction === 'delete' ? "Удалить" : confirmAction === 'not_came' ? "Подтвердить" : "Подтвердить отмену"}
           </Button>

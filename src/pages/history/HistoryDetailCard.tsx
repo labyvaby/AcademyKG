@@ -115,6 +115,18 @@ export const HistoryDetailCard: React.FC<HistoryDetailCardProps> = ({ appointmen
                         <Typography variant="h6" color="primary">{formatKGS(item.total_cost)}</Typography>
                     </Box>
 
+                    {item.status?.startsWith("Отмен") && (
+                        <Box sx={{ mt: 1 }}>
+                            <Typography variant="subtitle2" color="error.main" gutterBottom>Причина отмены</Typography>
+                            <Typography
+                                variant="body2"
+                                sx={{ whiteSpace: 'pre-wrap', color: item.cancellation_reason ? 'text.primary' : 'text.secondary', fontStyle: item.cancellation_reason ? 'normal' : 'italic' }}
+                            >
+                                {item.cancellation_reason || "Причина не указана"}
+                            </Typography>
+                        </Box>
+                    )}
+
                     {item.conclusion && (
                         <Box sx={{ mt: 2, p: 2, bgcolor: 'action.hover', borderRadius: 1 }}>
                             <Typography variant="subtitle2" gutterBottom>Заключение</Typography>
