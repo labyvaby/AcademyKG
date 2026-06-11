@@ -305,14 +305,6 @@ export function buildReceiptHtml(data: ReceiptData): string {
   <!-- Способы оплаты -->
   ${paymentLines.join("")}
 
-  <!-- Долг, если есть -->
-  ${appointment.debt > 0 ? `
-  <div class="sep"></div>
-  <div class="row">
-    <span class="row-l bold">Остаток долга</span>
-    <span class="row-r bold">${formatMoney(appointment.debt)}</span>
-  </div>` : ""}
-
   <!-- Нижняя строка "Сом + итог" -->
   <div class="sep"></div>
   <div class="row" style="font-size:16px">
