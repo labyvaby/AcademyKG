@@ -36,9 +36,10 @@ const toRow = (d: ApiEmployee): EmployeesRow => {
   };
 };
 
-const fetchEmployeesBase = async (): Promise<ApiEmployee[]> => {
+const fetchEmployeesBase = async (branchId?: string): Promise<ApiEmployee[]> => {
   try {
-    const res: any = await apiFetch("/api/v1/employees/?status=active");
+    const branchParam = branchId ? `&branch=${branchId}` : "";
+    const res: any = await apiFetch(`/api/v1/employees/?status=active${branchParam}`);
     // Handle nesting if API returns { data: { results: [...] } }
     let results = res?.data?.results ?? res?.results;
     if (!results && res?.data && Array.isArray(res.data)) {
@@ -51,9 +52,9 @@ const fetchEmployeesBase = async (): Promise<ApiEmployee[]> => {
   }
 };
 
-export const fetchEmployees = async (): Promise<EmployeesRow[]> => {
+export const fetchEmployees = async (branchId?: string): Promise<EmployeesRow[]> => {
   try {
-    const data = await fetchEmployeesBase();
+    const data = await fetchEmployeesBase(branchId);
     return data.map(toRow);
   } catch (e) {
     console.error("fetchEmployees failed", e);

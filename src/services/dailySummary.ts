@@ -3,9 +3,17 @@
  * GET /api/v1/reports/daily-summary/ (см. docs/backend-requests-daily-summary.md
  * и ответ бэка frontend-daily-summary-api.md).
  *
- * Бэк отдаёт всё готовым: блоки `day` / `monthToDate` (доход, счётчики, расходы,
- * долги, наличка) + `cashPosition` (включая ГОТОВУЮ actualCash). Фронт ничего
- * не пересчитывает — только маппит ответ в плоскую модель PDF.
+ * Кассовые строки СОЗНАТЕЛЬНО считаются на фронте по модели заказчика
+ * (фото-образец 19.05.2026, уравнения сходятся точно):
+ *   наличка за сегодня  = day.income.total            (= сумма строк прихода)
+ *   наличка за период   = monthToDate.income.total
+ *   за прошлый день     = период − сегодня
+ *   фактическая наличка = период − авансы − долги − расходы ответственного
+ * `cashPosition` бэка НЕ используется: его netCash вычитает авансы/выплаты ЗП
+ * и берёт только наличный канал — инварианты образца на нём не сходятся,
+ * а actualCash вычитает авансы дважды (см.
+ * docs/backend-questions-daily-summary-followup.md, F3). После правки формул
+ * бэком можно вернуться на cashPosition.
  */
 import dayjs from "dayjs";
 import "dayjs/locale/ru";
@@ -40,10 +48,10 @@ export interface DailySummaryData {
     expensesToday: number;
     expensesPeriod: number;
 
-    // Наличка (cashPosition)
-    cashPrevDay: number;
-    cashToday: number;
-    cashPeriod: number;
+    // Наличка (фронт-формулы по модели образца, не cashPosition — см. шапку)
+    cashPrevDay: number;        // период − сегодня
+    cashToday: number;          // day.income.total
+    cashPeriod: number;         // monthToDate.income.total
 
     // Расходы ответственного
     personExpensesToday: number;
@@ -57,12 +65,12 @@ export interface DailySummaryData {
     childDebtToday: number;
     childDebtPeriod: number;
 
-    // Фактическая наличка — ГОТОВАЯ из API (не пересчитываем)
+    // Фактическая наличка = период − авансы − долги − расходы ответственного
     factualCash: number;
 
     // Счётчики
     lessonsCount: number;        // appointmentsCount за день
-    childrenCount: number;       // uniquePatientsCount за период
+    childrenCount: number;       // appointmentsCount за период (посещения, не уникальные)
     specialistsCount: number;    // individualSpecialistsCount за период
     afkPaymentsToday: number;    // afkPaymentsCount за день
     lfkPaymentsCount: number;    // lfkPaymentsCount за период
@@ -92,7 +100,6 @@ export async function assembleDailySummary(p: AssembleParams): Promise<DailySumm
     const r = res.data;
     const day = r.day;
     const mtd = r.monthToDate;
-    const cp = r.cashPosition;
 
     const d = dayjs(p.date);
 
@@ -104,7 +111,21 @@ export async function assembleDailySummary(p: AssembleParams): Promise<DailySumm
     const incomeAfk = num(day.income.byCategory.afk);
     const acupuncture = num(day.income.byCategory.acupuncture);
     const incomeTotal = num(day.income.total);
-    const income = incomeTotal - incomeAfk - acupuncture;
+    // byCategory у бэка — аллокация через paymentFactor и может не сходиться
+    // с total копейка в копейку; не даём остатку уйти в минус («Приход: -1»).
+    const income = Math.max(0, incomeTotal - incomeAfk - acupuncture);
+
+    // Кассовые строки по модели образца (см. шапку файла). Расходы из «налички»
+    // не вычитаются — на образце фактическая наличка их не учитывает
+    // (открытый вопрос заказчику; расходы видны отдельными строками).
+    const cashToday = incomeTotal;
+    const cashPeriod = num(mtd.income.total);
+    const cashPrevDay = cashPeriod - cashToday;
+    const factualCash =
+        cashPeriod -
+        num(mtd.expenses.advanceExpenses) -
+        num(mtd.debt.debtSum) -
+        num(mtd.expenses.responsibleEmployeeExpenses);
 
     return {
         brandName: r.branch.brandName || r.branch.name || "Academy KG",
@@ -122,9 +143,9 @@ export async function assembleDailySummary(p: AssembleParams): Promise<DailySumm
         expensesToday: num(day.expenses.operationalExpenses),
         expensesPeriod: num(mtd.expenses.operationalExpenses),
 
-        cashPrevDay: num(cp.previousDayCashNet),
-        cashToday: num(cp.currentDayCashNet),
-        cashPeriod: num(cp.monthToDateCashNet),
+        cashPrevDay,
+        cashToday,
+        cashPeriod,
 
         personExpensesToday: num(day.expenses.responsibleEmployeeExpenses),
         personExpensesPeriod: num(mtd.expenses.responsibleEmployeeExpenses),
@@ -135,10 +156,12 @@ export async function assembleDailySummary(p: AssembleParams): Promise<DailySumm
         childDebtToday: num(day.debt.debtSum),
         childDebtPeriod: num(mtd.debt.debtSum),
 
-        factualCash: num(cp.actualCash),
+        factualCash,
 
         lessonsCount: day.counts.appointmentsCount,
-        childrenCount: mtd.counts.uniquePatientsCount,
+        // На образце «детей» = 906 при 76 занятиях/день — это сумма посещений
+        // за период, а не уникальные дети (uniquePatientsCount не используем).
+        childrenCount: mtd.counts.appointmentsCount,
         specialistsCount: mtd.counts.individualSpecialistsCount,
         afkPaymentsToday: day.counts.afkPaymentsCount,
         lfkPaymentsCount: mtd.counts.lfkPaymentsCount,
