@@ -26,13 +26,13 @@ import CreditCardIcon from '@mui/icons-material/CreditCard';
 import WalletIcon from '@mui/icons-material/Wallet';
 import AnalyticsOutlined from "@mui/icons-material/AnalyticsOutlined";
 
-import { PageHeader, MonthNavigation } from "../../components/ui";
+import { PageHeader, MonthNavigation, ReportBranchSelect } from "../../components/ui";
 import { AppointmentsSummaryCards, SummaryCard } from "./components/AppointmentsSummaryCards";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { useAvailableReportMonths } from "../../hooks/useAvailableReportMonths";
 import { formatKGS } from "../../utility/format";
 import { getFinancialReport } from "../../services/reports";
-import { useBranchContext } from "../../contexts/branch-context";
+import { useReportBranchScope } from "../../hooks/useReportBranchScope";
 import { apiFetch } from "../../utility/apiClient";
 import { DailyFinancialData, FinancialReportResponse } from "../../types/reports";
 import dayjs from "dayjs";
@@ -137,14 +137,14 @@ const ReportsPage: React.FC = () => {
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down("lg"));
     const { open: notify } = useNotification();
-    const { selectedBranch } = useBranchContext();
+    const { branchId, ready: branchReady } = useReportBranchScope();
     // Financial State
     const [selectedDate, setSelectedDate] = useState<string>(dayjs().format('YYYY-MM-DD'));
     const [financialLoading, setFinancialLoading] = useState(false);
     const [financialError, setFinancialError] = useState<string | null>(null);
     const [reportData, setReportData] = useState<FinancialReportResponse>(emptyFinancialReport);
     const activeMonths = useAvailableReportMonths("financialMonths");
-    const branchKey = selectedBranch?.id ?? "all";
+    const branchKey = branchId ?? "all";
     const month = useMemo(() => dayjs(selectedDate).format('YYYY-MM'), [selectedDate]);
     const scopeKey = useMemo(() => `${branchKey}:${month}`, [branchKey, month]);
     const [loadedScopeKey, setLoadedScopeKey] = useState<string | null>(null);
@@ -174,7 +174,7 @@ const ReportsPage: React.FC = () => {
             setReportData(emptyFinancialReport);
             const res = await getFinancialReport(
                 month,
-                selectedBranch?.id ?? undefined,
+                branchId,
                 undefined,
                 signal,
             );
@@ -193,20 +193,24 @@ const ReportsPage: React.FC = () => {
         } finally {
             if (!signal?.aborted) setFinancialLoading(false);
         }
-    }, [branchKey, month, notify, selectedBranch?.id]);
+    }, [branchKey, month, notify, branchId]);
 
     useEffect(() => {
+        // Ждём профиль: до него branchId не определён, и запрос без ?branch=
+        // у мульти-филиального сотрудника закэшировал бы данные всей организации.
+        if (!branchReady) return;
         const controller = new AbortController();
         void fetchFinancialData(controller.signal);
         return () => controller.abort();
-    }, [fetchFinancialData]);
+    }, [fetchFinancialData, branchReady]);
 
     useEffect(() => {
+        if (!branchReady) return;
         let cancelled = false;
         const load = async () => {
             try {
                 const params = new URLSearchParams({ month });
-                if (selectedBranch?.id) params.set("branch", selectedBranch.id);
+                if (branchId) params.set("branch", branchId);
                 const res: any = await apiFetch(`/api/v1/reports/expenses-monthly/?${params}`);
                 if (cancelled) return;
                 const d = res?.data ?? res;
@@ -223,7 +227,7 @@ const ReportsPage: React.FC = () => {
         };
         void load();
         return () => { cancelled = true; };
-    }, [month, selectedBranch?.id]);
+    }, [month, branchId, branchReady]);
 
     useEffect(() => {
         if (!activeMonths || activeMonths.size === 0) return;
@@ -318,6 +322,7 @@ const ReportsPage: React.FC = () => {
                 minHeight: 0
             })}>
                 <Stack spacing={3} sx={(theme) => ({ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, pb: { xs: 15, md: theme.appLayout.page.paddingY } })}>
+                    <ReportBranchSelect sx={{ alignSelf: 'flex-end' }} />
                     {financialError && !financialLoading ? (
                         <Paper
                             variant="outlined"

@@ -19,7 +19,7 @@ import dayjs from "dayjs";
 
 import { assembleDailySummary } from "../../../services/dailySummary";
 import { generateDailySummaryPDF } from "../../../utility/dailySummaryPdf";
-import { useBranchContext } from "../../../contexts/branch-context";
+import { useReportBranchScope } from "../../../hooks/useReportBranchScope";
 import { usePermissions } from "../../../hooks/usePermissions";
 import { useEmployees } from "../../../hooks/useEmployees";
 import AppAutocomplete from "../../../components/ui/AppAutocomplete";
@@ -33,12 +33,12 @@ interface DailySummaryDialogProps {
 }
 
 const DailySummaryDialog: React.FC<DailySummaryDialogProps> = ({ open, onClose, initialDate }) => {
-    const { selectedBranch } = useBranchContext();
+    const { branch } = useReportBranchScope();
     const { employee, employeeId } = usePermissions();
     const { employees, loading: employeesLoading } = useEmployees(open);
 
     const currentUserName: string = employee?.fullName ?? "";
-    const brandName = selectedBranch?.brandName || selectedBranch?.name || "Academy KG";
+    const brandName = branch?.brandName || branch?.name || "Academy KG";
 
     const [date, setDate] = useState<string>(initialDate ?? dayjs().format("YYYY-MM-DD"));
     const [responsible, setResponsible] = useState<EmployeesRow | null>(null);
@@ -63,7 +63,7 @@ const DailySummaryDialog: React.FC<DailySummaryDialogProps> = ({ open, onClose, 
     }, [open, employees, employeeId]);
 
     const handleGenerate = async () => {
-        if (!selectedBranch?.id) {
+        if (!branch?.id) {
             setError("Выберите конкретный филиал (не «Все филиалы») — сводка дня строится по филиалу.");
             return;
         }
@@ -74,7 +74,7 @@ const DailySummaryDialog: React.FC<DailySummaryDialogProps> = ({ open, onClose, 
                 date,
                 responsibleName: responsible?.full_name || currentUserName,
                 responsibleEmployeeId: responsible?.id ?? null,
-                branchId: selectedBranch.id,
+                branchId: branch.id,
             });
 
             const blob = await generateDailySummaryPDF(data);

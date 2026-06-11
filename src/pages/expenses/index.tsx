@@ -180,7 +180,9 @@ const ExpensesListPage: React.FC = () => {
   const canEditExpense = hasPermission(PERMISSIONS.EXPENSES_UPDATE);
   const canDelete = hasPermission(PERMISSIONS.EXPENSES_DELETE);
   const branchKey = selectedBranch?.id ?? "all";
-  const availableExpenseMonths = useAvailableReportMonths("expensesMonths");
+  // Явный override: страница расходов живёт на глобальном branch-context
+  // (серверный скоуп токена для не-суперадмина), а не на отчётном скоупе.
+  const availableExpenseMonths = useAvailableReportMonths("expensesMonths", true, selectedBranch?.id ?? null);
 
 
   const [expenses, setExpenses] = React.useState<Expense[]>([]);
