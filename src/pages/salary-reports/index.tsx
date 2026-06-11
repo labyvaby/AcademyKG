@@ -36,6 +36,7 @@ import { useReportBranchScope } from "../../hooks/useReportBranchScope";
 import dayjs from "dayjs";
 import SalaryReportRow from "./components/SalaryReportRow";
 import DailySummaryDialog from "./components/DailySummaryDialog";
+import DailyAdvancesDebtsDialog from "./components/DailyAdvancesDebtsDialog";
 
 // Гармоничная палитра
 const C = {
@@ -119,6 +120,7 @@ const SalaryReportsPage: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [reportData, setReportData] = useState<PayrollReportResponse | null>(null);
     const [dailySummaryOpen, setDailySummaryOpen] = useState(false);
+    const [advancesDebtsOpen, setAdvancesDebtsOpen] = useState(false);
     const activeMonths = useAvailableReportMonths("payrollMonths");
     const month = useMemo(() => dayjs(selectedDate).format('YYYY-MM'), [selectedDate]);
     const branchKey = branchId ?? "all";
@@ -271,6 +273,14 @@ const SalaryReportsPage: React.FC = () => {
                     {/* Действия отчёта */}
                     <Stack direction="row" spacing={1.5} justifyContent="flex-end" alignItems="center" sx={{ px: 0.5 }}>
                         <ReportBranchSelect />
+                        <Button
+                            variant="outlined"
+                            size="small"
+                            startIcon={<FileDownloadOutlined />}
+                            onClick={() => setAdvancesDebtsOpen(true)}
+                        >
+                            Авансы и долги
+                        </Button>
                         <Button
                             variant="outlined"
                             size="small"
@@ -441,6 +451,11 @@ const SalaryReportsPage: React.FC = () => {
                 <DailySummaryDialog
                     open={dailySummaryOpen}
                     onClose={() => setDailySummaryOpen(false)}
+                    initialDate={selectedDate}
+                />
+                <DailyAdvancesDebtsDialog
+                    open={advancesDebtsOpen}
+                    onClose={() => setAdvancesDebtsOpen(false)}
                     initialDate={selectedDate}
                 />
             </Box>
