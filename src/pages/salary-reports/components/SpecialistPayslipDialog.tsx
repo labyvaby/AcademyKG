@@ -23,7 +23,7 @@ import "dayjs/locale/ru";
 
 import { getSpecialistPayslip } from "../../../services/reports";
 import { generateSpecialistPayslipPDF } from "../../../utility/specialistPayslipPdf";
-import { useBranchContext } from "../../../contexts/branch-context";
+import { useReportBranchScope } from "../../../hooks/useReportBranchScope";
 import type { PeriodHalf } from "../../../types/reports";
 
 dayjs.locale("ru");
@@ -65,7 +65,7 @@ const SpecialistPayslipDialog: React.FC<SpecialistPayslipDialogProps> = ({
     employeeName,
     month,
 }) => {
-    const { selectedBranch } = useBranchContext();
+    const { branchId } = useReportBranchScope();
     const [monthStart, setMonthStart] = useState<Dayjs>(() => dayjs(`${month}-01`).startOf("month"));
     const [half, setHalf] = useState<RangeMode>(() => defaultHalfFor(dayjs(`${month}-01`)));
     const [loading, setLoading] = useState(false);
@@ -109,7 +109,7 @@ const SpecialistPayslipDialog: React.FC<SpecialistPayslipDialogProps> = ({
                 employeeId,
                 monthStart.format("YYYY-MM"),
                 half === "month" ? undefined : half,
-                selectedBranch?.id ?? undefined,
+                branchId,
             );
             if (!res?.data) throw new Error("Пустой ответ от сервера");
             await renderPdf(res.data);

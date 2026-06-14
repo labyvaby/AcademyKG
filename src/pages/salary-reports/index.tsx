@@ -25,17 +25,18 @@ import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import FileDownloadOutlined from '@mui/icons-material/FileDownloadOutlined';
 import PrintOutlined from '@mui/icons-material/PrintOutlined';
 
-import { PageHeader, MonthNavigation } from "../../components/ui";
+import { PageHeader, MonthNavigation, ReportBranchSelect } from "../../components/ui";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { usePermissions } from "../../hooks/usePermissions";
 import { useAvailableReportMonths } from "../../hooks/useAvailableReportMonths";
 import { formatKGS } from "../../utility/format";
 import { getPayrollReport } from "../../services/reports";
 import { PayrollReportResponse, PayrollGroup } from "../../types/reports";
-import { useBranchContext } from "../../contexts/branch-context";
+import { useReportBranchScope } from "../../hooks/useReportBranchScope";
 import dayjs from "dayjs";
 import SalaryReportRow from "./components/SalaryReportRow";
 import DailySummaryDialog from "./components/DailySummaryDialog";
+import DailyAdvancesDebtsDialog from "./components/DailyAdvancesDebtsDialog";
 
 // Гармоничная палитра
 const C = {
@@ -110,7 +111,7 @@ const SalaryReportsPage: React.FC = () => {
     const isMobile = useMediaQuery(theme.breakpoints.down("lg"));
     const { open: notify } = useNotification();
     const { loading: permissionsLoading } = usePermissions();
-    const { selectedBranch } = useBranchContext();
+    const { branchId, ready: branchReady } = useReportBranchScope();
 
 
     // State
@@ -119,21 +120,22 @@ const SalaryReportsPage: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [reportData, setReportData] = useState<PayrollReportResponse | null>(null);
     const [dailySummaryOpen, setDailySummaryOpen] = useState(false);
+    const [advancesDebtsOpen, setAdvancesDebtsOpen] = useState(false);
     const activeMonths = useAvailableReportMonths("payrollMonths");
     const month = useMemo(() => dayjs(selectedDate).format('YYYY-MM'), [selectedDate]);
-    const branchKey = selectedBranch?.id ?? "all";
+    const branchKey = branchId ?? "all";
     const scopeKey = `${branchKey}:${month}`;
     const [loadedScopeKey, setLoadedScopeKey] = useState<string | null>(null);
 
     const fetchData = useCallback(async (signal?: AbortSignal) => {
-        if (permissionsLoading) return;
+        if (permissionsLoading || !branchReady) return;
 
         try {
             setLoading(true);
             setError(null);
             setLoadedScopeKey(null);
             setReportData(null);
-            const res = await getPayrollReport(month, selectedBranch?.id ?? undefined, undefined, signal);
+            const res = await getPayrollReport(month, branchId, undefined, signal);
             if (signal?.aborted) return;
             if (res?.data) {
                 setReportData(normalizePayrollReport(res.data));
@@ -149,7 +151,7 @@ const SalaryReportsPage: React.FC = () => {
         } finally {
             if (!signal?.aborted) setLoading(false);
         }
-    }, [month, notify, permissionsLoading, scopeKey, selectedBranch?.id]);
+    }, [month, notify, permissionsLoading, scopeKey, branchId, branchReady]);
 
     useEffect(() => {
         const controller = new AbortController();
@@ -269,7 +271,16 @@ const SalaryReportsPage: React.FC = () => {
                 <Stack spacing={{ xs: 2, md: 3 }} sx={{ display: 'flex', flexDirection: 'column' }}>
 
                     {/* Действия отчёта */}
-                    <Stack direction="row" justifyContent="flex-end" sx={{ px: 0.5 }}>
+                    <Stack direction="row" spacing={1.5} justifyContent="flex-end" alignItems="center" sx={{ px: 0.5 }}>
+                        <ReportBranchSelect />
+                        <Button
+                            variant="outlined"
+                            size="small"
+                            startIcon={<FileDownloadOutlined />}
+                            onClick={() => setAdvancesDebtsOpen(true)}
+                        >
+                            Авансы и долги
+                        </Button>
                         <Button
                             variant="outlined"
                             size="small"
@@ -440,6 +451,11 @@ const SalaryReportsPage: React.FC = () => {
                 <DailySummaryDialog
                     open={dailySummaryOpen}
                     onClose={() => setDailySummaryOpen(false)}
+                    initialDate={selectedDate}
+                />
+                <DailyAdvancesDebtsDialog
+                    open={advancesDebtsOpen}
+                    onClose={() => setAdvancesDebtsOpen(false)}
                     initialDate={selectedDate}
                 />
             </Box>

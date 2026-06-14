@@ -19,7 +19,7 @@ import dayjs from "dayjs";
 
 import { assembleDailySummary } from "../../../services/dailySummary";
 import { generateDailySummaryPDF } from "../../../utility/dailySummaryPdf";
-import { useBranchContext } from "../../../contexts/branch-context";
+import { useReportBranchScope } from "../../../hooks/useReportBranchScope";
 import { usePermissions } from "../../../hooks/usePermissions";
 import { useEmployees } from "../../../hooks/useEmployees";
 import AppAutocomplete from "../../../components/ui/AppAutocomplete";
@@ -33,12 +33,13 @@ interface DailySummaryDialogProps {
 }
 
 const DailySummaryDialog: React.FC<DailySummaryDialogProps> = ({ open, onClose, initialDate }) => {
-    const { selectedBranch } = useBranchContext();
-    const { employee, employeeId } = usePermissions();
-    const { employees, loading: employeesLoading } = useEmployees(open);
+    const { branch } = useReportBranchScope();
+    const { employeeId } = usePermissions();
+    // Сотрудники строго филиала сводки: бэк отклоняет responsibleEmployee
+    // из другого филиала (400).
+    const { employees, loading: employeesLoading } = useEmployees(open, branch?.id);
 
-    const currentUserName: string = employee?.fullName ?? "";
-    const brandName = selectedBranch?.brandName || selectedBranch?.name || "Academy KG";
+    const brandName = branch?.brandName || branch?.name || "Academy KG";
 
     const [date, setDate] = useState<string>(initialDate ?? dayjs().format("YYYY-MM-DD"));
     const [responsible, setResponsible] = useState<EmployeesRow | null>(null);
@@ -50,31 +51,41 @@ const DailySummaryDialog: React.FC<DailySummaryDialogProps> = ({ open, onClose, 
             setDate(initialDate ?? dayjs().format("YYYY-MM-DD"));
             setError(null);
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [open, initialDate]);
 
-    // Дефолт ответственного — текущий пользователь, как только подгрузился список.
+    // Выбор должен быть валиден против текущего списка (филиал мог смениться);
+    // если ничего не выбрано — дефолт: текущий пользователь.
     useEffect(() => {
-        if (open && !responsible && employeeId && employees.length) {
-            const me = employees.find((e) => e.id === employeeId);
-            if (me) setResponsible(me);
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+        if (!open || !employees.length) return;
+        setResponsible((prev) => {
+            const valid = prev && employees.some((e) => e.id === prev.id) ? prev : null;
+            return valid ?? employees.find((e) => e.id === employeeId) ?? null;
+        });
     }, [open, employees, employeeId]);
 
     const handleGenerate = async () => {
-        if (!selectedBranch?.id) {
+        if (!branch?.id) {
             setError("Выберите конкретный филиал (не «Все филиалы») — сводка дня строится по филиалу.");
+            return;
+        }
+        if (!date || !dayjs(date).isValid()) {
+            setError("Укажите дату сводки.");
+            return;
+        }
+        if (dayjs(date).isAfter(dayjs(), "day")) {
+            setError("Дата в будущем — сводка дня доступна по сегодняшний день включительно.");
             return;
         }
         setLoading(true);
         setError(null);
         try {
+            // ФИО только при выбранном id: без responsibleEmployee бэк отдаёт
+            // нули, и секция с ФИО вводила бы в заблуждение (PDF её опустит).
             const data = await assembleDailySummary({
                 date,
-                responsibleName: responsible?.full_name || currentUserName,
+                responsibleName: responsible?.full_name ?? "",
                 responsibleEmployeeId: responsible?.id ?? null,
-                branchId: selectedBranch.id,
+                branchId: branch.id,
             });
 
             const blob = await generateDailySummaryPDF(data);
@@ -123,6 +134,7 @@ const DailySummaryDialog: React.FC<DailySummaryDialogProps> = ({ open, onClose, 
                         fullWidth
                         size="small"
                         InputLabelProps={{ shrink: true }}
+                        inputProps={{ max: dayjs().format("YYYY-MM-DD") }}
                     />
 
                     <AppAutocomplete<EmployeesRow>
@@ -171,7 +183,9 @@ const DailySummaryDialog: React.FC<DailySummaryDialogProps> = ({ open, onClose, 
                     <Button
                         variant="contained"
                         onClick={handleGenerate}
-                        disabled={loading}
+                        // employeesLoading: иначе можно сформировать до подстановки
+                        // дефолтного ответственного — PDF уйдёт без его расходов
+                        disabled={loading || employeesLoading}
                         startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <FileDownloadIcon />}
                     >
                         Сформировать PDF

@@ -61,10 +61,13 @@ const buildHtml = (d: DailySummaryData): string => {
         ${row("Итого наличка за сегодня", fmt(d.cashToday), RED)}
         ${row(`Итого наличка с ${d.periodFrom} по ${d.periodTo}`, fmt(d.cashPeriod), RED)}
 
-        <!-- Ответственный -->
+        <!-- Ответственный (секция опускается, если ответственный не выбран:
+             без responsibleEmployee в запросе бэк отдаёт нули, и секция с ФИО
+             выглядела бы как «у человека нет расходов») -->
+        ${d.responsibleName ? `
         ${section(d.responsibleName)}
         ${row("Итого расходы на сегодня", fmt(d.personExpensesToday))}
-        ${row(`Итого расходы с ${d.periodFrom} по ${d.periodTo}`, fmt(d.personExpensesPeriod))}
+        ${row(`Итого расходы с ${d.periodFrom} по ${d.periodTo}`, fmt(d.personExpensesPeriod))}` : ""}
 
         <!-- Авансы -->
         ${section("Авансы")}
@@ -91,6 +94,9 @@ const buildHtml = (d: DailySummaryData): string => {
 export const generateDailySummaryPDF = async (data: DailySummaryData): Promise<Blob> => {
     const container = document.createElement("div");
     container.innerHTML = buildHtml(data);
+    // За экран, но НЕ display:none — html2canvas должен отрендерить элемент.
+    // Без этого таблица на 1–2 секунды мигает внизу страницы.
+    container.style.cssText = "position:fixed;left:-10000px;top:0;width:210mm;background:#fff;";
     document.body.appendChild(container);
 
     try {
