@@ -5,10 +5,15 @@
  *
  * Кассовые строки СОЗНАТЕЛЬНО считаются на фронте по модели заказчика
  * (фото-образец 19.05.2026, уравнения сходятся точно):
- *   наличка за сегодня  = day.income.total            (= сумма строк прихода)
- *   наличка за период   = monthToDate.income.total
+ *   наличка за сегодня  = day.income.total − операц.расходы дня
+ *   наличка за период   = monthToDate.income.total − операц.расходы периода
  *   за прошлый день     = период − сегодня
  *   фактическая наличка = период − авансы − долги − расходы ответственного
+ * Вычитание операц.расходов из налички подтверждено заказчиком 2026-06-15
+ * (ответ на вопрос «наличка за сегодня — выручка или выручка минус расходы?»:
+ * «с учётом минуса расходов»). На образце 19.05 расходы дня = 0, поэтому
+ * фото это не опровергало; теперь правило явное. Фактическая наличка
+ * наследует net-период (операц.расходы входят в неё через cashPeriod).
  * `cashPosition` бэка НЕ используется: его netCash вычитает авансы/выплаты ЗП
  * и берёт только наличный канал — инварианты образца на нём не сходятся,
  * а actualCash вычитает авансы дважды (см.
@@ -50,8 +55,8 @@ export interface DailySummaryData {
 
     // Наличка (фронт-формулы по модели образца, не cashPosition — см. шапку)
     cashPrevDay: number;        // период − сегодня
-    cashToday: number;          // day.income.total
-    cashPeriod: number;         // monthToDate.income.total
+    cashToday: number;          // day.income.total − операц.расходы дня
+    cashPeriod: number;         // monthToDate.income.total − операц.расходы периода
 
     // Расходы ответственного
     personExpensesToday: number;
@@ -115,12 +120,16 @@ export async function assembleDailySummary(p: AssembleParams): Promise<DailySumm
     // с total копейка в копейку; не даём остатку уйти в минус («Приход: -1»).
     const income = Math.max(0, incomeTotal - incomeAfk - acupuncture);
 
-    // Кассовые строки по модели образца (см. шапку файла). Расходы из «налички»
-    // не вычитаются — на образце фактическая наличка их не учитывает
-    // (открытый вопрос заказчику; расходы видны отдельными строками).
-    const cashToday = incomeTotal;
-    const cashPeriod = num(mtd.income.total);
+    // Кассовые строки по модели образца (см. шапку файла). Наличка =
+    // выручка МИНУС операционные расходы (подтверждено заказчиком 2026-06-15).
+    const cashToday = incomeTotal - num(day.expenses.operationalExpenses);
+    const cashPeriod = num(mtd.income.total) - num(mtd.expenses.operationalExpenses);
     const cashPrevDay = cashPeriod - cashToday;
+    // ⚠️ Возможное двойное вычитание: cashPeriod уже вычел ВСЕ операционные
+    // расходы; если responsibleEmployeeExpenses — их подмножество (расходы,
+    // отнесённые на ответственного), то здесь они вычитаются второй раз.
+    // На образце расходы ответственного = 0, проверить нельзя → вопрос бэку
+    // (disjoint ли operationalExpenses и responsibleEmployeeExpenses).
     const factualCash =
         cashPeriod -
         num(mtd.expenses.advanceExpenses) -
