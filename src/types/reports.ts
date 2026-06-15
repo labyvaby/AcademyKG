@@ -255,3 +255,45 @@ export interface DailySummaryResponse {
     monthToDate: DailySummaryRangeBlock;
     cashPosition: DailySummaryCashPosition;
 }
+
+// ── Занятия за день (GET /api/v1/reports/daily-lessons/) ─────────────────
+// Отдельный отчёт детализации занятий за день (см.
+// docs/backend-requests-2026-06-15.md). Денежные поля — строки-decimal.
+export interface DailyLessonsStandard {
+    count: number;          // занятий по стандартной цене
+    unitPrice: string;      // стандартная цена за занятие
+    total: string;          // count × unitPrice
+}
+export interface DailyLessonsException {
+    specialistName: string; // performer
+    patientName: string;    // ребёнок
+    note: string;           // повод особой цены ("тех.персонал"/скидка) или ""
+    count: number;
+    unitPrice: string;
+    total: string;
+}
+export interface DailyLessonsCategory {
+    name: string;           // услуга/категория (имя для синей строки)
+    order: number;          // порядок вывода
+    standard: DailyLessonsStandard;
+    exceptions: DailyLessonsException[];
+    subtotal: { count: number; total: string };
+}
+export interface DailyLessonsAfkRow {
+    label: string;          // готовая подпись «N чел. dd.mm — dd.mm …»
+    count: number;          // человек (Кол д)
+    unitPrice: string;      // цена за человека (Сумма)
+    total: string;          // count × unitPrice (Итого)
+}
+export interface DailyLessonsResponse {
+    date: string;
+    branch: { id: string; name: string; brandName: string };
+    lessons: {
+        categories: DailyLessonsCategory[];
+        totals: { count: number; total: string };
+    };
+    afk: {
+        rows: DailyLessonsAfkRow[];
+        totals: { count: number; total: string };
+    };
+}

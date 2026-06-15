@@ -37,6 +37,7 @@ import dayjs from "dayjs";
 import SalaryReportRow from "./components/SalaryReportRow";
 import DailySummaryDialog from "./components/DailySummaryDialog";
 import DailyAdvancesDebtsDialog from "./components/DailyAdvancesDebtsDialog";
+import DailyLessonsDialog from "./components/DailyLessonsDialog";
 
 // Гармоничная палитра
 const C = {
@@ -121,6 +122,7 @@ const SalaryReportsPage: React.FC = () => {
     const [reportData, setReportData] = useState<PayrollReportResponse | null>(null);
     const [dailySummaryOpen, setDailySummaryOpen] = useState(false);
     const [advancesDebtsOpen, setAdvancesDebtsOpen] = useState(false);
+    const [dailyLessonsOpen, setDailyLessonsOpen] = useState(false);
     const activeMonths = useAvailableReportMonths("payrollMonths");
     const month = useMemo(() => dayjs(selectedDate).format('YYYY-MM'), [selectedDate]);
     const branchKey = branchId ?? "all";
@@ -289,6 +291,14 @@ const SalaryReportsPage: React.FC = () => {
                         >
                             Сводка дня
                         </Button>
+                        <Button
+                            variant="outlined"
+                            size="small"
+                            startIcon={<PrintOutlined />}
+                            onClick={() => setDailyLessonsOpen(true)}
+                        >
+                            Занятия за день
+                        </Button>
                     </Stack>
 
                     {/* Summary Indicators */}
@@ -456,6 +466,11 @@ const SalaryReportsPage: React.FC = () => {
                 <DailyAdvancesDebtsDialog
                     open={advancesDebtsOpen}
                     onClose={() => setAdvancesDebtsOpen(false)}
+                    initialDate={selectedDate}
+                />
+                <DailyLessonsDialog
+                    open={dailyLessonsOpen}
+                    onClose={() => setDailyLessonsOpen(false)}
                     initialDate={selectedDate}
                 />
             </Box>
