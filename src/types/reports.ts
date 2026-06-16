@@ -213,6 +213,13 @@ export interface DailySummaryIncome {
     total: string;
     byKind: { group: string; individual: string };
     byCategory: { afk: string; lfk: string; acupuncture: string; other: string };
+    // F4 (2026-06-16): НАЧИСЛЕННЫЙ приход — стоимость всех проведённых занятий,
+    // включая неоплаченные (price×quantity без коэффициента оплаты). Для строк
+    // «Приход/АФК/Иглотерапия». Поля выше (total/byKind/byCategory) — по-прежнему
+    // фактически полученное (paid_*), для строк налички.
+    accruedTotal: string;
+    accruedByKind: { group: string; individual: string };
+    accruedByCategory: { afk: string; lfk: string; acupuncture: string; other: string };
 }
 export interface DailySummaryCountsBlock {
     appointmentsCount: number;

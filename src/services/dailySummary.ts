@@ -3,22 +3,25 @@
  * GET /api/v1/reports/daily-summary/ (см. docs/backend-requests-daily-summary.md
  * и ответ бэка frontend-daily-summary-api.md).
  *
+ * Приход (строки «Приход/АФК/Иглотерапия») — НАЧИСЛЕНИЕ (F4, 2026-06-16):
+ * стоимость всех проведённых занятий, включая неоплаченные → income.accrued*.
+ * Кассовые строки («наличка») — фактически полученное (income.total, paid_*).
+ *
  * Кассовые строки СОЗНАТЕЛЬНО считаются на фронте по модели заказчика
- * (фото-образец 19.05.2026, уравнения сходятся точно):
+ * (наличка = выручка − операц.расходы, подтверждено 2026-06-15):
  *   наличка за сегодня  = day.income.total − операц.расходы дня
  *   наличка за период   = monthToDate.income.total − операц.расходы периода
  *   за прошлый день     = период − сегодня
- *   фактическая наличка = период − авансы − долги − расходы ответственного
- * Вычитание операц.расходов из налички подтверждено заказчиком 2026-06-15
- * (ответ на вопрос «наличка за сегодня — выручка или выручка минус расходы?»:
- * «с учётом минуса расходов»). На образце 19.05 расходы дня = 0, поэтому
- * фото это не опровергало; теперь правило явное. Фактическая наличка
- * наследует net-период (операц.расходы входят в неё через cashPeriod).
- * `cashPosition` бэка НЕ используется: его netCash вычитает авансы/выплаты ЗП
- * и берёт только наличный канал — инварианты образца на нём не сходятся,
- * а actualCash вычитает авансы дважды (см.
- * docs/backend-questions-daily-summary-followup.md, F3). После правки формул
- * бэком можно вернуться на cashPosition.
+ * netCash бэка для этих строк НЕ годится: он дополнительно вычитает авансы и
+ * выплаты ЗП, а строка «наличка» их не вычитает (авансы — отдельной строкой ниже).
+ *
+ * Фактическая наличка — берём ГОТОВОЕ поле cashPosition.actualCash. Бэк привёл
+ * его к варианту «а» заказчика (F3, 2026-06-16):
+ *   actualCash = monthToDateCashNet − долги
+ * где netCash уже вычитает operational + advance + payroll по филиалу. Это
+ * убирает двойной вычет расходов ответственного (они — подмножество
+ * операционных, бэк подтвердил) — поэтому фактическую НЕ пересчитываем сами.
+ * responsibleEmployeeExpenses остаётся информационным (строки расходов отв.).
  */
 import dayjs from "dayjs";
 import "dayjs/locale/ru";
@@ -108,33 +111,25 @@ export async function assembleDailySummary(p: AssembleParams): Promise<DailySumm
 
     const d = dayjs(p.date);
 
-    // Маппинг «Приход» (подтверждён заказчиком 2026-06-04):
-    // АФК = byCategory.afk, Иглотерапия = byCategory.acupuncture,
-    // «Приход» = total − afk − acupuncture (остаток). Три строки на одной оси byCategory
-    // и в сумме = day.income.total. Инвариант с фото: 5000+55400+8500 = 68900.
-    // (byKind.individual НЕ используем — задвоил бы иглотерапию, это другая ось.)
-    const incomeAfk = num(day.income.byCategory.afk);
-    const acupuncture = num(day.income.byCategory.acupuncture);
-    const incomeTotal = num(day.income.total);
-    // byCategory у бэка — аллокация через paymentFactor и может не сходиться
-    // с total копейка в копейку; не даём остатку уйти в минус («Приход: -1»).
-    const income = Math.max(0, incomeTotal - incomeAfk - acupuncture);
+    // Приход (F4, 2026-06-16) = НАЧИСЛЕНИЕ: стоимость всех проведённых занятий,
+    // включая неоплаченные. АФК = accruedByCategory.afk, Иглотерапия =
+    // accruedByCategory.acupuncture, «Приход» = accruedTotal − afk − acupuncture.
+    const incomeAfk = num(day.income.accruedByCategory.afk);
+    const acupuncture = num(day.income.accruedByCategory.acupuncture);
+    const accruedTotal = num(day.income.accruedTotal);
+    // accruedByCategory у бэка — аллокация и может не сходиться с accruedTotal
+    // копейка в копейку; не даём остатку уйти в минус («Приход: -1»).
+    const income = Math.max(0, accruedTotal - incomeAfk - acupuncture);
 
-    // Кассовые строки по модели образца (см. шапку файла). Наличка =
-    // выручка МИНУС операционные расходы (подтверждено заказчиком 2026-06-15).
-    const cashToday = incomeTotal - num(day.expenses.operationalExpenses);
+    // Кассовые строки — фактически полученное (income.total, paid_*) минус
+    // операционные расходы (модель заказчика, подтверждено 2026-06-15).
+    const cashToday = num(day.income.total) - num(day.expenses.operationalExpenses);
     const cashPeriod = num(mtd.income.total) - num(mtd.expenses.operationalExpenses);
     const cashPrevDay = cashPeriod - cashToday;
-    // ⚠️ Возможное двойное вычитание: cashPeriod уже вычел ВСЕ операционные
-    // расходы; если responsibleEmployeeExpenses — их подмножество (расходы,
-    // отнесённые на ответственного), то здесь они вычитаются второй раз.
-    // На образце расходы ответственного = 0, проверить нельзя → вопрос бэку
-    // (disjoint ли operationalExpenses и responsibleEmployeeExpenses).
-    const factualCash =
-        cashPeriod -
-        num(mtd.expenses.advanceExpenses) -
-        num(mtd.debt.debtSum) -
-        num(mtd.expenses.responsibleEmployeeExpenses);
+    // Фактическая наличка — готовое поле бэка (вариант «а» заказчика, F3):
+    // actualCash = monthToDateCashNet − долги. Сами не пересчитываем — иначе
+    // вернётся двойной вычет расходов ответственного (см. шапку файла).
+    const factualCash = num(r.cashPosition.actualCash);
 
     return {
         brandName: r.branch.brandName || r.branch.name || "Academy KG",
