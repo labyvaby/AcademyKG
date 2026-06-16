@@ -75,8 +75,10 @@ const buildHtml = (d: DailyDetailsData): string => {
 export const generateDailyDetailsPDF = async (data: DailyDetailsData): Promise<Blob> => {
     const container = document.createElement("div");
     container.innerHTML = buildHtml(data);
-    // За экран, но НЕ display:none — html2canvas должен отрендерить элемент.
-    container.style.cssText = "position:fixed;left:-10000px;top:0;width:210mm;background:#fff;";
+    // ВАЖНО: контейнер в потоке БЕЗ позиционирования. Уводить за экран нельзя:
+    // html2canvas снимает только видимую область → пустой PDF (регрессия 5ebf3d2).
+    // Цена — короткое мигание таблицы; зато рендер гарантированно непустой.
+    container.style.cssText = "width:210mm;background:#fff;";
     document.body.appendChild(container);
 
     try {

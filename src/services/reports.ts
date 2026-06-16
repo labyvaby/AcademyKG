@@ -6,6 +6,7 @@ import {
     AvailableMonthsResponse,
     SpecialistPayslipResponse,
     DailySummaryResponse,
+    DailyLessonsResponse,
     PeriodHalf,
     Envelope,
 } from "../types/reports";
@@ -94,6 +95,21 @@ export const getDailySummary = async (
 
     return apiFetch<Envelope<DailySummaryResponse>>(
         `/api/v1/reports/daily-summary/?${params.toString()}`,
+        { signal },
+    );
+};
+
+// Занятия за день: отдельный отчёт детализации приёмов по услугам + блок АФК.
+// branch и date ОБЯЗАТЕЛЬНЫ. Контракт — docs/backend-requests-2026-06-15.md.
+export const getDailyLessons = async (
+    branch: string,                 // UUID, обязателен
+    date: string,                   // YYYY-MM-DD
+    signal?: AbortSignal,
+): Promise<Envelope<DailyLessonsResponse>> => {
+    const params = new URLSearchParams({ branch, date });
+
+    return apiFetch<Envelope<DailyLessonsResponse>>(
+        `/api/v1/reports/daily-lessons/?${params.toString()}`,
         { signal },
     );
 };
