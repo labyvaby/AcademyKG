@@ -36,8 +36,6 @@ const section = (title: string): string =>
     `<tr><td colspan="2" style="border:1px solid #000;padding:1.5mm 3mm;font-size:10pt;font-weight:800;text-align:center;background:#f0f0f0;">${escapeHtml(title)}</td></tr>`;
 
 const buildHtml = (d: DailySummaryData): string => {
-    const lfkValue = `${fmt(d.lfkPaymentsCount)} (${fmt(d.lfkRecalcCount)} перерасчет)`;
-
     return `
     <div style="width:190mm;margin:0 auto;padding:6mm;font-family:Arial, sans-serif;color:#000;box-sizing:border-box;">
       <table style="width:100%;border-collapse:collapse;table-layout:fixed;">
@@ -85,7 +83,8 @@ const buildHtml = (d: DailySummaryData): string => {
         ${row(`Общее количество детей с ${d.periodFrom} по ${d.periodTo}`, fmt(d.childrenCount))}
         ${row("Количество специалистов", `${fmt(d.specialistsCount)} (чел)`)}
         ${row("Оплата за АФК на сегодня", fmt(d.afkPaymentsToday))}
-        ${row("Оплата за ЛФК общая количество", lfkValue)}
+        ${row("Оплата за ЛФК общая количество", fmt(d.lfkPaymentsCount))}
+        ${row("Перерасчет", fmt(d.lfkRecalcCount))}
         ${row(`Итого штрафов с ${d.periodFrom} по ${d.periodTo}`, fmt(d.penaltiesPeriod))}
       </table>
     </div>`;

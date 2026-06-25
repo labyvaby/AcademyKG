@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
     Dialog,
     DialogTitle,
@@ -10,6 +10,7 @@ import {
     Typography,
     Box,
     TextField,
+    MenuItem,
     CircularProgress,
     Alert,
 } from "@mui/material";
@@ -22,7 +23,6 @@ import { generateDailySummaryPDF } from "../../../utility/dailySummaryPdf";
 import { useReportBranchScope } from "../../../hooks/useReportBranchScope";
 import { usePermissions } from "../../../hooks/usePermissions";
 import { useEmployees } from "../../../hooks/useEmployees";
-import AppAutocomplete from "../../../components/ui/AppAutocomplete";
 import type { EmployeesRow } from "../../expenses/types";
 
 interface DailySummaryDialogProps {
@@ -31,6 +31,12 @@ interface DailySummaryDialogProps {
     /** Стартовая дата (YYYY-MM-DD); по умолчанию — выбранная на странице/сегодня. */
     initialDate?: string;
 }
+
+// «Ответственный» в сводке = руководитель филиала (заказчик: там всегда руководитель).
+// Роль руководителя — slug `manager` (управляющий); ловим и возможные display-варианты.
+const MANAGER_ROLE_TOKENS = ["manager", "управляющий", "руководитель", "администратор", "administrator", "admin"];
+const isManagerRole = (role?: string): boolean =>
+    MANAGER_ROLE_TOKENS.includes((role ?? "").toLowerCase().trim());
 
 const DailySummaryDialog: React.FC<DailySummaryDialogProps> = ({ open, onClose, initialDate }) => {
     const { branch } = useReportBranchScope();
@@ -53,15 +59,20 @@ const DailySummaryDialog: React.FC<DailySummaryDialogProps> = ({ open, onClose, 
         }
     }, [open, initialDate]);
 
-    // Выбор должен быть валиден против текущего списка (филиал мог смениться);
-    // если ничего не выбрано — дефолт: текущий пользователь.
+    // Руководители филиала (роль manager). Если их несколько — даём выбор;
+    // один — read-only; ноль — fallback на текущего пользователя + предупреждение.
+    const managers = useMemo(() => employees.filter((e) => isManagerRole(e.role)), [employees]);
+
     useEffect(() => {
         if (!open || !employees.length) return;
         setResponsible((prev) => {
-            const valid = prev && employees.some((e) => e.id === prev.id) ? prev : null;
-            return valid ?? employees.find((e) => e.id === employeeId) ?? null;
+            // Сохраняем выбор пользователя, если он всё ещё среди руководителей.
+            if (prev && managers.some((m) => m.id === prev.id)) return prev;
+            return managers[0] ?? employees.find((e) => e.id === employeeId) ?? null;
         });
-    }, [open, employees, employeeId]);
+    }, [open, employees, managers, employeeId]);
+
+    const headFound = !!responsible && isManagerRole(responsible.role);
 
     const handleGenerate = async () => {
         if (!branch?.id) {
@@ -137,37 +148,43 @@ const DailySummaryDialog: React.FC<DailySummaryDialogProps> = ({ open, onClose, 
                         inputProps={{ max: dayjs().format("YYYY-MM-DD") }}
                     />
 
-                    <AppAutocomplete<EmployeesRow>
-                        options={employees}
-                        value={responsible}
-                        onChange={(_, v) => setResponsible(v)}
-                        getOptionLabel={(o) => o.full_name}
-                        isOptionEqualToValue={(o, v) => o.id === v.id}
-                        loading={employeesLoading}
-                        disabled={loading}
-                        size="small"
-                        fullWidth
-                        // В узком диалоге список нельзя клиппить внутри DialogContent
-                        // (overflow:auto) — портализуем дропдаун наружу и возвращаем
-                        // flip/preventOverflow, чтобы он сам подбирал положение и высоту.
-                        slotProps={{
-                            popper: {
-                                disablePortal: false,
-                                modifiers: [
-                                    { name: "flip", enabled: true },
-                                    { name: "preventOverflow", enabled: true },
-                                ],
-                            },
-                        }}
-                        renderInput={(params) => (
-                            <TextField
-                                {...params}
-                                label="Ответственный (сотрудник)"
-                                placeholder="Выберите сотрудника"
-                                helperText="Влияет на строки «расходы…» и фактическую наличку"
-                            />
-                        )}
-                    />
+                    {managers.length > 1 ? (
+                        // Несколько руководителей в филиале — даём выбрать.
+                        <TextField
+                            select
+                            label="Руководитель (ответственный)"
+                            value={responsible?.id ?? ""}
+                            onChange={(e) =>
+                                setResponsible(managers.find((m) => m.id === e.target.value) ?? null)
+                            }
+                            disabled={loading || employeesLoading}
+                            fullWidth
+                            size="small"
+                            helperText="Расходы руководителя за день и за период попадут в сводку."
+                        >
+                            {managers.map((m) => (
+                                <MenuItem key={m.id} value={m.id}>
+                                    {m.full_name}
+                                </MenuItem>
+                            ))}
+                        </TextField>
+                    ) : (
+                        <Box>
+                            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
+                                Руководитель (ответственный)
+                            </Typography>
+                            <Typography variant="body2" fontWeight={700}>
+                                {employeesLoading
+                                    ? "Загрузка…"
+                                    : responsible?.full_name ?? "— не найден —"}
+                            </Typography>
+                            <Typography variant="caption" color={headFound ? "text.disabled" : "warning.main"}>
+                                {headFound
+                                    ? "Расходы руководителя за день и за период попадут в сводку."
+                                    : "Руководитель (роль «Управляющий») в филиале не найден — подставлен текущий пользователь."}
+                            </Typography>
+                        </Box>
+                    )}
 
                     {error && (
                         <Alert severity="error" variant="outlined" sx={{ fontSize: "0.8rem" }}>

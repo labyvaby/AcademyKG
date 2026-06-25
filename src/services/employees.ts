@@ -10,7 +10,8 @@ type ApiEmployee = {
   photo_url?: string | null;
   specializations?: { id: string; name: string }[];
   services?: string[];
-  role?: string;
+  // Новый API отдаёт role объектом { id, name } (name — slug), старый — строкой.
+  role?: string | { id?: string; name?: string } | null;
   userEmail?: string | null;
   user_email?: string | null;
   userPhoneNumber?: string | null;
@@ -21,7 +22,13 @@ const toRow = (d: ApiEmployee): EmployeesRow => {
   const specializationNames = d.specializations
     ?.map((s) => typeof s === "string" ? s : (s as any)?.name ?? "")
     .filter(Boolean) ?? [];
-  const role = typeof d.role === "string" ? d.role : undefined;
+  // role может прийти строкой (старый API) или объектом { name } (новый, name=slug).
+  const role =
+    typeof d.role === "string"
+      ? d.role
+      : d.role && typeof d.role === "object"
+        ? d.role.name ?? undefined
+        : undefined;
   return {
     id: d.id,
     full_name: d.fullName ?? d.full_name ?? "Без имени",
