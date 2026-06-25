@@ -40,6 +40,12 @@ type PaymentSidebarProps = {
     bulkTotalAmount?: number;
     /** Кол-во приёмов для отображения в заголовке bulk-режима. */
     bulkCount?: number;
+    /** Абонемент/период: начало периода (YYYY-MM-DD) — для чека за период. */
+    bulkPeriodFrom?: string | null;
+    /** Абонемент/период: конец периода (YYYY-MM-DD) — для чека за период. */
+    bulkPeriodTo?: string | null;
+    /** Абонемент/период: даты посещений (YYYY-MM-DD[]) — блок «по дням» в чеке. */
+    bulkPeriodDates?: string[];
 };
 
 // Распределяет сумму между N приёмами по копейкам с учётом остатка.
@@ -65,6 +71,9 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
     bulkAppointmentIds,
     bulkTotalAmount,
     bulkCount,
+    bulkPeriodFrom = null,
+    bulkPeriodTo = null,
+    bulkPeriodDates,
 }) => {
     const isBulkMode = Boolean(bulkAppointmentIds && bulkAppointmentIds.length > 0);
     const { open: notify } = useNotification();
@@ -311,6 +320,31 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
                     })
                 )
             );
+            // Чек за период (абонемент): печатаем одной квитанцией с периодом
+            // «с по» и днями посещений. Кнопка «Печать чека» — для повтора.
+            if (appointment) {
+                const receiptData: ReceiptData = {
+                    appointment,
+                    cashPaid: cashNum,
+                    cardPaid: cardNum,
+                    balancePaid: 0,
+                    bonusesPaid: 0,
+                    discountPercent,
+                    discountAmount,
+                    basePrice,
+                    finalPrice,
+                    bulkCount,
+                    cashierName: appointment.updated_by_name ?? appointment.created_by_name ?? null,
+                    orgName: selectedBranch?.brandName || selectedBranch?.name,
+                    branchName: selectedBranch?.name ?? null,
+                    periodFrom: bulkPeriodFrom,
+                    periodTo: bulkPeriodTo,
+                    periodDates: bulkPeriodDates,
+                };
+                setLastReceiptData(receiptData);
+                printReceipt(receiptData);
+            }
+
             notify?.({ type: "success", message: `Оплата за ${ids.length} приёмов сохранена` });
             queryClient.invalidateQueries({ queryKey: ["appointments", "daily"] });
             onSaved();

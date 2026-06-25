@@ -211,6 +211,10 @@ export const HomeAddAppointmentDrawer: React.FC<
   const [periodCreatedAppointments, setPeriodCreatedAppointments] = React.useState<import("../types").Appointment[]>([]);
   const [periodPaymentTotal, setPeriodPaymentTotal] = React.useState<number>(0);
   const [periodPaymentContext, setPeriodPaymentContext] = React.useState<import("../types").Appointment | null>(null);
+  // Снапшоты периода (форма сбрасывается до открытия оплаты) — для чека «с по» + дни.
+  const [periodPaymentFrom, setPeriodPaymentFrom] = React.useState<string>("");
+  const [periodPaymentTo, setPeriodPaymentTo] = React.useState<string>("");
+  const [periodPaymentDates, setPeriodPaymentDates] = React.useState<string[]>([]);
 
   const [isSaving, setIsSaving] = React.useState(false);
   const isSavingRef = React.useRef(false);
@@ -764,6 +768,10 @@ export const HomeAddAppointmentDrawer: React.FC<
         const serviceNameForPayment = firstService?.serviceId
           ? (allServicesOpts.find((s) => s.id === firstService.serviceId)?.name ?? "")
           : "";
+        // Период и даты посещений снимаем ДО ресета формы — уйдут в чек за период.
+        const periodFromSnapshot = periodStartDate;
+        const periodToSnapshot = periodEndDate;
+        const periodDatesSnapshot = periodDates;
 
         setPeriodWeekdays([]);
         setPeriodStartDate(dayjs().format("YYYY-MM-DD"));
@@ -808,6 +816,9 @@ export const HomeAddAppointmentDrawer: React.FC<
           setPeriodCreatedAppointments(validCreated);
           setPeriodPaymentTotal(total);
           setPeriodPaymentContext(context);
+          setPeriodPaymentFrom(periodFromSnapshot);
+          setPeriodPaymentTo(periodToSnapshot);
+          setPeriodPaymentDates(periodDatesSnapshot);
           setPeriodPaymentOpen(true);
         }
 
@@ -1324,7 +1335,15 @@ export const HomeAddAppointmentDrawer: React.FC<
             <ToggleButtonGroup
               value={scheduleMode}
               exclusive
-              onChange={(_, v) => { if (v) setScheduleMode(v); }}
+              onChange={(_, v) => {
+                if (!v) return;
+                setScheduleMode(v);
+                // Период-режим работает с одной услугой (UI показывает только
+                // первую строку). Сбрасываем лишние строки, оставшиеся из
+                // «Разового», иначе приёмы создаются со всеми услугами, а
+                // надпись «Итого за период» и оплата считают только первую.
+                if (v === "period") setServiceRows((rows) => rows.slice(0, 1));
+              }}
               size="small"
               fullWidth
               sx={{
@@ -1921,16 +1940,25 @@ export const HomeAddAppointmentDrawer: React.FC<
           setPeriodCreatedAppointments([]);
           setPeriodPaymentContext(null);
           setPeriodPaymentTotal(0);
+          setPeriodPaymentFrom("");
+          setPeriodPaymentTo("");
+          setPeriodPaymentDates([]);
         }}
         appointment={periodPaymentContext}
         bulkAppointmentIds={periodCreatedAppointments.map((a) => String(a?.id ?? "")).filter(Boolean)}
         bulkTotalAmount={periodPaymentTotal}
         bulkCount={periodCreatedAppointments.length}
+        bulkPeriodFrom={periodPaymentFrom || null}
+        bulkPeriodTo={periodPaymentTo || null}
+        bulkPeriodDates={periodPaymentDates}
         onSaved={() => {
           setPeriodPaymentOpen(false);
           setPeriodCreatedAppointments([]);
           setPeriodPaymentContext(null);
           setPeriodPaymentTotal(0);
+          setPeriodPaymentFrom("");
+          setPeriodPaymentTo("");
+          setPeriodPaymentDates([]);
           onCreated?.();
         }}
       />

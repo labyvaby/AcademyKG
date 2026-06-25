@@ -34,7 +34,24 @@ export type ReceiptData = {
   branchName?: string | null;
   /** Повторная печать чека (из карточки/истории, а не сразу после оплаты) */
   isReprint?: boolean;
+  /** Абонемент/оплата за период: начало периода (YYYY-MM-DD). */
+  periodFrom?: string | null;
+  /** Абонемент/оплата за период: конец периода (YYYY-MM-DD). */
+  periodTo?: string | null;
+  /** Абонемент/оплата за период: даты посещений (YYYY-MM-DD[]) для блока «по дням». */
+  periodDates?: string[];
 };
+
+// "YYYY-MM-DD" → "DD.MM.YYYY"
+function ddmmyyyy(iso: string): string {
+  const parts = iso.split("-");
+  return parts.length === 3 ? `${parts[2]}.${parts[1]}.${parts[0]}` : iso;
+}
+// "YYYY-MM-DD" → "DD.MM"
+function ddmm(iso: string): string {
+  const parts = iso.split("-");
+  return parts.length === 3 ? `${parts[2]}.${parts[1]}` : iso;
+}
 
 // Термочек 58mm. Точно по референсу с фото.
 const RECEIPT_CSS = `
@@ -160,7 +177,21 @@ export function buildReceiptHtml(data: ReceiptData): string {
     orgName = "Аутизм победим KG",
     branchName = null,
     isReprint = false,
+    periodFrom = null,
+    periodTo = null,
+    periodDates = [],
   } = data;
+
+  // Абонемент / оплата за период: показываем «период с по» и дни посещений.
+  const isAbon = Boolean(periodFrom && periodTo);
+  const daysList = (periodDates ?? []).map(ddmm).join(", ");
+  const periodBlock = isAbon
+    ? `
+  <div class="sep"></div>
+  <div class="row"><span class="row-l">Период с</span><span class="row-r">${ddmmyyyy(periodFrom as string)}</span></div>
+  <div class="row"><span class="row-l">по</span><span class="row-r">${ddmmyyyy(periodTo as string)}</span></div>
+  ${periodDates && periodDates.length ? `<div class="row-l" style="margin-top:0.5mm">Дни (${periodDates.length}): ${daysList}</div>` : ""}`
+    : "";
 
   // Фактическое время оплаты/печати чека
   const now       = dayjsBishkek(new Date().toISOString());
@@ -269,7 +300,10 @@ export function buildReceiptHtml(data: ReceiptData): string {
   ${appointment.patient_name ? `<div class="client">${appointment.patient_name}</div>` : ""}
 
   <!-- Тип операции -->
-  <div class="optype">Разовая оплата</div>
+  <div class="optype">${isAbon ? "Оплата за абонемент (период)" : "Разовая оплата"}</div>
+
+  <!-- Период абонемента + дни посещений -->
+  ${periodBlock}
 
   <div class="sep"></div>
 
@@ -324,6 +358,8 @@ ${isReprint ? "" : `<div class="receipt-copy">
   ${cashierName ? `<div class="manager">Менеджер: ${cashierName}</div>` : ""}
   ${apptStr ? `<div class="row datetime-row"><span class="row-l">Приём</span><span class="row-r">${apptStr}</span></div>` : ""}
   <div class="row datetime-row"><span class="row-l">Оплата</span><span class="row-r">${datetimeStr}</span></div>
+
+  ${periodBlock}
 
   <div class="sep"></div>
 
