@@ -23,6 +23,7 @@ import "dayjs/locale/ru";
 
 import { getSpecialistPayslip } from "../../../services/reports";
 import { generateSpecialistPayslipPDF } from "../../../utility/specialistPayslipPdf";
+import { assemblePayslipAdjustments } from "../../../services/payslipAdjustments";
 import { useReportBranchScope } from "../../../hooks/useReportBranchScope";
 import type { PeriodHalf } from "../../../types/reports";
 
@@ -52,11 +53,8 @@ const computeRange = (monthStart: Dayjs, mode: RangeMode): { from: Dayjs; to: Da
     return { from: monthStart.date(1), to: monthStart.endOf("month") };
 };
 
-const defaultHalfFor = (monthStart: Dayjs): RangeMode => {
-    const today = dayjs();
-    if (today.format("YYYY-MM") !== monthStart.format("YYYY-MM")) return "first";
-    return today.date() <= 15 ? "first" : "second";
-};
+// По умолчанию формируем за весь месяц (пожелание заказчика).
+const DEFAULT_RANGE_MODE: RangeMode = "month";
 
 const SpecialistPayslipDialog: React.FC<SpecialistPayslipDialogProps> = ({
     open,
@@ -67,7 +65,7 @@ const SpecialistPayslipDialog: React.FC<SpecialistPayslipDialogProps> = ({
 }) => {
     const { branchId } = useReportBranchScope();
     const [monthStart, setMonthStart] = useState<Dayjs>(() => dayjs(`${month}-01`).startOf("month"));
-    const [half, setHalf] = useState<RangeMode>(() => defaultHalfFor(dayjs(`${month}-01`)));
+    const [half, setHalf] = useState<RangeMode>(DEFAULT_RANGE_MODE);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -75,7 +73,7 @@ const SpecialistPayslipDialog: React.FC<SpecialistPayslipDialogProps> = ({
         if (open) {
             const ms = dayjs(`${month}-01`).startOf("month");
             setMonthStart(ms);
-            setHalf(defaultHalfFor(ms));
+            setHalf(DEFAULT_RANGE_MODE);
             setError(null);
         }
     }, [open, month]);
@@ -88,8 +86,11 @@ const SpecialistPayslipDialog: React.FC<SpecialistPayslipDialogProps> = ({
 
     const monthName = useMemo(() => capitalize(monthStart.format("MMMM YYYY")), [monthStart]);
 
-    const renderPdf = async (data: Parameters<typeof generateSpecialistPayslipPDF>[0]) => {
-        const blob = await generateSpecialistPayslipPDF(data);
+    const renderPdf = async (
+        data: Parameters<typeof generateSpecialistPayslipPDF>[0],
+        adjustments?: Parameters<typeof generateSpecialistPayslipPDF>[1],
+    ) => {
+        const blob = await generateSpecialistPayslipPDF(data, adjustments);
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
@@ -112,7 +113,23 @@ const SpecialistPayslipDialog: React.FC<SpecialistPayslipDialogProps> = ({
                 branchId,
             );
             if (!res?.data) throw new Error("Пустой ответ от сервера");
-            await renderPdf(res.data);
+
+            // Авансы/удержания специалиста за период — подмешиваем в дни PDF.
+            // Сбой дозагрузки не должен срывать сам расчётный лист.
+            let adjustments;
+            try {
+                adjustments = await assemblePayslipAdjustments({
+                    employeeId,
+                    month: monthStart.format("YYYY-MM"),
+                    dateFrom: range.from.format("YYYY-MM-DD"),
+                    dateTo: range.to.format("YYYY-MM-DD"),
+                    branchId,
+                });
+            } catch (adjErr) {
+                console.error("payslip adjustments:", adjErr);
+            }
+
+            await renderPdf(res.data, adjustments);
             onClose();
         } catch (e: any) {
             console.error(e);

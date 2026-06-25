@@ -110,6 +110,7 @@ const AddPatientDrawer: React.FC<Props> = ({ open, onClose, onCreated, initialPh
   const [birth, setBirth] = React.useState("");
   const [inn, setInn] = React.useState("");
   const [showInn, setShowInn] = React.useState(false);
+  const [diagnosis, setDiagnosis] = React.useState("");
   const [responsiblePersons, setResponsiblePersons] = React.useState<ResponsiblePersonValue[]>(() =>
     ensureResponsiblePersonValues(),
   );
@@ -204,6 +205,7 @@ const AddPatientDrawer: React.FC<Props> = ({ open, onClose, onCreated, initialPh
       setPhoneCountryCode(DEFAULT_PHONE_COUNTRY_CODE);
       setBirth("");
       setInn("");
+      setDiagnosis("");
       setResponsiblePersons(ensureResponsiblePersonValues());
       setIsBlacklisted(false);
       setBlacklistReason("");
@@ -337,6 +339,7 @@ const AddPatientDrawer: React.FC<Props> = ({ open, onClose, onCreated, initialPh
       if (fullPhone) body.phone = fullPhone;
       if (birth) body.birthDate = birth.slice(0, 10);
       if (inn.trim()) body.inn = inn.trim();
+      if (diagnosis.trim()) body.diagnosis = diagnosis.trim();
       body.isBlacklisted = isBlacklisted;
       if (isBlacklisted && blacklistReason.trim()) body.blacklistReason = blacklistReason.trim();
 
@@ -529,6 +532,22 @@ const AddPatientDrawer: React.FC<Props> = ({ open, onClose, onCreated, initialPh
                     helperText: fieldErrors.birth || undefined,
                   },
                 }}
+              />
+            </Stack>
+
+            <Stack spacing={0.5}>
+              <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
+                Диагноз
+              </Typography>
+              <TextField
+                value={diagnosis}
+                onChange={(e) => setDiagnosis(e.target.value)}
+                fullWidth
+                size="small"
+                multiline
+                minRows={1}
+                placeholder="Диагноз ребёнка (необязательно)"
+                disabled={busy}
               />
             </Stack>
 

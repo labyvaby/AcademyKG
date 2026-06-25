@@ -37,6 +37,7 @@ export interface PatientDetail {
   phone?: string | null;
   birthDate?: string | null;
   inn?: string | null;
+  diagnosis?: string | null;
   photo_url?: string | null;
   comment?: string | null;
   latestWeight?: number | null;
@@ -107,6 +108,7 @@ export const PatientQuickViewDrawer: React.FC<PatientQuickViewDrawerProps> = ({
             phone: data.phone || firstResponsiblePhone || null,
             birthDate: data.birthDate || data.birth_date || null,
             inn: data.inn || null,
+            diagnosis: data.diagnosis || null,
             photo_url: resolveUrl(data.photoUrl || data.photo_url),
             comment: data.comment || null,
             latestWeight: lastApt?.weight || null,
@@ -194,6 +196,13 @@ export const PatientQuickViewDrawer: React.FC<PatientQuickViewDrawerProps> = ({
                         ({calculateAgeWithMonths(patient.birthDate)})
                       </Box>
                     </Typography>
+                  </Stack>
+                )}
+
+                {patient.diagnosis && (
+                  <Stack direction="row" spacing={1.5} alignItems="flex-start">
+                    <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: "nowrap" }}>Диагноз:</Typography>
+                    <Typography variant="body2" fontWeight={500} sx={{ whiteSpace: "pre-wrap" }}>{patient.diagnosis}</Typography>
                   </Stack>
                 )}
 

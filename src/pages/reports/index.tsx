@@ -260,8 +260,13 @@ const ReportsPage: React.FC = () => {
         const servicesSum = toNumber(reportTotals.servicesSum);
         const productsSum = toNumber(reportTotals.productsSum);
         const totalRevenue = servicesSum + productsSum;
-        const appointmentsCount = visibleReportData.summaryCards.appointments || toNumber(reportTotals.appointmentsCount);
-        const proceduresCount = visibleReportData.summaryCards.procedures || toNumber(reportTotals.proceduresCount);
+        // Карточку и таблицу держим на ОДНОМ поле (totals), иначе они расходятся:
+        // summaryCards.appointments — отдельный месячный KPI бэка и может отличаться
+        // от totals.appointmentsCount на 1 (см. docs/backend-reports-count-mismatch.md).
+        // totals совпадает с поднеёвной разбивкой таблицы → берём его за основу,
+        // summaryCards — только fallback, если totals пустой.
+        const appointmentsCount = toNumber(reportTotals.appointmentsCount) || visibleReportData.summaryCards.appointments;
+        const proceduresCount = toNumber(reportTotals.proceduresCount) || visibleReportData.summaryCards.procedures;
 
         return [
             {

@@ -98,6 +98,7 @@ const EditPatientDrawer: React.FC<Props> = ({
   const [birth, setBirth] = React.useState("");
   const [inn, setInn] = React.useState("");
   const [showInn, setShowInn] = React.useState(false);
+  const [diagnosis, setDiagnosis] = React.useState("");
   const [responsiblePersons, setResponsiblePersons] = React.useState<ResponsiblePersonValue[]>(() =>
     ensureResponsiblePersonValues(),
   );
@@ -229,6 +230,7 @@ const EditPatientDrawer: React.FC<Props> = ({
         setBirth(birthRaw ? birthRaw.slice(0, 10) : "");
         setInn(innRaw);
         if (innRaw) setShowInn(true);
+        setDiagnosis(String(data?.diagnosis ?? ""));
         setResponsiblePersons(loadedResponsiblePersons);
         setResponsiblePersonErrors([]);
         setIsBlacklisted(blacklistRaw);
@@ -428,6 +430,7 @@ const EditPatientDrawer: React.FC<Props> = ({
       const body: Record<string, any> = {
         fullName: fioTrim,
         inn: inn.trim(),
+        diagnosis: diagnosis.trim(),
         isBlacklisted,
         blacklistReason: isBlacklisted ? blacklistReason.trim() : "",
         responsiblePersons: responsiblePersonsPayload,
@@ -607,6 +610,23 @@ const EditPatientDrawer: React.FC<Props> = ({
                       placeholder: "дд.мм.гггг",
                     },
                   }}
+                />
+              </Stack>
+
+              {/* Диагноз (необязательно) */}
+              <Stack spacing={0.5}>
+                <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
+                  Диагноз
+                </Typography>
+                <TextField
+                  value={diagnosis}
+                  onChange={(e) => setDiagnosis(e.target.value)}
+                  fullWidth
+                  size="small"
+                  multiline
+                  minRows={1}
+                  placeholder="Диагноз ребёнка (необязательно)"
+                  disabled={busy}
                 />
               </Stack>
 

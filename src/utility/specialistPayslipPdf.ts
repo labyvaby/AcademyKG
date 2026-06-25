@@ -1,6 +1,11 @@
 import html2canvas from "html2canvas";
 import { jsPDF } from "jspdf";
 import type { SpecialistPayslipResponse, SpecialistPayslipDay } from "../types/reports";
+import type {
+  PayslipAdjustmentsResult,
+  DayAdjustments,
+  PayslipAdjustment,
+} from "../services/payslipAdjustments";
 
 const PAGE_CELLS = 6;         // сетка 2×3 = 6 ячеек на страницу
 
@@ -31,7 +36,28 @@ const capitalize = (s: string | null | undefined): string => {
   return s.charAt(0).toUpperCase() + s.slice(1);
 };
 
-const renderDayCard = (day: SpecialistPayslipDay, specialistName: string): string => {
+// Строки авансов/удержаний под таблицей дня. Аванс — синим, удержание —
+// красным (уменьшает выплату). Примечание = comment транзакции.
+const renderAdjustmentLines = (adj: DayAdjustments | undefined): string => {
+  if (!adj) return "";
+  const line = (a: PayslipAdjustment, label: string, cls: string): string => {
+    const note = a.note ? ` — ${escapeHtml(a.note)}` : "";
+    return `<div class="adj ${cls}"><span class="adj-label">${label}: ${fmtNum(a.amount)}</span><span class="adj-note">${note}</span></div>`;
+  };
+  const advs = adj.advances.map((a) => line(a, "Аванс", "adv")).join("");
+  const deds = adj.deductions.map((a) => line(a, "Удержание", "ded")).join("");
+  if (!advs && !deds) return "";
+  return `<div class="adj-block">${advs}${deds}</div>`;
+};
+
+const renderDayCard = (
+  day: SpecialistPayslipDay,
+  specialistName: string,
+  adj?: DayAdjustments,
+): string => {
+  // Нерабочий день / день без приёмов: количество за день = 0 → таблицу
+  // обводим красным (заказчик: и нерабочий день, и нулевой итог = красная рамка).
+  const isDayOff = toNum(day.totals.count) === 0;
   const rowsHtml = day.slots
     .map((slot) => {
       const isEmpty = !slot.patientName;
@@ -50,7 +76,7 @@ const renderDayCard = (day: SpecialistPayslipDay, specialistName: string): strin
     .join("");
 
   return `
-    <div class="day-card">
+    <div class="day-card${isDayOff ? " day-off" : ""}">
       <div class="day-head">
         <div class="day-spec">Специалист: <b>${escapeHtml(specialistName)}</b></div>
         <div class="day-date">${escapeHtml(day.date.split("-").reverse().join("."))}</div>
@@ -76,13 +102,17 @@ const renderDayCard = (day: SpecialistPayslipDay, specialistName: string): strin
           </tr>
         </tbody>
       </table>
+      ${renderAdjustmentLines(adj)}
     </div>
   `;
 };
 
 // Локальные итоги по таблице за выводимый период (только полумесяц).
 // Это НЕ зарплата к выплате — здесь нет оклада/авансов/удержаний/соцфонда.
-const renderHalfPeriodTotalsCell = (data: SpecialistPayslipResponse): string => {
+const renderHalfPeriodTotalsCell = (
+  data: SpecialistPayslipResponse,
+  adjustments?: PayslipAdjustmentsResult,
+): string => {
   const { days, period } = data;
   let count = 0;
   let totalSum = 0;
@@ -93,6 +123,17 @@ const renderHalfPeriodTotalsCell = (data: SpecialistPayslipResponse): string => 
     totalEarned += toNum(d.totals.sumEarned);
   });
 
+  const advTotal = adjustments?.advancesTotal ?? 0;
+  const dedTotal = adjustments?.deductionsTotal ?? 0;
+  const hasAdj = advTotal > 0 || dedTotal > 0;
+  const adjRows = hasAdj
+    ? `<tr><td class="l">Авансы за период</td><td class="r">${fmtNum(advTotal)}</td></tr>
+       <tr><td class="l">Удержания за период</td><td class="r">${fmtNum(dedTotal)}</td></tr>`
+    : "";
+  const scope = hasAdj
+    ? "Детализация по занятиям + авансы и удержания за период. Без оклада и соц.фонда."
+    : "Только детализация по занятиям. Без оклада, авансов и удержаний.";
+
   return `
     <div class="day-card summary-card">
       <table class="sum-table">
@@ -100,9 +141,10 @@ const renderHalfPeriodTotalsCell = (data: SpecialistPayslipResponse): string => 
           <tr><td class="l">Занятий за период</td><td class="r">${fmtNum(count)}</td></tr>
           <tr><td class="l">Поступило за период</td><td class="r">${fmtNum(totalSum)}</td></tr>
           <tr><td class="l">Начислено по занятиям за период</td><td class="r">${fmtNum(totalEarned)}</td></tr>
+          ${adjRows}
         </tbody>
       </table>
-      <div class="sum-scope">Только детализация по занятиям. Без оклада, авансов и удержаний.</div>
+      <div class="sum-scope">${scope}</div>
       <div class="sum-period">${escapeHtml(period.label)}</div>
     </div>
   `;
@@ -127,10 +169,15 @@ const renderMonthSummaryCell = (data: SpecialistPayslipResponse): string => {
   `;
 };
 
-const renderSummaryCell = (data: SpecialistPayslipResponse): string => {
+const renderSummaryCell = (
+  data: SpecialistPayslipResponse,
+  adjustments?: PayslipAdjustmentsResult,
+): string => {
+  // Месячная сводка берёт авансы/удержания из backend `summary` (он
+  // авторитетен по месяцу); полумесяц — из подмешанных per-day данных.
   return data.period.detailScope === "month"
     ? renderMonthSummaryCell(data)
-    : renderHalfPeriodTotalsCell(data);
+    : renderHalfPeriodTotalsCell(data, adjustments);
 };
 
 const renderEmptyCell = (): string => `<div class="day-card empty-card"></div>`;
@@ -166,6 +213,12 @@ const STYLES = `
     overflow: hidden;
   }
   .payslip .empty-card { border: none; }
+  /* Нерабочий день / нулевой итог — красная обводка таблицы. */
+  .payslip .day-card.day-off { border: 1.5px solid #d32f2f; }
+  .payslip .day-card.day-off table.slots,
+  .payslip .day-card.day-off table.slots th,
+  .payslip .day-card.day-off table.slots td { border-color: #d32f2f; }
+  .payslip .day-card.day-off .day-head { border-bottom-color: #d32f2f; }
   .payslip .day-head {
     display: flex;
     justify-content: space-between;
@@ -210,6 +263,22 @@ const STYLES = `
   .payslip table.slots td.time { font-weight: 600; }
   .payslip table.slots tr.totals td { background: #eef2fb; font-weight: 700; }
 
+  /* Авансы / удержания под таблицей дня */
+  .payslip .adj-block { margin-top: 0.6mm; }
+  .payslip .adj {
+    display: flex;
+    gap: 0.5mm;
+    font-size: 6pt;
+    line-height: 1.15;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .payslip .adj-label { font-weight: 700; flex: none; }
+  .payslip .adj-note { overflow: hidden; text-overflow: ellipsis; }
+  .payslip .adj.adv { color: #0a47a9; }
+  .payslip .adj.ded { color: #d32f2f; }
+
   .payslip .summary-card { justify-content: center; padding: 4mm 6mm; }
   .payslip .sum-table {
     width: 100%;
@@ -250,9 +319,12 @@ const isWeekend = (iso: string): boolean => {
 // чтобы не было «пропусков» вроде страницы с одной пятничной таблицей.
 // Показываем только будни (Пн–Пт), даже с 0 приёмов. Сб/Вс не показываем вообще.
 // Общий итог (summary) — первой ячейкой первой страницы.
-const buildPages = (data: SpecialistPayslipResponse): PageBuild[] => {
+const buildPages = (
+  data: SpecialistPayslipResponse,
+  adjustments?: PayslipAdjustmentsResult,
+): PageBuild[] => {
   const { days, employee } = data;
-  const summaryHtml = renderSummaryCell(data);
+  const summaryHtml = renderSummaryCell(data, adjustments);
 
   const visibleDays: SpecialistPayslipDay[] = [...days]
     .filter((d) => !isWeekend(d.date))
@@ -260,7 +332,9 @@ const buildPages = (data: SpecialistPayslipResponse): PageBuild[] => {
 
   const cells: string[] = [
     summaryHtml,
-    ...visibleDays.map((d) => renderDayCard(d, employee.fullName)),
+    ...visibleDays.map((d) =>
+      renderDayCard(d, employee.fullName, adjustments?.byDate.get(d.date)),
+    ),
   ];
 
   // добиваем до кратности PAGE_CELLS пустыми ячейками, чтобы сетка не «съезжала»
@@ -278,9 +352,10 @@ const buildPages = (data: SpecialistPayslipResponse): PageBuild[] => {
 
 export const generateSpecialistPayslipPDF = async (
   data: SpecialistPayslipResponse,
+  adjustments?: PayslipAdjustmentsResult,
 ): Promise<Blob> => {
   const { employee, period } = data;
-  const pages = buildPages(data);
+  const pages = buildPages(data, adjustments);
 
   const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
   const pageW = pdf.internal.pageSize.getWidth();
