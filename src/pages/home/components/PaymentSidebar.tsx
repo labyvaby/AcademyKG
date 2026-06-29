@@ -48,20 +48,6 @@ type PaymentSidebarProps = {
     bulkPeriodDates?: string[];
 };
 
-// Распределяет сумму между N приёмами по копейкам с учётом остатка.
-function distributeAmount(total: number, count: number): number[] {
-    if (count <= 0) return [];
-    const totalCents = Math.round(total * 100);
-    const baseCents = Math.floor(totalCents / count);
-    const remainderCents = totalCents - baseCents * count;
-    const shares: number[] = [];
-    for (let i = 0; i < count; i++) {
-        const c = baseCents + (i < remainderCents ? 1 : 0);
-        shares.push(c / 100);
-    }
-    return shares;
-}
-
 export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
     open,
     onClose,
@@ -79,11 +65,17 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
     const { open: notify } = useNotification();
     const { selectedBranch } = useBranchContext();
 
-    // Автоматическая скидка для ребёнка сотрудника: подгружаем клиента и читаем процент.
+    // Ребёнок сотрудника: подгружаем клиента, чтобы показать инфо про авто-удержание.
+    // Льготную скидку, закрытие приёма (debt=0) и удержание остатка на родителе-сотруднике
+    // оформляет БЭКЕНД при проведении оплаты — фронт ничего не форсит (контракт 2026-06-26).
+    const [isEmployeeChild, setIsEmployeeChild] = useState(false);
     const [employeeChildPercent, setEmployeeChildPercent] = useState<number | null>(null);
+    const [employeeParentName, setEmployeeParentName] = useState<string | null>(null);
     useEffect(() => {
         if (!open || !appointment?.patient_id) {
+            setIsEmployeeChild(false);
             setEmployeeChildPercent(null);
+            setEmployeeParentName(null);
             return;
         }
         let cancelled = false;
@@ -93,14 +85,19 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
                 const data = r?.data ?? r;
                 const isChild = Boolean(data?.isEmployeeChild ?? data?.is_employee_child);
                 const pct = data?.employeeChildDiscountPercent ?? data?.employee_child_discount_percent;
-                if (isChild && pct !== null && pct !== undefined && Number(pct) > 0) {
-                    setEmployeeChildPercent(Number(pct));
-                } else {
-                    setEmployeeChildPercent(null);
-                }
+                const parentName = data?.employeeParentName ?? data?.employee_parent_name ?? null;
+                setIsEmployeeChild(isChild);
+                setEmployeeParentName(isChild ? parentName : null);
+                setEmployeeChildPercent(
+                    isChild && pct !== null && pct !== undefined ? Number(pct) : null
+                );
             })
             .catch(() => {
-                if (!cancelled) setEmployeeChildPercent(null);
+                if (!cancelled) {
+                    setIsEmployeeChild(false);
+                    setEmployeeChildPercent(null);
+                    setEmployeeParentName(null);
+                }
             });
         return () => { cancelled = true; };
     }, [open, appointment?.patient_id]);
@@ -260,13 +257,6 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [open, appointment?.id]);
 
-    // Если клиент — ребёнок сотрудника, форсим процент скидки на значение из карточки клиента.
-    useEffect(() => {
-        if (open && employeeChildPercent !== null) {
-            setDiscountPercent(employeeChildPercent);
-        }
-    }, [open, employeeChildPercent]);
-
     // Calculate Discount Amount
     const discountAmount = Math.round((basePrice * discountPercent) / 100);
 
@@ -298,28 +288,34 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
             notify?.({ type: "error", message: "Не удалось определить созданные приёмы для оплаты" });
             return;
         }
-        const cashShares = distributeAmount(cashNum, ids.length);
-        const cardShares = distributeAmount(cardNum, ids.length);
-        const discountShares = distributeAmount(discountAmount, ids.length);
+        // Фаза 1 эндпоинта /period-payments/ — только полная оплата:
+        // Σ(cash+card+balance+bonuses+discount) должна = Σ стоимости приёмов, иначе бэк вернёт 400.
+        // Гасим заранее на фронте, чтобы дать понятную ошибку вместо «голой» 400.
+        if (previewDebt > 0) {
+            notify?.({
+                type: "error",
+                message: "Оплата за период принимается только полностью",
+                description: `Остаток ${previewDebt.toLocaleString()} сом — внесите всю сумму.`,
+            });
+            return;
+        }
         try {
             setLoading(true);
-            // Promise.all останавливается при первой ошибке — частично "оплаченные" приёмы остаются с обновлёнными
-            // полями, но ошибка отображается пользователю; рассинхрон возможен в случае сетевых сбоев.
-            await Promise.all(
-                ids.map((id, idx) =>
-                    apiFetch(`/api/v1/appointments/${id}/`, {
-                        method: "PATCH",
-                        body: JSON.stringify({
-                            paidCash: cashShares[idx] ?? 0,
-                            paidCard: cardShares[idx] ?? 0,
-                            paidBalance: 0,
-                            paidBonuses: 0,
-                            discount: discountShares[idx] ?? 0,
-                            adminComment: adminComment,
-                        }),
-                    })
-                )
-            );
+            // Один атомарный вызов вместо N PATCH с дроблением суммы по приёмам.
+            // Выручка признаётся в день оплаты (paidAt по умолчанию = сейчас, Asia/Bishkek),
+            // заработок специалиста остаётся на дне сессии. Контракт бэка 2026-06-26.
+            await apiFetch(`/api/v1/period-payments/`, {
+                method: "POST",
+                body: JSON.stringify({
+                    appointmentIds: ids,
+                    paidCash: String(cashNum),
+                    paidCard: String(cardNum),
+                    paidBalance: String(balanceUsed),
+                    paidBonuses: String(pointsUsed),
+                    discount: String(discountAmount),
+                    adminComment: adminComment,
+                }),
+            });
             // Чек за период (абонемент): печатаем одной квитанцией с периодом
             // «с по» и днями посещений. Кнопка «Печать чека» — для повтора.
             if (appointment) {
@@ -581,6 +577,29 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
                                     : appointment?.patient_name}
                             </Typography>
 
+                            {!isBulkMode && isEmployeeChild && (
+                                <Paper
+                                    elevation={0}
+                                    sx={{
+                                        p: 1.5,
+                                        mb: 2,
+                                        bgcolor: (theme) => alpha(theme.palette.info.main, 0.08),
+                                        border: '1px solid',
+                                        borderColor: (theme) => alpha(theme.palette.info.main, 0.3),
+                                        borderRadius: 1,
+                                    }}
+                                >
+                                    <Typography variant="caption" color="info.main" fontWeight={600} display="block">
+                                        Ребёнок сотрудника
+                                    </Typography>
+                                    <Typography variant="caption" color="text.secondary">
+                                        Льготную скидку{employeeChildPercent !== null ? ` (${employeeChildPercent}%)` : ""} и
+                                        удержание остатка{employeeParentName ? ` на «${employeeParentName}»` : " на родителя-сотрудника"} оформит
+                                        система при проведении оплаты. Наличные вносить не нужно.
+                                    </Typography>
+                                </Paper>
+                            )}
+
                             {!isBulkMode && (
                                 <Stack spacing={0.5}>
                                     <Stack direction="row" justifyContent="space-between" alignItems="center">
@@ -649,8 +668,6 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
                                         onChange={(e) => setDiscountPercent(Math.min(100, Math.max(0, Number(e.target.value) || 0)))}
                                         inputProps={{ min: 0, max: 100, style: { textAlign: 'center' } }}
                                         sx={{ ...noSpinnersSx }}
-                                        disabled={employeeChildPercent !== null}
-                                        helperText={employeeChildPercent !== null ? "Авто: ребёнок сотрудника" : undefined}
                                     />
                                 </Box>
                             </Stack>
