@@ -244,6 +244,7 @@ const STYLES = `
     border: 1px solid #0a2240;
     padding: 0.2mm 0.6mm;
     line-height: 1.05;
+    vertical-align: middle;
     overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
@@ -261,7 +262,16 @@ const STYLES = `
   .payslip table.slots .c { text-align: center; }
   .payslip table.slots .r { text-align: right; }
   .payslip table.slots td.time { font-weight: 600; }
-  .payslip table.slots tr.totals td { background: #eef2fb; font-weight: 700; }
+  /* Строки занятий равномерно растягиваются на всю высоту карточки:
+     table flex:1 распределяет свободное место между tr тела.
+     Строка «Итог» — чуть выше и крупнее остальных. */
+  .payslip table.slots tr.totals td {
+    background: #eef2fb;
+    font-weight: 700;
+    height: 6mm;
+    font-size: 7pt;
+    padding: 0.6mm 0.6mm;
+  }
 
   /* Авансы / удержания под таблицей дня */
   .payslip .adj-block { margin-top: 0.6mm; }
