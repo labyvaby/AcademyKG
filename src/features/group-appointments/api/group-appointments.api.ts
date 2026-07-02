@@ -79,7 +79,7 @@ export async function createGroup(payload: {
   maxParticipants?: number | null;
   patientIds: string[];
   patientNames: string[];
-}): Promise<AppointmentGroup> {
+}, skipClientRateLimit = false): Promise<AppointmentGroup> {
   const groupBody: Record<string, any> = {
     appointmentAt: payload.appointmentAt,
     performer: payload.performerId,
@@ -94,7 +94,7 @@ export async function createGroup(payload: {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(groupBody),
-  });
+  }, false, skipClientRateLimit);
 
   const data = res?.data ?? res;
   // Патчим имена если бэкенд их не вернул
