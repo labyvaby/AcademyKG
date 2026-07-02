@@ -1,6 +1,8 @@
 /**
  * «Авансы и долги» — дневная детализация для PDF (фото-образец
- * WhatsApp 04.06.2026): секция «АВАНСЫ» — кому выдан аванс за день,
+ * WhatsApp 04.06.2026): секция «АВАНСЫ» — кому выдан аванс за день
+ * (включая удержания kind=deduction — авто-удержания за детей сотрудников,
+ * по просьбе заказчика 2026-07-02 идут в общий список авансов),
  * секция «Долги детей» — приёмы дня с непогашенным долгом; в скобках —
  * ответственное лицо (родитель) из карточки клиента (responsiblePersons[0],
  * проверено вживую 2026-06-11: «Ариет (Эрмек)» = клиент Алиев Ариет Эрмекович,
@@ -76,9 +78,17 @@ export async function assembleDailyDetails(p: AssembleDailyDetailsParams): Promi
     }
     const month = p.date.slice(0, 7); // YYYY-MM
 
-    const [txRes, aggRes] = await Promise.all([
+    const [txRes, dedRes, aggRes] = await Promise.all([
         apiFetch<any>(
             `/api/v1/payroll-transactions/?kind=advance&affectsMonth=${month}&branch=${p.branchId}&pageSize=500`,
+            { signal: p.signal },
+        ),
+        // Удержания (kind=deduction) — в т.ч. авто-удержания за детей сотрудников
+        // (бэк вешает остаток «цена − скидка» на родителя-специалиста при оплате).
+        // Заказчик: «оплата должна идти авансом на специалиста» → показываем их
+        // в секции «АВАНСЫ» вместе с обычными авансами (подтверждение 2026-07-02).
+        apiFetch<any>(
+            `/api/v1/payroll-transactions/?kind=deduction&affectsMonth=${month}&branch=${p.branchId}&pageSize=500`,
             { signal: p.signal },
         ),
         apiFetch<any>(
@@ -87,14 +97,20 @@ export async function assembleDailyDetails(p: AssembleDailyDetailsParams): Promi
         ),
     ]);
 
-    // ── Авансы за день (по дате проведения createdAt, время Бишкека) ──────
-    const advances: DailyDetailRow[] = unwrapList<PayrollTxApi>(txRes)
-        .filter((t) => t.createdAt && dayjsBishkek(t.createdAt).format("YYYY-MM-DD") === p.date)
-        .map((t) => ({
-            name: t.employee?.fullName || "Без имени",
-            note: (t.comment ?? "").trim(),
-            amount: num(t.totalAmount),
-        }));
+    // ── Авансы + удержания за день (по дате проведения createdAt, Бишкек) ──
+    const isSameDay = (t: PayrollTxApi) =>
+        Boolean(t.createdAt && dayjsBishkek(t.createdAt).format("YYYY-MM-DD") === p.date);
+    const toRow = (t: PayrollTxApi, fallbackNote = ""): DailyDetailRow => ({
+        name: t.employee?.fullName || "Без имени",
+        note: (t.comment ?? "").trim() || fallbackNote,
+        amount: num(t.totalAmount),
+    });
+    const advances: DailyDetailRow[] = [
+        ...unwrapList<PayrollTxApi>(txRes).filter(isSameDay).map((t) => toRow(t)),
+        // Комментарий авто-удержания самоописателен («Ребёнок сотрудника … по
+        // услуге …»); для ручных удержаний без комментария — пометка «удержание».
+        ...unwrapList<PayrollTxApi>(dedRes).filter(isSameDay).map((t) => toRow(t, "удержание")),
+    ];
 
     // ── Долги детей за день: приёмы дня с debt > 0, кроме отменённых ──────
     const dayDebts = unwrapList<AggAppointmentApi>(aggRes).filter(
