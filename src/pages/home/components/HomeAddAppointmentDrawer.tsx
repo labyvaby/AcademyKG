@@ -756,10 +756,12 @@ export const HomeAddAppointmentDrawer: React.FC<
           });
         }
 
-        // Собираем успешно созданные приёмы для возможной оплаты за период
+        // Собираем успешно созданные приёмы для возможной оплаты за период.
+        // ВАЖНО: apiFetch возвращает конверт {data, meta} — разворачиваем, иначе
+        // фильтр Boolean(a?.id) ниже отсеет всё и оплата за период не откроется.
         const createdAppointments = results
           .filter((r): r is PromiseFulfilledResult<any> => r.status === "fulfilled")
-          .map((r) => r.value);
+          .map((r) => r.value?.data ?? r.value);
 
         const hasPatient = !!selectedPatient;
         const servicePrice = periodServicePrice;
