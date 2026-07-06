@@ -250,13 +250,17 @@ function injectBranchParam(path: string, method: string): string {
 export async function apiFetch<T = unknown>(
   path: string,
   options: RequestInit = {},
-  skipAuth = false
+  skipAuth = false,
+  // Освобождает намеренные пакетные операции (например создание приёмов «на
+  // период» — до 60 однотипных запросов подряд) от клиентского rate-limit.
+  // Защита от случайных петель для обычных вызовов при этом сохраняется.
+  skipClientRateLimit = false,
 ): Promise<T> {
   const method = (options.method ?? "GET").toUpperCase();
   const resolvedPath = injectBranchParam(path, method);
   const url = `${BASE_URL}${resolvedPath}`;
 
-  enforceClientRateLimit(resolvedPath, method);
+  if (!skipClientRateLimit) enforceClientRateLimit(resolvedPath, method);
 
   if (!skipAuth && isClientSessionRevoked()) {
     tokenStorage.clear();

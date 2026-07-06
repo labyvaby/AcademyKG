@@ -140,7 +140,13 @@ const EmployeesPage: React.FC = () => {
               overflow: "hidden",
             }}
           >
-            <Box sx={{ height: "100%", overflowY: "auto", pr: 0.5, WebkitOverflowScrolling: "touch" }}>
+            {/* Подгрузка следующей страницы: на десктопе скроллится именно этот
+                Box (CardContent внутри EmployeeList растянут и не скроллится),
+                поэтому onScroll нужен здесь, а не только внутри списка. */}
+            <Box
+              sx={{ height: "100%", overflowY: "auto", pr: 0.5, WebkitOverflowScrolling: "touch" }}
+              onScroll={state.loadMore}
+            >
               <EmployeeList
                 items={state.filtered}
                 onSelect={(e) => state.setDetailsOpen(e)}

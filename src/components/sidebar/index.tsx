@@ -50,7 +50,7 @@ import SavingsOutlined from "@mui/icons-material/SavingsOutlined";
 import { useThemedLayoutContext } from "@refinedev/mui";
 import { logout } from "../../services/auth";
 import { Link as RouterLink, useLocation } from "react-router";
-import { useBranchContext } from "../../contexts/branch-context";
+import { useEffectiveBranch } from "../../hooks/useEffectiveBranch";
 import { useMobileSidebar } from "./mobile-context";
 import { SettingsModal } from "./SettingsModal";
 import { usePermissions } from "../../hooks/usePermissions";
@@ -226,9 +226,9 @@ const SidebarContainer: React.FC<React.PropsWithChildren<{ stickyTop?: React.Rea
 // Mobile header with logo (< 768px - мобильные и планшеты)
 const MobileSidebarHeader: React.FC = () => {
   const { mobileOpen, setMobileOpen } = useMobileSidebar();
-  const { selectedBranch } = useBranchContext();
-  const logoSrc = withLogoCacheBust(selectedBranch?.logoUrl) || appLogo;
-  const brandLabel = selectedBranch?.brandName || selectedBranch?.name || "";
+  const branch = useEffectiveBranch();
+  const logoSrc = withLogoCacheBust(branch?.logoUrl) || appLogo;
+  const brandLabel = branch?.brandName || branch?.name || "";
 
   return (
     <Box
@@ -252,7 +252,7 @@ const MobileSidebarHeader: React.FC = () => {
             onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
               if (e.currentTarget.src !== appLogo) e.currentTarget.src = appLogo;
             }}
-            alt={selectedBranch?.brandName || selectedBranch?.name || "Academy KG"}
+            alt={brandLabel || "Academy KG"}
             sx={{
               height: 36,
               width: "auto",
@@ -287,9 +287,9 @@ const MobileSidebarHeader: React.FC = () => {
 // Desktop header with logo and burger button on same level (>= 768px)
 const DesktopSidebarHeader: React.FC = () => {
   const { siderCollapsed, setSiderCollapsed } = useThemedLayoutContext();
-  const { selectedBranch } = useBranchContext();
-  const logoSrc = withLogoCacheBust(selectedBranch?.logoUrl) || appLogo;
-  const brandLabel = selectedBranch?.brandName || selectedBranch?.name || "";
+  const branch = useEffectiveBranch();
+  const logoSrc = withLogoCacheBust(branch?.logoUrl) || appLogo;
+  const brandLabel = branch?.brandName || branch?.name || "";
 
   const handleClick = () => {
     setSiderCollapsed?.(!siderCollapsed);
@@ -323,7 +323,7 @@ const DesktopSidebarHeader: React.FC = () => {
               onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
                 if (e.currentTarget.src !== appLogo) e.currentTarget.src = appLogo;
               }}
-              alt={selectedBranch?.brandName || selectedBranch?.name || "Academy KG"}
+              alt={brandLabel || "Academy KG"}
               sx={{
                 height: 28,
                 width: "auto",

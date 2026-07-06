@@ -26,7 +26,7 @@ import { useNotification } from "@refinedev/core";
 import { useQueryClient } from "@tanstack/react-query";
 import { usePatientBalance } from "../../patient-search/usePatientBalance";
 import { printReceipt, type ReceiptData } from "../../../components/ui/PaymentReceipt";
-import { useBranchContext } from "../../../contexts/branch-context";
+import { useEffectiveBranch } from "../../../hooks/useEffectiveBranch";
 
 type PaymentSidebarProps = {
     open: boolean;
@@ -63,7 +63,7 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
 }) => {
     const isBulkMode = Boolean(bulkAppointmentIds && bulkAppointmentIds.length > 0);
     const { open: notify } = useNotification();
-    const { selectedBranch } = useBranchContext();
+    const selectedBranch = useEffectiveBranch();
 
     // Ребёнок сотрудника: подгружаем клиента, чтобы показать инфо про авто-удержание.
     // Льготную скидку, закрытие приёма (debt=0) и удержание остатка на родителе-сотруднике

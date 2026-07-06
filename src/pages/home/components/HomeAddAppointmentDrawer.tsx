@@ -551,11 +551,11 @@ export const HomeAddAppointmentDrawer: React.FC<
     );
   }, [normalizeDurationMinutes]);
 
-  const loadDayAppointments = React.useCallback(async (date: string): Promise<any[]> => {
+  const loadDayAppointments = React.useCallback(async (date: string, skipRateLimit = false): Promise<any[]> => {
     if (dayAppointmentsCacheRef.current[date]) return dayAppointmentsCacheRef.current[date];
     const branchId = getBranchFilter();
     const branchParam = branchId ? `&branch=${branchId}` : "";
-    const res: any = await apiFetch(`/api/v1/appointments/?date=${date}&pageSize=500${branchParam}`);
+    const res: any = await apiFetch(`/api/v1/appointments/?date=${date}&pageSize=500${branchParam}`, {}, false, skipRateLimit);
     const list: any[] = res?.data?.results ?? res?.results ?? [];
     dayAppointmentsCacheRef.current[date] = Array.isArray(list) ? list : [];
     return dayAppointmentsCacheRef.current[date];
@@ -608,9 +608,10 @@ export const HomeAddAppointmentDrawer: React.FC<
     date: string,
     timeStr: string,
     rows: Array<{ doctorId: string; durationMinutes: number }>,
-    excludeAppointmentId?: string
+    excludeAppointmentId?: string,
+    skipRateLimit = false,
   ): Promise<{ doctorId: string; start: string; end: string } | null> => {
-    const appts = await loadDayAppointments(date);
+    const appts = await loadDayAppointments(date, skipRateLimit);
     const existingIntervals = appts
       .filter((a: any) => String(a?.id ?? "") !== String(excludeAppointmentId ?? ""))
       .flatMap((a: any) => getIntervalsFromAppointment(a));
@@ -686,7 +687,7 @@ export const HomeAddAppointmentDrawer: React.FC<
         for (const date of periodDates) {
           // Сбрасываем кэш перед проверкой каждой даты
           delete dayAppointmentsCacheRef.current[date];
-          const conflict = await findConflictForRows(date, timeStr, rowsForConflictCheck);
+          const conflict = await findConflictForRows(date, timeStr, rowsForConflictCheck, undefined, true);
           if (conflict) {
             const docName = doctorsOpts.find((d) => d.id === conflict.doctorId)?.full_name
               ?? allDoctorsOpts.find((d) => d.id === conflict.doctorId)?.full_name
@@ -723,7 +724,7 @@ export const HomeAddAppointmentDrawer: React.FC<
           return apiFetch("/api/v1/appointments/", {
             method: "POST",
             body: JSON.stringify(payload),
-          });
+          }, false, true);
         });
 
         const results = await Promise.allSettled(requests);
@@ -755,10 +756,12 @@ export const HomeAddAppointmentDrawer: React.FC<
           });
         }
 
-        // Собираем успешно созданные приёмы для возможной оплаты за период
+        // Собираем успешно созданные приёмы для возможной оплаты за период.
+        // ВАЖНО: apiFetch возвращает конверт {data, meta} — разворачиваем, иначе
+        // фильтр Boolean(a?.id) ниже отсеет всё и оплата за период не откроется.
         const createdAppointments = results
           .filter((r): r is PromiseFulfilledResult<any> => r.status === "fulfilled")
-          .map((r) => r.value);
+          .map((r) => r.value?.data ?? r.value);
 
         const hasPatient = !!selectedPatient;
         const servicePrice = periodServicePrice;
@@ -853,7 +856,7 @@ export const HomeAddAppointmentDrawer: React.FC<
           const baseTime = visitDateTime ? dayjs(visitDateTime) : dayjs().hour(9).minute(0).second(0);
           const timeStr = baseTime.format("HH:mm");
           for (const date of periodDates) {
-            const conflict = await findConflictForRows(date, timeStr, [{ doctorId: firstRow.doctorId, durationMinutes: groupDuration }]);
+            const conflict = await findConflictForRows(date, timeStr, [{ doctorId: firstRow.doctorId, durationMinutes: groupDuration }], undefined, true);
             if (conflict) {
               const docName = doctorsOpts.find((d) => d.id === firstRow.doctorId)?.full_name
                 ?? allDoctorsOpts.find((d) => d.id === firstRow.doctorId)?.full_name
@@ -878,7 +881,7 @@ export const HomeAddAppointmentDrawer: React.FC<
                 maxParticipants: (svc as any)?.maxParticipants ?? null,
                 patientIds: groupParticipants.map(p => p.id),
                 patientNames: groupParticipants.map(p => p.fio ?? p.label ?? ""),
-              })
+              }, true)
             )
           );
           const failed = results.filter((result) => result.status === "rejected");

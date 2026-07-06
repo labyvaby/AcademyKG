@@ -3,6 +3,7 @@ import dayjs from "dayjs";
 export interface SalaryRules {
     fixed_salary?: {
         enabled?: boolean;
+        monthly_rate?: number;
         day_hourly_rate?: number;
         appointment_rate?: number;
     };

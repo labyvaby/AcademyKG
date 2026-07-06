@@ -1,8 +1,9 @@
 /**
  * «Авансы и долги» — PDF-генератор (A4 портрет), html2pdf.js.
- * Структура 1:1 с фото-образцом (WhatsApp 04.06.2026): жёлтая шапка
+ * Структура по фото-образцу (WhatsApp 04.06.2026): жёлтая шапка
  * «АВАНСЫ: <дата>», строка «Ф.И.О.», строки «имя (примечание) | сумма»,
- * жёлтые «Итого», жёлтая секция «Долги детей», строки, «Итого».
+ * жёлтые «Итого»; с 2026-07-06 между авансами и долгами — секция
+ * «УДЕРЖАНИЯ: <дата>» той же структуры; затем «Долги детей», строки, «Итого».
  *
  * Данные собирает services/dailyDetails.ts (assembleDailyDetails).
  */
@@ -61,6 +62,14 @@ const buildHtml = (d: DailyDetailsData): string => {
             ? d.advances.map((r) => dataRow(r, "center")).join("")
             : emptyRow("Авансов за этот день нет")}
         ${totalRow(d.advancesTotal)}
+
+        <!-- Удержания (за детей сотрудников и ручные) -->
+        ${sectionRow(`УДЕРЖАНИЯ: ${dateLabel}`)}
+        <tr><td colspan="2" style="${CELL}font-weight:800;text-align:center;">Ф.И.О.</td></tr>
+        ${d.deductions.length > 0
+            ? d.deductions.map((r) => dataRow(r, "center")).join("")
+            : emptyRow("Удержаний за этот день нет")}
+        ${totalRow(d.deductionsTotal)}
 
         <!-- Долги детей -->
         ${sectionRow("Долги детей")}
