@@ -43,6 +43,7 @@ interface SalaryRule {
 interface SalaryState {
     fixed_salary: {
         enabled: boolean;
+        monthly_rate: number;
         day_hourly_rate: number;
         appointment_rate: number;
     };
@@ -62,6 +63,7 @@ const SalarySettings: React.FC<SalarySettingsProps> = ({ employeeId, initialValu
     const [state, setState] = useState<SalaryState>(initialValue || {
         fixed_salary: {
             enabled: false,
+            monthly_rate: 0,
             day_hourly_rate: 0,
             appointment_rate: 0,
         },
@@ -78,6 +80,7 @@ const SalarySettings: React.FC<SalarySettingsProps> = ({ employeeId, initialValu
             setState({
                 fixed_salary: {
                     enabled: false,
+                    monthly_rate: 0,
                     day_hourly_rate: 0,
                     appointment_rate: 0,
                 },
@@ -214,7 +217,7 @@ const SalarySettings: React.FC<SalarySettingsProps> = ({ employeeId, initialValu
                             <AccessTime sx={{ fontSize: 18 }} />
                         </Box>
                         <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                            Фикс (час/прием)
+                            Фикс (оклад/час/прием)
                         </Typography>
                     </Stack>
                     <Switch size="small" checked={state.fixed_salary.enabled} onChange={toggleFixedSalary} color="primary" />
@@ -223,7 +226,7 @@ const SalarySettings: React.FC<SalarySettingsProps> = ({ employeeId, initialValu
                 <Box
                     sx={{
                         display: "grid",
-                        gridTemplateColumns: "1fr 1fr",
+                        gridTemplateColumns: "repeat(3, 1fr)",
                         gap: 1,
                         opacity: state.fixed_salary.enabled ? 1 : 0.4,
                         pointerEvents: state.fixed_salary.enabled ? "auto" : "none",
@@ -231,6 +234,7 @@ const SalarySettings: React.FC<SalarySettingsProps> = ({ employeeId, initialValu
                     }}
                 >
                     {[
+                        { label: "Оклад (месяц)", key: "monthly_rate" },
                         { label: "Ставка (день/час)", key: "day_hourly_rate" },
                         { label: "Ставка за прием", key: "appointment_rate" },
                     ].map((item) => (
