@@ -42,7 +42,7 @@ import DoctorQuickViewDrawer from "../../../components/employees/DoctorQuickView
 import { PaymentInfoBlock } from "../../../components/ui";
 import PrintOutlinedIcon from "@mui/icons-material/PrintOutlined";
 import { printReceipt } from "../../../components/ui/PaymentReceipt";
-import { useBranchContext } from "../../../contexts/branch-context";
+import { useEffectiveBranch } from "../../../hooks/useEffectiveBranch";
 
 import { apiFetch } from "../../../utility/apiClient";
 import { markAttendance } from "../../../features/group-appointments/api/group-appointments.api";
@@ -112,7 +112,7 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
   const [deleting, setDeleting] = React.useState(false);
   const { isSuperAdmin, hasPermission, employeeId } = usePermissions();
   const canDelete = isSuperAdmin() || hasPermission(PERMISSIONS.APPOINTMENTS_DELETE);
-  const { selectedBranch } = useBranchContext();
+  const selectedBranch = useEffectiveBranch();
 
   const canManageAppointment = hasPermission(PERMISSIONS.APPOINTMENTS_UPDATE);
   const canViewAsSpecialist = canViewSpecialistContent(hasPermission);
