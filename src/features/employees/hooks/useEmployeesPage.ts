@@ -13,7 +13,6 @@ import { fetchSellableServices } from "../../../services/services";
 import { useSimplePageCache } from "../../../hooks/useSimplePageCache";
 import { useBranchContext } from "../../../contexts/branch-context";
 
-const PAGE_SIZE = 30;
 const EMPLOYEE_WRITE_FIELDS = new Set([
   "fullName",
   "inn",
@@ -111,7 +110,8 @@ export function useEmployeesPageState() {
       }
 
       const res: any = await apiFetch(`/api/v1/employees/?${params.toString()}`);
-      const rawList = res?.data?.results ?? res?.results ?? [];
+      const payload = res?.data ?? res;
+      const rawList = payload?.results ?? [];
 
       const mapped: EmployesRow[] = (Array.isArray(rawList) ? rawList : [])
         .map((r: unknown) => {
@@ -127,7 +127,11 @@ export function useEmployeesPageState() {
         return isNewSearch ? newItems : dedupeEmployees(newItems);
       });
 
-      setHasMore(mapped.length === PAGE_SIZE);
+      // hasMore — строго по next из ответа бэка. Сравнение с фиксированным
+      // PAGE_SIZE ломалось: бэк отдаёт страницы по 20, фронт ждал 30 —
+      // подгрузка обрывалась и сотрудники «пропадали» из списка
+      // (при этом поиск и отчёты их видели).
+      setHasMore(Boolean(payload?.next));
     } catch (e: unknown) {
       console.error("Fetch employees error:", getErrorMessage(e));
       setErrorMsg("Не удалось загрузить сотрудников");
