@@ -8,12 +8,17 @@
  * Кассовые строки («наличка») — фактически полученное (income.total, paid_*).
  *
  * Кассовые строки СОЗНАТЕЛЬНО считаются на фронте по модели заказчика
- * (наличка = выручка − операц.расходы, подтверждено 2026-06-15):
- *   наличка за сегодня  = day.income.total − операц.расходы дня
- *   наличка за период   = monthToDate.income.total − операц.расходы периода
+ * (наличка = живые деньги − операц.расходы, подтверждено 2026-06-15):
+ *   наличка за сегодня  = (day.income.cash + cashless) − операц.расходы дня
+ *   наличка за период   = (monthToDate.income.cash + cashless) − операц.расходы периода
  *   за прошлый день     = период − сегодня
- * netCash бэка для этих строк НЕ годится: он дополнительно вычитает авансы и
- * выплаты ЗП, а строка «наличка» их не вычитает (авансы — отдельной строкой ниже).
+ * С бэк-фикса 2026-07-06 пополнения клиентского баланса входят в income.cash/
+ * cashless (приход кассы в день пополнения), а оплаты приёмов балансом — в
+ * income.balance (выручка без движения денег). Поэтому income.total для
+ * кассовых строк НЕ годится: он суммирует и пополнение, и списание → двойной
+ * счёт балансовых денег. netCash бэка тоже не годится: он дополнительно
+ * вычитает авансы и выплаты ЗП, а строка «наличка» их не вычитает
+ * (авансы — отдельной строкой ниже).
  *
  * Фактическая наличка — берём ГОТОВОЕ поле cashPosition.actualCash. Бэк привёл
  * его к варианту «а» заказчика (F3, 2026-06-16):
@@ -121,10 +126,17 @@ export async function assembleDailySummary(p: AssembleParams): Promise<DailySumm
     // копейка в копейку; не даём остатку уйти в минус («Приход: -1»).
     const income = Math.max(0, accruedTotal - incomeAfk - acupuncture);
 
-    // Кассовые строки — фактически полученное (income.total, paid_*) минус
-    // операционные расходы (модель заказчика, подтверждено 2026-06-15).
-    const cashToday = num(day.income.total) - num(day.expenses.operationalExpenses);
-    const cashPeriod = num(mtd.income.total) - num(mtd.expenses.operationalExpenses);
+    // Кассовые строки — ЖИВЫЕ деньги (cash + cashless) минус операционные
+    // расходы (модель заказчика, подтверждено 2026-06-15). С бэк-фикса
+    // 2026-07-06 пополнения баланса уже входят в income.cash/cashless в день
+    // пополнения, а income.balance — списания баланса без движения денег.
+    // income.total (= cash+cashless+balance+bonuses) сюда НЕ годится: он
+    // задваивает балансовые деньги (день пополнения через cash + день оплаты
+    // через balance).
+    const liveMoney = (inc: { cash: string; cashless: string }) =>
+        num(inc.cash) + num(inc.cashless);
+    const cashToday = liveMoney(day.income) - num(day.expenses.operationalExpenses);
+    const cashPeriod = liveMoney(mtd.income) - num(mtd.expenses.operationalExpenses);
     const cashPrevDay = cashPeriod - cashToday;
     // Фактическая наличка — готовое поле бэка (вариант «а» заказчика, F3):
     // actualCash = monthToDateCashNet − долги. Сами не пересчитываем — иначе

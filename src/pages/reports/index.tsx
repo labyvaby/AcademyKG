@@ -393,6 +393,14 @@ const ReportsPage: React.FC = () => {
                                                     </Typography>
                                                     <Typography variant="subtitle1" color="success.main" fontWeight={800}>{formatKGS(getDayRevenue(day))}</Typography>
                                                 </Grid2>
+                                                {day.balanceSum > 0 && (
+                                                    <Grid2 size={6}>
+                                                        <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                                            <WalletIcon sx={{ fontSize: 14, color: 'secondary.main' }} /> Оплата балансом
+                                                        </Typography>
+                                                        <Typography variant="subtitle1" color="secondary.main" fontWeight={800}>{formatKGS(day.balanceSum)}</Typography>
+                                                    </Grid2>
+                                                )}
                                                 {(day.discountSum > 0 || day.debtSum > 0) && (
                                                     <Grid2 size={12}>
                                                         <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, justifyContent: 'space-between' }}>
@@ -426,7 +434,7 @@ const ReportsPage: React.FC = () => {
                                     <Table stickyHeader size="small">
                                         <TableHead>
                                             <TableRow>
-                                                {['Дата', 'Записи', 'В ожидании', 'Услуги', 'Расходы', 'Выручка', 'Скидка', 'Долг'].map(h => <TableCell key={h} align={h === 'Дата' ? 'left' : h === 'Записи' || h === 'В ожидании' ? 'center' : 'right'} sx={{ fontWeight: 800, ...(h === 'В ожидании' ? { color: 'error.main' } : {}) }}>{h}</TableCell>)}
+                                                {['Дата', 'Записи', 'В ожидании', 'Услуги', 'Расходы', 'Выручка', 'Баланс', 'Скидка', 'Долг'].map(h => <TableCell key={h} align={h === 'Дата' ? 'left' : h === 'Записи' || h === 'В ожидании' ? 'center' : 'right'} sx={{ fontWeight: 800, ...(h === 'В ожидании' ? { color: 'error.main' } : {}) }}>{h}</TableCell>)}
                                             </TableRow>
                                         </TableHead>
                                         <TableBody>
@@ -443,6 +451,7 @@ const ReportsPage: React.FC = () => {
                                                     <TableCell align="right">{formatKGS(day.servicesSum)}</TableCell>
                                                     <TableCell align="right" sx={{ color: 'error.main' }}>{expensesByDate[day.date] != null ? formatKGS(expensesByDate[day.date]) : '—'}</TableCell>
                                                     <TableCell align="right" sx={{ color: 'success.main', fontWeight: 600 }}>{formatKGS(getDayRevenue(day))}</TableCell>
+                                                    <TableCell align="right" sx={{ color: 'secondary.main' }}>{day.balanceSum > 0 ? formatKGS(day.balanceSum) : '-'}</TableCell>
                                                     <TableCell align="right" sx={{ color: 'warning.main' }}>{day.discountSum > 0 ? formatKGS(day.discountSum) : '-'}</TableCell>
                                                     <TableCell align="right" sx={{ color: 'error.main' }}>{day.debtSum > 0 ? formatKGS(day.debtSum) : '-'}</TableCell>
                                                 </TableRow>
@@ -454,6 +463,7 @@ const ReportsPage: React.FC = () => {
                                                 <TableCell align="right" sx={{ fontWeight: 800 }}>{formatKGS(reportTotals.servicesSum)}</TableCell>
                                                 <TableCell align="right" sx={{ fontWeight: 800, color: 'error.main' }}>{formatKGS(totalExpenses)}</TableCell>
                                                 <TableCell align="right" sx={{ fontWeight: 800, color: 'success.main' }}>{formatKGS(getDayRevenue(reportTotals))}</TableCell>
+                                                <TableCell align="right" sx={{ fontWeight: 800, color: 'secondary.main' }}>{formatKGS(reportTotals.balanceSum)}</TableCell>
                                                 <TableCell align="right" sx={{ fontWeight: 800, color: 'warning.main' }}>{formatKGS(reportTotals.discountSum)}</TableCell>
                                                 <TableCell align="right" sx={{ fontWeight: 800, color: 'error.main' }}>{formatKGS(reportTotals.debtSum)}</TableCell>
                                             </TableRow>
