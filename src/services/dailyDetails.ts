@@ -1,8 +1,9 @@
 /**
  * «Авансы и долги» — дневная детализация для PDF (фото-образец
- * WhatsApp 04.06.2026): секция «АВАНСЫ» — кому выдан аванс за день
- * (включая удержания kind=deduction — авто-удержания за детей сотрудников,
- * по просьбе заказчика 2026-07-02 идут в общий список авансов),
+ * WhatsApp 04.06.2026): секция «АВАНСЫ» — кому выдан аванс за день,
+ * секция «УДЕРЖАНИЯ» — удержания kind=deduction за день (авто-удержания
+ * за детей сотрудников и ручные; с 2026-07-06 по просьбе заказчика — своя
+ * секция со своим итогом, до этого шли внутри «АВАНСЫ»),
  * секция «Долги детей» — приёмы дня с непогашенным долгом; в скобках —
  * ответственное лицо (родитель) из карточки клиента (responsiblePersons[0],
  * проверено вживую 2026-06-11: «Ариет (Эрмек)» = клиент Алиев Ариет Эрмекович,
@@ -34,6 +35,8 @@ export interface DailyDetailsData {
     brandName: string;
     advances: DailyDetailRow[];
     advancesTotal: number;
+    deductions: DailyDetailRow[];
+    deductionsTotal: number;
     debts: DailyDetailRow[];
     debtsTotal: number;
 }
@@ -85,8 +88,8 @@ export async function assembleDailyDetails(p: AssembleDailyDetailsParams): Promi
         ),
         // Удержания (kind=deduction) — в т.ч. авто-удержания за детей сотрудников
         // (бэк вешает остаток «цена − скидка» на родителя-специалиста при оплате).
-        // Заказчик: «оплата должна идти авансом на специалиста» → показываем их
-        // в секции «АВАНСЫ» вместе с обычными авансами (подтверждение 2026-07-02).
+        // С 2026-07-06 — отдельная секция «УДЕРЖАНИЯ» со своим итогом; заодно
+        // итог «АВАНСЫ» снова сходится со строкой авансов «Сводки дня».
         apiFetch<any>(
             `/api/v1/payroll-transactions/?kind=deduction&affectsMonth=${month}&branch=${p.branchId}&pageSize=500`,
             { signal: p.signal },
@@ -105,12 +108,12 @@ export async function assembleDailyDetails(p: AssembleDailyDetailsParams): Promi
         note: (t.comment ?? "").trim() || fallbackNote,
         amount: num(t.totalAmount),
     });
-    const advances: DailyDetailRow[] = [
-        ...unwrapList<PayrollTxApi>(txRes).filter(isSameDay).map((t) => toRow(t)),
-        // Комментарий авто-удержания самоописателен («Ребёнок сотрудника … по
-        // услуге …»); для ручных удержаний без комментария — пометка «удержание».
-        ...unwrapList<PayrollTxApi>(dedRes).filter(isSameDay).map((t) => toRow(t, "удержание")),
-    ];
+    const advances: DailyDetailRow[] =
+        unwrapList<PayrollTxApi>(txRes).filter(isSameDay).map((t) => toRow(t));
+    // Комментарий авто-удержания самоописателен («Ребёнок сотрудника … по
+    // услуге …»); для ручных удержаний без комментария строка идёт без пометки.
+    const deductions: DailyDetailRow[] =
+        unwrapList<PayrollTxApi>(dedRes).filter(isSameDay).map((t) => toRow(t));
 
     // ── Долги детей за день: приёмы дня с debt > 0, кроме отменённых ──────
     const dayDebts = unwrapList<AggAppointmentApi>(aggRes).filter(
@@ -158,6 +161,8 @@ export async function assembleDailyDetails(p: AssembleDailyDetailsParams): Promi
         brandName: p.brandName,
         advances,
         advancesTotal: advances.reduce((s, r) => s + r.amount, 0),
+        deductions,
+        deductionsTotal: deductions.reduce((s, r) => s + r.amount, 0),
         debts,
         debtsTotal: debts.reduce((s, r) => s + r.amount, 0),
     };
