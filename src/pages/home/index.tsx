@@ -39,6 +39,7 @@ import { AppBottomSheet, PageHeader, DateNavigation } from "../../components/ui"
 import { useRefresh } from "../../contexts/refresh-context";
 import AppointmentDetailsCard from "./components/AppointmentDetailsCard";
 import GroupAppointmentDetailsCard from "./components/GroupAppointmentDetailsCard";
+import PeriodPaymentsDayCard from "./components/PeriodPaymentsDayCard";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import HomeAddAppointmentDrawer from "./components/HomeAddAppointmentDrawer";
 import { usePermissions } from "../../hooks/usePermissions";
@@ -306,6 +307,7 @@ export const HomePage: React.FC = () => {
       const qc = queryClientRef.current;
       qc.invalidateQueries({ queryKey: ["appointments"] });
       qc.invalidateQueries({ queryKey: ["group-appointments"] });
+      qc.invalidateQueries({ queryKey: ["period-payments"] });
       refetchRef.current();
     });
     return () => {
@@ -397,23 +399,28 @@ export const HomePage: React.FC = () => {
             overflow: "hidden",
             pr: { md: 1 },
           }}>
-            <AppointmentsList
-              titleDate={ruDateFromInput}
-              loading={dailyFetching || dailyIsStale}
-              errorMsg={null}
-              items={filtered}
-              onOpenFilters={() => setFiltersOpen(true)}
-              onItemClick={(id) => {
-                setSelectedAppointmentId(id);
-              }}
-              onAddSlot={(dateIso, docId) => {
-                setInitialSlotDate(dateIso);
-                setInitialSlotDoctorId(docId || null);
-                setVisitOpen(true);
-              }}
-              doctors={doctors}
-              shifts={dayShifts}
-            />
+            {/* Оплаты за период, проведённые в этот день: выручка признаётся в дне
+                оплаты, а приёмы стоят на датах сессий — без блока день выглядит пустым. */}
+            <PeriodPaymentsDayCard date={date} />
+            <Box sx={{ flex: 1, minHeight: 0 }}>
+              <AppointmentsList
+                titleDate={ruDateFromInput}
+                loading={dailyFetching || dailyIsStale}
+                errorMsg={null}
+                items={filtered}
+                onOpenFilters={() => setFiltersOpen(true)}
+                onItemClick={(id) => {
+                  setSelectedAppointmentId(id);
+                }}
+                onAddSlot={(dateIso, docId) => {
+                  setInitialSlotDate(dateIso);
+                  setInitialSlotDoctorId(docId || null);
+                  setVisitOpen(true);
+                }}
+                doctors={doctors}
+                shifts={dayShifts}
+              />
+            </Box>
           </Grid>
 
           {/* Column 2: Appointment Details (Desktop) */}

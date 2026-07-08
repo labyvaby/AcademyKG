@@ -343,6 +343,8 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
 
             notify?.({ type: "success", message: `Оплата за ${ids.length} приёмов сохранена` });
             queryClient.invalidateQueries({ queryKey: ["appointments", "daily"] });
+            // Блок «Оплаты за период» на странице дня должен сразу показать новую оплату.
+            queryClient.invalidateQueries({ queryKey: ["period-payments"] });
             onSaved();
             onClose();
         } catch (e: unknown) {
