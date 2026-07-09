@@ -1,6 +1,6 @@
 import React from "react";
-import { TextField, MenuItem } from "@mui/material";
-import { PHONE_COUNTRY_CODES, type PhoneCountryCode } from "../../utility/phone";
+import { TextField, MenuItem, Box, Typography } from "@mui/material";
+import { PHONE_COUNTRIES, type PhoneCountryCode } from "../../utility/phone";
 
 export interface PhoneCountryCodeSelectProps {
   value: PhoneCountryCode;
@@ -11,7 +11,9 @@ export interface PhoneCountryCodeSelectProps {
 
 /**
  * Единый селект кода страны для телефонных полей.
- * Сейчас поддерживает только +996 и +7.
+ * Список стран СНГ берётся из PHONE_COUNTRIES (utility/phone).
+ * В закрытом виде показывает только код (поле остаётся узким),
+ * в выпадающем списке — код + название страны.
  */
 export const PhoneCountryCodeSelect: React.FC<PhoneCountryCodeSelectProps> = ({
   value,
@@ -26,6 +28,10 @@ export const PhoneCountryCodeSelect: React.FC<PhoneCountryCodeSelectProps> = ({
       onChange={(e) => onChange(e.target.value as PhoneCountryCode)}
       disabled={disabled}
       size={size}
+      SelectProps={{
+        // В закрытом виде — только код, чтобы не растягивать поле.
+        renderValue: (selected) => selected as string,
+      }}
       sx={{
         minWidth: 96,
         maxWidth: 110,
@@ -34,9 +40,16 @@ export const PhoneCountryCodeSelect: React.FC<PhoneCountryCodeSelectProps> = ({
         }
       }}
     >
-      {PHONE_COUNTRY_CODES.map((code) => (
-        <MenuItem key={code} value={code}>
-          {code}
+      {PHONE_COUNTRIES.map((country) => (
+        <MenuItem key={country.code} value={country.code}>
+          <Box sx={{ display: "flex", alignItems: "baseline", gap: 1, width: "100%" }}>
+            <Typography component="span" sx={{ fontWeight: 600, minWidth: 44 }}>
+              {country.code}
+            </Typography>
+            <Typography component="span" variant="body2" sx={{ color: "text.secondary" }}>
+              {country.name}
+            </Typography>
+          </Box>
         </MenuItem>
       ))}
     </TextField>
@@ -44,4 +57,3 @@ export const PhoneCountryCodeSelect: React.FC<PhoneCountryCodeSelectProps> = ({
 };
 
 export default PhoneCountryCodeSelect;
-
