@@ -66,13 +66,12 @@ const DailySummaryDialog: React.FC<DailySummaryDialogProps> = ({ open, onClose, 
     useEffect(() => {
         if (!open || !employees.length) return;
         setResponsible((prev) => {
-            // Сохраняем выбор пользователя, если он всё ещё среди руководителей.
-            if (prev && managers.some((m) => m.id === prev.id)) return prev;
+            // Сохраняем выбор пользователя, если он всё ещё в списке филиала.
+            if (prev && employees.some((e) => e.id === prev.id)) return prev;
+            // Дефолт — руководитель филиала, иначе текущий пользователь.
             return managers[0] ?? employees.find((e) => e.id === employeeId) ?? null;
         });
     }, [open, employees, managers, employeeId]);
-
-    const headFound = !!responsible && isManagerRole(responsible.role);
 
     const handleGenerate = async () => {
         if (!branch?.id) {
@@ -148,43 +147,33 @@ const DailySummaryDialog: React.FC<DailySummaryDialogProps> = ({ open, onClose, 
                         inputProps={{ max: dayjs().format("YYYY-MM-DD") }}
                     />
 
-                    {managers.length > 1 ? (
-                        // Несколько руководителей в филиале — даём выбрать.
-                        <TextField
-                            select
-                            label="Руководитель (ответственный)"
-                            value={responsible?.id ?? ""}
-                            onChange={(e) =>
-                                setResponsible(managers.find((m) => m.id === e.target.value) ?? null)
-                            }
-                            disabled={loading || employeesLoading}
-                            fullWidth
-                            size="small"
-                            helperText="Расходы руководителя за день и за период попадут в сводку."
-                        >
-                            {managers.map((m) => (
-                                <MenuItem key={m.id} value={m.id}>
-                                    {m.full_name}
-                                </MenuItem>
-                            ))}
-                        </TextField>
-                    ) : (
-                        <Box>
-                            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
-                                Руководитель (ответственный)
-                            </Typography>
-                            <Typography variant="body2" fontWeight={700}>
-                                {employeesLoading
-                                    ? "Загрузка…"
-                                    : responsible?.full_name ?? "— не найден —"}
-                            </Typography>
-                            <Typography variant="caption" color={headFound ? "text.disabled" : "warning.main"}>
-                                {headFound
-                                    ? "Расходы руководителя за день и за период попадут в сводку."
-                                    : "Руководитель (роль «Управляющий») в филиале не найден — подставлен текущий пользователь."}
-                            </Typography>
-                        </Box>
-                    )}
+                    {/* Ответственный — любой сотрудник филиала (по умолчанию руководитель).
+                        Его расходы за день и за период попадут в сводку. */}
+                    <TextField
+                        select
+                        label="Ответственный (сотрудник)"
+                        value={responsible?.id ?? ""}
+                        onChange={(e) =>
+                            setResponsible(employees.find((emp) => emp.id === e.target.value) ?? null)
+                        }
+                        disabled={loading || employeesLoading || !employees.length}
+                        fullWidth
+                        size="small"
+                        helperText={
+                            employeesLoading
+                                ? "Загрузка сотрудников…"
+                                : !employees.length
+                                    ? "Сотрудники филиала не найдены."
+                                    : "Расходы выбранного сотрудника за день и за период попадут в сводку."
+                        }
+                    >
+                        {employees.map((emp) => (
+                            <MenuItem key={emp.id} value={emp.id}>
+                                {emp.full_name}
+                                {isManagerRole(emp.role) ? " — руководитель" : ""}
+                            </MenuItem>
+                        ))}
+                    </TextField>
 
                     {error && (
                         <Alert severity="error" variant="outlined" sx={{ fontSize: "0.8rem" }}>
