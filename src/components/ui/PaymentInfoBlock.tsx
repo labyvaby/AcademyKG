@@ -18,6 +18,7 @@ import {
   InfoOutlined,
   Cancel as CancelIcon,
 } from "@mui/icons-material";
+import { useBranchCurrency } from "../../hooks/useBranchCurrency";
 
 export interface PaymentInfo {
   baseTotal: number;
@@ -45,6 +46,7 @@ export const PaymentInfoBlock: React.FC<PaymentInfoBlockProps> = ({
   actionButton,
 }) => {
   const theme = useTheme();
+  const { suffix } = useBranchCurrency();
   const { discountPercent, discountAmount, cash, card, balance = 0, bonuses = 0, finalTotal, debt = 0, status } = payment;
   const totalPaid = cash + card + balance + bonuses;
 
@@ -150,7 +152,7 @@ export const PaymentInfoBlock: React.FC<PaymentInfoBlockProps> = ({
               Итого
             </Typography>
             <Typography variant="h5" sx={{ fontWeight: 800, color: statusConfig.bgColor }}>
-              {formatAmount(finalTotal)} <Typography component="span" variant="h6" sx={{ fontWeight: 700 }}>сом</Typography>
+              {formatAmount(finalTotal)} <Typography component="span" variant="h6" sx={{ fontWeight: 700 }}>{suffix}</Typography>
             </Typography>
           </Box>
           <Chip
@@ -186,7 +188,7 @@ export const PaymentInfoBlock: React.FC<PaymentInfoBlockProps> = ({
               </Typography>
               <Typography variant="h4" sx={{ fontWeight: 800, display: 'flex', alignItems: 'baseline', gap: 0.5 }}>
                 {formatAmount(finalTotal)}
-                <Typography component="span" variant="h6" color="text.secondary" sx={{ fontWeight: 700 }}>сом</Typography>
+                <Typography component="span" variant="h6" color="text.secondary" sx={{ fontWeight: 700 }}>{suffix}</Typography>
               </Typography>
             </Box>
             <Chip
@@ -211,7 +213,7 @@ export const PaymentInfoBlock: React.FC<PaymentInfoBlockProps> = ({
                     </Box>
                     <Typography variant="body2" color="text.secondary" fontWeight={500}>Наличными</Typography>
                   </Stack>
-                  <Typography variant="body2" fontWeight={700}>{formatAmount(cash)} сом</Typography>
+                  <Typography variant="body2" fontWeight={700}>{formatAmount(cash)} {suffix}</Typography>
                 </Stack>
               )}
 
@@ -224,7 +226,7 @@ export const PaymentInfoBlock: React.FC<PaymentInfoBlockProps> = ({
                     </Box>
                     <Typography variant="body2" color="text.secondary" fontWeight={500}>Безналичными</Typography>
                   </Stack>
-                  <Typography variant="body2" fontWeight={700}>{formatAmount(card)} сом</Typography>
+                  <Typography variant="body2" fontWeight={700}>{formatAmount(card)} {suffix}</Typography>
                 </Stack>
               )}
 
@@ -237,7 +239,7 @@ export const PaymentInfoBlock: React.FC<PaymentInfoBlockProps> = ({
                     </Box>
                     <Typography variant="body2" color="text.secondary" fontWeight={500}>С баланса</Typography>
                   </Stack>
-                  <Typography variant="body2" fontWeight={700}>{formatAmount(balance)} сом</Typography>
+                  <Typography variant="body2" fontWeight={700}>{formatAmount(balance)} {suffix}</Typography>
                 </Stack>
               )}
 
@@ -250,7 +252,7 @@ export const PaymentInfoBlock: React.FC<PaymentInfoBlockProps> = ({
                     </Box>
                     <Typography variant="body2" color="text.secondary" fontWeight={500}>Баллами</Typography>
                   </Stack>
-                  <Typography variant="body2" fontWeight={700}>{formatAmount(bonuses)} сом</Typography>
+                  <Typography variant="body2" fontWeight={700}>{formatAmount(bonuses)} {suffix}</Typography>
                 </Stack>
               )}
 
@@ -263,7 +265,7 @@ export const PaymentInfoBlock: React.FC<PaymentInfoBlockProps> = ({
                     </Box>
                     <Typography variant="body2" color="text.secondary" fontWeight={500}>Скидка {discountPercent}%</Typography>
                   </Stack>
-                  <Typography variant="body2" fontWeight={700} color="secondary.main">-{formatAmount(discountAmount || 0)} сом</Typography>
+                  <Typography variant="body2" fontWeight={700} color="secondary.main">-{formatAmount(discountAmount || 0)} {suffix}</Typography>
                 </Stack>
               )}
             </Stack>
@@ -284,7 +286,7 @@ export const PaymentInfoBlock: React.FC<PaymentInfoBlockProps> = ({
                     {debt > 0 ? "Остаток к оплате" : "Итого оплачено"}
                   </Typography>
                   <Typography variant="h5" sx={{ fontWeight: 800, color: debt > 0 ? "error.main" : "success.main" }}>
-                    {formatAmount(debt > 0 ? debt : totalPaid)} сом
+                    {formatAmount(debt > 0 ? debt : totalPaid)} {suffix}
                   </Typography>
                 </Box>
                 {actionButton && <Box>{actionButton}</Box>}

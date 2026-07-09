@@ -126,6 +126,7 @@ const DoctorStoryItem: React.FC<DoctorStoryItemProps> = ({ name, nickname, photo
 // ОПТИМИЗАЦИЯ: React.memo предотвращает ненужные ре-рендеры при неизменных пропсах
 // --- Add Slot Button Component ---
 import AddCircleOutline from "@mui/icons-material/AddCircleOutline";
+import { useBranchCurrency } from "../../../hooks/useBranchCurrency";
 
 type AddSlotButtonProps = {
   timeStr: string;
@@ -199,6 +200,7 @@ export const AppointmentsList: React.FC<AppointmentsListProps & { onAddSlot?: (d
   restrictToDoctorId,
   selectedDoctorName,
 }) => {
+  const { suffix } = useBranchCurrency();
   const theme = useTheme();
   const [selectedDoctor, setSelectedDoctor] = React.useState<string | null>(null);
 
@@ -806,7 +808,7 @@ export const AppointmentsList: React.FC<AppointmentsListProps & { onAddSlot?: (d
                                 />
                                 {debt > 0 && (
                                   <Typography variant="caption" color="error.main" fontWeight={600}>
-                                    Долг: {debt.toLocaleString()} с
+                                    Долг: {debt.toLocaleString()} {suffix}
                                   </Typography>
                                 )}
                               </Stack>

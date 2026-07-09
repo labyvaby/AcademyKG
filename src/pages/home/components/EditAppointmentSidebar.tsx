@@ -35,6 +35,7 @@ import { isOwnOnlySpecialist } from "../../../utils/permissionHelpers";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAvailableServices, SELLABLE_SERVICES_QUERY_KEY } from "../../../hooks/useAvailableServices";
 import { isValidSellableService, mapSellableToServiceRow } from "../../../utils/sellableServiceFilters";
+import { useBranchCurrency } from "../../../hooks/useBranchCurrency";
 
 
 function resolvePatientPhone(r: any): string {
@@ -74,6 +75,7 @@ const EditAppointmentSidebar: React.FC<EditAppointmentSidebarProps> = ({
   onSaved,
 }) => {
   const { open: notify } = useNotification();
+  const { suffix } = useBranchCurrency();
   const { hasPermission, employeeId } = usePermissions();
   const isWorkplaceNurse = isOwnOnlySpecialist(hasPermission);
   const canReception = hasPermission(PERMISSIONS.RECEPTION_READ);
@@ -709,7 +711,7 @@ const EditAppointmentSidebar: React.FC<EditAppointmentSidebarProps> = ({
                                     setServiceRows(updated);
                                   }}
                                   getOptionLabel={(o) =>
-                                    `${o.name} — ${o.price || 0} сом`
+                                    `${o.name} — ${o.price || 0} ${suffix}`
                                   }
                                   filterOptions={createFilterOptions<ServiceRow>({
                                     matchFrom: "start",
@@ -819,7 +821,7 @@ const EditAppointmentSidebar: React.FC<EditAppointmentSidebarProps> = ({
                             const service = (cache || allServices).find((s) => s.id === row.serviceId);
                             return sum + (Number(service?.price) || 0);
                           }, 0)}{" "}
-                          сом
+                          {suffix}
                         </Typography>
                       </Stack>
                     </Stack>

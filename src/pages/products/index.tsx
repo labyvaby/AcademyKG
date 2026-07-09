@@ -34,8 +34,10 @@ import ProductFilterDrawer, { ProductFilters } from "../../components/products/P
 import { usePermissions } from "../../hooks/usePermissions";
 import { PERMISSIONS } from "../../constants/permissions";
 import { useBranchContext } from "../../contexts/branch-context";
+import { useBranchCurrency } from "../../hooks/useBranchCurrency";
 
 const ProductsPage: React.FC = () => {
+  const { suffix } = useBranchCurrency();
   usePageTitle("Товары");
   const { selectedBranch, branchHydrated } = useBranchContext();
   const branchId = selectedBranch?.id ?? null;
@@ -330,7 +332,7 @@ const ProductsPage: React.FC = () => {
                         <Box sx={{ textAlign: "right" }}>
                           {p.price && (
                             <Typography variant="body2" fontWeight={600}>
-                              {p.price.toLocaleString()}
+                              {p.price.toLocaleString()} {suffix}
                             </Typography>
                           )}
                           {p.stock !== undefined && (
@@ -423,6 +425,7 @@ const ProductDetailCard: React.FC<{
   canEdit?: boolean;
   canDelete?: boolean;
 }> = ({ product, onEdit, onDelete, canEdit, canDelete }) => {
+  const { suffix } = useBranchCurrency();
   const [expanded, setExpanded] = React.useState(false);
 
   // Reset expanded state when product changes
@@ -616,7 +619,7 @@ const ProductDetailCard: React.FC<{
                     Стоимость
                   </Typography>
                   <Typography variant="body1" fontWeight={600}>
-                    {product.price ? `${product.price.toLocaleString()} сом` : "—"}
+                    {product.price ? `${product.price.toLocaleString()} ${suffix}` : "—"}
                   </Typography>
                 </Grid2>
                 <Grid2 size={6}>

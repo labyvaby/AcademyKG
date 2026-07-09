@@ -6,6 +6,7 @@
  */
 import React from "react";
 import { Stack, TextField, InputAdornment, Typography, Paper, Tabs, Tab, Collapse } from "@mui/material";
+import { useBranchCurrency } from "../../hooks/useBranchCurrency";
 
 // Стили для вкладок-переключателей (копируем логику из товаров для единообразия)
 const toggleTabStyles = (theme: any, color: string) => ({
@@ -57,6 +58,7 @@ const ServiceDetailsForm: React.FC<ServiceDetailsFormProps> = ({
   setDurationMinutes,
   touched = false,
 }) => {
+  const { suffix } = useBranchCurrency();
   const nameError = touched && !name.trim();
   const priceError = touched && (!price || Number(price) <= 0);
   return (
@@ -89,7 +91,7 @@ const ServiceDetailsForm: React.FC<ServiceDetailsFormProps> = ({
             setPrice(v);
           }}
           InputProps={{
-            endAdornment: <InputAdornment position="end">сом</InputAdornment>,
+            endAdornment: <InputAdornment position="end">{suffix}</InputAdornment>,
           }}
           fullWidth
           placeholder="0"

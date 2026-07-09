@@ -14,6 +14,7 @@ import {
 import PaymentsOutlined from "@mui/icons-material/PaymentsOutlined";
 import type { GroupParticipant, GroupAppointmentStatus } from "../model/types";
 import { GROUP_STATUS_LABELS, GROUP_STATUS_COLOR } from "../model/types";
+import { useBranchCurrency } from "../../../hooks/useBranchCurrency";
 
 type Props = {
   participant: GroupParticipant;
@@ -25,6 +26,7 @@ type Props = {
 };
 
 const ParticipantRow: React.FC<Props> = ({ participant: p, index, onPayClick, onClientClick, onAttendanceToggle }) => {
+  const { suffix } = useBranchCurrency();
   const theme = useTheme();
   const [attendanceBusy, setAttendanceBusy] = React.useState(false);
   const initials = p.patientName.split(" ").slice(0, 2).map((w) => w[0]).join("").toUpperCase();
@@ -105,7 +107,7 @@ const ParticipantRow: React.FC<Props> = ({ participant: p, index, onPayClick, on
             sx={{ height: 18, fontSize: "0.65rem", fontWeight: 600, "& .MuiChip-label": { px: 0.75 } }}
           />
           {p.debt > 0
-            ? <Typography variant="caption" color="error.main" fontWeight={500}>Долг: {p.debt.toLocaleString()} с</Typography>
+            ? <Typography variant="caption" color="error.main" fontWeight={500}>Долг: {p.debt.toLocaleString()} {suffix}</Typography>
             : (
               <Stack direction="row" alignItems="center" spacing={0.25}>
                 <Typography variant="caption" color="success.main" fontWeight={500}>Оплачено</Typography>
@@ -157,7 +159,7 @@ const ParticipantRow: React.FC<Props> = ({ participant: p, index, onPayClick, on
         onClick={onPayClick}
         sx={{ whiteSpace: "nowrap", minWidth: 0, px: 1.25, height: 30, fontSize: "0.72rem", flexShrink: 0 }}
       >
-        {p.debt > 0 ? `${p.debt.toLocaleString()} с` : "Оплата"}
+        {p.debt > 0 ? `${p.debt.toLocaleString()} ${suffix}` : "Оплата"}
       </Button>
     </Box>
   );

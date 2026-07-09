@@ -22,6 +22,7 @@ import { useNotification } from "@refinedev/core";
 import { createProduct, CreateProductData } from "../../services/products";
 import { AppCard } from "../ui";
 import { useBranchContext } from "../../contexts/branch-context";
+import { useBranchCurrency } from "../../hooks/useBranchCurrency";
 
 // Custom styles for the toggle tabs
 const toggleTabStyles = (theme: any, color: string) => ({
@@ -64,6 +65,7 @@ export const AddProductDrawer: React.FC<AddProductDrawerProps> = ({
     onCreated,
 }) => {
     const { open: notify } = useNotification();
+    const { suffix } = useBranchCurrency();
     const { selectedBranch } = useBranchContext();
     const branchId = selectedBranch?.id ?? null;
     const [values, setValues] = React.useState<CreateProductData>(defaultValues);
@@ -314,7 +316,7 @@ export const AddProductDrawer: React.FC<AddProductDrawerProps> = ({
                                     }
                                     fullWidth
                                     InputProps={{
-                                        endAdornment: <Typography variant="caption" color="text.secondary">сом</Typography>,
+                                        endAdornment: <Typography variant="caption" color="text.secondary">{suffix}</Typography>,
                                     }}
                                     sx={{
                                         "& input[type=number]": {

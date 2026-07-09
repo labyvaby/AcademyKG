@@ -43,6 +43,7 @@ import { formatDateRu } from "../../../utility/format";
 import PhoneInTalkOutlined from "@mui/icons-material/PhoneInTalkOutlined";
 import FamilyRestroomOutlined from "@mui/icons-material/FamilyRestroomOutlined";
 import type { PatientBalance } from "../usePatientBalance";
+import { useBranchCurrency } from "../../../hooks/useBranchCurrency";
 
 export type PatientDocument = {
   id: string | number;
@@ -126,6 +127,7 @@ const PatientCard: React.FC<Props> = ({
   onAddDocument,
   onDeleteDocument,
 }) => {
+  const { suffix } = useBranchCurrency();
   const [addDocOpen, setAddDocOpen] = React.useState(false);
   const [docTitle, setDocTitle] = React.useState("");
   const [docFile, setDocFile] = React.useState<File | null>(null);
@@ -362,13 +364,13 @@ const PatientCard: React.FC<Props> = ({
                                 : "text.primary"
                           }
                         >
-                          {balance.balance.toLocaleString("ru-RU")} сом
+                          {balance.balance.toLocaleString("ru-RU")} {suffix}
                         </Typography>
                       </Box>
                       <Box sx={{ flex: 1, minWidth: 70, borderRadius: 1, border: "1px solid", borderColor: "divider", px: 1.5, py: 1, textAlign: "center" }}>
                         <Typography variant="caption" color="text.secondary" display="block">Баллы</Typography>
                         <Typography variant="body2" fontWeight={600} color={balance.bonuses > 0 ? "warning.main" : "text.primary"}>
-                          {balance.bonuses.toLocaleString("ru-RU")} сом
+                          {balance.bonuses.toLocaleString("ru-RU")} {suffix}
                         </Typography>
                       </Box>
                     </Stack>

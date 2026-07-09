@@ -21,6 +21,7 @@ import { updateParticipantStatus, payParticipant, markAttendance } from "../api/
 import ParticipantRow from "./ParticipantRow";
 import type { Appointment } from "../../../pages/home/types";
 import { PaymentSidebar } from "../../../pages/home/components/PaymentSidebar";
+import { useBranchCurrency } from "../../../hooks/useBranchCurrency";
 
 type Props = {
   group: AppointmentGroup;
@@ -53,6 +54,7 @@ function participantToAppointment(p: GroupParticipant, group: AppointmentGroup):
 }
 
 const GroupAppointmentCard: React.FC<Props> = ({ group, onGroupUpdated, onAddParticipant }) => {
+  const { suffix } = useBranchCurrency();
   const [expanded, setExpanded] = useState(false);
   const [paymentParticipant, setPaymentParticipant] = useState<GroupParticipant | null>(null);
 
@@ -145,7 +147,7 @@ const GroupAppointmentCard: React.FC<Props> = ({ group, onGroupUpdated, onAddPar
             />
             {totalDebt > 0 && (
               <Typography variant="caption" color="error.main" fontWeight={600}>
-                Долг: {totalDebt.toLocaleString()} с
+                Долг: {totalDebt.toLocaleString()} {suffix}
               </Typography>
             )}
           </Stack>

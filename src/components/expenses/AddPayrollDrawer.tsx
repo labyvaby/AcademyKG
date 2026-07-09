@@ -23,6 +23,7 @@ import { PAYROLL_KIND_OPTIONS, type PayrollTransaction, type PayrollFormValues }
 import { useEmployees } from "../../hooks/useEmployees";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import dayjs from "dayjs";
+import { useBranchCurrency } from "../../hooks/useBranchCurrency";
 
 type AddPayrollDrawerProps = {
   open: boolean;
@@ -41,6 +42,7 @@ const defaultValues: PayrollFormValues = {
 };
 
 export const AddPayrollDrawer: React.FC<AddPayrollDrawerProps> = ({ open, onClose, onCreated }) => {
+  const { suffix } = useBranchCurrency();
   const { open: notify } = useNotification();
   const [values, setValues] = React.useState<PayrollFormValues>(defaultValues);
   const [busy, setBusy] = React.useState(false);
@@ -210,7 +212,7 @@ export const AddPayrollDrawer: React.FC<AddPayrollDrawerProps> = ({ open, onClos
                 <Stack direction="row" justifyContent="space-between" alignItems="center">
                   <Typography variant="body2" color="text.secondary" fontWeight={600}>ИТОГО</Typography>
                   <Typography variant="h5" fontWeight={700} color="success.main">
-                    {new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 0 }).format(computeTotal()) + " C"}
+                    {new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 0 }).format(computeTotal()) + " " + suffix}
                   </Typography>
                 </Stack>
               </Stack>

@@ -52,6 +52,7 @@ function resolvePatientPhone(r: any): string {
 import { PaymentSidebar } from "./PaymentSidebar";
 import PatientQuickViewDrawer from "../../../components/patients/PatientQuickViewDrawer";
 import DoctorQuickViewDrawer from "../../../components/employees/DoctorQuickViewDrawer";
+import { useBranchCurrency } from "../../../hooks/useBranchCurrency";
 
 type Props = {
   group: AppointmentGroup;
@@ -85,6 +86,7 @@ function participantToAppointment(p: GroupParticipant, group: AppointmentGroup):
 }
 
 const GroupAppointmentDetailsCard: React.FC<Props> = ({ group, onGroupUpdated, onClose }) => {
+  const { suffix } = useBranchCurrency();
   const isFull = group.maxParticipants != null && group.participants.length >= group.maxParticipants;
   const totalDebt = group.participants.reduce((s, p) => s + p.debt, 0);
   const paidCount = group.participants.filter((p) => p.debt === 0).length;
@@ -345,7 +347,7 @@ const GroupAppointmentDetailsCard: React.FC<Props> = ({ group, onGroupUpdated, o
                 )}
                 {totalDebt > 0 && (
                   <Typography variant="caption" color="error.main" fontWeight={600}>
-                    Долг: {totalDebt.toLocaleString()} с
+                    Долг: {totalDebt.toLocaleString()} {suffix}
                   </Typography>
                 )}
               </Stack>

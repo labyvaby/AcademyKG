@@ -58,6 +58,7 @@ import { useAppointmentDetails } from "../../../hooks/useAppointmentDetails";
 import { usePatientBalance } from "../../patient-search/usePatientBalance";
 
 import { Appointment } from "../types";
+import { useBranchCurrency } from "../../../hooks/useBranchCurrency";
 
 type AppointmentDetailsCardProps = {
   appointmentId: string | null;
@@ -81,6 +82,7 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
   readOnly = false,
 }) => {
   const theme = useTheme(); // Need theme for matches
+  const { suffix } = useBranchCurrency();
   // Hide specific elements on mobile if requested, but here we use it for logic
   const isMobile = useMediaQuery(theme.breakpoints.down("md")); // Same breakpoint as pages
 
@@ -662,7 +664,7 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
                             fontWeight={700}
                             color={patientBalance.balance < 0 ? "error.main" : "success.main"}
                           >
-                            {patientBalance.balance.toLocaleString()} сом
+                            {patientBalance.balance.toLocaleString()} {suffix}
                           </Typography>
                         </Stack>
                       )}
@@ -670,7 +672,7 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
                         <Stack direction="row" alignItems="center" spacing={0.5}>
                           <Typography variant="caption" color="text.secondary">Баллы:</Typography>
                           <Typography variant="caption" fontWeight={700} color="warning.main">
-                            {patientBalance.bonuses.toLocaleString()} сом
+                            {patientBalance.bonuses.toLocaleString()} {suffix}
                           </Typography>
                         </Stack>
                       )}

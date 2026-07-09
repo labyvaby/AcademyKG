@@ -25,6 +25,7 @@ import { ExpensesService } from "../../services/expenses";
 import type { Expense, ExpenseFormValues } from "../../pages/expenses/types";
 import { AppCard, CustomDateTimePicker } from "../ui";
 import dayjs from "dayjs";
+import { useBranchCurrency } from "../../hooks/useBranchCurrency";
 
 type EditExpenseDrawerProps = {
   open: boolean;
@@ -36,6 +37,7 @@ type EditExpenseDrawerProps = {
 type ExpenseCategory = { id: string; name: string };
 
 export const EditExpenseDrawer: React.FC<EditExpenseDrawerProps> = ({ open, onClose, record, onUpdated }) => {
+  const { suffix } = useBranchCurrency();
   const { open: notify } = useNotification();
 
   const initialValues = React.useMemo<ExpenseFormValues>(() => ({
@@ -216,7 +218,7 @@ export const EditExpenseDrawer: React.FC<EditExpenseDrawerProps> = ({ open, onCl
                 <Stack direction="row" justifyContent="space-between" alignItems="center">
                   <Typography variant="body2" color="text.secondary" fontWeight={600}>ИТОГО</Typography>
                   <Typography variant="h5" fontWeight={700} color="success.main">
-                    {new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 0 }).format(computeTotal()) + " C"}
+                    {new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 0 }).format(computeTotal()) + " " + suffix}
                   </Typography>
                 </Stack>
               </Stack>
