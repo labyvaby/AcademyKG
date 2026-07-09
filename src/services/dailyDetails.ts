@@ -3,7 +3,9 @@
  * WhatsApp 04.06.2026): секция «АВАНСЫ» — кому выдан аванс за день,
  * секция «УДЕРЖАНИЯ» — удержания kind=deduction за день (авто-удержания
  * за детей сотрудников и ручные; с 2026-07-06 по просьбе заказчика — своя
- * секция со своим итогом, до этого шли внутри «АВАНСЫ»),
+ * секция со своим итогом, до этого шли внутри «АВАНСЫ»; с 2026-07-08 строка
+ * авто-удержания короткая: имя ребёнка + «(реб. родитель, услуга)», где
+ * ребёнок и услуга парсятся из comment, а родитель берётся из employee),
  * секция «Долги детей» — приёмы дня с непогашенным долгом; в скобках —
  * ответственное лицо (родитель) из карточки клиента (responsiblePersons[0],
  * проверено вживую 2026-06-11: «Ариет (Эрмек)» = клиент Алиев Ариет Эрмекович,
@@ -110,10 +112,34 @@ export async function assembleDailyDetails(p: AssembleDailyDetailsParams): Promi
     });
     const advances: DailyDetailRow[] =
         unwrapList<PayrollTxApi>(txRes).filter(isSameDay).map((t) => toRow(t));
-    // Комментарий авто-удержания самоописателен («Ребёнок сотрудника … по
-    // услуге …»); для ручных удержаний без комментария строка идёт без пометки.
+
+    // ── Удержания: короткое описание «ребёнок (чей ребёнок, услуга)» ──────
+    // Имя ребёнка и услуга живут ТОЛЬКО в тексте comment бэка
+    // («Ребёнок сотрудника {ФИО ребёнка} был на приёме … по услуге {услуга}»),
+    // поэтому парсим их регуляркой; «чей ребёнок» (родитель, на кого повешено
+    // удержание) берём структурно из t.employee. Если распарсить не удалось
+    // (ручное удержание / иной формат comment) — падаем в прежний вид:
+    // имя = сотрудник, примечание = полный comment (строка не теряется).
+    const shortName = (full: string): string => {
+        const parts = full.trim().split(/\s+/);
+        if (parts.length <= 1) return full.trim();
+        const [surname, ...rest] = parts;
+        return `${surname} ${rest.map((w) => w.charAt(0).toUpperCase() + ".").join("")}`;
+    };
+    const parseDeduction = (t: PayrollTxApi): DailyDetailRow => {
+        const comment = (t.comment ?? "").trim();
+        const child = comment.match(/реб[её]нок сотрудника\s+(.+?)\s+был.*?на\s+при[её]ме/iu)?.[1]?.trim();
+        const service = comment.match(/по\s+услуге\s+«?"?(.+?)»?"?\s*[.。]?\s*$/iu)?.[1]?.trim();
+        const parent = t.employee?.fullName ? shortName(t.employee.fullName) : "";
+        if (child) {
+            const noteParts = [parent && `реб. ${parent}`, service].filter(Boolean);
+            return { name: child, note: noteParts.join(", "), amount: num(t.totalAmount) };
+        }
+        // Не авто-удержание за ребёнка — прежний вид.
+        return toRow(t);
+    };
     const deductions: DailyDetailRow[] =
-        unwrapList<PayrollTxApi>(dedRes).filter(isSameDay).map((t) => toRow(t));
+        unwrapList<PayrollTxApi>(dedRes).filter(isSameDay).map(parseDeduction);
 
     // ── Долги детей за день: приёмы дня с debt > 0, кроме отменённых ──────
     const dayDebts = unwrapList<AggAppointmentApi>(aggRes).filter(
