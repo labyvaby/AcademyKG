@@ -30,9 +30,8 @@ import { PageHeader, MonthNavigation, ReportBranchSelect } from "../../component
 import { AppointmentsSummaryCards, SummaryCard } from "./components/AppointmentsSummaryCards";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { useAvailableReportMonths } from "../../hooks/useAvailableReportMonths";
-import { formatKGS } from "../../utility/format";
 import { getFinancialReport } from "../../services/reports";
-import { useReportBranchScope } from "../../hooks/useReportBranchScope";
+import { useReportBranchScope, useReportCurrency } from "../../hooks/useReportBranchScope";
 import { apiFetch } from "../../utility/apiClient";
 import { DailyFinancialData, FinancialReportResponse } from "../../types/reports";
 import dayjs from "dayjs";
@@ -138,6 +137,7 @@ const ReportsPage: React.FC = () => {
     const isMobile = useMediaQuery(theme.breakpoints.down("lg"));
     const { open: notify } = useNotification();
     const { branchId, ready: branchReady } = useReportBranchScope();
+    const { format: formatKGS } = useReportCurrency();
     // Financial State
     const [selectedDate, setSelectedDate] = useState<string>(dayjs().format('YYYY-MM-DD'));
     const [financialLoading, setFinancialLoading] = useState(false);

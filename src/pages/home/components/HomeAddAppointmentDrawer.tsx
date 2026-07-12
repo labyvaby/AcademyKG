@@ -53,6 +53,7 @@ import { clientScheduleApi } from "../../../features/client-schedule/api/client-
 import { PaymentSidebar } from "./PaymentSidebar";
 import CalendarMonthOutlined from "@mui/icons-material/CalendarMonthOutlined";
 import { useModalBackdropGuard } from "../../../hooks/useModalBackdropGuard";
+import { useBranchCurrency } from "../../../hooks/useBranchCurrency";
 
 export const noSpinnersSx = {
   "& input[type=number]": {
@@ -118,6 +119,7 @@ function serviceMatchesAppointmentMode(service: ServiceRow, mode: "single" | "gr
 export const HomeAddAppointmentDrawer: React.FC<
   HomeAddAppointmentDrawerProps
 > = ({ open, onClose, onCreated, initialPatientId, initialDate, initialDoctorId, selectedDate }) => {
+  const { suffix } = useBranchCurrency();
   const { open: notify } = useNotification();
 
   const [visitDateTime, setVisitDateTime] = React.useState<string>("");
@@ -1514,7 +1516,7 @@ export const HomeAddAppointmentDrawer: React.FC<
                     {periodServicePrice !== null && (
                       <Box sx={{ mt: 1, px: 1.5, py: 0.75, bgcolor: "action.selected", borderRadius: 1, display: "inline-block" }}>
                         <Typography variant="body2" fontWeight={600} color="text.primary">
-                          Итого за период: {periodDates.length} × {periodServicePrice} = {periodDates.length * periodServicePrice} сом
+                          Итого за период: {periodDates.length} × {periodServicePrice} = {periodDates.length * periodServicePrice} {suffix}
                         </Typography>
                       </Box>
                     )}
@@ -1601,12 +1603,12 @@ export const HomeAddAppointmentDrawer: React.FC<
                     setDoctorsOpts(allDoctorsOpts);
                   }
                 }}
-                getOptionLabel={(o) => `${o.name}${o.price ? ` — ${o.price} сом` : ""}`}
+                getOptionLabel={(o) => `${o.name}${o.price ? ` — ${o.price} ${suffix}` : ""}`}
                 filterOptions={serviceFilter}
                 isOptionEqualToValue={(o, v) => o.id === v.id}
                 renderOption={(props, o) => {
                   const { key, ...optionProps } = props;
-                  return <li key={key} {...optionProps}>{o.name}{o.price ? ` — ${o.price} сом` : ""}</li>;
+                  return <li key={key} {...optionProps}>{o.name}{o.price ? ` — ${o.price} ${suffix}` : ""}</li>;
                 }}
                 openOnFocus
                 blurOnSelect="touch"

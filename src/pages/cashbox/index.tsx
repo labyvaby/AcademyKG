@@ -17,13 +17,14 @@ import CreditCardIcon from "@mui/icons-material/CreditCard";
 
 import { PageHeader } from "../../components/ui";
 import { usePageTitle } from "../../hooks/usePageTitle";
-import { formatKGS } from "../../utility/format";
+import { useBranchCurrency } from "../../hooks/useBranchCurrency";
 import { getCashboxSummary } from "../../services/cashbox";
 import { CashboxSummaryData } from "../../types/cashbox";
 import { useBranchContext } from "../../contexts/branch-context";
 
 const CashboxPage: React.FC = () => {
     usePageTitle("Касса");
+    const { format: formatKGS } = useBranchCurrency();
     const theme = useTheme();
     const { open: notify } = useNotification();
     const { selectedBranch } = useBranchContext();

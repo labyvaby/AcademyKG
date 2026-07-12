@@ -18,7 +18,7 @@ import FilterListOutlined from "@mui/icons-material/FilterListOutlined";
 import NightlightOutlined from "@mui/icons-material/NightlightOutlined";
 
 import { getStatusConfig, getStatusChipSx } from "../../../config/appointmentStatuses";
-import { formatKGS } from "../../../utility/format";
+import { useBranchCurrency } from "../../../hooks/useBranchCurrency";
 import { Appointment } from "../../home/types";
 
 type DoctorAppointmentListProps = {
@@ -38,6 +38,7 @@ export const DoctorAppointmentList: React.FC<DoctorAppointmentListProps> = ({
     titleDate,
     onOpenFilters
 }) => {
+    const { format: formatKGS } = useBranchCurrency();
     const [search, setSearch] = React.useState("");
 
     const filteredItems = React.useMemo(() => {

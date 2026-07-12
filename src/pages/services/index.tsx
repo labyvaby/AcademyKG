@@ -27,6 +27,7 @@ import { PERMISSIONS } from "../../constants/permissions";
 import ServiceQuickViewDrawer from "../../components/services/ServiceQuickViewDrawer";
 import { resolveApiUrl } from "../../utility/apiClient";
 import { useBranchContext } from "../../contexts/branch-context";
+import { useBranchCurrency } from "../../hooks/useBranchCurrency";
 
 function resolveImageUrl(url: string | null | undefined): string | null {
   return resolveApiUrl(url);
@@ -133,6 +134,7 @@ function aggregateServices(rows: Array<Record<string, unknown>>): AggregatedServ
 
 const ServicesPage: React.FC = () => {
   usePageTitle("Услуги");
+  const { suffix } = useBranchCurrency();
   const { open: notify } = useNotification();
   const { hasPermission } = usePermissions();
   const { selectedBranch, branchHydrated } = useBranchContext();
@@ -375,7 +377,7 @@ const ServicesPage: React.FC = () => {
             onClick={(e) => e.stopPropagation()}
           >
             <Typography variant="subtitle2" color="text.primary" sx={{ whiteSpace: "nowrap" }}>
-              {Number.isFinite(Number(s.price)) ? Math.round(Number(s.price)).toLocaleString("ru-RU") : "0"} сом
+              {Number.isFinite(Number(s.price)) ? Math.round(Number(s.price)).toLocaleString("ru-RU") : "0"} {suffix}
             </Typography>
             {canEdit && (
               <Tooltip title={s.editable ? "Редактировать" : "Нельзя редактировать"}>

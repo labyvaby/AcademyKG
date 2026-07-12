@@ -24,7 +24,7 @@ import "dayjs/locale/ru";
 import { getSpecialistPayslip } from "../../../services/reports";
 import { generateSpecialistPayslipPDF } from "../../../utility/specialistPayslipPdf";
 import { assemblePayslipAdjustments } from "../../../services/payslipAdjustments";
-import { useReportBranchScope } from "../../../hooks/useReportBranchScope";
+import { useReportBranchScope, useReportCurrency } from "../../../hooks/useReportBranchScope";
 import type { PeriodHalf } from "../../../types/reports";
 
 dayjs.locale("ru");
@@ -64,6 +64,7 @@ const SpecialistPayslipDialog: React.FC<SpecialistPayslipDialogProps> = ({
     month,
 }) => {
     const { branchId } = useReportBranchScope();
+    const { suffix: currencySuffix } = useReportCurrency();
     const [monthStart, setMonthStart] = useState<Dayjs>(() => dayjs(`${month}-01`).startOf("month"));
     const [half, setHalf] = useState<RangeMode>(DEFAULT_RANGE_MODE);
     const [loading, setLoading] = useState(false);
@@ -90,7 +91,7 @@ const SpecialistPayslipDialog: React.FC<SpecialistPayslipDialogProps> = ({
         data: Parameters<typeof generateSpecialistPayslipPDF>[0],
         adjustments?: Parameters<typeof generateSpecialistPayslipPDF>[1],
     ) => {
-        const blob = await generateSpecialistPayslipPDF(data, adjustments);
+        const blob = await generateSpecialistPayslipPDF(data, adjustments, currencySuffix);
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;

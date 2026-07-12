@@ -21,6 +21,7 @@ import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import { useNotification } from "@refinedev/core";
 import { updateProduct, Product, UpdateProductData } from "../../services/products";
 import { AppCard } from "../ui";
+import { useBranchCurrency } from "../../hooks/useBranchCurrency";
 
 // Custom styles for the toggle tabs
 const toggleTabStyles = (theme: any, color: string) => ({
@@ -50,6 +51,7 @@ export const EditProductDrawer: React.FC<EditProductDrawerProps> = ({
     onClose,
     onUpdated,
 }) => {
+    const { suffix } = useBranchCurrency();
     const { open: notify } = useNotification();
     const [values, setValues] = React.useState<UpdateProductData>({});
     const [photoFile, setPhotoFile] = React.useState<File | null>(null);
@@ -306,7 +308,7 @@ export const EditProductDrawer: React.FC<EditProductDrawerProps> = ({
                                     }
                                     fullWidth
                                     InputProps={{
-                                        endAdornment: <Typography variant="caption" color="text.secondary">сом</Typography>,
+                                        endAdornment: <Typography variant="caption" color="text.secondary">{suffix}</Typography>,
                                     }}
                                     sx={{
                                         "& input[type=number]": {

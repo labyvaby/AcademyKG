@@ -23,7 +23,7 @@ import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import ReportProblemIcon from '@mui/icons-material/ReportProblem';
 import WbSunnyOutlinedIcon from '@mui/icons-material/WbSunnyOutlined';
 import PictureAsPdfOutlinedIcon from '@mui/icons-material/PictureAsPdfOutlined';
-import { formatKGS } from "../../../utility/format";
+import { useReportCurrency } from "../../../hooks/useReportBranchScope";
 import { PayrollRow } from "../../../types/reports";
 import { fetchShifts, Shift } from "../../../services/shifts";
 import dayjs from "dayjs";
@@ -168,6 +168,7 @@ const DailyBreakdown: React.FC<{ employeeId: string; month: string }> = ({ emplo
 
 const SalaryReportRow: React.FC<SalaryReportRowProps> = ({ row, isMobile, month }) => {
     const theme = useTheme();
+    const { format: formatKGS } = useReportCurrency();
     const [open, setOpen] = useState(false);
     const [payslipOpen, setPayslipOpen] = useState(false);
 

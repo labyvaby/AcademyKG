@@ -36,7 +36,8 @@ import ReceiptLongOutlined from "@mui/icons-material/ReceiptLongOutlined";
 import AccountBalanceWalletOutlined from "@mui/icons-material/AccountBalanceWalletOutlined";
 import PaymentsOutlined from "@mui/icons-material/PaymentsOutlined";
 import CreditCardOutlined from "@mui/icons-material/CreditCardOutlined";
-import { formatKGS, formatDateRu } from "../../utility/format";
+import { formatDateRu } from "../../utility/format";
+import { useBranchCurrency } from "../../hooks/useBranchCurrency";
 import { type Expense, type EmployeesRow, type PayrollTransaction, PAYROLL_KIND_OPTIONS } from "./types";
 import AddExpenseDrawer from "../../components/expenses/AddExpenseDrawer";
 import EditExpenseDrawer from "../../components/expenses/EditExpenseDrawer";
@@ -171,6 +172,7 @@ const EmployeeStoryItem: React.FC<EmployeeStoryItemProps> = ({ name, nickname, p
 
 const ExpensesListPage: React.FC = () => {
   usePageTitle("Расходы");
+  const { format: formatKGS } = useBranchCurrency();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const { open: notify } = useNotification();

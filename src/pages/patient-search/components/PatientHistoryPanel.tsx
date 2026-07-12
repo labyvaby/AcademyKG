@@ -22,7 +22,7 @@ import {
 } from "@mui/material";
 import HistoryOutlined from "@mui/icons-material/HistoryOutlined";
 import dayjs from "dayjs";
-import { formatKGS } from "../../../utility/format";
+import { useBranchCurrency } from "../../../hooks/useBranchCurrency";
 import type { Theme } from "@mui/material/styles";
 import { getStatusChipStyles, normalizeStatus } from "../../../config/appointmentStatuses";
 import type { HistoryRow } from "../../../types/models";
@@ -42,6 +42,7 @@ const PatientHistoryPanel: React.FC<Props> = ({
   history,
   onClick,
 }) => {
+  const { format: formatKGS } = useBranchCurrency();
   return (
     <Box sx={{ height: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
       <Card variant="outlined" sx={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>

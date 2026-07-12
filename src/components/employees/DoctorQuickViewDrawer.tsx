@@ -23,6 +23,7 @@ import "dayjs/locale/ru";
 import { apiFetch } from "../../utility/apiClient";
 import { getStatusChipStyles, getStatusConfig, normalizeStatus } from "../../config/appointmentStatuses";
 import { Chip } from "@mui/material";
+import { useBranchCurrency } from "../../hooks/useBranchCurrency";
 
 dayjs.locale("ru");
 
@@ -55,6 +56,7 @@ export interface DoctorQuickViewDrawerProps {
 }
 
 export const DoctorQuickViewDrawer: React.FC<DoctorQuickViewDrawerProps> = ({ open, onClose, doctorId }) => {
+  const { suffix } = useBranchCurrency();
   const [loading, setLoading] = useState(false);
   const [doctor, setDoctor] = useState<DoctorDetail | null>(null);
   const [services, setServices] = useState<DoctorService[]>([]);
@@ -176,7 +178,7 @@ export const DoctorQuickViewDrawer: React.FC<DoctorQuickViewDrawerProps> = ({ op
                     <ListItem key={s.id} sx={{ px: 0, py: 1, borderBottom: 1, borderColor: "divider", "&:last-child": { borderBottom: 0 } }}>
                       <ListItemText
                         primary={<Typography variant="body2" fontWeight={500}>{s.name}</Typography>}
-                        secondary={s.price !== undefined ? <Typography variant="caption" color="text.secondary">{s.price} сом</Typography> : null}
+                        secondary={s.price !== undefined ? <Typography variant="caption" color="text.secondary">{s.price} {suffix}</Typography> : null}
                       />
                     </ListItem>
                   ))}

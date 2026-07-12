@@ -27,6 +27,7 @@ import { AppCard, CustomDateTimePicker } from "../ui";
 import dayjs from "dayjs";
 import "dayjs/locale/ru";
 import { roundDateTimeLocalToStep } from "../../utility/time";
+import { useBranchCurrency } from "../../hooks/useBranchCurrency";
 
 type AddExpenseDrawerProps = {
   open: boolean;
@@ -50,6 +51,7 @@ const defaultValues: ExpenseFormValues = {
 type ExpenseCategory = { id: string; name: string };
 
 export const AddExpenseDrawer: React.FC<AddExpenseDrawerProps> = ({ open, onClose, onCreated }) => {
+  const { suffix } = useBranchCurrency();
   const { open: notify } = useNotification();
   const [values, setValues] = React.useState<ExpenseFormValues>(defaultValues);
   const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
@@ -233,7 +235,7 @@ export const AddExpenseDrawer: React.FC<AddExpenseDrawerProps> = ({ open, onClos
                 <Stack direction="row" justifyContent="space-between" alignItems="center">
                   <Typography variant="body2" color="text.secondary" fontWeight={600}>ИТОГО</Typography>
                   <Typography variant="h5" fontWeight={700} color="success.main">
-                    {new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 0 }).format(computeTotal()) + " C"}
+                    {new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 0 }).format(computeTotal()) + " " + suffix}
                   </Typography>
                 </Stack>
               </Stack>

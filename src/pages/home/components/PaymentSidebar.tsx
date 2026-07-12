@@ -27,6 +27,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { usePatientBalance } from "../../patient-search/usePatientBalance";
 import { printReceipt, type ReceiptData } from "../../../components/ui/PaymentReceipt";
 import { useEffectiveBranch } from "../../../hooks/useEffectiveBranch";
+import { getCurrencySuffix } from "../../../utility/currency";
 
 type PaymentSidebarProps = {
     open: boolean;
@@ -64,6 +65,7 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
     const isBulkMode = Boolean(bulkAppointmentIds && bulkAppointmentIds.length > 0);
     const { open: notify } = useNotification();
     const selectedBranch = useEffectiveBranch();
+    const suffix = getCurrencySuffix(selectedBranch?.currency);
 
     // Ребёнок сотрудника: подгружаем клиента, чтобы показать инфо про авто-удержание.
     // Льготную скидку, закрытие приёма (debt=0) и удержание остатка на родителе-сотруднике
@@ -295,7 +297,7 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
             notify?.({
                 type: "error",
                 message: "Оплата за период принимается только полностью",
-                description: `Остаток ${previewDebt.toLocaleString()} сом — внесите всю сумму.`,
+                description: `Остаток ${previewDebt.toLocaleString()} ${suffix} — внесите всю сумму.`,
             });
             return;
         }
@@ -343,6 +345,8 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
 
             notify?.({ type: "success", message: `Оплата за ${ids.length} приёмов сохранена` });
             queryClient.invalidateQueries({ queryKey: ["appointments", "daily"] });
+            // Блок «Оплаты за период» на странице дня должен сразу показать новую оплату.
+            queryClient.invalidateQueries({ queryKey: ["period-payments"] });
             onSaved();
             onClose();
         } catch (e: unknown) {
@@ -607,7 +611,7 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
                                             Со счёта / баллов
                                         </Typography>
                                         <Typography variant="caption" color="success.main" fontWeight={600}>
-                                            доступно: {((patientBalance?.balance ?? 0) + (patientBalance?.bonuses ?? 0)).toLocaleString()} сом
+                                            доступно: {((patientBalance?.balance ?? 0) + (patientBalance?.bonuses ?? 0)).toLocaleString()} {suffix}
                                         </Typography>
                                     </Stack>
                                     <Stack direction="row" alignItems="center" spacing={0} sx={{ border: '1px solid', borderColor: (balanceUsed + pointsUsed) > 0 ? 'success.main' : 'divider', borderRadius: 1, bgcolor: 'background.paper', transition: 'border-color 0.2s' }}>
@@ -653,7 +657,7 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
                                         Стоимость
                                     </Typography>
                                     <Typography variant="h6" fontWeight={600}>
-                                        {basePrice.toLocaleString()} сом
+                                        {basePrice.toLocaleString()} {suffix}
                                     </Typography>
                                 </Box>
                                 <Box flex={1}>
@@ -761,7 +765,7 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
                                 <Paper elevation={0} sx={{ p: 1.25, bgcolor: (theme) => alpha(theme.palette.success.main, 0.06), border: '1px solid', borderColor: (theme) => alpha(theme.palette.success.main, 0.2), borderRadius: 1 }}>
                                     <Stack direction="row" justifyContent="space-between">
                                         <Typography variant="caption" color="success.main">Со счёта / баллов</Typography>
-                                        <Typography variant="caption" color="success.main" fontWeight={600}>− {(balanceUsed + pointsUsed).toLocaleString()} сом</Typography>
+                                        <Typography variant="caption" color="success.main" fontWeight={600}>− {(balanceUsed + pointsUsed).toLocaleString()} {suffix}</Typography>
                                     </Stack>
                                 </Paper>
                             )}
@@ -774,7 +778,7 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
                                     Итого к оплате
                                 </Typography>
                                 <Typography variant="h5" fontWeight={700} color="success.main">
-                                    {finalPrice.toLocaleString()} сом
+                                    {finalPrice.toLocaleString()} {suffix}
                                 </Typography>
                             </Stack>
 
@@ -811,7 +815,7 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
                                             Предварительный остаток
                                         </Typography>
                                         <Typography variant="h6" color="error.main" fontWeight={700}>
-                                            {previewDebt.toLocaleString()} сом
+                                            {previewDebt.toLocaleString()} {suffix}
                                         </Typography>
                                     </Stack>
                                 </Paper>

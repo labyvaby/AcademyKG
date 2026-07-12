@@ -19,7 +19,7 @@ import dayjs from "dayjs";
 
 import { assembleDailyDetails } from "../../../services/dailyDetails";
 import { generateDailyDetailsPDF } from "../../../utility/dailyDetailsPdf";
-import { useReportBranchScope } from "../../../hooks/useReportBranchScope";
+import { useReportBranchScope, useReportCurrency } from "../../../hooks/useReportBranchScope";
 
 interface DailyAdvancesDebtsDialogProps {
     open: boolean;
@@ -30,6 +30,7 @@ interface DailyAdvancesDebtsDialogProps {
 
 const DailyAdvancesDebtsDialog: React.FC<DailyAdvancesDebtsDialogProps> = ({ open, onClose, initialDate }) => {
     const { branch } = useReportBranchScope();
+    const { suffix: currencySuffix } = useReportCurrency();
     const brandName = branch?.brandName || branch?.name || "Academy KG";
 
     const [date, setDate] = useState<string>(initialDate ?? dayjs().format("YYYY-MM-DD"));
@@ -65,7 +66,7 @@ const DailyAdvancesDebtsDialog: React.FC<DailyAdvancesDebtsDialogProps> = ({ ope
                 brandName,
             });
 
-            const blob = await generateDailyDetailsPDF(data);
+            const blob = await generateDailyDetailsPDF(data, currencySuffix);
             const url = URL.createObjectURL(blob);
             const a = document.createElement("a");
             a.href = url;

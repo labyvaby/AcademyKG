@@ -23,6 +23,7 @@ export const useEffectiveBranch = (): BranchOption | null => {
       name: String(raw.name ?? ""),
       brandName: String(raw.brandName ?? raw.brand_name ?? ""),
       logoUrl: raw.logoUrl ?? raw.logo_url ?? null,
+      currency: raw.currency ?? undefined,
     };
   }, [selectedBranch, employee]);
 };

@@ -30,6 +30,7 @@ import PersonOutlineOutlined from "@mui/icons-material/PersonOutlineOutlined";
 import { apiFetch } from "../../../utility/apiClient";
 import type { TopUpType, PaymentMethod, TopUpPayload } from "../usePatientBalance";
 import { useModalBackdropGuard } from "../../../hooks/useModalBackdropGuard";
+import { useBranchCurrency } from "../../../hooks/useBranchCurrency";
 
 // ─── Типы ────────────────────────────────────────────────────────────────────
 
@@ -72,11 +73,11 @@ const TX_TYPE_COLOR: Record<string, "primary" | "warning"> = {
 
 // ─── Хелперы ─────────────────────────────────────────────────────────────────
 
-function formatAmount(amount: string): string {
+function formatAmount(amount: string, suffix: string): string {
   const n = parseFloat(amount);
   if (isNaN(n)) return amount;
   const sign = n > 0 ? "+" : "";
-  return `${sign}${n.toLocaleString("ru-RU")} сом`;
+  return `${sign}${n.toLocaleString("ru-RU")} ${suffix}`;
 }
 
 function formatDate(iso: string): string {
@@ -107,6 +108,7 @@ const BalanceTopUpDrawer: React.FC<Props> = ({
   submitError,
   onSubmit,
 }) => {
+  const { suffix } = useBranchCurrency();
   const [tab, setTab] = useState(0); // 0 = пополнение, 1 = история
 
   // Форма
@@ -282,7 +284,7 @@ const BalanceTopUpDrawer: React.FC<Props> = ({
                 onChange={(e) => { setLocalError(null); setSuccess(false); setAmount(e.target.value); }}
                 type="number"
                 inputProps={{ step: "any" }}
-                InputProps={{ endAdornment: <InputAdornment position="end">сом</InputAdornment> }}
+                InputProps={{ endAdornment: <InputAdornment position="end">{suffix}</InputAdornment> }}
                 fullWidth
                 size="small"
                 error={!!localError}
@@ -408,7 +410,7 @@ const BalanceTopUpDrawer: React.FC<Props> = ({
                         color={isPositive ? "success.main" : "error.main"}
                         sx={{ flexShrink: 0 }}
                       >
-                        {formatAmount(tx.amount)}
+                        {formatAmount(tx.amount, suffix)}
                       </Typography>
                     </Stack>
                   </Box>

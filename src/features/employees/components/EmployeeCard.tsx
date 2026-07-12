@@ -38,6 +38,7 @@ import AddCircleOutlineOutlined from "@mui/icons-material/AddCircleOutlineOutlin
 import type { EmployesRow } from "../types";
 import { formatDateRu } from "../../../utility/format";
 import { apiFetch, resolveApiUrl } from "../../../utility/apiClient";
+import { useBranchCurrency } from "../../../hooks/useBranchCurrency";
 
 function resolveUrl(url: string | null | undefined): string | undefined {
   return resolveApiUrl(url) ?? undefined;
@@ -147,6 +148,7 @@ export type EmployeeCardProps = {
 };
 
 const EmployeeCard: React.FC<EmployeeCardProps> = ({ emp }) => {
+  const { suffix } = useBranchCurrency();
   const [detail, setDetail] = React.useState<EmployeeDetail | null>(null);
   const [detailLoading, setDetailLoading] = React.useState(false);
 
@@ -479,7 +481,7 @@ const EmployeeCard: React.FC<EmployeeCardProps> = ({ emp }) => {
                       key={s.id}
                       label={
                         s.price != null
-                          ? `${s.name} — ${Number(s.price).toLocaleString("ru-RU")} сом`
+                          ? `${s.name} — ${Number(s.price).toLocaleString("ru-RU")} ${suffix}`
                           : s.name
                       }
                       size="small"

@@ -52,7 +52,7 @@ const colHead = (c1: string, c2: string, c3: string, c4: string): string =>
       ${td(escapeHtml(c4), { align: "center" })}
     </tr>`;
 
-const buildHtml = (d: DailyLessonsData): string => {
+const buildHtml = (d: DailyLessonsData, currencySuffix: string): string => {
     // Строки «Занятия»: синие агрегаты + белые исключения.
     const lessonBody = d.lessonRows
         .map((row) => {
@@ -103,23 +103,23 @@ const buildHtml = (d: DailyLessonsData): string => {
         <!-- Занятия -->
         ${yellowHead(d.dateLabel)}
         ${brandRow(d.brandName)}
-        ${colHead("Занятия", "Кол", "сумм", "Итого")}
+        ${colHead("Занятия", "Кол", `сумм, ${currencySuffix}`, `Итого, ${currencySuffix}`)}
         ${lessonBody}
         ${lessonTotal}
 
         <!-- АФК -->
         ${yellowHead(`АФК ${d.dateLabel}`)}
         ${brandRow(d.brandName)}
-        ${colHead("АФК", "Кол д", "Сумма", "Итого")}
+        ${colHead("АФК", "Кол д", `Сумма, ${currencySuffix}`, `Итого, ${currencySuffix}`)}
         ${afkBody}
         ${afkTotal}
       </table>
     </div>`;
 };
 
-export const generateDailyLessonsPDF = async (data: DailyLessonsData): Promise<Blob> => {
+export const generateDailyLessonsPDF = async (data: DailyLessonsData, currencySuffix = "сом"): Promise<Blob> => {
     const container = document.createElement("div");
-    container.innerHTML = buildHtml(data);
+    container.innerHTML = buildHtml(data, currencySuffix);
     // ВАЖНО: контейнер в потоке БЕЗ позиционирования. Уводить за экран нельзя:
     // html2canvas снимает только видимую область → пустой PDF (регрессия 5ebf3d2).
     // Цена — короткое мигание таблицы; зато рендер гарантированно непустой.

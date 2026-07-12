@@ -9,7 +9,7 @@
 import html2pdf from "html2pdf.js";
 import type { DailySummaryData } from "../services/dailySummary";
 
-// Числа с разделителями тысяч, без суффикса валюты (D3).
+// Число с разделителями тысяч (для счётчиков — занятия/дети/специалисты).
 const fmt = (v: number): string =>
     new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 0 }).format(v || 0);
 
@@ -35,7 +35,9 @@ const row = (label: string, value: string, color?: string): string => {
 const section = (title: string): string =>
     `<tr><td colspan="2" style="border:1px solid #000;padding:1.5mm 3mm;font-size:10pt;font-weight:800;text-align:center;background:#f0f0f0;">${escapeHtml(title)}</td></tr>`;
 
-const buildHtml = (d: DailySummaryData): string => {
+const buildHtml = (d: DailySummaryData, currencySuffix: string): string => {
+    // Денежное значение с валютой филиала («10 000 сум»); счётчики — через fmt().
+    const money = (v: number): string => `${fmt(v)} ${currencySuffix}`;
     return `
     <div style="width:190mm;margin:0 auto;padding:6mm;font-family:Arial, sans-serif;color:#000;box-sizing:border-box;">
       <table style="width:100%;border-collapse:collapse;table-layout:fixed;">
@@ -47,52 +49,52 @@ const buildHtml = (d: DailySummaryData): string => {
         <tr><td colspan="2" style="border:1px solid #000;padding:1.5mm;font-size:11pt;font-weight:700;text-align:center;">${escapeHtml(d.periodTo)}</td></tr>
 
         <!-- Приход -->
-        ${row("Приход АФК", fmt(d.incomeAfk))}
-        ${row("Приход", fmt(d.income))}
-        ${row("Иглотерапия", fmt(d.acupuncture))}
+        ${row("Приход АФК", money(d.incomeAfk))}
+        ${row("Приход", money(d.income))}
+        ${row("Иглотерапия", money(d.acupuncture))}
 
         <!-- Расходы -->
         ${section("Расходы")}
-        ${row("Итого расходы", fmt(d.expensesToday))}
-        ${row(`Итоги расходов за период ${d.periodFrom} по ${d.periodTo}`, fmt(d.expensesPeriod), RED)}
-        ${row("Наличка за прошлый день", fmt(d.cashPrevDay), RED)}
-        ${row("Итого наличка за сегодня", fmt(d.cashToday), RED)}
-        ${row(`Итого наличка с ${d.periodFrom} по ${d.periodTo}`, fmt(d.cashPeriod), RED)}
+        ${row("Итого расходы", money(d.expensesToday))}
+        ${row(`Итоги расходов за период ${d.periodFrom} по ${d.periodTo}`, money(d.expensesPeriod), RED)}
+        ${row("Наличка за прошлый день", money(d.cashPrevDay), RED)}
+        ${row("Итого наличка за сегодня", money(d.cashToday), RED)}
+        ${row(`Итого наличка с ${d.periodFrom} по ${d.periodTo}`, money(d.cashPeriod), RED)}
 
         <!-- Ответственный (секция опускается, если ответственный не выбран:
              без responsibleEmployee в запросе бэк отдаёт нули, и секция с ФИО
              выглядела бы как «у человека нет расходов») -->
         ${d.responsibleName ? `
         ${section(d.responsibleName)}
-        ${row("Итого расходы на сегодня", fmt(d.personExpensesToday))}
-        ${row(`Итого расходы с ${d.periodFrom} по ${d.periodTo}`, fmt(d.personExpensesPeriod))}` : ""}
+        ${row("Итого расходы на сегодня", money(d.personExpensesToday))}
+        ${row(`Итого расходы с ${d.periodFrom} по ${d.periodTo}`, money(d.personExpensesPeriod))}` : ""}
 
         <!-- Авансы -->
         ${section("Авансы")}
-        ${row("за сегодня", fmt(d.advancesToday), BLUE)}
-        ${row(`Итого с ${d.periodFrom} по ${d.periodTo}`, fmt(d.advancesPeriod), BLUE)}
+        ${row("за сегодня", money(d.advancesToday), BLUE)}
+        ${row(`Итого с ${d.periodFrom} по ${d.periodTo}`, money(d.advancesPeriod), BLUE)}
 
         <!-- Долги детей -->
         ${section("Долги детей")}
-        ${row("за сегодня", fmt(d.childDebtToday))}
-        ${row(`Итого с ${d.periodFrom} по ${d.periodTo}`, fmt(d.childDebtPeriod))}
-        ${row("Фактическая наличка", fmt(d.factualCash), BLUE)}
+        ${row("за сегодня", money(d.childDebtToday))}
+        ${row(`Итого с ${d.periodFrom} по ${d.periodTo}`, money(d.childDebtPeriod))}
+        ${row("Фактическая наличка", money(d.factualCash), BLUE)}
 
-        <!-- Счётчики -->
+        <!-- Счётчики (без валюты) -->
         ${row("Количество занятий", fmt(d.lessonsCount))}
         ${row(`Общее количество детей с ${d.periodFrom} по ${d.periodTo}`, fmt(d.childrenCount))}
         ${row("Количество специалистов", `${fmt(d.specialistsCount)} (чел)`)}
-        ${row("Оплата за АФК на сегодня", fmt(d.afkPaymentsToday))}
+        ${row("Оплата за АФК на сегодня", money(d.afkPaymentsToday))}
         ${row("Оплата за ЛФК общая количество", fmt(d.lfkPaymentsCount))}
         ${row("Перерасчет", fmt(d.lfkRecalcCount))}
-        ${row(`Итого штрафов с ${d.periodFrom} по ${d.periodTo}`, fmt(d.penaltiesPeriod))}
+        ${row(`Итого штрафов с ${d.periodFrom} по ${d.periodTo}`, money(d.penaltiesPeriod))}
       </table>
     </div>`;
 };
 
-export const generateDailySummaryPDF = async (data: DailySummaryData): Promise<Blob> => {
+export const generateDailySummaryPDF = async (data: DailySummaryData, currencySuffix = "сом"): Promise<Blob> => {
     const container = document.createElement("div");
-    container.innerHTML = buildHtml(data);
+    container.innerHTML = buildHtml(data, currencySuffix);
     // ВАЖНО: контейнер добавляем в поток БЕЗ позиционирования. Любая попытка
     // увести его за экран (position:fixed;left:-10000px) ломает html2canvas —
     // он клонирует документ и снимает только видимую область, элемент в неё не

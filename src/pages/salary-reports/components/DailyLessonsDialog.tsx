@@ -19,7 +19,7 @@ import dayjs from "dayjs";
 
 import { assembleDailyLessons } from "../../../services/dailyLessons";
 import { generateDailyLessonsPDF } from "../../../utility/dailyLessonsPdf";
-import { useReportBranchScope } from "../../../hooks/useReportBranchScope";
+import { useReportBranchScope, useReportCurrency } from "../../../hooks/useReportBranchScope";
 
 interface DailyLessonsDialogProps {
     open: boolean;
@@ -30,6 +30,7 @@ interface DailyLessonsDialogProps {
 
 const DailyLessonsDialog: React.FC<DailyLessonsDialogProps> = ({ open, onClose, initialDate }) => {
     const { branch } = useReportBranchScope();
+    const { suffix: currencySuffix } = useReportCurrency();
     const brandName = branch?.brandName || branch?.name || "Academy KG";
 
     const [date, setDate] = useState<string>(initialDate ?? dayjs().format("YYYY-MM-DD"));
@@ -65,7 +66,7 @@ const DailyLessonsDialog: React.FC<DailyLessonsDialogProps> = ({ open, onClose, 
                 brandName,
             });
 
-            const blob = await generateDailyLessonsPDF(data);
+            const blob = await generateDailyLessonsPDF(data, currencySuffix);
             const url = URL.createObjectURL(blob);
             const a = document.createElement("a");
             a.href = url;
