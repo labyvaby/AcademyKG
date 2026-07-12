@@ -20,7 +20,7 @@ import dayjs from "dayjs";
 
 import { assembleDailySummary } from "../../../services/dailySummary";
 import { generateDailySummaryPDF } from "../../../utility/dailySummaryPdf";
-import { useReportBranchScope } from "../../../hooks/useReportBranchScope";
+import { useReportBranchScope, useReportCurrency } from "../../../hooks/useReportBranchScope";
 import { usePermissions } from "../../../hooks/usePermissions";
 import { useEmployees } from "../../../hooks/useEmployees";
 import type { EmployeesRow } from "../../expenses/types";
@@ -40,6 +40,7 @@ const isManagerRole = (role?: string): boolean =>
 
 const DailySummaryDialog: React.FC<DailySummaryDialogProps> = ({ open, onClose, initialDate }) => {
     const { branch } = useReportBranchScope();
+    const { suffix: currencySuffix } = useReportCurrency();
     const { employeeId } = usePermissions();
     // Сотрудники строго филиала сводки: бэк отклоняет responsibleEmployee
     // из другого филиала (400).
@@ -98,7 +99,7 @@ const DailySummaryDialog: React.FC<DailySummaryDialogProps> = ({ open, onClose, 
                 branchId: branch.id,
             });
 
-            const blob = await generateDailySummaryPDF(data);
+            const blob = await generateDailySummaryPDF(data, currencySuffix);
             const url = URL.createObjectURL(blob);
             const a = document.createElement("a");
             a.href = url;

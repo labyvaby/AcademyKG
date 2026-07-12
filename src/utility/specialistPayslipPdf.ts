@@ -31,6 +31,11 @@ const fmtNum = (value: string | number | null | undefined): string => {
   return new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 0 }).format(num);
 };
 
+// Денежное значение с валютой филиала — для итоговых карточек. Детальные
+// таблицы дня остаются числовыми (ячейки слишком узкие для суффикса).
+const money = (value: string | number | null | undefined, suffix: string): string =>
+  `${fmtNum(value)} ${suffix}`;
+
 const capitalize = (s: string | null | undefined): string => {
   if (!s) return "";
   return s.charAt(0).toUpperCase() + s.slice(1);
@@ -111,6 +116,7 @@ const renderDayCard = (
 // Это НЕ зарплата к выплате — здесь нет оклада/авансов/удержаний/соцфонда.
 const renderHalfPeriodTotalsCell = (
   data: SpecialistPayslipResponse,
+  currencySuffix: string,
   adjustments?: PayslipAdjustmentsResult,
 ): string => {
   const { days, period } = data;
@@ -127,8 +133,8 @@ const renderHalfPeriodTotalsCell = (
   const dedTotal = adjustments?.deductionsTotal ?? 0;
   const hasAdj = advTotal > 0 || dedTotal > 0;
   const adjRows = hasAdj
-    ? `<tr><td class="l">Авансы за период</td><td class="r">${fmtNum(advTotal)}</td></tr>
-       <tr><td class="l">Удержания за период</td><td class="r">${fmtNum(dedTotal)}</td></tr>`
+    ? `<tr><td class="l">Авансы за период</td><td class="r">${money(advTotal, currencySuffix)}</td></tr>
+       <tr><td class="l">Удержания за период</td><td class="r">${money(dedTotal, currencySuffix)}</td></tr>`
     : "";
   const scope = hasAdj
     ? "Детализация по занятиям + авансы и удержания за период. Без оклада и соц.фонда."
@@ -139,8 +145,8 @@ const renderHalfPeriodTotalsCell = (
       <table class="sum-table">
         <tbody>
           <tr><td class="l">Занятий за период</td><td class="r">${fmtNum(count)}</td></tr>
-          <tr><td class="l">Поступило за период</td><td class="r">${fmtNum(totalSum)}</td></tr>
-          <tr><td class="l">Начислено по занятиям за период</td><td class="r">${fmtNum(totalEarned)}</td></tr>
+          <tr><td class="l">Поступило за период</td><td class="r">${money(totalSum, currencySuffix)}</td></tr>
+          <tr><td class="l">Начислено по занятиям за период</td><td class="r">${money(totalEarned, currencySuffix)}</td></tr>
           ${adjRows}
         </tbody>
       </table>
@@ -151,17 +157,17 @@ const renderHalfPeriodTotalsCell = (
 };
 
 // Полный месячный summary — рисуем только если PDF явно за календарный месяц.
-const renderMonthSummaryCell = (data: SpecialistPayslipResponse): string => {
+const renderMonthSummaryCell = (data: SpecialistPayslipResponse, currencySuffix: string): string => {
   const { summary, period } = data;
   return `
     <div class="day-card summary-card">
       <table class="sum-table">
         <tbody>
           <tr><td class="l">Кол-во занятий</td><td class="r">${fmtNum(summary.paidAppointmentsCount)}</td></tr>
-          <tr><td class="l">Начислено</td><td class="r">${fmtNum(summary.grossEarnings)}</td></tr>
-          <tr><td class="l">Аванс</td><td class="r">${fmtNum(summary.advancesSum)}</td></tr>
-          <tr><td class="l">Удержания</td><td class="r">${fmtNum(summary.deductionsSum)}</td></tr>
-          <tr><td class="l">К выплате</td><td class="r">${fmtNum(summary.netSalary)}</td></tr>
+          <tr><td class="l">Начислено</td><td class="r">${money(summary.grossEarnings, currencySuffix)}</td></tr>
+          <tr><td class="l">Аванс</td><td class="r">${money(summary.advancesSum, currencySuffix)}</td></tr>
+          <tr><td class="l">Удержания</td><td class="r">${money(summary.deductionsSum, currencySuffix)}</td></tr>
+          <tr><td class="l">К выплате</td><td class="r">${money(summary.netSalary, currencySuffix)}</td></tr>
         </tbody>
       </table>
       <div class="sum-period">${escapeHtml(period.label)}</div>
@@ -171,13 +177,14 @@ const renderMonthSummaryCell = (data: SpecialistPayslipResponse): string => {
 
 const renderSummaryCell = (
   data: SpecialistPayslipResponse,
+  currencySuffix: string,
   adjustments?: PayslipAdjustmentsResult,
 ): string => {
   // Месячная сводка берёт авансы/удержания из backend `summary` (он
   // авторитетен по месяцу); полумесяц — из подмешанных per-day данных.
   return data.period.detailScope === "month"
-    ? renderMonthSummaryCell(data)
-    : renderHalfPeriodTotalsCell(data, adjustments);
+    ? renderMonthSummaryCell(data, currencySuffix)
+    : renderHalfPeriodTotalsCell(data, currencySuffix, adjustments);
 };
 
 const renderEmptyCell = (): string => `<div class="day-card empty-card"></div>`;
@@ -331,10 +338,11 @@ const isWeekend = (iso: string): boolean => {
 // Общий итог (summary) — первой ячейкой первой страницы.
 const buildPages = (
   data: SpecialistPayslipResponse,
+  currencySuffix: string,
   adjustments?: PayslipAdjustmentsResult,
 ): PageBuild[] => {
   const { days, employee } = data;
-  const summaryHtml = renderSummaryCell(data, adjustments);
+  const summaryHtml = renderSummaryCell(data, currencySuffix, adjustments);
 
   const visibleDays: SpecialistPayslipDay[] = [...days]
     .filter((d) => !isWeekend(d.date))
@@ -363,9 +371,10 @@ const buildPages = (
 export const generateSpecialistPayslipPDF = async (
   data: SpecialistPayslipResponse,
   adjustments?: PayslipAdjustmentsResult,
+  currencySuffix = "сом",
 ): Promise<Blob> => {
   const { employee, period } = data;
-  const pages = buildPages(data, adjustments);
+  const pages = buildPages(data, currencySuffix, adjustments);
 
   const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
   const pageW = pdf.internal.pageSize.getWidth();

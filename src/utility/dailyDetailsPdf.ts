@@ -13,8 +13,9 @@ import type { DailyDetailsData, DailyDetailRow } from "../services/dailyDetails"
 
 const YELLOW = "#ffe94d";
 
-const fmt = (v: number): string =>
-    new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 0 }).format(v || 0);
+// Сумма с валютой филиала («10 000 сум»).
+const money = (v: number, suffix: string): string =>
+    `${new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 0 }).format(v || 0)} ${suffix}`;
 
 const escapeHtml = (s: string): string =>
     String(s ?? "")
@@ -29,11 +30,11 @@ const sectionRow = (title: string): string =>
     `<tr><td colspan="2" style="${CELL}font-weight:800;text-align:center;background:${YELLOW};">${escapeHtml(title)}</td></tr>`;
 
 // Обычная строка «имя (примечание) | сумма».
-const dataRow = (r: DailyDetailRow, align: "center" | "left"): string => {
+const dataRow = (r: DailyDetailRow, align: "center" | "left", suffix: string): string => {
     const label = r.note ? `${r.name} (${r.note})` : r.name;
     return `<tr>
       <td style="${CELL}font-weight:700;text-align:${align};word-break:break-word;">${escapeHtml(label)}</td>
-      <td style="${CELL}font-weight:700;text-align:center;white-space:nowrap;">${escapeHtml(fmt(r.amount))}</td>
+      <td style="${CELL}font-weight:700;text-align:center;white-space:nowrap;">${escapeHtml(money(r.amount, suffix))}</td>
     </tr>`;
 };
 
@@ -41,13 +42,13 @@ const emptyRow = (text: string): string =>
     `<tr><td colspan="2" style="${CELL}text-align:center;color:#555;">${escapeHtml(text)}</td></tr>`;
 
 // Жёлтая строка «Итого | сумма».
-const totalRow = (total: number): string =>
+const totalRow = (total: number, suffix: string): string =>
     `<tr>
       <td style="${CELL}font-weight:800;text-align:right;background:${YELLOW};">Итого</td>
-      <td style="${CELL}font-weight:800;text-align:center;background:${YELLOW};white-space:nowrap;">${escapeHtml(fmt(total))}</td>
+      <td style="${CELL}font-weight:800;text-align:center;background:${YELLOW};white-space:nowrap;">${escapeHtml(money(total, suffix))}</td>
     </tr>`;
 
-const buildHtml = (d: DailyDetailsData): string => {
+const buildHtml = (d: DailyDetailsData, suffix: string): string => {
     const dateLabel = dayjs(d.date).format("DD.MM.YYYY");
 
     return `
@@ -59,31 +60,31 @@ const buildHtml = (d: DailyDetailsData): string => {
         ${sectionRow(`АВАНСЫ: ${dateLabel}`)}
         <tr><td colspan="2" style="${CELL}font-weight:800;text-align:center;">Ф.И.О.</td></tr>
         ${d.advances.length > 0
-            ? d.advances.map((r) => dataRow(r, "center")).join("")
+            ? d.advances.map((r) => dataRow(r, "center", suffix)).join("")
             : emptyRow("Авансов за этот день нет")}
-        ${totalRow(d.advancesTotal)}
+        ${totalRow(d.advancesTotal, suffix)}
 
         <!-- Удержания (за детей сотрудников и ручные) -->
         ${sectionRow(`УДЕРЖАНИЯ: ${dateLabel}`)}
         <tr><td colspan="2" style="${CELL}font-weight:800;text-align:center;">Ф.И.О.</td></tr>
         ${d.deductions.length > 0
-            ? d.deductions.map((r) => dataRow(r, "center")).join("")
+            ? d.deductions.map((r) => dataRow(r, "center", suffix)).join("")
             : emptyRow("Удержаний за этот день нет")}
-        ${totalRow(d.deductionsTotal)}
+        ${totalRow(d.deductionsTotal, suffix)}
 
         <!-- Долги детей -->
         ${sectionRow("Долги детей")}
         ${d.debts.length > 0
-            ? d.debts.map((r) => dataRow(r, "left")).join("")
+            ? d.debts.map((r) => dataRow(r, "left", suffix)).join("")
             : emptyRow("Долгов за этот день нет")}
-        ${totalRow(d.debtsTotal)}
+        ${totalRow(d.debtsTotal, suffix)}
       </table>
     </div>`;
 };
 
-export const generateDailyDetailsPDF = async (data: DailyDetailsData): Promise<Blob> => {
+export const generateDailyDetailsPDF = async (data: DailyDetailsData, currencySuffix = "сом"): Promise<Blob> => {
     const container = document.createElement("div");
-    container.innerHTML = buildHtml(data);
+    container.innerHTML = buildHtml(data, currencySuffix);
     // ВАЖНО: контейнер в потоке БЕЗ позиционирования. Уводить за экран нельзя:
     // html2canvas снимает только видимую область → пустой PDF (регрессия 5ebf3d2).
     // Цена — короткое мигание таблицы; зато рендер гарантированно непустой.
