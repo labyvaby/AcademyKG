@@ -29,10 +29,9 @@ import { PageHeader, MonthNavigation, ReportBranchSelect } from "../../component
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { usePermissions } from "../../hooks/usePermissions";
 import { useAvailableReportMonths } from "../../hooks/useAvailableReportMonths";
-import { formatKGS } from "../../utility/format";
 import { getPayrollReport } from "../../services/reports";
 import { PayrollReportResponse, PayrollGroup } from "../../types/reports";
-import { useReportBranchScope } from "../../hooks/useReportBranchScope";
+import { useReportBranchScope, useReportCurrency } from "../../hooks/useReportBranchScope";
 import dayjs from "dayjs";
 import SalaryReportRow from "./components/SalaryReportRow";
 import DailySummaryDialog from "./components/DailySummaryDialog";
@@ -113,6 +112,7 @@ const SalaryReportsPage: React.FC = () => {
     const { open: notify } = useNotification();
     const { loading: permissionsLoading } = usePermissions();
     const { branchId, ready: branchReady } = useReportBranchScope();
+    const { format: formatKGS, currency: branchCurrency } = useReportCurrency();
 
 
     // State
@@ -307,7 +307,7 @@ const SalaryReportsPage: React.FC = () => {
                             { icon: <ReportProblemIcon sx={{ fontSize: { xs: '0.85rem', md: '1.2rem' } }} />, color: C.advance, value: summary.warningsCount || 0, label: 'Предупр.' },
                             { icon: <AccessTimeIcon sx={{ fontSize: { xs: '0.85rem', md: '1.2rem' } }} />, color: C.day, value: summary.openShiftsCount || 0, label: 'Откр. смен' },
                             { icon: <CheckCircleOutlineIcon sx={{ fontSize: { xs: '0.85rem', md: '1.2rem' } }} />, color: C.payout, value: summary.paidOutCount || 0, label: 'Выплачено' },
-                            { icon: <Typography fontWeight={800} sx={{ fontSize: { xs: '0.55rem', md: '0.72rem' }, lineHeight: 1 }}>KGS</Typography>, color: C.net, value: formatKGS(netSalaryTotal), label: 'К выплате' },
+                            { icon: <Typography fontWeight={800} sx={{ fontSize: { xs: '0.55rem', md: '0.72rem' }, lineHeight: 1 }}>{branchCurrency || 'KGS'}</Typography>, color: C.net, value: formatKGS(netSalaryTotal), label: 'К выплате' },
                         ].map((item, i) => (
                             <Stack key={i} direction="row" spacing={1} alignItems="center" sx={{ minWidth: { xs: 110, md: 160 }, bgcolor: alpha(item.color, 0.05), border: `1px solid ${alpha(item.color, 0.15)}`, borderRadius: 1.5, px: { xs: 1, md: 2 }, py: { xs: 0.75, md: 1.25 } }}>
                                 <Box sx={{ color: item.color, display: 'flex', flexShrink: 0 }}>{item.icon}</Box>

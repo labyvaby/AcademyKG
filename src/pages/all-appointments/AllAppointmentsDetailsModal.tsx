@@ -13,7 +13,8 @@ import {
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import { useAppointmentDetails } from "../../hooks/useAppointmentDetails";
-import { formatDateRu, formatKGS } from "../../utility/format";
+import { formatDateRu } from "../../utility/format";
+import { useBranchCurrency } from "../../hooks/useBranchCurrency";
 
 interface AllAppointmentsDetailsModalProps {
     open: boolean;
@@ -22,6 +23,7 @@ interface AllAppointmentsDetailsModalProps {
 }
 
 export const AllAppointmentsDetailsModal: React.FC<AllAppointmentsDetailsModalProps> = ({ open, onClose, appointmentId }) => {
+    const { format: formatKGS } = useBranchCurrency();
     const theme = useTheme();
     const fullScreen = useMediaQuery(theme.breakpoints.down('md'));
     const { item, loading } = useAppointmentDetails(open ? appointmentId : null);

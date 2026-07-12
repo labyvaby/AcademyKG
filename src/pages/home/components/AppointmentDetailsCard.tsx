@@ -47,7 +47,6 @@ import { useEffectiveBranch } from "../../../hooks/useEffectiveBranch";
 import { apiFetch } from "../../../utility/apiClient";
 import { markAttendance } from "../../../features/group-appointments/api/group-appointments.api";
 import { setCachedDetail, getCachedDetail } from "../../../utility/appointmentCache";
-import { formatKGS } from "../../../utility/format";
 import EditAppointmentSidebar from "./EditAppointmentSidebar";
 import { useHasPermission, usePermissions } from "../../../hooks/usePermissions";
 import { PERMISSIONS } from "../../../constants/permissions";
@@ -82,7 +81,7 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
   readOnly = false,
 }) => {
   const theme = useTheme(); // Need theme for matches
-  const { suffix } = useBranchCurrency();
+  const { suffix, format: formatKGS } = useBranchCurrency();
   // Hide specific elements on mobile if requested, but here we use it for logic
   const isMobile = useMediaQuery(theme.breakpoints.down("md")); // Same breakpoint as pages
 

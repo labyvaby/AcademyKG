@@ -15,7 +15,7 @@ import EventRepeatOutlined from "@mui/icons-material/EventRepeatOutlined";
 import { useQuery } from "@tanstack/react-query";
 import dayjs from "dayjs";
 
-import { formatKGS } from "../../../utility/format";
+import { useBranchCurrency } from "../../../hooks/useBranchCurrency";
 import { fetchPeriodPaymentsForDay } from "../../../services/periodPayments";
 import { useBranchContext } from "../../../contexts/branch-context";
 
@@ -30,6 +30,7 @@ const ddmm = (iso: string | null | undefined) =>
 // признаётся в дне оплаты, а сами приёмы стоят на датах сессий — без этого
 // блока день оплаты выглядит «пустым» и кассе не с чем сверить сумму.
 const PeriodPaymentsDayCard: React.FC<Props> = ({ date }) => {
+  const { format: formatKGS } = useBranchCurrency();
   const { selectedBranch } = useBranchContext();
   const branchId = selectedBranch?.id ?? null;
 

@@ -1,6 +1,7 @@
 import React from "react";
 import { usePermissions } from "./usePermissions";
 import { useBranchContext, type BranchOption } from "../contexts/branch-context";
+import { formatMoney, getCurrencySuffix } from "../utility/currency";
 
 // Скоуп филиала для страниц отчётов (/reports, /salary-reports и их диалоги).
 //
@@ -52,6 +53,7 @@ const toBranchOption = (raw: unknown): BranchOption | null => {
     name: String(b.name ?? ""),
     brandName: String(b.brandName ?? b.brand_name ?? ""),
     logoUrl: (b.logoUrl ?? b.logo_url ?? null) as string | null,
+    currency: (b.currency as string | undefined) ?? undefined,
   };
 };
 
@@ -107,5 +109,21 @@ export function useReportBranchScope(): ReportBranchScope {
     options,
     setBranch,
     showSwitcher: !isSuper && options.length > 1,
+  };
+}
+
+/**
+ * Валюта скоупа отчётов: код валюты выбранного филиала и хелперы форматирования.
+ * В режиме «Все филиалы» (суперадмин, branch = null) — fallback на сом (KGS),
+ * т.к. агрегированные суммы бэк складывает без учёта валют (решение заказчика).
+ */
+export function useReportCurrency() {
+  const { branch } = useReportBranchScope();
+  const currency = branch?.currency;
+  return {
+    currency,
+    suffix: getCurrencySuffix(currency),
+    format: (value: number | string | null | undefined, opts?: { withSuffix?: boolean; maximumFractionDigits?: number }) =>
+      formatMoney(value, currency, opts),
   };
 }

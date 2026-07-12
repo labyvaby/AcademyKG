@@ -23,7 +23,6 @@ import CardGiftcardOutlined from "@mui/icons-material/CardGiftcardOutlined";
 import Tooltip from "@mui/material/Tooltip";
 import PrintOutlinedIcon from "@mui/icons-material/PrintOutlined";
 
-import { formatKGS } from "../../../utility/format";
 import { getStatusConfig, getStatusChipSx } from "../../../config/appointmentStatuses";
 import dayjs from "dayjs";
 import { dayjsBishkek } from "../../../utility/dayjsBishkek";
@@ -200,7 +199,7 @@ export const AppointmentsList: React.FC<AppointmentsListProps & { onAddSlot?: (d
   restrictToDoctorId,
   selectedDoctorName,
 }) => {
-  const { suffix } = useBranchCurrency();
+  const { suffix, format: formatKGS } = useBranchCurrency();
   const theme = useTheme();
   const [selectedDoctor, setSelectedDoctor] = React.useState<string | null>(null);
 

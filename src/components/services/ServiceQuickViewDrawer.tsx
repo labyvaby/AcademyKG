@@ -23,7 +23,7 @@ import {
 import dayjs from "dayjs";
 import "dayjs/locale/ru";
 import { apiFetch, resolveApiUrl } from "../../utility/apiClient";
-import { formatKGS } from "../../utility/format";
+import { useBranchCurrency } from "../../hooks/useBranchCurrency";
 import { getStatusChipStyles, getStatusConfig } from "../../config/appointmentStatuses";
 
 dayjs.locale("ru");
@@ -145,6 +145,7 @@ export const ServiceQuickViewDrawer: React.FC<ServiceQuickViewDrawerProps> = ({
   onClose,
   serviceId,
 }) => {
+  const { format: formatKGS } = useBranchCurrency();
   const [loading, setLoading] = useState(false);
   const [service, setService] = useState<ServiceDetail | null>(null);
   const [employees, setEmployees] = useState<ServiceEmployee[]>([]);

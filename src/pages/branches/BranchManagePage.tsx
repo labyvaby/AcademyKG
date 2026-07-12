@@ -33,6 +33,7 @@ import { useNotification } from "@refinedev/core";
 import { apiFetch } from "../../utility/apiClient";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { PageHeader } from "../../components/ui";
+import { CURRENCY_OPTIONS, DEFAULT_CURRENCY } from "../../utility/currency";
 
 type Organization = { id: string; name: string };
 
@@ -42,6 +43,7 @@ type BranchItem = {
   address: string;
   organizationId: string;
   organizationName: string;
+  currency: string;
   createdAt: string;
 };
 
@@ -52,7 +54,7 @@ type BranchDialogProps = {
   organizations: Organization[];
   busy: boolean;
   onClose: () => void;
-  onSubmit: (data: { name: string; address: string; organization: string }) => void;
+  onSubmit: (data: { name: string; address: string; organization: string; currency: string }) => void;
 };
 
 const BranchDialog: React.FC<BranchDialogProps> = ({
@@ -61,6 +63,7 @@ const BranchDialog: React.FC<BranchDialogProps> = ({
   const [name, setName] = React.useState("");
   const [address, setAddress] = React.useState("");
   const [orgId, setOrgId] = React.useState("");
+  const [currency, setCurrency] = React.useState<string>(DEFAULT_CURRENCY);
   const [nameError, setNameError] = React.useState("");
   const [orgError, setOrgError] = React.useState("");
 
@@ -69,6 +72,7 @@ const BranchDialog: React.FC<BranchDialogProps> = ({
       setName(initial?.name ?? "");
       setAddress(initial?.address ?? "");
       setOrgId(initial?.organizationId ?? (organizations[0]?.id ?? ""));
+      setCurrency(initial?.currency || DEFAULT_CURRENCY);
       setNameError("");
       setOrgError("");
     }
@@ -81,7 +85,7 @@ const BranchDialog: React.FC<BranchDialogProps> = ({
     if (!orgId) { setOrgError("Выберите организацию"); valid = false; }
     else setOrgError("");
     if (!valid) return;
-    onSubmit({ name: name.trim(), address: address.trim(), organization: orgId });
+    onSubmit({ name: name.trim(), address: address.trim(), organization: orgId, currency });
   };
 
   return (
@@ -126,6 +130,21 @@ const BranchDialog: React.FC<BranchDialogProps> = ({
             {organizations.map((org) => (
               <MenuItem key={org.id} value={org.id}>{org.name}</MenuItem>
             ))}
+          </TextField>
+          <TextField
+            select
+            label="Валюта"
+            value={currency}
+            onChange={(e) => setCurrency(e.target.value)}
+            fullWidth
+            helperText="Все суммы филиала показываются в этой валюте (без пересчёта по курсу)"
+          >
+            {CURRENCY_OPTIONS.map((c) => (
+              <MenuItem key={c.code} value={c.code}>{c.label}</MenuItem>
+            ))}
+            {!CURRENCY_OPTIONS.some((c) => c.code === currency) && currency && (
+              <MenuItem value={currency}>{currency}</MenuItem>
+            )}
           </TextField>
         </Stack>
       </DialogContent>
@@ -214,6 +233,7 @@ const BranchManagePage: React.FC = () => {
         address: b.address ?? "",
         organizationId: String(b.organization ?? ""),
         organizationName: b.organizationName ?? "",
+        currency: b.currency ?? DEFAULT_CURRENCY,
         createdAt: b.createdAt ?? "",
       })));
     } catch {
@@ -225,7 +245,7 @@ const BranchManagePage: React.FC = () => {
 
   React.useEffect(() => { load(); }, [load]);
 
-  const handleCreate = async (data: { name: string; address: string; organization: string }) => {
+  const handleCreate = async (data: { name: string; address: string; organization: string; currency: string }) => {
     try {
       setFormBusy(true);
       await apiFetch("/api/v1/branches/", {
@@ -242,7 +262,7 @@ const BranchManagePage: React.FC = () => {
     }
   };
 
-  const handleEdit = async (data: { name: string; address: string; organization: string }) => {
+  const handleEdit = async (data: { name: string; address: string; organization: string; currency: string }) => {
     if (!editTarget) return;
     try {
       setFormBusy(true);
@@ -458,6 +478,9 @@ const BranchManagePage: React.FC = () => {
                             <Typography variant="body1" fontWeight={500}>{branch.name}</Typography>
                             {branch.organizationName && (
                               <Chip label={branch.organizationName} size="small" variant="outlined" sx={{ height: 20, fontSize: "0.7rem" }} />
+                            )}
+                            {branch.currency && (
+                              <Chip label={branch.currency} size="small" color="primary" variant="outlined" sx={{ height: 20, fontSize: "0.7rem" }} />
                             )}
                           </Stack>
                         }

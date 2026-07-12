@@ -8,13 +8,15 @@ import {
     Skeleton
 } from "@mui/material";
 import { useAppointmentDetails } from "../../hooks/useAppointmentDetails";
-import { formatDateRu, formatKGS } from "../../utility/format";
+import { formatDateRu } from "../../utility/format";
+import { useBranchCurrency } from "../../hooks/useBranchCurrency";
 
 interface HistoryDetailCardProps {
     appointmentId: string | null;
 }
 
 export const HistoryDetailCard: React.FC<HistoryDetailCardProps> = ({ appointmentId }) => {
+    const { format: formatKGS } = useBranchCurrency();
     const { item, loading } = useAppointmentDetails(appointmentId);
 
     if (!appointmentId) {

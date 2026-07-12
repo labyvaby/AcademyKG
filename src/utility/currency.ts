@@ -29,6 +29,15 @@ const CURRENCIES: Record<CurrencyCode, CurrencyMeta> = {
 
 export const DEFAULT_CURRENCY: CurrencyCode = "KGS";
 
+/** Список валют для селекта (код + человекочитаемая подпись). */
+export const CURRENCY_OPTIONS: { code: CurrencyCode; label: string }[] = [
+  { code: "KGS", label: "KGS — сом (Кыргызстан)" },
+  { code: "UZS", label: "UZS — сум (Узбекистан)" },
+  { code: "KZT", label: "KZT — тенге (Казахстан)" },
+  { code: "RUB", label: "RUB — рубль (Россия)" },
+  { code: "USD", label: "USD — доллар" },
+];
+
 const metaFor = (code?: string | null): CurrencyMeta => {
   const key = (code ?? "").toUpperCase() as CurrencyCode;
   return CURRENCIES[key] ?? CURRENCIES[DEFAULT_CURRENCY];
