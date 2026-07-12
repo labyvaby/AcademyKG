@@ -271,6 +271,7 @@ const BranchManagePage: React.FC = () => {
         body: JSON.stringify(data),
       });
       notify?.({ type: "success", message: "Филиал обновлён" });
+      setFormOpen(false);
       setEditTarget(null);
       await load();
     } catch (e) {
