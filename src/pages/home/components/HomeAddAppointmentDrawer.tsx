@@ -210,8 +210,6 @@ export const HomeAddAppointmentDrawer: React.FC<
   // поэтому отдельный стейт под неё не держим.
 
   const [periodPaymentOpen, setPeriodPaymentOpen] = React.useState(false);
-  const [periodCreatedAppointments, setPeriodCreatedAppointments] = React.useState<import("../types").Appointment[]>([]);
-  const [periodPaymentTotal, setPeriodPaymentTotal] = React.useState<number>(0);
   const [periodPaymentContext, setPeriodPaymentContext] = React.useState<import("../types").Appointment | null>(null);
   // Снапшоты периода (форма сбрасывается до открытия оплаты) — для чека «с по» + дни.
   const [periodPaymentFrom, setPeriodPaymentFrom] = React.useState<string>("");
@@ -662,6 +660,9 @@ export const HomeAddAppointmentDrawer: React.FC<
       setIsSaving(true);
 
       // ── РЕЖИМ "НА ПЕРИОД" ────────────────────────────────────────
+      // Один приём в день оформления с quantity = число занятий периода.
+      // Приёмы по датам занятий НЕ создаются: и запись, и деньги, и чек
+      // живут в одном дне, иначе сумма размазывается по будущим дням.
       if (scheduleMode === "period") {
         if (periodDates.length === 0 || (appointmentMode !== "group" && !selectedPatient && !isBooking)) {
           setIsSaving(false);
@@ -676,8 +677,11 @@ export const HomeAddAppointmentDrawer: React.FC<
           return;
         }
 
-        const baseTime = visitDateTime ? dayjs(visitDateTime) : dayjs().hour(9).minute(0).second(0);
-        const timeStr = baseTime.format("HH:mm");
+        const lessonsCount = periodDates.length;
+        const bookingAt = visitDateTime ? dayjs(visitDateTime) : dayjs();
+        const bookingDate = bookingAt.format("YYYY-MM-DD");
+        const timeStr = bookingAt.format("HH:mm");
+
         const rowsForConflictCheck = validServiceRows.map((row) => {
           const svc = allServicesOpts.find((s) => s.id === row.serviceId);
           return {
@@ -685,98 +689,69 @@ export const HomeAddAppointmentDrawer: React.FC<
             durationMinutes: extractServiceDurationMinutes(svc),
           };
         });
-
-        for (const date of periodDates) {
-          // Сбрасываем кэш перед проверкой каждой даты
-          delete dayAppointmentsCacheRef.current[date];
-          const conflict = await findConflictForRows(date, timeStr, rowsForConflictCheck, undefined, true);
-          if (conflict) {
-            const docName = doctorsOpts.find((d) => d.id === conflict.doctorId)?.full_name
-              ?? allDoctorsOpts.find((d) => d.id === conflict.doctorId)?.full_name
-              ?? "специалист";
-            notify?.({
-              type: "error",
-              message: "Конфликт расписания",
-              description: `${docName} уже занят в интервале ${conflict.start}-${conflict.end} (${date}). Выберите другое время.`,
-            });
-            setIsSaving(false);
-            isSavingRef.current = false;
-            return;
-          }
-        }
-
-        const allServicesPayload = validServiceRows.map((row) => ({
-          sellableItem: row.serviceId,
-          performer: row.doctorId,
-          quantity: 1,
-        }));
-
-        const patientId = selectedPatient?.id || null;
-
-        const branchId = getBranchFilter();
-        const requests = periodDates.map((date) => {
-          const appointmentAt = dayjs(`${date}T${timeStr}:00`).toISOString();
-          const payload: any = {
-            patient: patientId,
-            appointmentAt,
-            services: allServicesPayload,
-          };
-          if (adminComment.trim()) payload.adminComment = adminComment.trim();
-          if (branchId) payload.branch = branchId;
-          return apiFetch("/api/v1/appointments/", {
-            method: "POST",
-            body: JSON.stringify(payload),
-          }, false, true);
-        });
-
-        const results = await Promise.allSettled(requests);
-        const failed = results.filter((result) => result.status === "rejected");
-        const succeeded = results.length - failed.length;
-
-        if (succeeded === 0) {
-          const firstError = failed[0];
+        delete dayAppointmentsCacheRef.current[bookingDate];
+        const conflict = await findConflictForRows(bookingDate, timeStr, rowsForConflictCheck);
+        if (conflict) {
+          const docName = doctorsOpts.find((d) => d.id === conflict.doctorId)?.full_name
+            ?? allDoctorsOpts.find((d) => d.id === conflict.doctorId)?.full_name
+            ?? "специалист";
           notify?.({
             type: "error",
-            message: "Ошибка при создании приёмов",
-            description: firstError?.status === "rejected"
-              ? firstError.reason?.message || String(firstError.reason)
-              : undefined,
+            message: "Конфликт расписания",
+            description: `${docName} уже занят в интервале ${conflict.start}-${conflict.end}. Выберите другое время.`,
           });
           setIsSaving(false);
           isSavingRef.current = false;
           return;
         }
 
-        if (failed.length > 0) {
-          const firstError = failed[0];
+        const allServicesPayload = validServiceRows.map((row) => ({
+          sellableItem: row.serviceId,
+          performer: row.doctorId,
+          quantity: lessonsCount,
+        }));
+
+        const payload: any = {
+          patient: selectedPatient?.id || null,
+          appointmentAt: bookingAt.toISOString(),
+          services: allServicesPayload,
+        };
+        if (adminComment.trim()) payload.adminComment = adminComment.trim();
+        const branchId = getBranchFilter();
+        if (branchId) payload.branch = branchId;
+
+        let createdPeriodId = "";
+        try {
+          const res: any = await apiFetch("/api/v1/appointments/", {
+            method: "POST",
+            body: JSON.stringify(payload),
+          });
+          const created = res?.data ?? res;
+          createdPeriodId = String(created?.id ?? "");
+        } catch (err: any) {
+          delete dayAppointmentsCacheRef.current[bookingDate];
           notify?.({
             type: "error",
-            message: `Создано ${succeeded} из ${results.length} приёмов`,
-            description: firstError?.status === "rejected"
-              ? firstError.reason?.message || String(firstError.reason)
-              : undefined,
+            message: "Ошибка при создании записи на период",
+            description: err?.message || String(err),
           });
+          setIsSaving(false);
+          isSavingRef.current = false;
+          return;
         }
 
-        // Собираем успешно созданные приёмы для возможной оплаты за период.
-        // ВАЖНО: apiFetch возвращает конверт {data, meta} — разворачиваем, иначе
-        // фильтр Boolean(a?.id) ниже отсеет всё и оплата за период не откроется.
-        const createdAppointments = results
-          .filter((r): r is PromiseFulfilledResult<any> => r.status === "fulfilled")
-          .map((r) => r.value?.data ?? r.value);
-
-        const hasPatient = !!selectedPatient;
-        const servicePrice = periodServicePrice;
-        // Снимок данных для последующего открытия sidebar оплаты — берём ДО ресета формы.
+        // Снимки для оплаты и чека — берём ДО ресета формы.
         const patientForPayment = selectedPatient;
-        const firstService = serviceRows[0];
-        const serviceNameForPayment = firstService?.serviceId
-          ? (allServicesOpts.find((s) => s.id === firstService.serviceId)?.name ?? "")
-          : "";
-        // Период и даты посещений снимаем ДО ресета формы — уйдут в чек за период.
+        const servicePrice = periodServicePrice;
+        const firstRow = validServiceRows[0];
+        const serviceNameForPayment = allServicesOpts.find((s) => s.id === firstRow?.serviceId)?.name ?? "Услуга";
+        const doctorNameForPayment = doctorsOpts.find((d) => d.id === firstRow?.doctorId)?.full_name
+          ?? allDoctorsOpts.find((d) => d.id === firstRow?.doctorId)?.full_name
+          ?? "";
         const periodFromSnapshot = periodStartDate;
         const periodToSnapshot = periodEndDate;
         const periodDatesSnapshot = periodDates;
+        const bookingIso = bookingAt.toISOString();
 
         setPeriodWeekdays([]);
         setPeriodStartDate(dayjs().format("YYYY-MM-DD"));
@@ -789,24 +764,30 @@ export const HomeAddAppointmentDrawer: React.FC<
         setTouched(false);
         handleClose();
         onCreated?.();
-        if (failed.length === 0) {
-          notify?.({ type: "success", message: `Создано ${periodDates.length} приёмов!` });
-        }
+        notify?.({
+          type: "success",
+          message: `Запись на период создана (${lessonsCount} ${lessonsCount === 1 ? "занятие" : lessonsCount < 5 ? "занятия" : "занятий"})`,
+        });
 
-        // Предлагаем оплату за весь период если есть клиент, цена и валидные id созданных приёмов.
-        const validCreated = (createdAppointments as import("../types").Appointment[]).filter((a) => Boolean(a?.id));
-        if (hasPatient && servicePrice && validCreated.length > 0 && failed.length === 0) {
-          const total = servicePrice * validCreated.length;
-          const first = validCreated[0];
-          // Минимальный appointment-контекст для PaymentSidebar (даёт имя клиента и patient_id для совместимости).
+        // Оплата — обычная, одним чеком на всю сумму.
+        if (createdPeriodId && patientForPayment?.id && servicePrice) {
+          const total = servicePrice * lessonsCount;
           const context: import("../types").Appointment = {
-            id: first?.id ?? "",
-            appointment_at: (first as any)?.appointmentAt ?? (first as any)?.appointment_at ?? "",
+            id: createdPeriodId,
+            appointment_at: bookingIso,
             formatted_date: "",
-            doctor_name: "",
-            patient_name: patientForPayment?.fio ?? patientForPayment?.["ФИО клиента"] ?? "",
-            patient_id: patientForPayment?.id,
+            doctor_name: doctorNameForPayment,
+            patient_name: patientForPayment.fio ?? patientForPayment["ФИО клиента"] ?? "",
+            patient_id: patientForPayment.id,
             service_names: serviceNameForPayment,
+            parsed_services: [
+              {
+                name: serviceNameForPayment,
+                price: servicePrice,
+                quantity: lessonsCount,
+                performer_name: doctorNameForPayment,
+              },
+            ] as any,
             status: "scheduled",
             is_night: false,
             total_cost: total,
@@ -818,8 +799,6 @@ export const HomeAddAppointmentDrawer: React.FC<
             discount: 0,
             debt: total,
           };
-          setPeriodCreatedAppointments(validCreated);
-          setPeriodPaymentTotal(total);
           setPeriodPaymentContext(context);
           setPeriodPaymentFrom(periodFromSnapshot);
           setPeriodPaymentTo(periodToSnapshot);
@@ -1159,8 +1138,6 @@ export const HomeAddAppointmentDrawer: React.FC<
           discount: 0,
           debt: paySvcTotal,
         };
-        setPeriodCreatedAppointments([]);
-        setPeriodPaymentTotal(0);
         setPeriodPaymentContext(ctx);
         setPeriodPaymentOpen(true);
       }
@@ -1454,10 +1431,6 @@ export const HomeAddAppointmentDrawer: React.FC<
                         const v = val ? val.format("YYYY-MM-DD") : "";
                         setPeriodStartDate(v);
                         if (!periodEndDate || periodEndDate < v) setPeriodEndDate(v);
-                        if (v) {
-                          const currentTime = visitDateTime ? dayjs(visitDateTime).format("HH:mm") : "09:00";
-                          setVisitDateTime(dayjs(`${v}T${currentTime}:00`).format());
-                        }
                       }}
                       slotProps={{ textField: { size: "small", fullWidth: true } }}
                     />
@@ -1492,9 +1465,11 @@ export const HomeAddAppointmentDrawer: React.FC<
                   <Stack spacing={0.5} sx={{ minWidth: 0 }}>
                     <Typography variant="body2" color="text.secondary" fontWeight={500}>Время</Typography>
                     <CustomTimePicker
-                      value={visitDateTime ? dayjs(visitDateTime) : dayjs(`${periodStartDate || dayjs().format("YYYY-MM-DD")}T09:00:00`)}
+                      value={visitDateTime ? dayjs(visitDateTime) : null}
                       onChange={(val) => {
-                        const date = periodStartDate || dayjs().format("YYYY-MM-DD");
+                        // Время относится к записи в дне оформления, а не к началу периода:
+                        // приём создаётся один, на этот день.
+                        const date = (visitDateTime ? dayjs(visitDateTime) : dayjs()).format("YYYY-MM-DD");
                         const time = val && val.isValid() ? val.format("HH:mm") : "09:00";
                         setVisitDateTime(dayjs(`${date}T${time}:00`).format());
                       }}
@@ -1520,6 +1495,9 @@ export const HomeAddAppointmentDrawer: React.FC<
                         </Typography>
                       </Box>
                     )}
+                    <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.75 }}>
+                      Создаётся одна запись на {dayjs(visitDateTime || undefined).format("DD.MM.YYYY")} — оплата и чек на всю сумму в этот же день.
+                    </Typography>
                   </Box>
                 )}
               </Stack>
@@ -1942,25 +1920,18 @@ export const HomeAddAppointmentDrawer: React.FC<
         open={periodPaymentOpen}
         onClose={() => {
           setPeriodPaymentOpen(false);
-          setPeriodCreatedAppointments([]);
           setPeriodPaymentContext(null);
-          setPeriodPaymentTotal(0);
           setPeriodPaymentFrom("");
           setPeriodPaymentTo("");
           setPeriodPaymentDates([]);
         }}
         appointment={periodPaymentContext}
-        bulkAppointmentIds={periodCreatedAppointments.map((a) => String(a?.id ?? "")).filter(Boolean)}
-        bulkTotalAmount={periodPaymentTotal}
-        bulkCount={periodCreatedAppointments.length}
-        bulkPeriodFrom={periodPaymentFrom || null}
-        bulkPeriodTo={periodPaymentTo || null}
-        bulkPeriodDates={periodPaymentDates}
+        periodFrom={periodPaymentFrom || null}
+        periodTo={periodPaymentTo || null}
+        periodDates={periodPaymentDates}
         onSaved={() => {
           setPeriodPaymentOpen(false);
-          setPeriodCreatedAppointments([]);
           setPeriodPaymentContext(null);
-          setPeriodPaymentTotal(0);
           setPeriodPaymentFrom("");
           setPeriodPaymentTo("");
           setPeriodPaymentDates([]);

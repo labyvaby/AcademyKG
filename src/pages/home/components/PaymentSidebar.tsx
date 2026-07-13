@@ -12,7 +12,6 @@ import {
     Paper,
     Chip,
     alpha,
-    Tooltip,
 } from "@mui/material";
 import CloseOutlined from "@mui/icons-material/CloseOutlined";
 import AccountBalanceWalletOutlined from "@mui/icons-material/AccountBalanceWalletOutlined";
@@ -35,18 +34,12 @@ type PaymentSidebarProps = {
     appointment: Appointment | null;
     onSaved: () => void;
     productsCost?: number;
-    /** Bulk/period mode: список id приёмов периода. Если задан и не пуст — sidebar работает как групповая оплата. */
-    bulkAppointmentIds?: string[];
-    /** Общая сумма за все приёмы периода. Используется как basePrice в bulk-режиме. */
-    bulkTotalAmount?: number;
-    /** Кол-во приёмов для отображения в заголовке bulk-режима. */
-    bulkCount?: number;
-    /** Абонемент/период: начало периода (YYYY-MM-DD) — для чека за период. */
-    bulkPeriodFrom?: string | null;
-    /** Абонемент/период: конец периода (YYYY-MM-DD) — для чека за период. */
-    bulkPeriodTo?: string | null;
-    /** Абонемент/период: даты посещений (YYYY-MM-DD[]) — блок «по дням» в чеке. */
-    bulkPeriodDates?: string[];
+    /** Оплата за период: начало периода (YYYY-MM-DD) — для чека. */
+    periodFrom?: string | null;
+    /** Оплата за период: конец периода (YYYY-MM-DD) — для чека. */
+    periodTo?: string | null;
+    /** Оплата за период: даты занятий (YYYY-MM-DD[]) — блок «по дням» в чеке. */
+    periodDates?: string[];
 };
 
 export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
@@ -55,17 +48,17 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
     appointment,
     onSaved,
     productsCost = 0,
-    bulkAppointmentIds,
-    bulkTotalAmount,
-    bulkCount,
-    bulkPeriodFrom = null,
-    bulkPeriodTo = null,
-    bulkPeriodDates,
+    periodFrom = null,
+    periodTo = null,
+    periodDates,
 }) => {
-    const isBulkMode = Boolean(bulkAppointmentIds && bulkAppointmentIds.length > 0);
     const { open: notify } = useNotification();
     const selectedBranch = useEffectiveBranch();
     const suffix = getCurrencySuffix(selectedBranch?.currency);
+    // Оплата за период: обычная оплата одного приёма, в котором quantity = число занятий.
+    // Отличается только подписями и блоком периода в чеке.
+    const isPeriodPayment = Boolean(periodFrom && periodTo);
+    const lessonsCount = periodDates?.length ?? 0;
 
     // Ребёнок сотрудника: подгружаем клиента, чтобы показать инфо про авто-удержание.
     // Льготную скидку, закрытие приёма (debt=0) и удержание остатка на родителе-сотруднике
@@ -143,9 +136,7 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
     let basePrice = 0;
     let servicesList: AppointmentServiceJson[] = [];
 
-    if (isBulkMode && typeof bulkTotalAmount === "number") {
-        basePrice = bulkTotalAmount;
-    } else if (appointment) {
+    if (appointment) {
         // Приоритет 1: total_amount из БД — базовая цена, сохранённая при создании/редактировании.
         // Это самый надёжный источник, не зависящий от текущих цен услуг.
         const storedAmount = Number(appointment.total_amount || 0);
@@ -198,20 +189,6 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
     };
 
     useEffect(() => {
-        if (open && isBulkMode) {
-            // Bulk-режим: всегда сбрасываем поля к "пусто" при открытии.
-            const bulkKey = `bulk:${(bulkAppointmentIds ?? []).join(",")}`;
-            if (lastInitializedId.current !== bulkKey) {
-                setCash("");
-                setCard("");
-                setBalanceUsed(0);
-                setPointsUsed(0);
-                setDiscountPercent(0);
-                setAdminComment("");
-                lastInitializedId.current = bulkKey;
-            }
-            return;
-        }
         if (open && appointment) {
             // Re-initialize every time the sidebar opens (even for the same appointment id)
             // so re-opened payments reflect the latest saved values
@@ -273,92 +250,13 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
     // Local preview only. Canonical debt/status comes from backend after save.
     const previewDebt = Math.max(0, finalPrice - totalPaid);
 
-    if (!appointment && !isBulkMode) return null;
+    if (!appointment) return null;
 
     // Примечание: отдельной кнопки/статуса «Бесплатно» нет. 100%-скидка проводится
     // обычной оплатой (discountPercent=100, finalPrice=0): бэкенд при debt==0 сам
     // переводит приём в статус `paid`. См. handleSave.
 
-    const handleSaveBulk = async () => {
-        if (loading) return;
-        const ids = bulkAppointmentIds ?? [];
-        if (ids.length === 0) {
-            notify?.({ type: "error", message: "Не указаны приёмы для оплаты" });
-            return;
-        }
-        if (ids.some((id) => !id)) {
-            notify?.({ type: "error", message: "Не удалось определить созданные приёмы для оплаты" });
-            return;
-        }
-        // Фаза 1 эндпоинта /period-payments/ — только полная оплата:
-        // Σ(cash+card+balance+bonuses+discount) должна = Σ стоимости приёмов, иначе бэк вернёт 400.
-        // Гасим заранее на фронте, чтобы дать понятную ошибку вместо «голой» 400.
-        if (previewDebt > 0) {
-            notify?.({
-                type: "error",
-                message: "Оплата за период принимается только полностью",
-                description: `Остаток ${previewDebt.toLocaleString()} ${suffix} — внесите всю сумму.`,
-            });
-            return;
-        }
-        try {
-            setLoading(true);
-            // Один атомарный вызов вместо N PATCH с дроблением суммы по приёмам.
-            // Выручка признаётся в день оплаты (paidAt по умолчанию = сейчас, Asia/Bishkek),
-            // заработок специалиста остаётся на дне сессии. Контракт бэка 2026-06-26.
-            await apiFetch(`/api/v1/period-payments/`, {
-                method: "POST",
-                body: JSON.stringify({
-                    appointmentIds: ids,
-                    paidCash: String(cashNum),
-                    paidCard: String(cardNum),
-                    paidBalance: String(balanceUsed),
-                    paidBonuses: String(pointsUsed),
-                    discount: String(discountAmount),
-                    adminComment: adminComment,
-                }),
-            });
-            // Чек за период (абонемент): печатаем одной квитанцией с периодом
-            // «с по» и днями посещений. Кнопка «Печать чека» — для повтора.
-            if (appointment) {
-                const receiptData: ReceiptData = {
-                    appointment,
-                    cashPaid: cashNum,
-                    cardPaid: cardNum,
-                    balancePaid: 0,
-                    bonusesPaid: 0,
-                    discountPercent,
-                    discountAmount,
-                    basePrice,
-                    finalPrice,
-                    bulkCount,
-                    cashierName: appointment.updated_by_name ?? appointment.created_by_name ?? null,
-                    orgName: selectedBranch?.brandName || selectedBranch?.name,
-                    branchName: selectedBranch?.name ?? null,
-                    periodFrom: bulkPeriodFrom,
-                    periodTo: bulkPeriodTo,
-                    periodDates: bulkPeriodDates,
-                };
-                setLastReceiptData(receiptData);
-                printReceipt(receiptData);
-            }
-
-            notify?.({ type: "success", message: `Оплата за ${ids.length} приёмов сохранена` });
-            queryClient.invalidateQueries({ queryKey: ["appointments", "daily"] });
-            // Блок «Оплаты за период» на странице дня должен сразу показать новую оплату.
-            queryClient.invalidateQueries({ queryKey: ["period-payments"] });
-            onSaved();
-            onClose();
-        } catch (e: unknown) {
-            const message = e && typeof e === "object" && "message" in e ? String((e as { message?: unknown }).message) : String(e);
-            notify?.({ type: "error", message: "Ошибка при сохранении оплаты за период", description: message });
-        } finally {
-            setLoading(false);
-        }
-    };
-
     const handleSave = async () => {
-        if (isBulkMode) return handleSaveBulk();
         if (loading) return;
         if (!appointment) return;
 
@@ -450,10 +348,13 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
                     discountAmount,
                     basePrice,
                     finalPrice,
-                    bulkCount: bulkCount,
                     cashierName: appointment.updated_by_name ?? appointment.created_by_name ?? null,
                     orgName: selectedBranch?.brandName || selectedBranch?.name,
                     branchName: selectedBranch?.name ?? null,
+                    // Заполнены только при оплате за период — добавляют в чек «Период с–по» и дни занятий.
+                    periodFrom,
+                    periodTo,
+                    periodDates,
                 };
                 setLastReceiptData(receiptData);
                 printReceipt(receiptData);
@@ -541,7 +442,7 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
             }}
         >
             <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", px: 2, py: 1.5 }}>
-                <Typography variant="h6">{isBulkMode ? "Оплата за период" : "Оплата приема"}</Typography>
+                <Typography variant="h6">{isPeriodPayment ? "Оплата за период" : "Оплата приема"}</Typography>
                 <IconButton onClick={onClose}><CloseOutlined /></IconButton>
             </Box>
 
@@ -573,15 +474,18 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
                         {/* Patient Info & Balance Section */}
                         <Box>
                             <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.5, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                                {isBulkMode ? "Приёмы периода" : "Клиент"}
+                                Клиент
                             </Typography>
-                            <Typography variant="body1" sx={{ mb: 2, fontWeight: 600 }}>
-                                {isBulkMode
-                                    ? `${bulkCount ?? (bulkAppointmentIds?.length ?? 0)} ${(bulkCount ?? (bulkAppointmentIds?.length ?? 0)) === 1 ? "приём" : "приёмов"}${appointment?.patient_name ? ` — ${appointment.patient_name}` : ""}`
-                                    : appointment?.patient_name}
+                            <Typography variant="body1" sx={{ mb: isPeriodPayment ? 0.5 : 2, fontWeight: 600 }}>
+                                {appointment?.patient_name}
                             </Typography>
+                            {isPeriodPayment && (
+                                <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 2 }}>
+                                    {lessonsCount} {lessonsCount === 1 ? "занятие" : lessonsCount < 5 ? "занятия" : "занятий"} — один чек на всю сумму
+                                </Typography>
+                            )}
 
-                            {!isBulkMode && isEmployeeChild && (
+                            {isEmployeeChild && (
                                 <Paper
                                     elevation={0}
                                     sx={{
@@ -604,8 +508,7 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
                                 </Paper>
                             )}
 
-                            {!isBulkMode && (
-                                <Stack spacing={0.5}>
+                            <Stack spacing={0.5}>
                                     <Stack direction="row" justifyContent="space-between" alignItems="center">
                                         <Typography variant="caption" color="text.secondary">
                                             Со счёта / баллов
@@ -642,8 +545,7 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
                                             placeholder="0"
                                         />
                                     </Stack>
-                                </Stack>
-                            )}
+                            </Stack>
                         </Box>
 
                         <Divider sx={{ my: 1 }} />
@@ -863,8 +765,6 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
                             <CircularProgress size={24} color="inherit" />
                         ) : lastReceiptData ? (
                             "Перепровести оплату"
-                        ) : isBulkMode ? (
-                            "Подтвердить оплату"
                         ) : (
                             (appointment?.paid_cash || 0) > 0 ||
                             (appointment?.paid_card || 0) > 0 ||
