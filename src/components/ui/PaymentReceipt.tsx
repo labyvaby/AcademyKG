@@ -24,8 +24,6 @@ export type ReceiptData = {
   basePrice: number;
   /** Итого к оплате (после скидки) */
   finalPrice: number;
-  /** Кол-во приёмов (для bulk-режима) */
-  bulkCount?: number;
   /** Имя кассира/менеджера */
   cashierName?: string | null;
   /** Название организации */
@@ -34,11 +32,11 @@ export type ReceiptData = {
   branchName?: string | null;
   /** Повторная печать чека (из карточки/истории, а не сразу после оплаты) */
   isReprint?: boolean;
-  /** Абонемент/оплата за период: начало периода (YYYY-MM-DD). */
+  /** Оплата за период: начало периода (YYYY-MM-DD). */
   periodFrom?: string | null;
-  /** Абонемент/оплата за период: конец периода (YYYY-MM-DD). */
+  /** Оплата за период: конец периода (YYYY-MM-DD). */
   periodTo?: string | null;
-  /** Абонемент/оплата за период: даты посещений (YYYY-MM-DD[]) для блока «по дням». */
+  /** Оплата за период: даты занятий (YYYY-MM-DD[]) для блока «по дням». */
   periodDates?: string[];
 };
 
@@ -172,7 +170,6 @@ export function buildReceiptHtml(data: ReceiptData): string {
     discountAmount,
     basePrice,
     finalPrice,
-    bulkCount,
     cashierName,
     orgName = "Аутизм победим KG",
     branchName = null,
@@ -182,15 +179,18 @@ export function buildReceiptHtml(data: ReceiptData): string {
     periodDates = [],
   } = data;
 
-  // Абонемент / оплата за период: показываем «период с по» и дни посещений.
-  const isAbon = Boolean(periodFrom && periodTo);
+  // Оплата за период: «период с по», число занятий и их даты.
+  const isPeriod = Boolean(periodFrom && periodTo);
+  const lessonsCount = (periodDates ?? []).length;
   const daysList = (periodDates ?? []).map(ddmm).join(", ");
-  const periodBlock = isAbon
+  const lessonsWord = lessonsCount === 1 ? "занятие" : lessonsCount < 5 ? "занятия" : "занятий";
+  const periodBlock = isPeriod
     ? `
   <div class="sep"></div>
   <div class="row"><span class="row-l">Период с</span><span class="row-r">${ddmmyyyy(periodFrom as string)}</span></div>
   <div class="row"><span class="row-l">по</span><span class="row-r">${ddmmyyyy(periodTo as string)}</span></div>
-  ${periodDates && periodDates.length ? `<div class="row-l" style="margin-top:0.5mm">Дни (${periodDates.length}): ${daysList}</div>` : ""}`
+  ${lessonsCount ? `<div class="row"><span class="row-l">Занятий</span><span class="row-r">${lessonsCount} ${lessonsWord}</span></div>` : ""}
+  ${lessonsCount ? `<div class="row-l" style="margin-top:0.5mm">Дни: ${daysList}</div>` : ""}`
     : "";
 
   // Фактическое время оплаты/печати чека
@@ -203,7 +203,6 @@ export function buildReceiptHtml(data: ReceiptData): string {
   const receiptNo = shortId(appointment.id);
   const services  = parseServices(appointment);
   const totalPaid = cashPaid + cardPaid + balancePaid + bonusesPaid;
-  const isBulk    = Boolean(bulkCount && bulkCount > 1);
 
   // ── Строки таблицы услуг ─────────────────────────────────────────────
   function metaRow(performerName: string | null | undefined, cols: number): string {
@@ -235,18 +234,15 @@ export function buildReceiptHtml(data: ReceiptData): string {
     });
   } else {
     const serviceName = appointment.service_names || "Услуга";
-    const qty         = isBulk ? (bulkCount ?? 1) : 1;
-    const perItem     = isBulk && qty > 0 ? (basePrice / qty) : basePrice;
-    const label       = isBulk ? `${serviceName} (период)` : serviceName;
     const perfName    = appointment.doctor_name || null;
     servicesRows = `${metaRow(perfName, 3)}<tr>
-      <td>${label}</td>
-      <td class="num">${qty.toFixed(2)}</td>
-      <td class="amt">${formatMoney(perItem * qty)}</td>
+      <td>${serviceName}</td>
+      <td class="num">${(1).toFixed(2)}</td>
+      <td class="amt">${formatMoney(basePrice)}</td>
     </tr>`;
     servicesRowsNoAmt = `${metaRow(perfName, 2)}<tr>
-      <td>${label}</td>
-      <td class="num">${qty.toFixed(2)}</td>
+      <td>${serviceName}</td>
+      <td class="num">${(1).toFixed(2)}</td>
     </tr>`;
   }
 
@@ -300,9 +296,9 @@ export function buildReceiptHtml(data: ReceiptData): string {
   ${appointment.patient_name ? `<div class="client">${appointment.patient_name}</div>` : ""}
 
   <!-- Тип операции -->
-  <div class="optype">${isAbon ? "Оплата за абонемент (период)" : "Разовая оплата"}</div>
+  <div class="optype">${isPeriod ? "Оплата за период" : "Разовая оплата"}</div>
 
-  <!-- Период абонемента + дни посещений -->
+  <!-- Период + дни занятий -->
   ${periodBlock}
 
   <div class="sep"></div>

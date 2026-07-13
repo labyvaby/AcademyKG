@@ -831,15 +831,6 @@ export const AppointmentsList: React.FC<AppointmentsListProps & { onAddSlot?: (d
                           : 0;
                       // Цвет чипа «Оплачено»: безнал (карта+баланс+бонусы) >= нал → синий, иначе зелёный
                       const isPaid = a.status?.trim().toLowerCase() === "оплачено" || a.status?.trim().toLowerCase() === "paid";
-                      // Приём покрыт оплатой за период (абонемент): оплачен, долга нет, но деньги
-                      // не на приёме — они на periodPayment и признаны в дне оплаты. Показываем
-                      // «Абонемент» без суммы, чтобы день сессии не выглядел как день с деньгами.
-                      const isCoveredByPeriod =
-                        isPaid &&
-                        Number(a.debt || 0) === 0 &&
-                        cash + card + balance + bonuses === 0 &&
-                        discountAbs === 0 &&
-                        baseAmount > 0;
                       const nonCash = card + balance + bonuses;
                       const paidChipSx: SxProps<Theme> = isPaid && nonCash >= cash && (cash > 0 || nonCash > 0)
                         ? (theme: Theme) => ({
@@ -867,23 +858,12 @@ export const AppointmentsList: React.FC<AppointmentsListProps & { onAddSlot?: (d
                             </Stack>
                             <Stack alignItems="flex-end">
                               <Stack direction="row" alignItems="center" gap={1} flexWrap="wrap" justifyContent="flex-end">
-                                {isCoveredByPeriod ? (
-                                  <Tooltip title="Оплачен за период — сумма учтена в дне оплаты">
-                                    <Chip
-                                      label="Абонемент"
-                                      icon={statusConfig.icon}
-                                      size="small"
-                                      sx={paidChipSx}
-                                    />
-                                  </Tooltip>
-                                ) : (
-                                  <Chip
-                                    label={statusConfig.label}
-                                    icon={statusConfig.icon}
-                                    size="small"
-                                    sx={paidChipSx}
-                                  />
-                                )}
+                                <Chip
+                                  label={statusConfig.label}
+                                  icon={statusConfig.icon}
+                                  size="small"
+                                  sx={paidChipSx}
+                                />
                                 {discountPct > 0 && (
                                   <Chip
                                     label={`Со скидкой ${discountPct}%`}
@@ -905,8 +885,7 @@ export const AppointmentsList: React.FC<AppointmentsListProps & { onAddSlot?: (d
                                   <Tooltip title="Есть заключение"><PrintOutlinedIcon sx={{ fontSize: 20, color: "action.active", opacity: 0.8 }} /></Tooltip>
                                 )}
                               </Stack>
-                              {/* У абонементных приёмов сумму не показываем — деньги признаны в дне оплаты */}
-                              {!isCoveredByPeriod && (a.total_amount != null || a.total_cost != null || a.estimated_total != null) && (
+                              {(a.total_amount != null || a.total_cost != null || a.estimated_total != null) && (
                                 <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
                                   Итого: {formatKGS(Number(a.total_amount || a.total_cost || a.estimated_total || 0) - discountAbs)}
                                 </Typography>
