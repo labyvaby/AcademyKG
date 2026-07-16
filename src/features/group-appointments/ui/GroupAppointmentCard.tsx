@@ -16,6 +16,7 @@ import PersonAddOutlined from "@mui/icons-material/PersonAddOutlined";
 import ExpandMoreOutlined from "@mui/icons-material/ExpandMoreOutlined";
 import ExpandLessOutlined from "@mui/icons-material/ExpandLessOutlined";
 import dayjs from "dayjs";
+import { dayjsBranch } from "../../../utility/branchTime";
 import type { AppointmentGroup, GroupAppointmentStatus, GroupParticipant } from "../model/types";
 import { updateParticipantStatus, payParticipant, markAttendance } from "../api/group-appointments.api";
 import ParticipantRow from "./ParticipantRow";
@@ -33,7 +34,7 @@ function participantToAppointment(p: GroupParticipant, group: AppointmentGroup):
   return {
     id: p.id,
     appointment_at: group.appointmentAt,
-    formatted_date: dayjs.tz(group.appointmentAt, "Asia/Bishkek").format("HH:mm DD.MM.YYYY"),
+    formatted_date: dayjsBranch(group.appointmentAt).format("HH:mm DD.MM.YYYY"),
     doctor_name: group.performerName,
     doctor_id: group.performerId,
     patient_name: p.patientName,
@@ -117,7 +118,7 @@ const GroupAppointmentCard: React.FC<Props> = ({ group, onGroupUpdated, onAddPar
               <Stack direction="row" spacing={0.5} alignItems="center">
                 <AccessTimeOutlined sx={{ fontSize: 13, color: "text.secondary" }} />
                 <Typography variant="caption" color="text.secondary">
-                  {dayjs.tz(group.appointmentAt, "Asia/Bishkek").format("HH:mm")}
+                  {dayjsBranch(group.appointmentAt).format("HH:mm")}
                 </Typography>
               </Stack>
               <Stack direction="row" spacing={0.5} alignItems="center">

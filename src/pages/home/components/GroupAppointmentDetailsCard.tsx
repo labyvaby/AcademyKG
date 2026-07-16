@@ -28,7 +28,7 @@ import GroupsOutlined from "@mui/icons-material/GroupsOutlined";
 import PersonAddOutlined from "@mui/icons-material/PersonAddOutlined";
 import CalendarMonthOutlined from "@mui/icons-material/CalendarMonthOutlined";
 import dayjs from "dayjs";
-import { dayjsBishkek } from "../../../utility/dayjsBishkek";
+import { branchWallTime, dayjsBranch } from "../../../utility/branchTime";
 import type { AppointmentGroup, GroupParticipant } from "../../../features/group-appointments/model/types";
 import { addParticipantToGroup, updateParticipantStatus, payParticipant, deleteGroup, updateGroup, markAttendance } from "../../../features/group-appointments/api/group-appointments.api";
 import ParticipantRow from "../../../features/group-appointments/ui/ParticipantRow";
@@ -65,7 +65,7 @@ function participantToAppointment(p: GroupParticipant, group: AppointmentGroup):
   return {
     id: p.id,
     appointment_at: group.appointmentAt,
-    formatted_date: dayjsBishkek(group.appointmentAt).format("HH:mm DD.MM.YYYY"),
+    formatted_date: dayjsBranch(group.appointmentAt).format("HH:mm DD.MM.YYYY"),
     doctor_name: group.performerName,
     doctor_id: group.performerId,
     patient_name: p.patientName,
@@ -124,7 +124,7 @@ const GroupAppointmentDetailsCard: React.FC<Props> = ({ group, onGroupUpdated, o
   };
 
   const openEdit = async () => {
-    setEditDateTime(group.appointmentAt ? group.appointmentAt.slice(0, 16) : "");
+    setEditDateTime(group.appointmentAt ? dayjsBranch(group.appointmentAt).format("YYYY-MM-DDTHH:mm") : "");
     setEditPerformerId(group.performerId);
     setEditServiceId(group.sellableItemId);
     setEditServices(availableServices.map((s) => ({ id: s.id, name: s.name })));
@@ -152,7 +152,7 @@ const GroupAppointmentDetailsCard: React.FC<Props> = ({ group, onGroupUpdated, o
     setEditSaving(true);
     try {
       const updated = await updateGroup(group.id, {
-        appointmentAt: editDateTime ? new Date(editDateTime).toISOString() : undefined,
+        appointmentAt: editDateTime ? branchWallTime(editDateTime).toISOString() : undefined,
         performerId: editPerformerId || undefined,
         sellableItemId: editServiceId || undefined
 });
@@ -319,7 +319,7 @@ const GroupAppointmentDetailsCard: React.FC<Props> = ({ group, onGroupUpdated, o
               <Stack direction="row" spacing={1} alignItems="center">
                 <CalendarMonthOutlined fontSize="small" sx={{ color: "primary.main" }} />
                 <Typography variant="h6" fontWeight={700}>
-                  {dayjsBishkek(group.appointmentAt).format("HH:mm DD.MM.YYYY")}
+                  {dayjsBranch(group.appointmentAt).format("HH:mm DD.MM.YYYY")}
                 </Typography>
               </Stack>
               <Typography
@@ -583,7 +583,7 @@ const GroupAppointmentDetailsCard: React.FC<Props> = ({ group, onGroupUpdated, o
         <DialogTitle>Удалить занятие?</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            Групповое занятие «{group.sellableItemName}» от {dayjsBishkek(group.appointmentAt).format("DD.MM.YYYY HH:mm")} будет удалено безвозвратно.
+            Групповое занятие «{group.sellableItemName}» от {dayjsBranch(group.appointmentAt).format("DD.MM.YYYY HH:mm")} будет удалено безвозвратно.
           </DialogContentText>
         </DialogContent>
         <DialogActions>

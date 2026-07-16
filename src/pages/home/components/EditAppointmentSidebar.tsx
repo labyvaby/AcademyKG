@@ -24,6 +24,7 @@ import { type ServiceRow } from "../../../services/services";
 import AddPatientDrawer from "../../../components/patients/AddPatientDrawer";
 import AddServiceDrawer from "../../../components/services/AddServiceDrawer";
 import { roundDateTimeLocalToStep } from "../../../utility/time";
+import { branchWallTime, dayjsBranch } from "../../../utility/branchTime";
 import dayjs from "dayjs";
 import "dayjs/locale/ru";
 import { CustomDateTimePicker } from "../../../components/ui";
@@ -84,9 +85,11 @@ const EditAppointmentSidebar: React.FC<EditAppointmentSidebarProps> = ({
   const [touched, setTouched] = React.useState(false);
 
   // локальные поля формы
-  // item.appointment_at is ISO string, so we can use it directly or format it
+  // appointment_at — ISO от бэка; показываем wall-clock в таймзоне филиала
   const [dateTime, setDateTime] = React.useState<string>(
-    item.appointment_at ? roundDateTimeLocalToStep(item.appointment_at, 15) : ""
+    item.appointment_at
+      ? roundDateTimeLocalToStep(dayjsBranch(item.appointment_at).format("YYYY-MM-DDTHH:mm"), 15)
+      : ""
   );
   // Клиент
   const [patients, setPatients] = React.useState<PatientOption[]>([]);
@@ -314,8 +317,8 @@ const EditAppointmentSidebar: React.FC<EditAppointmentSidebarProps> = ({
 
     setTouched(true);
 
-    // Гарантируем ISO строку с часовым поясом, чтобы DB не интерпретировала как UTC
-    const dt = dateTime ? dayjs(dateTime).format() : "";
+    // Гарантируем ISO строку со смещением ФИЛИАЛА, чтобы DB не интерпретировала как UTC
+    const dt = dateTime ? branchWallTime(dateTime).format() : "";
     if (dt && dayjs(dt).isBefore(dayjs().subtract(1, "day").startOf("day"))) {
       notify?.({
         type: "error",

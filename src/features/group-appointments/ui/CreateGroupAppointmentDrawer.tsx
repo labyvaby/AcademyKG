@@ -20,6 +20,7 @@ import { CustomDateTimePicker } from "../../../components/ui";
 import { useDictionaries } from "../../../hooks/useDictionaries";
 import { useAvailableServices } from "../../../hooks/useAvailableServices";
 import { createGroup } from "../api/group-appointments.api";
+import { branchWallTime } from "../../../utility/branchTime";
 import type { AppointmentGroup } from "../model/types";
 
 type PatientOption = { id: string; label: string; phone?: string | null };
@@ -119,7 +120,8 @@ const CreateGroupAppointmentDrawer: React.FC<Props> = ({ open, onClose, onCreate
     setBusy(true);
     try {
       const group = await createGroup({
-        appointmentAt,
+        // Wall-clock из пикера → ISO со смещением филиала
+        appointmentAt: branchWallTime(appointmentAt).toISOString(),
         performerId: selectedDoctor.id,
         sellableItemId: selectedService.id,
         price: Number(price),

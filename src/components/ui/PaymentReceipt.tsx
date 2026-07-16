@@ -3,7 +3,7 @@
  * Данные передаются в popup-окно, вызывается window.print().
  */
 import React from "react";
-import { dayjsBishkek } from "../../utility/dayjsBishkek";
+import { dayjsBranch } from "../../utility/branchTime";
 import type { Appointment, AppointmentServiceJson } from "../../pages/home/types";
 
 export type ReceiptData = {
@@ -194,11 +194,11 @@ export function buildReceiptHtml(data: ReceiptData): string {
     : "";
 
   // Фактическое время оплаты/печати чека
-  const now       = dayjsBishkek(new Date().toISOString());
+  const now       = dayjsBranch(new Date().toISOString());
   const datetimeStr = now.format("DD.MM.YYYY HH:mm");
   // Плановое время приёма (когда записан пациент)
   const apptStr = appointment.appointment_at
-    ? dayjsBishkek(appointment.appointment_at).format("DD.MM.YYYY HH:mm")
+    ? dayjsBranch(appointment.appointment_at).format("DD.MM.YYYY HH:mm")
     : (appointment.formatted_date || "");
   const receiptNo = shortId(appointment.id);
   const services  = parseServices(appointment);
