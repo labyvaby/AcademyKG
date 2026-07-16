@@ -57,8 +57,8 @@ const setGlobal = (patch: Partial<GlobalState>, version?: number) => {
 // Получение профиля через REST API
 // ---------------------------------------------------------------------------
 
-async function fetchPermissions(opts: { force?: boolean } = {}): Promise<void> {
-  const { force = false } = opts;
+async function fetchPermissions(opts: { force?: boolean; silent?: boolean } = {}): Promise<void> {
+  const { force = false, silent = false } = opts;
 
   const now = Date.now();
   if (!force && globalState.loaded && (now - globalState.lastFetchedAt < COOLDOWN_MS)) return;
@@ -77,7 +77,7 @@ async function fetchPermissions(opts: { force?: boolean } = {}): Promise<void> {
 
   inFlight = (async () => {
     try {
-      const showLoading = !globalState.loaded || force;
+      const showLoading = (!globalState.loaded || force) && !silent;
       setGlobal({ loading: showLoading, lastFetchedAt: Date.now() }, version);
 
       // 1. Текущий пользователь (может содержать вложенный employee по новому API)
@@ -266,13 +266,58 @@ async function fetchPermissions(opts: { force?: boolean } = {}): Promise<void> {
       }, version);
     } catch (error) {
       console.error('Ошибка загрузки профиля:', error);
-      setGlobal({ role: null, employee: null, permissions: [], loading: false, loaded: true }, version);
+      // Фоновое обновление не должно сбрасывать уже загруженные права
+      // (например при кратковременной потере сети) — оставляем как есть.
+      if (silent && globalState.loaded) {
+        setGlobal({ loading: false }, version);
+      } else {
+        setGlobal({ role: null, employee: null, permissions: [], loading: false, loaded: true }, version);
+      }
     } finally {
       inFlight = null;
     }
   })();
 
   return inFlight;
+}
+
+// ---------------------------------------------------------------------------
+// Тихое фоновое обновление прав
+// Права грузятся один раз за сессию, поэтому изменения роли (например
+// выдача новых прав через «Роли и права») не применялись без перелогина.
+// Обновляем их при возврате фокуса во вкладку и периодически.
+// ---------------------------------------------------------------------------
+
+/** Не чаще одного фонового обновления в минуту */
+const SILENT_REFRESH_MIN_MS = 60_000;
+/** Периодическая проверка, пока вкладка видима */
+const SILENT_REFRESH_INTERVAL_MS = 5 * 60_000;
+
+let silentRefreshInstalled = false;
+let silentRefreshInFlight = false;
+
+async function refreshPermissionsSilently(): Promise<void> {
+  if (silentRefreshInFlight) return;
+  if (!globalState.loaded || globalState.loading) return;
+  if (Date.now() - globalState.lastFetchedAt < SILENT_REFRESH_MIN_MS) return;
+  if (!isAuthenticated()) return;
+  silentRefreshInFlight = true;
+  try {
+    await fetchPermissions({ force: true, silent: true });
+  } finally {
+    silentRefreshInFlight = false;
+  }
+}
+
+function installSilentRefresh(): void {
+  if (silentRefreshInstalled || typeof window === 'undefined') return;
+  silentRefreshInstalled = true;
+  const onVisible = () => {
+    if (document.visibilityState === 'visible') void refreshPermissionsSilently();
+  };
+  window.addEventListener('focus', onVisible);
+  document.addEventListener('visibilitychange', onVisible);
+  window.setInterval(onVisible, SILENT_REFRESH_INTERVAL_MS);
 }
 
 // ---------------------------------------------------------------------------
@@ -284,6 +329,7 @@ export const usePermissions = (): UserPermissions & PermissionCheck => {
 
   useEffect(() => {
     listeners.add(setState);
+    installSilentRefresh();
 
     if (!globalState.loaded) {
       void fetchPermissions();

@@ -379,7 +379,7 @@ const EditEmployeeDrawer: React.FC<EditEmployeeDrawerProps> = ({ record, onClose
           return;
         }
       }
-      const msg = e instanceof Error ? e.message : String(e) || "Не удалось сохранить изменения";
+      const msg = e instanceof Error ? employeeFormUtils.translateAuthError(e) : String(e) || "Не удалось сохранить изменения";
       notify?.({ type: "error", message: msg });
     } finally {
       setBusy(false);
