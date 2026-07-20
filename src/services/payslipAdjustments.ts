@@ -11,7 +11,7 @@
  * числом, попадёт в день внесения, а не в фактический день выдачи.
  */
 import { apiFetch } from "../utility/apiClient";
-import { dayjsBishkek } from "../utility/dayjsBishkek";
+import { dayjsBranch } from "../utility/branchTime";
 
 const num = (v: string | number | null | undefined): number => {
     if (v === null || v === undefined) return 0;
@@ -83,7 +83,7 @@ export async function assemblePayslipAdjustments(
         if (employeeIdOf(t.employee) !== p.employeeId) continue;
         if (t.kind !== "advance" && t.kind !== "deduction") continue;
         if (!t.createdAt) continue;
-        const date = dayjsBishkek(t.createdAt).format("YYYY-MM-DD");
+        const date = dayjsBranch(t.createdAt).format("YYYY-MM-DD");
         if (date < p.dateFrom || date > p.dateTo) continue;
 
         const amount = num(t.totalAmount);

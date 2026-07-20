@@ -41,6 +41,7 @@ import AddPatientDrawer from "../../../components/patients/AddPatientDrawer";
 import AddServiceDrawer from "../../../components/services/AddServiceDrawer";
 import { apiFetch, getBranchFilter } from "../../../utility/apiClient";
 import { roundDateTimeLocalToStep } from "../../../utility/time";
+import { branchWallTime, nowInBranch } from "../../../utility/branchTime";
 import { type ServiceRow } from "../../../services/services";
 import type { EmployeesRow } from "../../expenses/types";
 import type { PatientOption, ServiceRowEntry } from "../types";
@@ -618,7 +619,7 @@ export const HomeAddAppointmentDrawer: React.FC<
 
     for (const row of rows) {
       if (!row.doctorId) continue;
-      const start = dayjs(`${date}T${timeStr}:00`);
+      const start = branchWallTime(`${date}T${timeStr}:00`);
       const end = start.add(normalizeDurationMinutes(row.durationMinutes, 30), "minute");
       const conflict = existingIntervals.find((it) =>
         it.performerId === row.doctorId &&
@@ -678,7 +679,7 @@ export const HomeAddAppointmentDrawer: React.FC<
         }
 
         const lessonsCount = periodDates.length;
-        const bookingAt = visitDateTime ? dayjs(visitDateTime) : dayjs();
+        const bookingAt = visitDateTime ? branchWallTime(visitDateTime) : nowInBranch();
         const bookingDate = bookingAt.format("YYYY-MM-DD");
         const timeStr = bookingAt.format("HH:mm");
 
@@ -855,7 +856,7 @@ export const HomeAddAppointmentDrawer: React.FC<
           const results = await Promise.allSettled(
             periodDates.map((date) =>
               createGroup({
-                appointmentAt: dayjs(`${date}T${timeStr}:00`).toISOString(),
+                appointmentAt: branchWallTime(`${date}T${timeStr}:00`).toISOString(),
                 performerId: firstRow.doctorId,
                 sellableItemId: firstRow.serviceId,
                 price: Number(svc?.price ?? 0),
@@ -934,7 +935,7 @@ export const HomeAddAppointmentDrawer: React.FC<
         }
         try {
           await createGroup({
-            appointmentAt: dayjs(visitDateTime).toISOString(),
+            appointmentAt: branchWallTime(visitDateTime).toISOString(),
             performerId: firstRow.doctorId,
             sellableItemId: firstRow.serviceId,
             price: Number(svc?.price ?? 0),
@@ -993,7 +994,7 @@ export const HomeAddAppointmentDrawer: React.FC<
 
       const requestPayload: any = {
         patient: patientId,
-        appointmentAt: dayjs(visitDateTime).toISOString(),
+        appointmentAt: branchWallTime(visitDateTime).toISOString(),
         services: allServicesPayload,
       };
 
@@ -1079,7 +1080,7 @@ export const HomeAddAppointmentDrawer: React.FC<
 
       // Снимок данных для авто-открытия оплаты — берём ДО сброса формы.
       const payPatient = selectedPatient;
-      const payVisitIso = dayjs(visitDateTime).toISOString();
+      const payVisitIso = branchWallTime(visitDateTime).toISOString();
       const paySvcLines = validServiceRows.map((row) => {
         const svc = allServicesOpts.find((s) => s.id === row.serviceId);
         const docName = doctorsOpts.find((d) => d.id === row.doctorId)?.full_name
@@ -1373,7 +1374,8 @@ export const HomeAddAppointmentDrawer: React.FC<
               label="Дата и время *"
               value={visitDateTime ? dayjs(visitDateTime) : null}
               onChange={(val) => {
-                const formatted = val ? val.format() : "";
+                // Naive wall-clock без смещения: время трактуется как время филиала
+                const formatted = val ? val.format("YYYY-MM-DDTHH:mm:ss") : "";
                 setVisitDateTime(formatted);
               }}
               ampm={false}
@@ -1471,7 +1473,7 @@ export const HomeAddAppointmentDrawer: React.FC<
                         // приём создаётся один, на этот день.
                         const date = (visitDateTime ? dayjs(visitDateTime) : dayjs()).format("YYYY-MM-DD");
                         const time = val && val.isValid() ? val.format("HH:mm") : "09:00";
-                        setVisitDateTime(dayjs(`${date}T${time}:00`).format());
+                        setVisitDateTime(`${date}T${time}:00`);
                       }}
                       minutesStep={15}
                       slotProps={{ textField: { size: "small", fullWidth: true } }}

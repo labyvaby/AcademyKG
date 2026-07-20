@@ -25,7 +25,7 @@ import { fetchAllPages } from "../../utility/pagination";
 // import { formatKGS } from '../../utility/format';
 import { formatDateRu } from "../../utility/format";
 import dayjs from "dayjs";
-import { dayjsBishkek } from "../../utility/dayjsBishkek";
+import { dayjsBranch } from "../../utility/branchTime";
 import AppointmentsList from "./components/AppointmentsList";
 import { fetchMedicalStaff } from "../../services/employees";
 import type { Appointment, AggregatedAppointmentRow } from "./types";
@@ -273,7 +273,7 @@ export const HomePage: React.FC = () => {
     rangeData.forEach((item: any) => {
       const raw = item.appointmentAt ?? item.appointment_at ?? "";
       if (!raw) return;
-      const day = dayjsBishkek(raw).format('YYYY-MM-DD');
+      const day = dayjsBranch(raw).format('YYYY-MM-DD');
       if (day === "Invalid Date") return;
       counts[day] = (counts[day] || 0) + 1;
     });
@@ -282,7 +282,7 @@ export const HomePage: React.FC = () => {
     rangeGroupData.forEach((item: any) => {
       const raw = item.appointmentAt ?? item.appointment_at ?? item.scheduledAt ?? item.scheduled_at ?? "";
       if (!raw) return;
-      const day = dayjsBishkek(raw).format('YYYY-MM-DD');
+      const day = dayjsBranch(raw).format('YYYY-MM-DD');
       if (day === "Invalid Date") return;
       counts[day] = (counts[day] || 0) + 1;
     });

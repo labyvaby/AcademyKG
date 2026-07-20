@@ -30,6 +30,8 @@ export type BranchOption = {
   logoUrl?: string | null;
   /** Код валюты филиала (ISO: KGS/UZS/…); undefined → fallback на сом. */
   currency?: string;
+  /** IANA-таймзона филиала (Asia/Bishkek/Asia/Tashkent/…); пока бэк поле не отдаёт — undefined. */
+  timezone?: string;
 };
 type BranchApiItem = {
   id: string | number;
@@ -39,6 +41,7 @@ type BranchApiItem = {
   logoUrl?: string | null;
   logo_url?: string | null;
   currency?: string | null;
+  timezone?: string | null;
 };
 type BranchListResponse = {
   data?: { results?: BranchApiItem[] };
@@ -147,6 +150,7 @@ export const BranchProvider: React.FC<{ isSuperAdmin: boolean; permissionsLoadin
           brandName: b.brandName ?? b.brand_name ?? "",
           logoUrl: b.logoUrl ?? b.logo_url ?? null,
           currency: b.currency ?? undefined,
+          timezone: b.timezone ?? undefined,
         }));
         setBranches(fetched);
 

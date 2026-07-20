@@ -25,7 +25,7 @@ import PrintOutlinedIcon from "@mui/icons-material/PrintOutlined";
 
 import { getStatusConfig, getStatusChipSx } from "../../../config/appointmentStatuses";
 import dayjs from "dayjs";
-import { dayjsBishkek } from "../../../utility/dayjsBishkek";
+import { dayjsBranch } from "../../../utility/branchTime";
 
 import type { Appointment } from "../types";
 import type { Shift } from "../../../services/shifts";
@@ -244,7 +244,7 @@ export const AppointmentsList: React.FC<AppointmentsListProps & { onAddSlot?: (d
     items.forEach((item) => {
       // Because we use keepPreviousData, items might temporarily contain yesterday's data while loading today's.
       // We must ignore items that don't match the current viewing date.
-      if (item.appointment_at && dayjsBishkek(item.appointment_at).format("DD.MM.YYYY") !== titleDate) return;
+      if (item.appointment_at && dayjsBranch(item.appointment_at).format("DD.MM.YYYY") !== titleDate) return;
 
       const services = item.parsed_services || [];
 
@@ -391,7 +391,7 @@ export const AppointmentsList: React.FC<AppointmentsListProps & { onAddSlot?: (d
     filteredItems.forEach((item) => {
       // Ignore items from keepPreviousData that don't match the selected titleDate
       // Skip filter if titleDate is not a real date (e.g. "Выбранный период")
-      if (titleDate && /^\d{2}\.\d{2}\.\d{4}$/.test(titleDate) && item.appointment_at && dayjsBishkek(item.appointment_at).format("DD.MM.YYYY") !== titleDate) return;
+      if (titleDate && /^\d{2}\.\d{2}\.\d{4}$/.test(titleDate) && item.appointment_at && dayjsBranch(item.appointment_at).format("DD.MM.YYYY") !== titleDate) return;
 
       const services = item.parsed_services || [];
 

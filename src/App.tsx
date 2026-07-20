@@ -35,6 +35,7 @@ import { PageCacheProvider } from "./contexts/page-cache-context";
 import { RequireAuth } from "./components/auth/RequireAuth";
 import { ProtectedRoute } from "./components/rbac/ProtectedRoute";
 import { BranchProvider } from "./contexts/branch-context";
+import { BranchTimezoneSync } from "./components/BranchTimezoneSync";
 // import { RoleDebugNotification } from "./components/debug/RoleDebugNotification"; // ⚠️ Временно отключено
 
 import React, { lazy, Suspense, useEffect } from "react";
@@ -83,7 +84,12 @@ const BranchAwareLayout: React.FC<{ children: React.ReactNode }> = ({ children }
   // Мемоизируем чтобы не пересоздавать prop при каждом рендере — иначе
   // BranchProvider useEffect срабатывает бесконечно (Maximum update depth).
   const isSuper = React.useMemo(() => isSuperAdmin(), [isSuperAdmin]);
-  return <BranchProvider isSuperAdmin={isSuper} permissionsLoading={loading}>{children}</BranchProvider>;
+  return (
+    <BranchProvider isSuperAdmin={isSuper} permissionsLoading={loading}>
+      <BranchTimezoneSync />
+      {children}
+    </BranchProvider>
+  );
 };
 
 // Вспомогательный компонент для защиты корневого редиректа

@@ -18,7 +18,7 @@
  *   за прошлый день (та же семантика, что у day.debt.debtSum в сводке дня).
  */
 import { apiFetch } from "../utility/apiClient";
-import { dayjsBishkek } from "../utility/dayjsBishkek";
+import { dayjsBranch } from "../utility/branchTime";
 
 const num = (v: string | number | null | undefined): number => {
     if (v === null || v === undefined) return 0;
@@ -104,7 +104,7 @@ export async function assembleDailyDetails(p: AssembleDailyDetailsParams): Promi
 
     // ── Авансы + удержания за день (по дате проведения createdAt, Бишкек) ──
     const isSameDay = (t: PayrollTxApi) =>
-        Boolean(t.createdAt && dayjsBishkek(t.createdAt).format("YYYY-MM-DD") === p.date);
+        Boolean(t.createdAt && dayjsBranch(t.createdAt).format("YYYY-MM-DD") === p.date);
     const toRow = (t: PayrollTxApi, fallbackNote = ""): DailyDetailRow => ({
         name: t.employee?.fullName || "Без имени",
         note: (t.comment ?? "").trim() || fallbackNote,
@@ -145,7 +145,7 @@ export async function assembleDailyDetails(p: AssembleDailyDetailsParams): Promi
     const dayDebts = unwrapList<AggAppointmentApi>(aggRes).filter(
         (a) =>
             a.appointmentAt &&
-            dayjsBishkek(a.appointmentAt).format("YYYY-MM-DD") === p.date &&
+            dayjsBranch(a.appointmentAt).format("YYYY-MM-DD") === p.date &&
             num(a.debt) > 0 &&
             a.status !== "cancelled",
     );

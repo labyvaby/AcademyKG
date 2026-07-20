@@ -214,7 +214,7 @@ const AddEmployeeDrawer: React.FC<AddEmployeeDrawerProps> = ({ open, onClose, on
           return;
         }
       }
-      const msg = e instanceof Error ? e.message : "Не удалось создать сотрудника";
+      const msg = e instanceof Error ? employeeFormUtils.translateAuthError(e) : "Не удалось создать сотрудника";
       notify?.({ type: "error", message: msg });
     } finally {
       setBusy(false);

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import AppAutocomplete from "../../components/ui/AppAutocomplete";
-import { dayjsBishkek } from "../../utility/dayjsBishkek";
+import { dayjsBranch } from "../../utility/branchTime";
 import {
     Box,
     Grid,
@@ -165,7 +165,7 @@ const DoctorWorkPage: React.FC = () => {
             data.forEach(item => {
                 const raw = item.appointmentAt ?? item.appointment_at ?? "";
                 if (!raw) return;
-                const day = dayjsBishkek(raw).format("YYYY-MM-DD");
+                const day = dayjsBranch(raw).format("YYYY-MM-DD");
                 if (day && day !== "Invalid Date") counts[day] = (counts[day] || 0) + 1;
             });
             return counts;

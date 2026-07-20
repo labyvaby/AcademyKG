@@ -1,6 +1,6 @@
 import dayjs from "dayjs";
 import type { AppointmentGroup } from "../../features/group-appointments/model/types";
-import { dayjsBishkek } from "../../utility/dayjsBishkek";
+import { dayjsBranch } from "../../utility/branchTime";
 
 export type AppointmentServiceJson = {
   id?: string;
@@ -271,7 +271,7 @@ export const mapAggregatedRowToAppointment = (
     appointment_at: appointmentAt,
     duration: r.duration,
     formatted_date: appointmentAt
-      ? dayjsBishkek(appointmentAt).format("HH:mm DD.MM.YYYY")
+      ? dayjsBranch(appointmentAt).format("HH:mm DD.MM.YYYY")
       : (r.formatted_date ?? ""),
     doctor_name: doctorName,
     doctor_id: doctorId,
@@ -343,7 +343,7 @@ export const mapGroupToAppointment = (group: AppointmentGroup): Appointment => {
   return {
     id: `group_${group.id}`,
     appointment_at: group.appointmentAt,
-    formatted_date: dayjsBishkek(group.appointmentAt).format("HH:mm DD.MM.YYYY"),
+    formatted_date: dayjsBranch(group.appointmentAt).format("HH:mm DD.MM.YYYY"),
     doctor_name: group.performerName,
     doctor_id: group.performerId,
     patient_name: `Группа: ${group.participants.length} уч.`,

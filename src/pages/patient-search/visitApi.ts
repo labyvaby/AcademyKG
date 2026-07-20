@@ -1,5 +1,5 @@
-import dayjs from "dayjs";
 import { apiFetch } from "../../utility/apiClient";
+import { branchWallTime } from "../../utility/branchTime";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -131,7 +131,7 @@ export async function createPatientVisit(params: {
   doctorInput: string;
   serviceInput: string;
 }) {
-  const appointmentAt = dayjs(params.dateTime);
+  const appointmentAt = branchWallTime(params.dateTime);
   if (!appointmentAt.isValid()) {
     throw new Error("Укажите корректные дату и время.");
   }
@@ -163,7 +163,7 @@ export async function updatePatientVisit(params: {
   doctorInput: string;
   serviceInput: string;
 }) {
-  const appointmentAt = dayjs(params.dateTime);
+  const appointmentAt = branchWallTime(params.dateTime);
   if (!appointmentAt.isValid()) {
     throw new Error("Укажите корректные дату и время.");
   }
