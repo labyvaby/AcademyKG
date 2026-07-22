@@ -8,7 +8,7 @@
 import React from "react";
 import { useNotification } from "@refinedev/core";
 import { createService } from "../../services/services";
-import { useBranchContext } from "../../contexts/branch-context";
+import { useEffectiveBranch } from "../../hooks/useEffectiveBranch";
 
 export type CreatedService = {
   id: string;
@@ -30,8 +30,11 @@ type UseAddServiceFormArgs = {
 
 export function useAddServiceForm({ open, onClose, onCreated }: UseAddServiceFormArgs) {
   const { open: notify } = useNotification();
-  const { selectedBranch } = useBranchContext();
-  const branchId = selectedBranch?.id ?? null;
+  // Не-суперадмину branch-context не отдаёт selectedBranch (филиал определяется
+  // правами на сервере), поэтому берём эффективный филиал сотрудника
+  // (primaryBranch) — иначе branchId пуст и создать услугу нельзя.
+  const effectiveBranch = useEffectiveBranch();
+  const branchId = effectiveBranch?.id ?? null;
   const [name, setName] = React.useState("");
   const [price, setPrice] = React.useState("");
   const [description, setDescription] = React.useState("");

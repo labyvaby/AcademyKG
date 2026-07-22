@@ -76,7 +76,9 @@ const EditEmployeeDrawer: React.FC<EditEmployeeDrawerProps> = ({ record, onClose
 
   const selectedRole = roles.find(r => r.id === roleId);
   const isTrainerRole = selectedRole?.name === "specialist";
-  const canManageRoles = hasPermission(PERMISSIONS.APP_SETTINGS_UPDATE);
+  // Sensitive-поля (role/branch/status/organization/authUser) бэк гейтит правом
+  // employees.manage_sensitive (по умолчанию у superadmin/manager; выдаётся из «Ролей и прав»).
+  const canManageSensitive = hasPermission(PERMISSIONS.EMPLOYEES_MANAGE_SENSITIVE);
 
   const normalizeDateInput = (input: unknown): string => {
     if (!input || typeof input !== "string") return "";
@@ -267,19 +269,16 @@ const EditEmployeeDrawer: React.FC<EditEmployeeDrawerProps> = ({ record, onClose
       // Непривилегированные пользователи (specialist, receptionist) не должны
       // отправлять sensitive-поля: role, status, organization, branch, authUser.
       // Эти поля отправляем только если есть право на управление настройками.
-      const canEditSensitiveFields = canManageRoles;
-
       const payload: Record<string, unknown> = {
         fullName: fullNameTrim || undefined,
       };
 
-      if (canEditSensitiveFields) {
+      if (canManageSensitive) {
         payload.status = status;
         payload.organization = organizationId;
         payload.branch = branchId;
+        payload.role = roleId || undefined;
       }
-
-      if (canManageRoles) payload.role = roleId || undefined;
 
       if (fullPhone) payload.userPhoneNumber = fullPhone;
       if (email.trim()) payload.userEmail = email.trim();
@@ -293,7 +292,7 @@ const EditEmployeeDrawer: React.FC<EditEmployeeDrawerProps> = ({ record, onClose
       // Специализации и услуги привязываются только тренерам.
       if (isTrainerRole && specializationId) {
         payload.specializationIds = [specializationId];
-      } else if (canManageRoles) {
+      } else if (canManageSensitive) {
         payload.specializationIds = [];
       }
 
@@ -321,13 +320,17 @@ const EditEmployeeDrawer: React.FC<EditEmployeeDrawerProps> = ({ record, onClose
 
       await employeeFormUtils.updateEmployeeApi(String(record.id), payload);
 
-      // Обновляем доступные филиалы отдельным PATCH
-      await apiFetch(`/api/v1/employees/${record.id}/allowed-branches/`, {
-        method: "PATCH",
-        body: JSON.stringify({
-          allowedBranches: allowedBranches.map(b => b.id),
-        }),
-      });
+      // Обновляем доступные филиалы отдельным PATCH.
+      // Эндпоинт переназначает branch → бэк требует employees.manage_sensitive;
+      // без права PATCH вернёт 403 и завалит весь сейв, поэтому гейтим.
+      if (canManageSensitive) {
+        await apiFetch(`/api/v1/employees/${record.id}/allowed-branches/`, {
+          method: "PATCH",
+          body: JSON.stringify({
+            allowedBranches: allowedBranches.map(b => b.id),
+          }),
+        });
+      }
 
       // Загружаем новые документы если есть
       if (passportFiles.length > 0) {
@@ -469,8 +472,8 @@ const EditEmployeeDrawer: React.FC<EditEmployeeDrawerProps> = ({ record, onClose
               }
             }}
             fullWidth required
-            disabled={!canManageRoles}
-            helperText={canManageRoles ? "" : "Изменение роли доступно только администраторам"}
+            disabled={!canManageSensitive}
+            helperText={canManageSensitive ? "" : "Изменение роли доступно только администраторам"}
           >
             {roles.map(r => <MenuItem key={r.id} value={r.id}>{r.display_name || r.name}</MenuItem>)}
           </TextField>
