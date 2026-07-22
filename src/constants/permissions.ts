@@ -92,10 +92,12 @@ const _EMPLOYEE_SCHEDULES = {
 } as const;
 
 const _EMPLOYEES = {
-  CREATE: 'employees.create',
-  READ:   'employees.read',
-  UPDATE: 'employees.update',
-  DELETE: 'employees.delete',
+  CREATE:          'employees.create',
+  READ:            'employees.read',
+  UPDATE:          'employees.update',
+  DELETE:          'employees.delete',
+  /** Право менять sensitive-поля сотрудника (role/branch/status/organization/authUser). */
+  MANAGE_SENSITIVE: 'employees.manage_sensitive',
 } as const;
 
 const _EXPENSE_CATEGORIES = {
@@ -324,6 +326,7 @@ export const PERMISSIONS = {
   EMPLOYEES_READ:                    _EMPLOYEES.READ,
   EMPLOYEES_UPDATE:                  _EMPLOYEES.UPDATE,
   EMPLOYEES_DELETE:                  _EMPLOYEES.DELETE,
+  EMPLOYEES_MANAGE_SENSITIVE:        _EMPLOYEES.MANAGE_SENSITIVE,
   // Категории расходов
   EXPENSE_CATEGORIES_CREATE:         _EXPENSE_CATEGORIES.CREATE,
   EXPENSE_CATEGORIES_READ:           _EXPENSE_CATEGORIES.READ,
@@ -483,6 +486,7 @@ export const P = {
   EMPLOYEES_READ:                    _EMPLOYEES.READ,
   EMPLOYEES_UPDATE:                  _EMPLOYEES.UPDATE,
   EMPLOYEES_DELETE:                  _EMPLOYEES.DELETE,
+  EMPLOYEES_MANAGE_SENSITIVE:        _EMPLOYEES.MANAGE_SENSITIVE,
   // Категории расходов
   EXPENSE_CATEGORIES_CREATE:         _EXPENSE_CATEGORIES.CREATE,
   EXPENSE_CATEGORIES_READ:           _EXPENSE_CATEGORIES.READ,

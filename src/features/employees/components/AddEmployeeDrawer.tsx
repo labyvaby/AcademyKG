@@ -72,7 +72,9 @@ const AddEmployeeDrawer: React.FC<AddEmployeeDrawerProps> = ({ open, onClose, on
 
   const selectedRole = roles.find(r => r.id === roleId);
   const isTrainerRole = selectedRole?.name === "specialist";
-  const canManageRoles = hasPermission(PERMISSIONS.APP_SETTINGS_UPDATE);
+  // Sensitive-поля (role/branch/status/organization/authUser) бэк гейтит правом
+  // employees.manage_sensitive (по умолчанию у superadmin/manager; выдаётся из «Ролей и прав»).
+  const canManageSensitive = hasPermission(PERMISSIONS.EMPLOYEES_MANAGE_SENSITIVE);
 
   React.useEffect(() => {
     if (!open) {
@@ -176,8 +178,9 @@ const AddEmployeeDrawer: React.FC<AddEmployeeDrawerProps> = ({ open, onClose, on
       const created: any = await employeeFormUtils.createEmployeeApi(payload);
       const createdId = created?.id ?? created?.data?.id;
 
-      // Назначаем доступные филиалы если выбраны
-      if (createdId && allowedBranches.length > 0) {
+      // Назначаем доступные филиалы если выбраны.
+      // allowed-branches требует employees.manage_sensitive — без права даст 403.
+      if (createdId && canManageSensitive && allowedBranches.length > 0) {
         await apiFetch(`/api/v1/employees/${createdId}/allowed-branches/`, {
           method: "PATCH",
           body: JSON.stringify({
@@ -296,7 +299,7 @@ const AddEmployeeDrawer: React.FC<AddEmployeeDrawerProps> = ({ open, onClose, on
               }
             }}
             fullWidth required
-            helperText={canManageRoles ? "" : "Роль назначается в рамках ваших прав доступа"}
+            helperText={canManageSensitive ? "" : "Роль назначается в рамках ваших прав доступа"}
           >
             {roles.map(r => <MenuItem key={r.id} value={r.id}>{r.display_name || r.name}</MenuItem>)}
           </TextField>

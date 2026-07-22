@@ -7,34 +7,24 @@ dayjs.extend(timezone);
 
 export const DEFAULT_TIMEZONE = "Asia/Bishkek";
 
-// Таймзона по валюте филиала — рабочий фолбэк, пока бэк не отдаёт branch.timezone.
-const CURRENCY_TIMEZONES: Record<string, string> = {
-  KGS: "Asia/Bishkek",
-  UZS: "Asia/Tashkent",
-  KZT: "Asia/Almaty",
-};
-
-// Точечные оверрайды по id филиала (прод). Страховка на случай, если у филиала
-// не заполнена валюта. Убрать после появления branch.timezone на бэке.
-const BRANCH_TIMEZONE_OVERRIDES: Record<string, string> = {
-  // «АП Фергана» (Узбекистан, UTC+5)
-  "67c1a93f-a5c2-4a45-89d3-409c7a11a483": "Asia/Tashkent",
-};
+/** Опции таймзоны для селектора в управлении филиалами (IANA-имена). */
+export const BRANCH_TIMEZONE_OPTIONS: { value: string; label: string }[] = [
+  { value: "Asia/Bishkek", label: "Бишкек (Кыргызстан)" },
+  { value: "Asia/Tashkent", label: "Ташкент / Фергана (Узбекистан)" },
+  { value: "Asia/Almaty", label: "Алматы (Казахстан)" },
+];
 
 export type BranchTimezoneSource = {
-  id?: string | null;
   timezone?: string | null;
-  currency?: string | null;
 } | null | undefined;
 
-/** Таймзона филиала: branch.timezone → оверрайд по id → валюта → Бишкек. */
+/**
+ * Таймзона филиала. Бэк отдаёт branch.timezone (IANA-имя) везде, где
+ * сериализуется филиал; существующим филиалам проставлен Asia/Bishkek.
+ * Fallback на Бишкек — только если поле по какой-то причине пустое.
+ */
 export function resolveBranchTimezone(branch: BranchTimezoneSource): string {
-  if (branch?.timezone) return branch.timezone;
-  if (branch?.id && BRANCH_TIMEZONE_OVERRIDES[branch.id]) {
-    return BRANCH_TIMEZONE_OVERRIDES[branch.id];
-  }
-  const currency = (branch?.currency ?? "").toUpperCase();
-  return CURRENCY_TIMEZONES[currency] ?? DEFAULT_TIMEZONE;
+  return branch?.timezone || DEFAULT_TIMEZONE;
 }
 
 // ---------------------------------------------------------------------------

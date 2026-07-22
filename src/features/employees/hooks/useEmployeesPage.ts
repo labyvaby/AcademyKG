@@ -67,7 +67,7 @@ export function translateAuthError(rawError: unknown): string {
   if (msg.includes("failed to fetch") || msg.includes("network error")) {
     return "Сеть недоступна или сервер не отвечает.";
   }
-  if (msg.includes("sensitive") && msg.includes("employees")) {
+  if (msg.includes("sensitive") && msg.includes("employee")) {
     return "Сервер разрешает назначать роль, филиал и статус сотрудника только администратору — даже при полном наборе прав. Обратитесь к супер-админу.";
   }
   return `Ошибка: ${getErrorMessage(rawError)}`;

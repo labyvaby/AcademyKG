@@ -34,6 +34,7 @@ import { apiFetch } from "../../utility/apiClient";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { PageHeader } from "../../components/ui";
 import { CURRENCY_OPTIONS, DEFAULT_CURRENCY } from "../../utility/currency";
+import { BRANCH_TIMEZONE_OPTIONS, DEFAULT_TIMEZONE } from "../../utility/branchTime";
 
 type Organization = { id: string; name: string };
 
@@ -44,6 +45,7 @@ type BranchItem = {
   organizationId: string;
   organizationName: string;
   currency: string;
+  timezone: string;
   createdAt: string;
 };
 
@@ -54,7 +56,7 @@ type BranchDialogProps = {
   organizations: Organization[];
   busy: boolean;
   onClose: () => void;
-  onSubmit: (data: { name: string; address: string; organization: string; currency: string }) => void;
+  onSubmit: (data: { name: string; address: string; organization: string; currency: string; timezone: string }) => void;
 };
 
 const BranchDialog: React.FC<BranchDialogProps> = ({
@@ -64,6 +66,7 @@ const BranchDialog: React.FC<BranchDialogProps> = ({
   const [address, setAddress] = React.useState("");
   const [orgId, setOrgId] = React.useState("");
   const [currency, setCurrency] = React.useState<string>(DEFAULT_CURRENCY);
+  const [timezone, setTimezone] = React.useState<string>(DEFAULT_TIMEZONE);
   const [nameError, setNameError] = React.useState("");
   const [orgError, setOrgError] = React.useState("");
 
@@ -73,6 +76,7 @@ const BranchDialog: React.FC<BranchDialogProps> = ({
       setAddress(initial?.address ?? "");
       setOrgId(initial?.organizationId ?? (organizations[0]?.id ?? ""));
       setCurrency(initial?.currency || DEFAULT_CURRENCY);
+      setTimezone(initial?.timezone || DEFAULT_TIMEZONE);
       setNameError("");
       setOrgError("");
     }
@@ -85,7 +89,7 @@ const BranchDialog: React.FC<BranchDialogProps> = ({
     if (!orgId) { setOrgError("Выберите организацию"); valid = false; }
     else setOrgError("");
     if (!valid) return;
-    onSubmit({ name: name.trim(), address: address.trim(), organization: orgId, currency });
+    onSubmit({ name: name.trim(), address: address.trim(), organization: orgId, currency, timezone });
   };
 
   return (
@@ -144,6 +148,21 @@ const BranchDialog: React.FC<BranchDialogProps> = ({
             ))}
             {!CURRENCY_OPTIONS.some((c) => c.code === currency) && currency && (
               <MenuItem value={currency}>{currency}</MenuItem>
+            )}
+          </TextField>
+          <TextField
+            select
+            label="Таймзона"
+            value={timezone}
+            onChange={(e) => setTimezone(e.target.value)}
+            fullWidth
+            helperText="Время приёмов и границы суток в отчётах — по этой таймзоне"
+          >
+            {BRANCH_TIMEZONE_OPTIONS.map((tz) => (
+              <MenuItem key={tz.value} value={tz.value}>{tz.label}</MenuItem>
+            ))}
+            {!BRANCH_TIMEZONE_OPTIONS.some((tz) => tz.value === timezone) && timezone && (
+              <MenuItem value={timezone}>{timezone}</MenuItem>
             )}
           </TextField>
         </Stack>
@@ -234,6 +253,7 @@ const BranchManagePage: React.FC = () => {
         organizationId: String(b.organization ?? ""),
         organizationName: b.organizationName ?? "",
         currency: b.currency ?? DEFAULT_CURRENCY,
+        timezone: b.timezone ?? DEFAULT_TIMEZONE,
         createdAt: b.createdAt ?? "",
       })));
     } catch {
@@ -245,7 +265,7 @@ const BranchManagePage: React.FC = () => {
 
   React.useEffect(() => { load(); }, [load]);
 
-  const handleCreate = async (data: { name: string; address: string; organization: string; currency: string }) => {
+  const handleCreate = async (data: { name: string; address: string; organization: string; currency: string; timezone: string }) => {
     try {
       setFormBusy(true);
       await apiFetch("/api/v1/branches/", {
@@ -262,7 +282,7 @@ const BranchManagePage: React.FC = () => {
     }
   };
 
-  const handleEdit = async (data: { name: string; address: string; organization: string; currency: string }) => {
+  const handleEdit = async (data: { name: string; address: string; organization: string; currency: string; timezone: string }) => {
     if (!editTarget) return;
     try {
       setFormBusy(true);
