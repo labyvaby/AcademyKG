@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import {
     Box,
     Button,
@@ -51,6 +52,7 @@ export const EditProductDrawer: React.FC<EditProductDrawerProps> = ({
     onClose,
     onUpdated,
 }) => {
+    const { t } = useTranslation();
     const { suffix } = useBranchCurrency();
     const { open: notify } = useNotification();
     const [values, setValues] = React.useState<UpdateProductData>({});
@@ -96,7 +98,7 @@ export const EditProductDrawer: React.FC<EditProductDrawerProps> = ({
         setTouched(true);
         if (!product) return;
         if (!values.name?.trim()) {
-            notify?.({ type: "error", message: "Название товара обязательно" });
+            notify?.({ type: "error", message: t("products.nameRequiredError") });
             return;
         }
 
@@ -116,11 +118,11 @@ export const EditProductDrawer: React.FC<EditProductDrawerProps> = ({
             });
 
             if (onUpdated) onUpdated();
-            notify?.({ type: "success", message: "Товар обновлен" });
+            notify?.({ type: "success", message: t("products.productUpdated") });
             onClose();
         } catch (e: unknown) {
             console.error("Update product failed:", e);
-            notify?.({ type: "error", message: "Не удалось обновить товар" });
+            notify?.({ type: "error", message: t("products.updateError") });
         } finally {
             setBusy(false);
         }
@@ -143,8 +145,8 @@ export const EditProductDrawer: React.FC<EditProductDrawerProps> = ({
                         py: 1,
                     }}
                 >
-                    <Typography variant="h6">Редактировать товар</Typography>
-                    <IconButton onClick={busy ? undefined : onClose} aria-label="Закрыть">
+                    <Typography variant="h6">{t("products.editProduct")}</Typography>
+                    <IconButton onClick={busy ? undefined : onClose} aria-label={t("common.close")}>
                         <CloseOutlined />
                     </IconButton>
                 </Box>
@@ -187,10 +189,10 @@ export const EditProductDrawer: React.FC<EditProductDrawerProps> = ({
                                     </Avatar>
                                     <Box sx={{ flex: 1 }}>
                                         <Typography variant="body2">
-                                            {photoFile ? photoFile.name : "Сменить фото"}
+                                            {photoFile ? photoFile.name : t("products.changePhoto")}
                                         </Typography>
                                         <Typography variant="caption" color="text.secondary">
-                                            Необязательно
+                                            {t("products.optional")}
                                         </Typography>
                                     </Box>
                                     <input
@@ -210,25 +212,25 @@ export const EditProductDrawer: React.FC<EditProductDrawerProps> = ({
                         {/* Name Input */}
                         <Stack spacing={0.5}>
                             <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
-                                Название товара *
+                                {t("products.productNameRequired")}
                             </Typography>
                             <TextField
-                                placeholder="Введите название товара"
+                                placeholder={t("products.enterProductName")}
                                 value={values.name || ""}
                                 onChange={(e) => setValues((s) => ({ ...s, name: e.target.value }))}
                                 fullWidth
                                 error={touched && !values.name?.trim()}
-                                helperText={touched && !values.name?.trim() ? "Обязательное поле" : ""}
+                                helperText={touched && !values.name?.trim() ? t("common.requiredField") : ""}
                             />
                         </Stack>
 
                         {/* Barcode */}
                         <Stack spacing={0.5}>
                             <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
-                                Штрихкод
+                                {t("products.barcode")}
                             </Typography>
                             <TextField
-                                placeholder="Введите штрихкод"
+                                placeholder={t("products.enterBarcode")}
                                 value={values.barcode || ""}
                                 onChange={(e) => setValues((s) => ({ ...s, barcode: e.target.value }))}
                                 fullWidth
@@ -239,10 +241,10 @@ export const EditProductDrawer: React.FC<EditProductDrawerProps> = ({
                             {/* Category */}
                             <Stack spacing={0.5} sx={{ flex: 1 }}>
                                 <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
-                                    Категория
+                                    {t("expenses.category")}
                                 </Typography>
                                 <TextField
-                                    placeholder="Категория"
+                                    placeholder={t("expenses.category")}
                                     value={values.category || ""}
                                     onChange={(e) => setValues((s) => ({ ...s, category: e.target.value }))}
                                     fullWidth
@@ -251,10 +253,10 @@ export const EditProductDrawer: React.FC<EditProductDrawerProps> = ({
                             {/* Unit */}
                             <Stack spacing={0.5} sx={{ flex: 1 }}>
                                 <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
-                                    Ед. измерения
+                                    {t("products.unit")}
                                 </Typography>
                                 <TextField
-                                    placeholder="Единица"
+                                    placeholder={t("products.unitPlaceholder")}
                                     value={values.unit || ""}
                                     onChange={(e) => setValues((s) => ({ ...s, unit: e.target.value }))}
                                     fullWidth
@@ -273,7 +275,7 @@ export const EditProductDrawer: React.FC<EditProductDrawerProps> = ({
                                 justifyContent: "space-between"
                             }}
                         >
-                            <Typography variant="body2">Статус продажи</Typography>
+                            <Typography variant="body2">{t("products.saleStatus")}</Typography>
                             <Tabs
                                 value={values.is_for_sale ? 0 : 1}
                                 onChange={(_, v) =>
@@ -283,11 +285,11 @@ export const EditProductDrawer: React.FC<EditProductDrawerProps> = ({
                                 TabIndicatorProps={{ style: { display: "none" } }}
                             >
                                 <Tab
-                                    label="Активно"
+                                    label={t("products.saleStatusActive")}
                                     sx={(theme) => ({ ...toggleTabStyles(theme, theme.palette.success.main), minHeight: 32, py: 0, px: 2 })}
                                 />
                                 <Tab
-                                    label="Недоступно"
+                                    label={t("products.saleStatusUnavailable")}
                                     sx={(theme) => ({ ...toggleTabStyles(theme, theme.palette.action.disabledBackground), minHeight: 32, py: 0, px: 2, '&.Mui-selected': { bgcolor: 'action.selected', color: 'text.primary' } })}
                                 />
                             </Tabs>
@@ -297,7 +299,7 @@ export const EditProductDrawer: React.FC<EditProductDrawerProps> = ({
                         <Stack direction="row" spacing={2}>
                             <Stack spacing={0.5} sx={{ flex: 1 }}>
                                 <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
-                                    Стоимость
+                                    {t("products.cost")}
                                 </Typography>
                                 <TextField
                                     placeholder="0"
@@ -327,7 +329,7 @@ export const EditProductDrawer: React.FC<EditProductDrawerProps> = ({
                             </Stack>
                             <Stack spacing={0.5} sx={{ flex: 1 }}>
                                 <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
-                                    Остаток
+                                    {t("products.stock")}
                                 </Typography>
                                 <TextField
                                     placeholder="0"
@@ -338,7 +340,7 @@ export const EditProductDrawer: React.FC<EditProductDrawerProps> = ({
                                     }
                                     fullWidth
                                     InputProps={{
-                                        endAdornment: <Typography variant="caption" color="text.secondary">шт</Typography>,
+                                        endAdornment: <Typography variant="caption" color="text.secondary">{t("products.pieceUnit")}</Typography>,
                                     }}
                                     sx={{
                                         "& input[type=number]": {
@@ -360,10 +362,10 @@ export const EditProductDrawer: React.FC<EditProductDrawerProps> = ({
                         {/* Description */}
                         <Stack spacing={0.5}>
                             <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
-                                Описание
+                                {t("products.description")}
                             </Typography>
                             <TextField
-                                placeholder="Добавьте описание (необязательно)"
+                                placeholder={t("products.addDescriptionOptional")}
                                 value={values.description || ""}
                                 onChange={(e) => setValues((s) => ({ ...s, description: e.target.value }))}
                                 fullWidth
@@ -385,7 +387,7 @@ export const EditProductDrawer: React.FC<EditProductDrawerProps> = ({
                         >
                             <Stack direction="row" spacing={1} alignItems="center">
                                 <InfoOutlinedIcon fontSize="small" color="action" />
-                                <Typography variant="body2">Капельница</Typography>
+                                <Typography variant="body2">{t("products.infusion")}</Typography>
                             </Stack>
                             <Tabs
                                 value={values.is_infusion ? 0 : 1}
@@ -396,11 +398,11 @@ export const EditProductDrawer: React.FC<EditProductDrawerProps> = ({
                                 TabIndicatorProps={{ style: { display: "none" } }}
                             >
                                 <Tab
-                                    label="Да"
+                                    label={t("products.yes")}
                                     sx={(theme) => ({ ...toggleTabStyles(theme, theme.palette.primary.main), minHeight: 32, py: 0, px: 2 })}
                                 />
                                 <Tab
-                                    label="Нет"
+                                    label={t("products.no")}
                                     sx={(theme) => ({ ...toggleTabStyles(theme, theme.palette.action.disabledBackground), minHeight: 32, py: 0, px: 2, '&.Mui-selected': { bgcolor: 'action.selected', color: 'text.primary' } })}
                                 />
                             </Tabs>
@@ -411,7 +413,7 @@ export const EditProductDrawer: React.FC<EditProductDrawerProps> = ({
                 <Box sx={{ p: 2, borderTop: 1, borderColor: 'divider', bgcolor: 'background.paper' }}>
                     <Stack direction="row" gap={1} justifyContent="flex-end">
                         <Button onClick={onClose} disabled={busy}>
-                            Отмена
+                            {t("common.cancel")}
                         </Button>
                         <Button
                             variant="contained"
@@ -421,10 +423,10 @@ export const EditProductDrawer: React.FC<EditProductDrawerProps> = ({
                             {busy ? (
                                 <Stack direction="row" alignItems="center" spacing={1}>
                                     <CircularProgress size={18} />
-                                    <span>Сохранение…</span>
+                                    <span>{t("common.saving")}</span>
                                 </Stack>
                             ) : (
-                                "Сохранить"
+                                t("common.save")
                             )}
                         </Button>
                     </Stack>

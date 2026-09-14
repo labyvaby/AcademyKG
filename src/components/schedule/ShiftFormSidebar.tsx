@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { Drawer, Box, Typography, IconButton, Divider } from "@mui/material";
 import CloseOutlined from "@mui/icons-material/CloseOutlined";
 import dayjs from "dayjs";
@@ -19,6 +20,7 @@ const ShiftFormSidebar: React.FC<Props> = ({
   onSuccess,
   shiftToEdit
 }) => {
+  const { t } = useTranslation();
   // Загружаем сотрудников через кэшированный хук
   const { employees } = useEmployees(isOpen);
 
@@ -29,7 +31,7 @@ const ShiftFormSidebar: React.FC<Props> = ({
     onClose(); // Закрываем панель после успеха
   };
 
-  const title = shiftToEdit ? "Редактировать смену" : "Добавить смену";
+  const title = shiftToEdit ? t("schedule.editShift") : t("schedule.addShift");
 
   return (
     <Drawer
@@ -48,7 +50,7 @@ const ShiftFormSidebar: React.FC<Props> = ({
         }}
       >
         <Typography variant="h6">{title}</Typography>
-        <IconButton onClick={onClose} aria-label="Закрыть">
+        <IconButton onClick={onClose} aria-label={t("common.close")}>
           <CloseOutlined />
         </IconButton>
       </Box>

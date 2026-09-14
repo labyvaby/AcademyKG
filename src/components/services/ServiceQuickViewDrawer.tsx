@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Drawer,
   Box,
@@ -79,7 +80,7 @@ function getMatchingServiceEntries(appointment: any, serviceId: string): any[] {
   );
 }
 
-function getPerformer(entry: any, appointment: any) {
+function getPerformer(entry: any, appointment: any, notSpecifiedLabel: string) {
   const performer = entry?.performer ?? entry?.doctor ?? appointment?.specialist ?? null;
   const id =
     normalizeId(performer) ||
@@ -95,7 +96,7 @@ function getPerformer(entry: any, appointment: any) {
     entry?.doctor_name ??
     appointment?.doctorName ??
     appointment?.doctor_name ??
-    "Не указано";
+    notSpecifiedLabel;
 
   return {
     id,
@@ -145,6 +146,7 @@ export const ServiceQuickViewDrawer: React.FC<ServiceQuickViewDrawerProps> = ({
   onClose,
   serviceId,
 }) => {
+  const { t } = useTranslation();
   const { format: formatKGS } = useBranchCurrency();
   const [loading, setLoading] = useState(false);
   const [service, setService] = useState<ServiceDetail | null>(null);
@@ -178,7 +180,7 @@ export const ServiceQuickViewDrawer: React.FC<ServiceQuickViewDrawerProps> = ({
         if (item) {
           setService({
             id: String(item.id ?? item.sellableItem ?? serviceId),
-            name: item.name ?? "Не указано",
+            name: item.name ?? t("services.notSpecifiedNeuter"),
             price: item.price ?? item.priceSom ?? null,
             photoUrl: resolveUrl(item.imageUrl ?? item.image_url) ?? null,
             employeeIds: item.employeeIds ?? item.employee_ids ?? [],
@@ -201,7 +203,7 @@ export const ServiceQuickViewDrawer: React.FC<ServiceQuickViewDrawerProps> = ({
             const empMap = new Map<string, ServiceEmployee>();
             apts.forEach((apt: any) => {
               getMatchingServiceEntries(apt, serviceId).forEach((s: any) => {
-                const performer = getPerformer(s, apt);
+                const performer = getPerformer(s, apt, t("services.notSpecifiedNeuter"));
                 if (performer.id) {
                   const id = String(performer.id);
                   if (!empMap.has(id)) {
@@ -237,7 +239,7 @@ export const ServiceQuickViewDrawer: React.FC<ServiceQuickViewDrawerProps> = ({
                     const e = allEmps[idx];
                     empMap.set(String(e.id), {
                       id: String(e.id),
-                      full_name: d.fullName ?? e.fullName ?? "Не указано",
+                      full_name: d.fullName ?? e.fullName ?? t("services.notSpecifiedNeuter"),
                       specialization: d.role?.name ?? d.specializations?.[0]?.name ?? undefined,
                     });
                   }
@@ -250,19 +252,19 @@ export const ServiceQuickViewDrawer: React.FC<ServiceQuickViewDrawerProps> = ({
             setRecentHistory(
               apts.map((apt: any) => {
                 const matchingService = getMatchingServiceEntries(apt, serviceId)[0] ?? {};
-                const performer = getPerformer(matchingService, apt);
+                const performer = getPerformer(matchingService, apt, t("services.notSpecifiedNeuter"));
                 const patientNested = apt.patient ?? null;
                 const patientName =
                   apt.patientName ??
                   apt.patient_name ??
                   patientNested?.fullName ??
                   patientNested?.full_name ??
-                  "Не указан";
+                  t("services.notSpecifiedMasc");
                 const doctorName =
                   performer.fullName ??
                   apt.doctorName ??
                   apt.doctor_name ??
-                  "Не указан";
+                  t("services.notSpecifiedMasc");
                 const appointmentAt = apt.appointmentAt ?? apt.appointment_at ?? "";
                 return {
                   id: String(apt.id),
@@ -329,7 +331,7 @@ export const ServiceQuickViewDrawer: React.FC<ServiceQuickViewDrawerProps> = ({
         }}
       >
         <Typography variant="h6" fontWeight={600}>
-          Информация об услуге
+          {t("services.serviceInfo")}
         </Typography>
         <IconButton onClick={onClose} size="small">
           <CloseIcon />
@@ -360,10 +362,10 @@ export const ServiceQuickViewDrawer: React.FC<ServiceQuickViewDrawerProps> = ({
           <Stack spacing={2} alignItems="center" sx={{ pt: 4 }}>
             <MedicalServicesIcon sx={{ fontSize: 48, color: "text.disabled" }} />
             <Typography variant="body1" color="text.secondary" align="center">
-              Услуга недоступна или удалена
+              {t("services.serviceUnavailable")}
             </Typography>
             <Typography variant="caption" color="text.disabled" align="center">
-              Данные о ней сохранены в карточке приёма
+              {t("services.dataKeptInAppointment")}
             </Typography>
           </Stack>
         ) : service ? (
@@ -386,9 +388,9 @@ export const ServiceQuickViewDrawer: React.FC<ServiceQuickViewDrawerProps> = ({
                     {service.name}
                   </Typography>
                   <Stack direction="row" spacing={1}>
-                    <Chip label="Услуга" size="small" color="primary" variant="outlined" />
+                    <Chip label={t("services.serviceFallback")} size="small" color="primary" variant="outlined" />
                     <Chip
-                      label={service.isActive ? "Активна" : "Неактивна"}
+                      label={service.isActive ? t("categories.active") : t("categories.inactive")}
                       size="small"
                       color={service.isActive ? "success" : "default"}
                       variant="filled"
@@ -404,10 +406,10 @@ export const ServiceQuickViewDrawer: React.FC<ServiceQuickViewDrawerProps> = ({
                 <Stack direction="row" spacing={1.5} alignItems="center">
                   <AttachMoneyIcon fontSize="small" color="action" />
                   <Typography variant="body2" color="text.secondary">
-                    Стоимость:
+                    {t("products.cost")}:
                   </Typography>
                   <Typography variant="body2" fontWeight={500}>
-                    {service.price ? formatKGS(service.price) : "Не указано"}
+                    {service.price ? formatKGS(service.price) : t("services.notSpecifiedNeuter")}
                   </Typography>
                 </Stack>
               </Stack>
@@ -417,7 +419,7 @@ export const ServiceQuickViewDrawer: React.FC<ServiceQuickViewDrawerProps> = ({
                   <Divider sx={{ my: 2 }} />
                   <Box>
                     <Typography variant="subtitle2" fontWeight={600} gutterBottom>
-                      Описание
+                      {t("products.description")}
                     </Typography>
                     <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: "pre-wrap" }}>
                       {service.description}
@@ -434,7 +436,7 @@ export const ServiceQuickViewDrawer: React.FC<ServiceQuickViewDrawerProps> = ({
               <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1.5 }}>
                 <PersonIcon fontSize="small" color="primary" />
                 <Typography variant="subtitle2" fontWeight={600}>
-                  Сотрудники
+                  {t("services.employeesLabel")}
                 </Typography>
               </Stack>
 
@@ -472,7 +474,7 @@ export const ServiceQuickViewDrawer: React.FC<ServiceQuickViewDrawerProps> = ({
                 </List>
               ) : (
                 <Typography variant="body2" color="text.secondary" sx={{ py: 2, textAlign: "center" }}>
-                  Сотрудники не назначены
+                  {t("services.noEmployeesAssigned")}
                 </Typography>
               )}
             </Box>
@@ -484,7 +486,7 @@ export const ServiceQuickViewDrawer: React.FC<ServiceQuickViewDrawerProps> = ({
               <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1.5 }}>
                 <CalendarIcon fontSize="small" color="primary" />
                 <Typography variant="subtitle2" fontWeight={600}>
-                  Последние приемы
+                  {t("employees.recentAppointments")}
                 </Typography>
               </Stack>
 
@@ -521,10 +523,10 @@ export const ServiceQuickViewDrawer: React.FC<ServiceQuickViewDrawerProps> = ({
                         secondary={
                           <>
                             <Typography variant="caption" display="block" color="text.secondary">
-                              Пациент: {appointment.patient_name}
+                              {t("employees.patientLabel")}: {appointment.patient_name}
                             </Typography>
                             <Typography variant="caption" display="block" color="text.secondary">
-                              Врач: {appointment.doctor_name}
+                              {t("services.doctorLabel")}: {appointment.doctor_name}
                             </Typography>
                           </>
                         }
@@ -534,14 +536,14 @@ export const ServiceQuickViewDrawer: React.FC<ServiceQuickViewDrawerProps> = ({
                 </List>
               ) : (
                 <Typography variant="body2" color="text.secondary" sx={{ py: 2, textAlign: "center" }}>
-                  Нет записей об оказании услуги
+                  {t("services.noServiceHistory")}
                 </Typography>
               )}
             </Box>
           </Stack>
         ) : (
           <Typography variant="body2" color="text.secondary" align="center" sx={{ py: 4 }}>
-            Услуга не найдена
+            {t("services.serviceNotFound")}
           </Typography>
         )}
       </Box>

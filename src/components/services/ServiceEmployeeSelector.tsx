@@ -5,6 +5,7 @@
  * Не содержит бизнес-логики — получает данные и колбэки через пропсы.
  */
 import React from "react";
+import { useTranslation } from "react-i18next";
 import {
   Stack,
   Typography,
@@ -33,10 +34,11 @@ const ServiceEmployeeSelector: React.FC<ServiceEmployeeSelectorProps> = ({
   onSelectChange,
   onAddEmployeeClick,
 }) => {
+  const { t } = useTranslation();
   const optionLabel = React.useCallback(
     (o: EmployeesRow) =>
-      `${o.full_name || o.id} — ${o.specialization || "Нет специализации"}`,
-    []
+      `${o.full_name || o.id} — ${o.specialization || t("services.noSpecialization")}`,
+    [t]
   );
   const filterEmployees = createFilterOptions<EmployeesRow>({
     matchFrom: "start",
@@ -46,7 +48,7 @@ const ServiceEmployeeSelector: React.FC<ServiceEmployeeSelectorProps> = ({
   return (
     <Stack spacing={0.5}>
       <Typography variant="body2" color="text.secondary">
-        Выберите сотрудника:
+        {t("services.selectEmployeeColon")}
       </Typography>
       <Stack direction="row" alignItems="center" spacing={1}>
         <AppAutocomplete
@@ -70,16 +72,16 @@ const ServiceEmployeeSelector: React.FC<ServiceEmployeeSelectorProps> = ({
             );
           }}
           renderInput={(params) => (
-            <TextField {...params} placeholder="Сотрудник(и)" fullWidth size="small" />
+            <TextField {...params} placeholder={t("services.employeesPlaceholder")} fullWidth size="small" />
           )}
           sx={{ flex: 1 }}
         />
-        <Tooltip title="Добавить сотрудника (перейти)">
+        <Tooltip title={t("services.addEmployeeNavigate")}>
           <span>
             <IconButton
               color="inherit"
               onClick={onAddEmployeeClick}
-              aria-label="Добавить сотрудника"
+              aria-label={t("employees.addEmployee")}
             >
               <PersonAddAltOutlined />
             </IconButton>

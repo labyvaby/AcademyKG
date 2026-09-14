@@ -5,6 +5,7 @@
  * Данные и колбэки приходят сверху.
  */
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { Stack, TextField, InputAdornment, Typography, Paper, Tabs, Tab, Collapse } from "@mui/material";
 import { useBranchCurrency } from "../../hooks/useBranchCurrency";
 
@@ -58,6 +59,7 @@ const ServiceDetailsForm: React.FC<ServiceDetailsFormProps> = ({
   setDurationMinutes,
   touched = false,
 }) => {
+  const { t } = useTranslation();
   const { suffix } = useBranchCurrency();
   const nameError = touched && !name.trim();
   const priceError = touched && (!price || Number(price) <= 0);
@@ -66,21 +68,21 @@ const ServiceDetailsForm: React.FC<ServiceDetailsFormProps> = ({
       {/* Секция: Название услуги */}
       <Stack spacing={0.5}>
         <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
-          Название услуги *
+          {t("services.serviceNameRequired")}
         </Typography>
         <TextField
-          placeholder="Например: Тренировка с тренером"
+          placeholder={t("services.serviceNamePlaceholder")}
           value={name}
           onChange={(e: React.ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
           fullWidth
           error={nameError}
-          helperText={nameError ? "Обязательное поле" : ""}
+          helperText={nameError ? t("common.requiredField") : ""}
         />
       </Stack>
 
       <Stack spacing={0.5}>
         <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
-          Стоимость услуги *
+          {t("services.serviceCostRequired")}
         </Typography>
         <TextField
           type="text"
@@ -96,16 +98,16 @@ const ServiceDetailsForm: React.FC<ServiceDetailsFormProps> = ({
           fullWidth
           placeholder="0"
           error={priceError}
-          helperText={priceError ? "Введите положительную стоимость" : ""}
+          helperText={priceError ? t("services.enterPositiveCost") : ""}
         />
       </Stack>
 
       <Stack spacing={0.5}>
         <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
-          Описание
+          {t("products.description")}
         </Typography>
         <TextField
-          placeholder="Добавьте описание услуги (необязательно)"
+          placeholder={t("services.addServiceDescription")}
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           fullWidth
@@ -120,7 +122,7 @@ const ServiceDetailsForm: React.FC<ServiceDetailsFormProps> = ({
         variant="outlined"
         sx={{ p: 1, display: "flex", alignItems: "center", justifyContent: "space-between" }}
       >
-        <Typography variant="body2">Тип услуги</Typography>
+        <Typography variant="body2">{t("services.serviceType")}</Typography>
         <Tabs
           value={isGroup ? 1 : 0}
           onChange={(_, v) => setIsGroup(v === 1)}
@@ -128,14 +130,14 @@ const ServiceDetailsForm: React.FC<ServiceDetailsFormProps> = ({
           TabIndicatorProps={{ style: { display: "none" } }}
         >
           <Tab
-            label="Индивидуальная"
+            label={t("services.individual")}
             sx={(theme) => ({
               ...toggleTabStyles(theme, theme.palette.primary.main),
               minHeight: 32, py: 0, px: 2,
             })}
           />
           <Tab
-            label="Групповая"
+            label={t("services.group")}
             sx={(theme) => ({
               ...toggleTabStyles(theme, theme.palette.secondary.main),
               minHeight: 32, py: 0, px: 2,
@@ -148,23 +150,23 @@ const ServiceDetailsForm: React.FC<ServiceDetailsFormProps> = ({
       <Collapse in={isGroup}>
         <Stack spacing={0.5}>
           <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
-            Максимум участников *
+            {t("services.maxParticipantsRequired")}
           </Typography>
           <TextField
             type="text"
             inputMode="numeric"
-            placeholder="Например: 10"
+            placeholder={t("services.maxParticipantsPlaceholder")}
             value={maxParticipants}
             onChange={(e) => {
               const v = e.target.value.replace(/[^\d]/g, "");
               setMaxParticipants(v);
             }}
             InputProps={{
-              endAdornment: <InputAdornment position="end">чел.</InputAdornment>,
+              endAdornment: <InputAdornment position="end">{t("services.peopleUnit")}</InputAdornment>,
             }}
             fullWidth
             error={touched && isGroup && (!maxParticipants || Number(maxParticipants) <= 0)}
-            helperText={touched && isGroup && (!maxParticipants || Number(maxParticipants) <= 0) ? "Укажите максимальное кол-во участников" : ""}
+            helperText={touched && isGroup && (!maxParticipants || Number(maxParticipants) <= 0) ? t("services.specifyMaxParticipants") : ""}
           />
         </Stack>
       </Collapse>
@@ -172,22 +174,22 @@ const ServiceDetailsForm: React.FC<ServiceDetailsFormProps> = ({
       {/* Длительность */}
       <Stack spacing={0.5}>
         <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
-          Длительность
+          {t("services.duration")}
         </Typography>
         <TextField
           type="text"
           inputMode="numeric"
-          placeholder="Например: 60"
+          placeholder={t("services.durationPlaceholder")}
           value={durationMinutes}
           onChange={(e) => {
             const v = e.target.value.replace(/[^\d]/g, "");
             setDurationMinutes(v);
           }}
           InputProps={{
-            endAdornment: <InputAdornment position="end">мин.</InputAdornment>,
+            endAdornment: <InputAdornment position="end">{t("services.minutesUnit")}</InputAdornment>,
           }}
           fullWidth
-          helperText="Влияет на отображение окон в расписании регистратуры"
+          helperText={t("services.durationHint")}
         />
       </Stack>
 
@@ -201,7 +203,7 @@ const ServiceDetailsForm: React.FC<ServiceDetailsFormProps> = ({
           justifyContent: "space-between",
         }}
       >
-        <Typography variant="body2">Статус услуги</Typography>
+        <Typography variant="body2">{t("services.serviceStatus")}</Typography>
         <Tabs
           value={isActive ? 0 : 1}
           onChange={(_, v) => setIsActive(v === 0)}
@@ -209,7 +211,7 @@ const ServiceDetailsForm: React.FC<ServiceDetailsFormProps> = ({
           TabIndicatorProps={{ style: { display: "none" } }}
         >
           <Tab
-            label="Активна"
+            label={t("categories.active")}
             sx={(theme) => ({
               ...toggleTabStyles(theme, theme.palette.success.main),
               minHeight: 32,
@@ -218,7 +220,7 @@ const ServiceDetailsForm: React.FC<ServiceDetailsFormProps> = ({
             })}
           />
           <Tab
-            label="Неактивна"
+            label={t("categories.inactive")}
             sx={(theme) => ({
               ...toggleTabStyles(theme, theme.palette.action.disabledBackground),
               minHeight: 32,

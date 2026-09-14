@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import AppAutocomplete from "../../components/ui/AppAutocomplete";
 import {
   Box,
@@ -51,6 +52,7 @@ const defaultValues: ExpenseFormValues = {
 type ExpenseCategory = { id: string; name: string };
 
 export const AddExpenseDrawer: React.FC<AddExpenseDrawerProps> = ({ open, onClose, onCreated }) => {
+  const { t } = useTranslation();
   const { suffix } = useBranchCurrency();
   const { open: notify } = useNotification();
   const [values, setValues] = React.useState<ExpenseFormValues>(defaultValues);
@@ -71,7 +73,7 @@ export const AddExpenseDrawer: React.FC<AddExpenseDrawerProps> = ({ open, onClos
           setCategories(data.map((c: any) => ({ id: String(c.id), name: c.name })));
         }
       } catch {
-        notify?.({ type: "error", message: "Не удалось загрузить категории расходов" });
+        notify?.({ type: "error", message: t("expenses.loadCategoriesError") });
       } finally {
         setLoadingCategories(false);
       }
@@ -100,7 +102,7 @@ export const AddExpenseDrawer: React.FC<AddExpenseDrawerProps> = ({ open, onClos
   const handleSubmit = async () => {
     setTouched(true);
     if (!values.name.trim()) {
-      notify?.({ type: "error", message: "Название расхода обязательно" });
+      notify?.({ type: "error", message: t("expenses.expenseNameRequired") });
       return;
     }
     setBusy(true);
@@ -118,10 +120,10 @@ export const AddExpenseDrawer: React.FC<AddExpenseDrawerProps> = ({ open, onClos
         created_at: (expenseDate ? dayjs(expenseDate) : dayjs()).toISOString()
 });
       if (created && onCreated) onCreated(created);
-      notify?.({ type: "success", message: "Расход добавлен" });
+      notify?.({ type: "success", message: t("expenses.expenseAdded") });
       onClose();
     } catch {
-      notify?.({ type: "error", message: "Не удалось создать расход" });
+      notify?.({ type: "error", message: t("expenses.createExpenseError") });
     } finally {
       setBusy(false);
     }
@@ -136,15 +138,15 @@ export const AddExpenseDrawer: React.FC<AddExpenseDrawerProps> = ({ open, onClos
     >
       <Box sx={{ width: 1, minWidth: 0, height: "100%", display: "flex", flexDirection: "column" }}>
         <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", px: 2, py: 1 }}>
-          <Typography variant="h6">Добавить расход</Typography>
-          <IconButton onClick={busy ? undefined : onClose} aria-label="Закрыть"><CloseOutlined /></IconButton>
+          <Typography variant="h6">{t("expenses.addExpense")}</Typography>
+          <IconButton onClick={busy ? undefined : onClose} aria-label={t("common.close")}><CloseOutlined /></IconButton>
         </Box>
         <Divider />
         <Box sx={{ p: 2, flex: 1, overflowY: "auto", scrollbarWidth: "none", "&::-webkit-scrollbar": { display: "none" } }}>
           <Stack spacing={3}>
             {/* Фото */}
             <Stack spacing={0.5}>
-              <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>Фото расхода</Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>{t("expenses.expensePhoto")}</Typography>
               <AppCard variant="outlined" sx={{ borderStyle: "dashed" }} disableContentPadding>
                 <CardContent
                   sx={{ display: "flex", alignItems: "center", gap: 1.5, py: 2, cursor: "pointer" }}
@@ -154,8 +156,8 @@ export const AddExpenseDrawer: React.FC<AddExpenseDrawerProps> = ({ open, onClos
                     <PhotoCameraOutlined />
                   </Avatar>
                   <Box sx={{ flex: 1 }}>
-                    <Typography variant="body2">{values.photoFile ? values.photoFile.name : "Нажмите для выбора изображения"}</Typography>
-                    <Typography variant="caption" color="text.secondary">JPG, PNG. Необязательно.</Typography>
+                    <Typography variant="body2">{values.photoFile ? values.photoFile.name : t("expenses.clickToSelectImage")}</Typography>
+                    <Typography variant="caption" color="text.secondary">{t("expenses.jpgPngOptional")}</Typography>
                   </Box>
                   <input id="expense-photo-input" type="file" accept="image/*" style={{ display: "none" }}
                     onChange={(e) => handleFileChange(e.target.files?.[0] || null)} />
@@ -165,7 +167,7 @@ export const AddExpenseDrawer: React.FC<AddExpenseDrawerProps> = ({ open, onClos
 
             {/* Дата */}
             <Stack spacing={0.5}>
-              <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>Дата расхода</Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>{t("expenses.expenseDate")}</Typography>
               <CustomDateTimePicker
                 value={expenseDate ? dayjs(expenseDate) : null}
                 onChange={(val) => setExpenseDate(val ? val.format() : "")}
@@ -177,20 +179,20 @@ export const AddExpenseDrawer: React.FC<AddExpenseDrawerProps> = ({ open, onClos
 
             {/* Название */}
             <Stack spacing={0.5}>
-              <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>Название *</Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>{t("expenses.nameRequired")}</Typography>
               <TextField
                 value={values.name}
                 onChange={(e) => setValues((s) => ({ ...s, name: e.target.value }))}
                 fullWidth autoFocus
-                placeholder="Введите название расхода"
+                placeholder={t("expenses.enterExpenseName")}
                 error={touched && !values.name.trim()}
-                helperText={touched && !values.name.trim() ? "Обязательное поле" : ""}
+                helperText={touched && !values.name.trim() ? t("common.requiredField") : ""}
               />
             </Stack>
 
             {/* Категория */}
             <Stack spacing={0.5}>
-              <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>Категория</Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>{t("expenses.category")}</Typography>
               <AppAutocomplete
                 options={categories}
                 loading={loadingCategories}
@@ -198,9 +200,9 @@ export const AddExpenseDrawer: React.FC<AddExpenseDrawerProps> = ({ open, onClos
                 isOptionEqualToValue={(o, v) => o.id === v.id}
                 value={categories.find((c) => c.id === values.category_id) || null}
                 onChange={(_, v) => setValues((s) => ({ ...s, category_id: v?.id || null, category: v?.name || "" }))}
-                renderInput={(params) => <TextField {...params} placeholder="Выберите категорию" fullWidth />}
-                loadingText="Загрузка категорий..."
-                noOptionsText={loadingCategories ? "Загрузка..." : "Нет категорий"}
+                renderInput={(params) => <TextField {...params} placeholder={t("expenses.selectCategory")} fullWidth />}
+                loadingText={t("expenses.loadingCategories")}
+                noOptionsText={loadingCategories ? t("common.loading") : t("expenses.noCategories")}
               />
             </Stack>
 
@@ -209,7 +211,7 @@ export const AddExpenseDrawer: React.FC<AddExpenseDrawerProps> = ({ open, onClos
               <Stack spacing={2}>
                 <Stack direction="row" spacing={2}>
                   <Stack flex={1} spacing={0.5}>
-                    <Typography variant="caption" color="text.secondary" display="block">Наличные</Typography>
+                    <Typography variant="caption" color="text.secondary" display="block">{t("expenses.cashAmount")}</Typography>
                     <Stack direction="row" alignItems="center" spacing={0} sx={{ border: "1px solid", borderColor: "divider", borderRadius: 1, bgcolor: "background.paper" }}>
                       <Box px={1}><AccountBalanceWalletOutlined color="action" fontSize="small" /></Box>
                       <TextField variant="standard" fullWidth type="number" value={values.cash_amount || ""}
@@ -220,7 +222,7 @@ export const AddExpenseDrawer: React.FC<AddExpenseDrawerProps> = ({ open, onClos
                     </Stack>
                   </Stack>
                   <Stack flex={1} spacing={0.5}>
-                    <Typography variant="caption" color="text.secondary" display="block">Безналичные</Typography>
+                    <Typography variant="caption" color="text.secondary" display="block">{t("expenses.cashlessAmount")}</Typography>
                     <Stack direction="row" alignItems="center" spacing={0} sx={{ border: "1px solid", borderColor: "divider", borderRadius: 1, bgcolor: "background.paper" }}>
                       <Box px={1}><CreditCardOutlined color="action" fontSize="small" /></Box>
                       <TextField variant="standard" fullWidth type="number" value={values.cashless_amount || ""}
@@ -233,7 +235,7 @@ export const AddExpenseDrawer: React.FC<AddExpenseDrawerProps> = ({ open, onClos
                 </Stack>
                 <Divider sx={{ my: 1 }} />
                 <Stack direction="row" justifyContent="space-between" alignItems="center">
-                  <Typography variant="body2" color="text.secondary" fontWeight={600}>ИТОГО</Typography>
+                  <Typography variant="body2" color="text.secondary" fontWeight={600}>{t("expenses.total")}</Typography>
                   <Typography variant="h5" fontWeight={700} color="success.main">
                     {new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 0 }).format(computeTotal()) + " " + suffix}
                   </Typography>
@@ -243,17 +245,17 @@ export const AddExpenseDrawer: React.FC<AddExpenseDrawerProps> = ({ open, onClos
 
             {/* Комментарий */}
             <Stack spacing={0.5}>
-              <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>Комментарий</Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>{t("expenses.comment")}</Typography>
               <TextField value={values.comment || ""} onChange={(e) => setValues((s) => ({ ...s, comment: e.target.value }))}
-                fullWidth multiline rows={3} placeholder="Добавьте комментарий (необязательно)" />
+                fullWidth multiline rows={3} placeholder={t("expenses.addCommentOptional")} />
             </Stack>
           </Stack>
         </Box>
         <Box sx={{ p: 2, borderTop: 1, borderColor: "divider", bgcolor: "background.paper" }}>
           <Stack direction="row" gap={1} justifyContent="flex-end">
-            <Button onClick={onClose} disabled={busy}>Отмена</Button>
+            <Button onClick={onClose} disabled={busy}>{t("common.cancel")}</Button>
             <Button variant="contained" onClick={handleSubmit} disabled={busy || !values.name.trim()}>
-              {busy ? <Stack direction="row" alignItems="center" spacing={1}><CircularProgress size={18} /><span>Сохранение…</span></Stack> : "Сохранить"}
+              {busy ? <Stack direction="row" alignItems="center" spacing={1}><CircularProgress size={18} /><span>{t("common.saving")}</span></Stack> : t("common.save")}
             </Button>
           </Stack>
         </Box>

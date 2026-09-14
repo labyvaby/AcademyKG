@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import {
   Box,
   Typography,
@@ -60,11 +61,6 @@ import dayjs from "dayjs";
 
 
 
-
-const MONTH_NAMES = [
-  "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
-  "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"
-];
 
 type CategoryRow = {
   id: string | number | null;
@@ -171,7 +167,9 @@ const EmployeeStoryItem: React.FC<EmployeeStoryItemProps> = ({ name, nickname, p
 };
 
 const ExpensesListPage: React.FC = () => {
-  usePageTitle("Расходы");
+  const { t } = useTranslation();
+  usePageTitle(t("expenses.title"));
+  const MONTH_NAMES = t("common.months", { returnObjects: true }) as string[];
   const { format: formatKGS } = useBranchCurrency();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
@@ -283,7 +281,7 @@ const ExpensesListPage: React.FC = () => {
         if (controller.signal.aborted) return;
         console.error("Failed to load expenses", e);
         if (!cancelled) {
-          const message = e instanceof Error ? e.message : "Не удалось загрузить расходы";
+          const message = e instanceof Error ? e.message : t("expenses.loadExpensesError");
           setLoadError(message);
           setExpensesScopeKey(null);
           notify?.({ type: "error", message });
@@ -406,7 +404,7 @@ const ExpensesListPage: React.FC = () => {
         });
       } catch (error) {
         if (cancelled || controller.signal.aborted) return;
-        const message = error instanceof Error ? error.message : "Не удалось загрузить итог по расходам";
+        const message = error instanceof Error ? error.message : t("expenses.loadSummaryError");
         setSummaryError(message);
         setMonthlySummary(null);
         notify?.({ type: "error", message });
@@ -449,8 +447,8 @@ const ExpensesListPage: React.FC = () => {
 
   const getExpenseDisplayDayLabel = React.useCallback((expense: Expense) => {
     const periodDate = getExpensePeriodDate(expense);
-    return periodDate ? formatDateRu(periodDate) : "Без даты";
-  }, [getExpensePeriodDate]);
+    return periodDate ? formatDateRu(periodDate) : t("expenses.noDate");
+  }, [getExpensePeriodDate, t]);
 
   // Фильтрация расходов
   const filteredExpenses = React.useMemo(() => {
@@ -553,7 +551,7 @@ const ExpensesListPage: React.FC = () => {
     if (selectedYear || selectedMonth || selectedDate || selectedEmployeeFilter) {
       result = filteredExpenses.filter((exp) => {
         if (selectedEmployeeFilter) {
-          const empName = employeeNameById.get(exp.employee_id ?? "") || "Неизвестно";
+          const empName = employeeNameById.get(exp.employee_id ?? "") || t("expenses.unknown");
           if (empName !== selectedEmployeeFilter) return false;
         }
 
@@ -578,7 +576,7 @@ const ExpensesListPage: React.FC = () => {
 
     // Сортируем по дате (новые сверху)
     return [...result].sort((a, b) => getExpenseSortValue(b) - getExpenseSortValue(a));
-  }, [filteredExpenses, selectedYear, selectedMonth, selectedDate, selectedEmployeeFilter, employeeNameById, getExpenseDayKey, getExpensePeriodMonth, getExpensePeriodYear, getExpenseSortValue]);
+  }, [filteredExpenses, selectedYear, selectedMonth, selectedDate, selectedEmployeeFilter, employeeNameById, getExpenseDayKey, getExpensePeriodMonth, getExpensePeriodYear, getExpenseSortValue, t]);
 
   // Группировка по сотруднику -> дням (для отображения списка подразделов в левой панели)
   const groupedByEmployee = React.useMemo(() => {
@@ -603,7 +601,7 @@ const ExpensesListPage: React.FC = () => {
       const dayKey = getExpenseDayKey(exp);
       if (!dayKey) continue;
 
-      const empName = employeeNameById.get(exp.employee_id ?? "") || "Неизвестно";
+      const empName = employeeNameById.get(exp.employee_id ?? "") || t("expenses.unknown");
 
       if (!empMap.has(empName)) {
         empMap.set(empName, { employeeName: empName, total: 0, count: 0, days: new Map() });
@@ -630,7 +628,7 @@ const ExpensesListPage: React.FC = () => {
         .sort((a, b) => b[0].localeCompare(a[0])) // Descending dates
         .map(([date, info]) => ({ date, count: info.count, total: info.total, label: info.label }))
     })).sort((a, b) => a.employeeName.localeCompare(b.employeeName));
-  }, [filteredExpenses, selectedYear, selectedMonth, employeeNameById, getExpenseDayKey, getExpenseDisplayDayLabel, getExpensePeriodMonth, getExpensePeriodYear]);
+  }, [filteredExpenses, selectedYear, selectedMonth, employeeNameById, getExpenseDayKey, getExpenseDisplayDayLabel, getExpensePeriodMonth, getExpensePeriodYear, t]);
 
   const scrollContainerRef = React.useRef<HTMLDivElement>(null);
   const categoriesScrollRef = React.useRef<HTMLDivElement>(null);
@@ -732,7 +730,7 @@ const ExpensesListPage: React.FC = () => {
             color: "text.secondary",
           }}
         >
-          <Typography>Выберите расход для просмотра</Typography>
+          <Typography>{t("expenses.selectExpenseToView")}</Typography>
         </Box>
       );
     }
@@ -761,13 +759,13 @@ const ExpensesListPage: React.FC = () => {
                   startIcon={<EditOutlined />}
                   onClick={() => handleEdit(expense)}
                 >
-                  Изменить
+                  {t("common.change")}
                 </Button>
               </Stack>
             )}
 
             {canDelete && (
-              <Tooltip title="Удалить">
+              <Tooltip title={t("common.delete")}>
                 <span>
                   <IconButton
                     size="small"
@@ -818,7 +816,7 @@ const ExpensesListPage: React.FC = () => {
             {/* Детали (Дата, Категория, Сотрудник) */}
             <Stack spacing={1.5} sx={{ bgcolor: "background.paper", borderRadius: 2 }}>
               <Box display="flex" justifyContent="space-between" alignItems="center">
-                <Typography variant="body2" color="text.secondary">Дата и время</Typography>
+                <Typography variant="body2" color="text.secondary">{t("expenses.dateAndTime")}</Typography>
                 <Typography variant="body2" sx={{ fontWeight: 500 }}>
                   {expense.created_at
                     ? `${formatDateRu(expense.created_at)}, ${new Date(expense.created_at).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })}`
@@ -827,14 +825,14 @@ const ExpensesListPage: React.FC = () => {
               </Box>
 
               <Box display="flex" justifyContent="space-between" alignItems="center">
-                <Typography variant="body2" color="text.secondary">Категория</Typography>
+                <Typography variant="body2" color="text.secondary">{t("expenses.category")}</Typography>
                 <Typography variant="body2" sx={{ fontWeight: 500 }}>
                   {categoriesMap.get(String(expense.category_id)) || expense.category || "—"}
                 </Typography>
               </Box>
 
               <Box display="flex" justifyContent="space-between" alignItems="center">
-                <Typography variant="body2" color="text.secondary">Сотрудник</Typography>
+                <Typography variant="body2" color="text.secondary">{t("common.employee")}</Typography>
                 <Typography variant="body2" sx={{ fontWeight: 500, textAlign: "right", maxWidth: "60%" }}>
                   {empName}
                 </Typography>
@@ -842,7 +840,7 @@ const ExpensesListPage: React.FC = () => {
 
               {expense.branch?.name && (
                 <Box display="flex" justifyContent="space-between" alignItems="center">
-                  <Typography variant="body2" color="text.secondary">Филиал</Typography>
+                  <Typography variant="body2" color="text.secondary">{t("expenses.branch")}</Typography>
                   <Typography variant="body2" sx={{ fontWeight: 500 }}>
                     {expense.branch.name}
                   </Typography>
@@ -892,7 +890,7 @@ const ExpensesListPage: React.FC = () => {
                 <Divider />
                 <Box>
                   <Typography variant="caption" color="text.secondary" gutterBottom display="block">
-                    Комментарий
+                    {t("expenses.comment")}
                   </Typography>
                   <Typography variant="body2">{expense.comment}</Typography>
                 </Box>
@@ -920,13 +918,13 @@ const ExpensesListPage: React.FC = () => {
     >
       {/* ШАПКА */}
       <PageHeader
-        title="Расходы"
+        title={t("expenses.title")}
         showTitle={false}
         addButtonText={
           hasManageExpenses
             ? activeTab === "payroll"
-              ? "Добавить транзакцию"
-              : "Добавить расход"
+              ? t("expenses.addTransactionButton")
+              : t("expenses.addExpense")
             : undefined
         }
         onAdd={
@@ -939,7 +937,7 @@ const ExpensesListPage: React.FC = () => {
         showSearch
         searchVal={searchQuery}
         onSearchChange={setSearchQuery}
-        searchPlaceholder="Поиск..."
+        searchPlaceholder={t("expenses.searchPlaceholder")}
         actions={
           activeTab === "expenses" ? (
             <TextField
@@ -951,12 +949,12 @@ const ExpensesListPage: React.FC = () => {
               SelectProps={{
                 displayEmpty: true,
                 renderValue: (val) => {
-                  if (!val) return "Все категории";
-                  return categoriesMap.get(val as string) ?? "Все категории";
+                  if (!val) return t("expenses.allCategories");
+                  return categoriesMap.get(val as string) ?? t("expenses.allCategories");
                 },
               }}
             >
-              <MenuItem value="">Все категории</MenuItem>
+              <MenuItem value="">{t("expenses.allCategories")}</MenuItem>
               {Array.from(categoriesMap.entries()).map(([id, name]) => (
                 <MenuItem key={id} value={id}>{name}</MenuItem>
               ))}
@@ -992,13 +990,13 @@ const ExpensesListPage: React.FC = () => {
           }}
         >
           <Tab
-            label="Операционные расходы"
+            label={t("expenses.tabs.operational")}
             value="expenses"
             icon={<PaymentsOutlined sx={{ fontSize: 18 }} />}
             iconPosition="start"
           />
           <Tab
-            label="Зарплатные транзакции"
+            label={t("expenses.tabs.payroll")}
             value="payroll"
             icon={<AccountBalanceWalletOutlined sx={{ fontSize: 18 }} />}
             iconPosition="start"
@@ -1041,7 +1039,7 @@ const ExpensesListPage: React.FC = () => {
                 }}
               >
                 <Typography variant="body2" color="primary.main" sx={{ fontWeight: 600 }}>
-                  Загружаем расходы выбранного филиала...
+                  {t("expenses.loadingBranchExpenses")}
                 </Typography>
               </Paper>
             )}
@@ -1056,7 +1054,7 @@ const ExpensesListPage: React.FC = () => {
                 }}
               >
                 <Typography variant="body2" color="error.main" sx={{ fontWeight: 600 }}>
-                  Не удалось загрузить список расходов: {loadError}
+                  {t("expenses.loadFailedWithMsg", { msg: loadError })}
                 </Typography>
               </Paper>
             )}
@@ -1103,7 +1101,7 @@ const ExpensesListPage: React.FC = () => {
               >
                 <Box sx={{ p: 1.5, borderBottom: 1, borderColor: "divider", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-                    Период
+                    {t("expenses.period")}
                   </Typography>
                   <Button
                     size="small"
@@ -1114,7 +1112,7 @@ const ExpensesListPage: React.FC = () => {
                     }}
                     sx={{ textTransform: 'none' }}
                   >
-                    Все расходы
+                    {t("expenses.allExpenses")}
                   </Button>
                 </Box>
 
@@ -1124,7 +1122,7 @@ const ExpensesListPage: React.FC = () => {
                     {hasManageExpenses && employees.length > 0 && selectedCategoryId && /аванс|зарплат/i.test(categoriesMap.get(selectedCategoryId) ?? "") && (
                       <Stack spacing={0.5}>
                         <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
-                          Сотрудник
+                          {t("common.employee")}
                         </Typography>
                         <TextField
                           select
@@ -1139,7 +1137,7 @@ const ExpensesListPage: React.FC = () => {
                         >
                           <MenuItem value="">
                             <Typography variant="body2" color="text.secondary">
-                              Все сотрудники
+                              {t("expenses.allEmployees")}
                             </Typography>
                           </MenuItem>
                           {employees.sort((a, b) => a.full_name.localeCompare(b.full_name)).map((emp) => (
@@ -1156,7 +1154,7 @@ const ExpensesListPage: React.FC = () => {
                     {/* Dropdown выбора года */}
                     <Stack spacing={0.5}>
                       <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
-                        Год
+                        {t("expenses.year")}
                       </Typography>
                       <TextField
                         select
@@ -1174,7 +1172,7 @@ const ExpensesListPage: React.FC = () => {
                       >
                         <MenuItem value="">
                           <Typography variant="body2" color="text.secondary">
-                            Все годы
+                            {t("expenses.allYears")}
                           </Typography>
                         </MenuItem>
                         {availableYears.map((year) => (
@@ -1189,7 +1187,7 @@ const ExpensesListPage: React.FC = () => {
                     {selectedYear && (
                       <Stack spacing={0.5}>
                         <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
-                          Месяц
+                          {t("expenses.month")}
                         </Typography>
                         <TextField
                           select
@@ -1207,7 +1205,7 @@ const ExpensesListPage: React.FC = () => {
                         >
                           <MenuItem value="">
                             <Typography variant="body2" color="text.secondary">
-                              Все месяцы
+                              {t("expenses.allMonths")}
                             </Typography>
                           </MenuItem>
                           {availableMonths.map((month) => (
@@ -1222,11 +1220,11 @@ const ExpensesListPage: React.FC = () => {
                     {selectedMonth && (
                       <Box sx={{ p: 1.5, bgcolor: alpha(theme.palette.primary.main, 0.05), borderRadius: 2, border: `1px solid ${alpha(theme.palette.primary.main, 0.1)}` }}>
                         <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, display: 'block', mb: 0.5 }}>
-                          Итого за месяц
+                          {t("expenses.totalForMonth")}
                         </Typography>
                         {summaryLoading ? (
                           <Typography variant="body2" color="text.secondary">
-                            Загрузка...
+                            {t("common.loading")}
                           </Typography>
                         ) : summaryError ? (
                           <Typography variant="body2" color="error.main">
@@ -1241,18 +1239,18 @@ const ExpensesListPage: React.FC = () => {
                               </Typography>
                             </Stack>
                             <Typography variant="caption" color="text.secondary">
-                              Зарплата: {formatKGS(monthlySummary.payrollExpenses)} • Авансы: {formatKGS(monthlySummary.advanceExpenses)}
+                              {t("expenses.summaryPayrollAdvance", { payroll: formatKGS(monthlySummary.payrollExpenses), advance: formatKGS(monthlySummary.advanceExpenses) })}
                             </Typography>
                             <Typography variant="caption" color="text.secondary">
-                              Операционные: {formatKGS(monthlySummary.operationalExpenses)} • Прочие: {formatKGS(monthlySummary.otherExpenses)}
+                              {t("expenses.summaryOperationalOther", { operational: formatKGS(monthlySummary.operationalExpenses), other: formatKGS(monthlySummary.otherExpenses) })}
                             </Typography>
                             <Typography variant="caption" color="text.secondary">
-                              Наличные: {formatKGS(monthlySummary.cashExpenses)} • Безнал: {formatKGS(monthlySummary.cashlessExpenses)}
+                              {t("expenses.summaryCashCashless", { cash: formatKGS(monthlySummary.cashExpenses), cashless: formatKGS(monthlySummary.cashlessExpenses) })}
                             </Typography>
                           </Stack>
                         ) : (
                           <Typography variant="body2" color="text.secondary">
-                            Нет данных за выбранный месяц
+                            {t("expenses.noDataForMonth")}
                           </Typography>
                         )}
                       </Box>
@@ -1262,7 +1260,7 @@ const ExpensesListPage: React.FC = () => {
                     {selectedMonth && (
                       <Stack spacing={0.5}>
                         <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
-                          Сотрудники
+                          {t("expenses.employees")}
                         </Typography>
                         <List dense sx={{ py: 0 }}>
                           {groupedByEmployee.map((emp) => {
@@ -1360,14 +1358,14 @@ const ExpensesListPage: React.FC = () => {
               >
                 <Box sx={{ p: 1.5, borderBottom: 1, borderColor: "divider" }}>
                   <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-                    Список расходов ({periodFilteredExpenses.length})
+                    {t("expenses.expensesListCount", { count: periodFilteredExpenses.length })}
                   </Typography>
                 </Box>
                 <Box sx={{ overflowY: "auto", flex: 1 }}>
                   {periodFilteredExpenses.length === 0 ? (
                     <Box sx={{ p: 4, textAlign: "center" }}>
                       <Typography variant="body2" color="text.secondary">
-                        Нет расходов
+                        {t("expenses.noExpenses")}
                       </Typography>
                     </Box>
                   ) : (
@@ -1432,12 +1430,12 @@ const ExpensesListPage: React.FC = () => {
                                 <Stack direction="row" spacing={0.5} alignItems="center">
                                   {/* Иконки оплаты */}
                                   {hasCash && (
-                                    <Tooltip title="Наличные">
+                                    <Tooltip title={t("expenses.cashTooltip")}>
                                       <AccountBalanceWalletOutlined sx={{ fontSize: 16, color: 'success.main' }} />
                                     </Tooltip>
                                   )}
                                   {hasCashless && (
-                                    <Tooltip title="Безнал">
+                                    <Tooltip title={t("expenses.cashlessShort")}>
                                       <CreditCardOutlined sx={{ fontSize: 16, color: 'info.main' }} />
                                     </Tooltip>
                                   )}
@@ -1499,22 +1497,24 @@ const ExpensesListPage: React.FC = () => {
         {activeTab === "payroll" && (
           <Box sx={(theme) => ({ px: theme.appLayout.page.paddingX, flex: 1, display: "flex", flexDirection: "column", minHeight: 0, pt: 2 })}>
             {payrollsLoading ? (
-              <Typography variant="body2" color="text.secondary" sx={{ p: 2 }}>Загрузка...</Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ p: 2 }}>{t("common.loading")}</Typography>
             ) : payrolls.length === 0 ? (
               <Box sx={{ p: 4, textAlign: "center" }}>
-                <Typography variant="body2" color="text.secondary">Нет зарплатных транзакций</Typography>
+                <Typography variant="body2" color="text.secondary">{t("expenses.noPayrollTransactions")}</Typography>
               </Box>
             ) : (
               <Paper elevation={0} variant="outlined" sx={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
                 <Box sx={{ p: 1.5, borderBottom: 1, borderColor: "divider" }}>
                   <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-                    Зарплатные транзакции ({payrolls.length})
+                    {t("expenses.payrollTransactionsCount", { count: payrolls.length })}
                   </Typography>
                 </Box>
                 <Box sx={{ overflowY: "auto", flex: 1 }}>
                   <List sx={{ py: 0 }}>
                     {payrolls.map((pt) => {
-                      const kindLabel = PAYROLL_KIND_OPTIONS.find((o) => o.value === pt.kind)?.label ?? pt.kind;
+                      const kindLabel = PAYROLL_KIND_OPTIONS.find((o) => o.value === pt.kind)
+                        ? t(`expenses.payrollKind.${pt.kind}`)
+                        : pt.kind;
                       const empName = pt.employee_name || employeeNameById.get(pt.employee_id) || pt.employee_id;
                       const monthLabel = pt.affects_month
                         ? dayjs(`${pt.affects_month}-01`).format("MM.YYYY")
@@ -1538,7 +1538,7 @@ const ExpensesListPage: React.FC = () => {
                               {formatKGS(pt.total_amount ?? 0)}
                             </Typography>
                             {canEditExpense && (
-                              <Tooltip title="Изменить">
+                              <Tooltip title={t("common.edit")}>
                                 <IconButton
                                   size="small"
                                   onClick={(e) => { e.stopPropagation(); setSelectedPayroll(pt); setEditPayrollOpen(true); }}
@@ -1548,7 +1548,7 @@ const ExpensesListPage: React.FC = () => {
                               </Tooltip>
                             )}
                             {canDelete && (
-                              <Tooltip title="Удалить">
+                              <Tooltip title={t("common.delete")}>
                                 <IconButton
                                   size="small"
                                   onClick={(e) => { e.stopPropagation(); setSelectedPayroll(pt); setDeletePayrollOpen(true); }}
@@ -1643,14 +1643,14 @@ const ExpensesListPage: React.FC = () => {
 
         {/* Диалог удаления payroll */}
         <Dialog open={deletePayrollOpen} onClose={() => setDeletePayrollOpen(false)}>
-          <DialogTitle>Удалить транзакцию?</DialogTitle>
+          <DialogTitle>{t("expenses.deletePayrollTitle")}</DialogTitle>
           <DialogContent>
             <DialogContentText>
-              Вы уверены, что хотите удалить эту зарплатную транзакцию? Это действие необратимо.
+              {t("expenses.deletePayrollConfirm")}
             </DialogContentText>
           </DialogContent>
           <DialogActions>
-            <Button onClick={() => setDeletePayrollOpen(false)}>Отмена</Button>
+            <Button onClick={() => setDeletePayrollOpen(false)}>{t("common.cancel")}</Button>
             <Button
               color="error"
               onClick={async () => {
@@ -1662,11 +1662,11 @@ const ExpensesListPage: React.FC = () => {
                   setDeletePayrollOpen(false);
                   setReloadTick((prev) => prev + 1);
                 } catch (e) {
-                  notify?.({ type: "error", message: "Не удалось удалить транзакцию" });
+                  notify?.({ type: "error", message: t("expenses.deletePayrollError") });
                 }
               }}
             >
-              Удалить
+              {t("common.delete")}
             </Button>
           </DialogActions>
         </Dialog>

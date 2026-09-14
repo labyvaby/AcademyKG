@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import {
   // Box,
   Card,
@@ -22,12 +23,13 @@ export const ServicesList: React.FC<ServicesListProps> = ({
   errorMsg,
   items,
 }) => {
+  const { t } = useTranslation();
   return (
     <Card variant="outlined">
       <CardHeader
         title={
           <Stack direction="row" alignItems="center" gap={1}>
-            <Typography variant="subtitle1">Процедуры</Typography>
+            <Typography variant="subtitle1">{t("home.procedures")}</Typography>
             {/* счетчик количество процедур */}
             {/* <Chip size="small" label={items.length} /> */}
           </Stack>
@@ -37,20 +39,20 @@ export const ServicesList: React.FC<ServicesListProps> = ({
       <CardContent sx={{ p: 0, maxHeight: "53vh", overflowY: "auto" }}>
         {loading ? (
           <Typography sx={{ p: 2 }} variant="body2">
-            Загрузка…
+            {t("common.loading")}
           </Typography>
         ) : errorMsg ? (
           <Typography sx={{ p: 2 }} variant="body2" color="error">
-            Ошибка: {errorMsg}
+            {t("common.errorWithMsg", { msg: errorMsg })}
           </Typography>
         ) : items.length === 0 ? (
           <Typography sx={{ p: 2 }} variant="body2">
-            Скоро...
+            {t("common.comingSoon")}
           </Typography>
         ) : (
           <Stack divider={<Divider flexItem />}>
             <Typography variant="body2" color="text.secondary" sx={{ p: 2 }}>
-              Скоро…
+              {t("common.comingSoon")}
             </Typography>
             {/* {items.map((s, idx) => {
               const name = String(

@@ -8,6 +8,7 @@
  * Является "презентационным" компонентом и не содержит API-логики.
  */
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Box,
   Button,
@@ -53,6 +54,7 @@ const PatientList: React.FC<Props> = ({
   loadMore,
   onSelect,
 }) => {
+  const { t } = useTranslation();
   const scrollRef = React.useRef<HTMLDivElement | null>(null);
 
   const handleScroll = React.useCallback(() => {
@@ -82,7 +84,7 @@ const PatientList: React.FC<Props> = ({
           title={
             <Stack direction="row" alignItems="center" gap={1.25}>
               <PeopleOutlineIcon color="primary" />
-              <Typography variant='h6'>Клиенты</Typography>
+              <Typography variant='h6'>{t("patientSearch.clients")}</Typography>
             </Stack>
           }
           sx={{ pb: 1 }}
@@ -103,11 +105,11 @@ const PatientList: React.FC<Props> = ({
         >
           {errorMsg ? (
             <Typography sx={{ p: 2 }} variant='body2' color='error' align="center">
-              Ошибка: {errorMsg}
+              {t("common.errorWithMsg", { msg: errorMsg })}
             </Typography>
           ) : patients.length === 0 ? (
             <Typography sx={{ p: 2 }} variant='body2' color='text.secondary' align="center">
-              {loading ? 'Загрузка…' : 'Нет клиентов'}
+              {loading ? t("common.loading") : t("patientSearch.noClients")}
             </Typography>
           ) : (
             <>
@@ -130,7 +132,7 @@ const PatientList: React.FC<Props> = ({
                   <Stack direction="row" spacing={1} alignItems="center" justifyContent="center">
                     <CircularProgress size={20} />
                     <Typography variant='caption' color='text.secondary'>
-                      Загрузка…
+                      {t("common.loading")}
                     </Typography>
                   </Stack>
                 )}

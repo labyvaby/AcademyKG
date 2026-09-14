@@ -5,6 +5,7 @@
  * Все данные и колбэки приходят через пропсы (SRP).
  */
 import React from "react";
+import { useTranslation } from "react-i18next";
 import dayjs from "dayjs";
 import { CustomDateTimePicker } from "../../../components/ui";
 import {
@@ -68,9 +69,10 @@ const VisitCreateDialog: React.FC<Props> = ({
   touched = false,
   isDirty = false,
 }) => {
+  const { t } = useTranslation();
   const isEdit = mode === "edit";
-  const resolvedTitle = titleText ?? (isEdit ? "Редактировать прием" : "Создать прием");
-  const resolvedSubmit = submitLabel ?? (isEdit ? "Сохранить" : "Создать");
+  const resolvedTitle = titleText ?? (isEdit ? t("patientSearch.editAppointment") : t("patientSearch.createAppointment"));
+  const resolvedSubmit = submitLabel ?? (isEdit ? t("common.save") : t("employees.createButton"));
 
   const { handleClose, handleCloseButton, ConfirmLeaveDialog } = useModalBackdropGuard({
     isDirty,
@@ -91,7 +93,7 @@ const VisitCreateDialog: React.FC<Props> = ({
           {/* Секция: Поля формы приема */}
           <Stack spacing={2} sx={{ mt: 1 }}>
             <CustomDateTimePicker
-              label="Дата и время *"
+              label={t("patientSearch.dateTimeRequired")}
               value={dateTime ? dayjs(dateTime) : null}
               onChange={(val) => onChangeDateTime(val ? val.format("YYYY-MM-DDTHH:mm") : "")}
               minutesStep={5}
@@ -99,24 +101,24 @@ const VisitCreateDialog: React.FC<Props> = ({
                 textField: {
                   fullWidth: true,
                   error: touched && !dateTime,
-                  helperText: touched && !dateTime ? "Обязательное поле" : "",
+                  helperText: touched && !dateTime ? t("common.requiredField") : "",
                 }
               }}
             />
             <TextField
-              label="Доктор (ФИО или ID)"
+              label={t("patientSearch.doctorFioOrId")}
               value={doctor}
               onChange={(e) => onChangeDoctor(e.target.value)}
               fullWidth
             />
             <TextField
-              label="Услуга (ID или название)"
+              label={t("patientSearch.serviceIdOrName")}
               value={service}
               onChange={(e) => onChangeService(e.target.value)}
               fullWidth
             />
             <TextField
-              label="Стоимость"
+              label={t("products.cost")}
               type="number"
               value={price}
               onChange={(e) => onChangePrice(e.target.value === "" ? "" : Number(e.target.value))}
@@ -126,7 +128,7 @@ const VisitCreateDialog: React.FC<Props> = ({
         </DialogContent>
         <DialogActions>
           {/* Секция: Кнопки управления */}
-          <Button onClick={handleCloseButton} disabled={submitting}>Отмена</Button>
+          <Button onClick={handleCloseButton} disabled={submitting}>{t("common.cancel")}</Button>
           <Button
             onClick={onSubmit}
             variant="contained"

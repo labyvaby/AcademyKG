@@ -3,6 +3,7 @@
  * Боковая панель: пополнение счёта + история транзакций.
  */
 import React, { useState, useEffect, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Drawer,
   Box,
@@ -56,14 +57,14 @@ type Props = {
 
 // ─── Константы ───────────────────────────────────────────────────────────────
 
-const TYPE_LABELS: Record<TopUpType, string> = {
-  balance: "Баланс",
-  bonuses: "Баллы",
+const TYPE_LABEL_KEYS: Record<TopUpType, string> = {
+  balance: "patientSearch.balanceType",
+  bonuses: "patientSearch.bonusesType",
 };
 
-const METHOD_LABELS: Record<PaymentMethod, string> = {
-  cash: "Наличные",
-  card: "Безналичные",
+const METHOD_LABEL_KEYS: Record<PaymentMethod, string> = {
+  cash: "expenses.cashAmount",
+  card: "expenses.cashlessAmount",
 };
 
 const TX_TYPE_COLOR: Record<string, "primary" | "warning"> = {
@@ -108,6 +109,7 @@ const BalanceTopUpDrawer: React.FC<Props> = ({
   submitError,
   onSubmit,
 }) => {
+  const { t } = useTranslation();
   const { suffix } = useBranchCurrency();
   const [tab, setTab] = useState(0); // 0 = пополнение, 1 = история
 
@@ -180,7 +182,7 @@ const BalanceTopUpDrawer: React.FC<Props> = ({
   const { handleClose: handleBackdropClose, handleCloseButton, ConfirmLeaveDialog } = useModalBackdropGuard({
     isDirty,
     onClose: handleClose,
-    confirmMessage: "Введённая сумма и комментарий будут потеряны. Закрыть?",
+    confirmMessage: t("patientSearch.amountAndCommentWillBeLost"),
   });
 
   // ─── Отправка ────────────────────────────────────────────────────────────
@@ -191,7 +193,7 @@ const BalanceTopUpDrawer: React.FC<Props> = ({
 
     const parsed = parseFloat(amount.replace(",", "."));
     if (!amount || isNaN(parsed) || parsed === 0) {
-      setLocalError("Введите корректную сумму (ненулевую)");
+      setLocalError(t("patientSearch.enterValidAmount"));
       return;
     }
 
@@ -229,7 +231,7 @@ const BalanceTopUpDrawer: React.FC<Props> = ({
         <Stack direction="row" alignItems="center" gap={1.25}>
           <AccountBalanceWalletOutlined color="primary" />
           <Box>
-            <Typography variant="h6" sx={{ lineHeight: 1.2 }}>Счёт клиента</Typography>
+            <Typography variant="h6" sx={{ lineHeight: 1.2 }}>{t("patientSearch.clientAccount")}</Typography>
             <Typography variant="caption" color="text.secondary">{patientFio}</Typography>
           </Box>
         </Stack>
@@ -245,8 +247,8 @@ const BalanceTopUpDrawer: React.FC<Props> = ({
         variant="fullWidth"
         sx={{ flexShrink: 0, borderBottom: 1, borderColor: "divider" }}
       >
-        <Tab icon={<AddCircleOutlineOutlined fontSize="small" />} iconPosition="start" label="Пополнить" />
-        <Tab icon={<HistoryOutlined fontSize="small" />} iconPosition="start" label="История" />
+        <Tab icon={<AddCircleOutlineOutlined fontSize="small" />} iconPosition="start" label={t("patientSearch.topUp")} />
+        <Tab icon={<HistoryOutlined fontSize="small" />} iconPosition="start" label={t("patientSearch.historyTab")} />
       </Tabs>
 
       {/* ── Таб 0: Форма пополнения ── */}
@@ -257,10 +259,10 @@ const BalanceTopUpDrawer: React.FC<Props> = ({
 
               {/* Тип счёта */}
               <Box>
-                <Typography variant="subtitle2" sx={{ mb: 1 }}>Тип счёта</Typography>
+                <Typography variant="subtitle2" sx={{ mb: 1 }}>{t("patientSearch.accountType")}</Typography>
                 <ToggleButtonGroup value={type} exclusive onChange={(_, v) => v && setType(v)} fullWidth size="small">
-                  {(Object.keys(TYPE_LABELS) as TopUpType[]).map((t) => (
-                    <ToggleButton key={t} value={t}>{TYPE_LABELS[t]}</ToggleButton>
+                  {(Object.keys(TYPE_LABEL_KEYS) as TopUpType[]).map((tt) => (
+                    <ToggleButton key={tt} value={tt}>{t(TYPE_LABEL_KEYS[tt])}</ToggleButton>
                   ))}
                 </ToggleButtonGroup>
               </Box>
@@ -268,10 +270,10 @@ const BalanceTopUpDrawer: React.FC<Props> = ({
               {/* Метод оплаты */}
               {requiresMethod && (
                 <Box>
-                  <Typography variant="subtitle2" sx={{ mb: 1 }}>Способ оплаты</Typography>
+                  <Typography variant="subtitle2" sx={{ mb: 1 }}>{t("patientSearch.paymentMethod")}</Typography>
                   <ToggleButtonGroup value={method} exclusive onChange={(_, v) => v && setMethod(v)} fullWidth size="small">
-                    {(Object.keys(METHOD_LABELS) as PaymentMethod[]).map((m) => (
-                      <ToggleButton key={m} value={m}>{METHOD_LABELS[m]}</ToggleButton>
+                    {(Object.keys(METHOD_LABEL_KEYS) as PaymentMethod[]).map((m) => (
+                      <ToggleButton key={m} value={m}>{t(METHOD_LABEL_KEYS[m])}</ToggleButton>
                     ))}
                   </ToggleButtonGroup>
                 </Box>
@@ -279,7 +281,7 @@ const BalanceTopUpDrawer: React.FC<Props> = ({
 
               {/* Сумма */}
               <TextField
-                label="Сумма"
+                label={t("patientSearch.amount")}
                 value={amount}
                 onChange={(e) => { setLocalError(null); setSuccess(false); setAmount(e.target.value); }}
                 type="number"
@@ -288,20 +290,20 @@ const BalanceTopUpDrawer: React.FC<Props> = ({
                 fullWidth
                 size="small"
                 error={!!localError}
-                helperText={localError || "Отрицательное число — списание"}
+                helperText={localError || t("patientSearch.negativeNumberHint")}
                 disabled={submitting}
               />
 
               {/* Комментарий */}
               <TextField
-                label="Комментарий"
+                label={t("expenses.comment")}
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
                 multiline
                 minRows={2}
                 fullWidth
                 size="small"
-                placeholder="Необязательно"
+                placeholder={t("products.optional")}
                 disabled={submitting}
               />
 
@@ -310,7 +312,7 @@ const BalanceTopUpDrawer: React.FC<Props> = ({
                 <Typography variant="body2" color="error">{submitError}</Typography>
               )}
               {success && (
-                <Typography variant="body2" color="success.main">✓ Операция выполнена успешно</Typography>
+                <Typography variant="body2" color="success.main">{t("patientSearch.operationSuccessful")}</Typography>
               )}
             </Stack>
           </Box>
@@ -318,14 +320,14 @@ const BalanceTopUpDrawer: React.FC<Props> = ({
           <Divider />
           <Box sx={{ px: 3, py: 2, flexShrink: 0 }}>
             <Stack direction="row" spacing={1.5} justifyContent="flex-end">
-              <Button variant="outlined" onClick={handleCloseButton} disabled={submitting}>Отмена</Button>
+              <Button variant="outlined" onClick={handleCloseButton} disabled={submitting}>{t("common.cancel")}</Button>
               <Button
                 variant="contained"
                 onClick={handleSubmit}
                 disabled={submitting || !amount}
                 startIcon={submitting ? <CircularProgress size={16} color="inherit" /> : undefined}
               >
-                {submitting ? "Сохранение…" : "Применить"}
+                {submitting ? t("common.saving") : t("common.apply")}
               </Button>
             </Stack>
           </Box>
@@ -342,7 +344,7 @@ const BalanceTopUpDrawer: React.FC<Props> = ({
           ) : history.length === 0 ? (
             <Stack alignItems="center" justifyContent="center" sx={{ py: 6, opacity: 0.5 }}>
               <HistoryOutlined sx={{ fontSize: 48, mb: 1, color: "text.secondary" }} />
-              <Typography variant="body2" color="text.secondary">История пуста</Typography>
+              <Typography variant="body2" color="text.secondary">{t("patientSearch.historyEmpty")}</Typography>
             </Stack>
           ) : (
             <Stack spacing={1.5}>
@@ -365,14 +367,14 @@ const BalanceTopUpDrawer: React.FC<Props> = ({
                       <Stack spacing={0.5} sx={{ flex: 1, minWidth: 0 }}>
                         <Stack direction="row" alignItems="center" gap={1} flexWrap="wrap">
                           <Chip
-                            label={TYPE_LABELS[tx.txType] ?? tx.txType}
+                            label={TYPE_LABEL_KEYS[tx.txType] ? t(TYPE_LABEL_KEYS[tx.txType]) : tx.txType}
                             size="small"
                             color={TX_TYPE_COLOR[tx.txType] ?? "default"}
                             variant="outlined"
                           />
                           {tx.paymentMethod && (
                             <Chip
-                              label={METHOD_LABELS[tx.paymentMethod as PaymentMethod] ?? tx.paymentMethod}
+                              label={METHOD_LABEL_KEYS[tx.paymentMethod as PaymentMethod] ? t(METHOD_LABEL_KEYS[tx.paymentMethod as PaymentMethod]) : tx.paymentMethod}
                               size="small"
                               variant="outlined"
                             />

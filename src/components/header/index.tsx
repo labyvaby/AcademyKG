@@ -56,10 +56,13 @@ import {
   type PhoneCountryCode,
 } from "../../utility/phone";
 import { PhoneCountryCodeSelect } from "../ui";
+import { LanguageSwitcher } from "../language/LanguageSwitcher";
+import { useTranslation } from "react-i18next";
 
 export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
   sticky = true,
 }) => {
+  const { t } = useTranslation();
   const [identity] = React.useState<{ name?: string; avatar?: string; email?: string } | null>(null);
   const [employee, setEmployee] = React.useState<Employee | null>(null);
   const [profileOpen, setProfileOpen] = React.useState(false);
@@ -104,8 +107,8 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
   const isCompactHeader = useMediaQuery(theme.breakpoints.down(640));
 
   const selectedBranchLabel = React.useMemo(() => (
-    selectedBranch?.name ?? "Все филиалы"
-  ), [selectedBranch?.name]);
+    selectedBranch?.name ?? t("common.allBranches")
+  ), [selectedBranch?.name, t]);
 
   const handleSelectBranch = React.useCallback((branchId: string | "all") => {
     if (branchId === "all") {
@@ -178,13 +181,13 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
 
   const handleChangePassword = async () => {
     setPasswordError("");
-    if (!oldPassword.trim()) { setPasswordError("Введите текущий пароль"); return; }
-    if (newPassword.length < 8) { setPasswordError("Новый пароль должен быть не менее 8 символов"); return; }
-    if (newPassword !== confirmPassword) { setPasswordError("Пароли не совпадают"); return; }
+    if (!oldPassword.trim()) { setPasswordError(t("profile.enterCurrentPassword")); return; }
+    if (newPassword.length < 8) { setPasswordError(t("profile.passwordMin8")); return; }
+    if (newPassword !== confirmPassword) { setPasswordError(t("profile.passwordsDoNotMatch")); return; }
     try {
       setBusy(true);
       await changePassword(oldPassword.trim(), newPassword.trim(), confirmPassword.trim());
-      notify?.({ type: "success", message: "Пароль изменён. Выполняется повторный вход..." });
+      notify?.({ type: "success", message: t("profile.passwordChanged") });
       // Сервер инвалидировал все refresh-токены — нужна повторная авторизация
       setTimeout(() => {
         logout();
@@ -192,7 +195,7 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
       }, 1500);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      setPasswordError(msg || "Не удалось изменить пароль");
+      setPasswordError(msg || t("profile.passwordChangeFailed"));
       setBusy(false);
     }
   };
@@ -220,7 +223,7 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
 
     const nameTrim = editFullName.trim();
     if (!nameTrim) {
-      setEditNameError("Введите ФИО");
+      setEditNameError(t("profile.enterFullName"));
       return;
     }
     setEditNameError("");
@@ -244,13 +247,13 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
         email: editEmail.trim() || prev.email,
       } : prev);
 
-      notify?.({ type: "success", message: "Профиль обновлён" });
+      notify?.({ type: "success", message: t("profile.profileUpdated") });
       setEditMode(false);
       // Принудительно обновляем глобальный кэш: сайдбар и хедер получат новое имя
       void refetchPermissions();
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      notify?.({ type: "error", message: "Не удалось сохранить профиль", description: msg });
+      notify?.({ type: "error", message: t("profile.profileSaveFailed"), description: msg });
     } finally {
       setBusy(false);
     }
@@ -260,21 +263,21 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
     if (!employee?.id) return;
     try {
       setBusy(true);
-      notify?.({ type: "success", message: "Сохранение паспортных данных через новый API будет доступно в ближайшее время" });
+      notify?.({ type: "success", message: t("profile.passportSoon") });
       setPassportFiles([]);
       setRemovedPassportUrls([]);
     } catch (e) {
       console.error("Save passport failed:", e);
-      notify?.({ type: "error", message: "Не удалось сохранить паспортные данные" });
+      notify?.({ type: "error", message: t("profile.passportSaveFailed") });
     } finally {
       setBusy(false);
     }
   };
 
   const displayAvatar = employee?.photo_url || permissionsEmployee?.photoUrl || identity?.avatar;
-  const displayName = employee?.full_name || permissionsEmployee?.fullName || identity?.name || "Пользователь";
+  const displayName = employee?.full_name || permissionsEmployee?.fullName || identity?.name || t("common.user");
   const displayEmail = employee?.email || identity?.email;
-  const roleText = roleInfo?.display_name || roleInfo?.name || (employee?.status === 'active' ? "Сотрудник" : "Пользователь");
+  const roleText = roleInfo?.display_name || roleInfo?.name || (employee?.status === 'active' ? t("common.employee") : t("common.user"));
 
   return (
     <AppBar
@@ -309,7 +312,7 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
           <IconButton
             color="inherit"
             onClick={toggle}
-            aria-label="Открыть меню"
+            aria-label={t("common.openMenu")}
             size="small"
             sx={{
               display: { xs: "inline-flex", md: "none" },
@@ -396,7 +399,7 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
             <>
               <IconButton
                 color="inherit"
-                aria-label={`Выбран филиал: ${selectedBranchLabel}`}
+                aria-label={t("profile.selectedBranch", { name: selectedBranchLabel })}
                 onClick={(event) => setBranchMenuAnchor(event.currentTarget)}
                 size="small"
                 sx={{
@@ -418,8 +421,8 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
                 value={selectedBranch?.id ?? "all"}
                 renderValue={(val) => {
                   const label = val === "all"
-                    ? "Все филиалы"
-                    : branches.find((branch) => branch.id === val)?.name ?? "Все филиалы";
+                    ? t("common.allBranches")
+                    : branches.find((branch) => branch.id === val)?.name ?? t("common.allBranches");
                   return (
                     <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, minWidth: 0, width: "100%", overflow: "hidden" }}>
                       <CorporateFareOutlined fontSize="small" sx={{ color: selectedBranch ? "primary.main" : "text.secondary", flexShrink: 0 }} />
@@ -464,7 +467,7 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
                   },
                 }}
               >
-                <MenuItem value="all">Все филиалы</MenuItem>
+                <MenuItem value="all">{t("common.allBranches")}</MenuItem>
                 {branches.map((branch) => (
                   <MenuItem key={branch.id} value={branch.id}>{branch.name}</MenuItem>
                 ))}
@@ -481,7 +484,7 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
                   selected={!selectedBranch}
                   onClick={() => handleSelectBranch("all")}
                 >
-                  Все филиалы
+                  {t("common.allBranches")}
                 </MenuItem>
                 {branches.map((branch) => (
                   <MenuItem
@@ -496,6 +499,8 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
             </>
           ) : null}
 
+          <LanguageSwitcher />
+
           <IconButton
             color="inherit"
             onClick={(e) => {
@@ -503,7 +508,7 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
               if (onRefresh) triggerRefresh();
               else window.location.reload();
             }}
-            aria-label="Обновить"
+            aria-label={t("common.refresh")}
             size="small"
             sx={{
               p: { xs: 0.5, sm: 1 },
@@ -606,7 +611,7 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
                         )}
                         {employee?.status && (
                           <Chip
-                            label={employee.status === "active" ? "Работает" : "Неактивен"}
+                            label={employee.status === "active" ? t("profile.working") : t("profile.inactive")}
                             size="small"
                             color={employee.status === "active" ? "success" : "default"}
                             variant="filled"
@@ -622,7 +627,7 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
                           <LocalPhoneOutlined color="primary" fontSize="small" />
                         </Box>
                         <Box>
-                          <Typography variant="caption" color="text.secondary" display="block">Телефон</Typography>
+                          <Typography variant="caption" color="text.secondary" display="block">{t("profile.phone")}</Typography>
                           <Typography variant="body2" fontWeight={500}>{employee?.phone || "—"}</Typography>
                         </Box>
                       </Stack>
@@ -634,7 +639,7 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
                           <TelegramIcon color={employee?.telegram_id ? "primary" : "disabled"} fontSize="small" />
                         </Box>
                         <Box>
-                          <Typography variant="caption" color="text.secondary" display="block">Telegram ID</Typography>
+                          <Typography variant="caption" color="text.secondary" display="block">{t("profile.telegramId")}</Typography>
                           <Typography variant="body2" fontWeight={500}>{employee?.telegram_id || "—"}</Typography>
                         </Box>
                       </Stack>
@@ -646,7 +651,7 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
                           <EmailOutlined color={displayEmail ? "primary" : "disabled"} fontSize="small" />
                         </Box>
                         <Box>
-                          <Typography variant="caption" color="text.secondary" display="block">Email</Typography>
+                          <Typography variant="caption" color="text.secondary" display="block">{t("profile.email")}</Typography>
                           <Typography variant="body2" fontWeight={500}>{displayEmail || "—"}</Typography>
                         </Box>
                       </Stack>
@@ -658,7 +663,7 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
                           <CreditCardOutlined color={employee?.bank_account_number ? "primary" : "disabled"} fontSize="small" />
                         </Box>
                         <Box>
-                          <Typography variant="caption" color="text.secondary" display="block">Банковский счет</Typography>
+                          <Typography variant="caption" color="text.secondary" display="block">{t("profile.bankAccount")}</Typography>
                           <Typography variant="body2" fontWeight={500} sx={{ fontFamily: 'monospace' }}>
                             {employee?.bank_account_number
                               ? employee.bank_account_number.replace(/(.{4})/g, '$1 ').trim()
@@ -692,7 +697,7 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
                             onClick={handleSavePassport}
                             sx={{ mt: 2, borderRadius: 24, px: 4, width: '100%' }}
                           >
-                            Сохранить изменения
+                            {t("common.saveChanges")}
                           </Button>
                         )}
                       </Box>
@@ -705,7 +710,7 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
                         onClick={handleEnterEdit}
                         sx={{ borderRadius: 24, flex: 1 }}
                       >
-                        Редактировать
+                        {t("common.edit")}
                       </Button>
                       <Button
                         variant="outlined"
@@ -713,7 +718,7 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
                         onClick={() => setChangePasswordMode(true)}
                         sx={{ borderRadius: 24, flex: 1 }}
                       >
-                        Пароль
+                        {t("profile.password")}
                       </Button>
                     </Stack>
                     <Button
@@ -721,19 +726,19 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
                       onClick={handleClose}
                       sx={{ borderRadius: 24, mt: 1, width: '100%' }}
                     >
-                      Закрыть
+                      {t("common.close")}
                     </Button>
                   </>
                 ) : changePasswordMode ? (
                   /* ── СМЕНА ПАРОЛЯ (из режима просмотра или редактирования) ── */
                   <>
                     <Box sx={{ textAlign: "center", mb: 2 }}>
-                      <Typography variant="h6" fontWeight="700">Смена пароля</Typography>
+                      <Typography variant="h6" fontWeight="700">{t("profile.changePasswordTitle")}</Typography>
                     </Box>
                     <Stack spacing={2} sx={{ width: '100%' }}>
                       {passwordError && <Alert severity="error" sx={{ borderRadius: 2 }}>{passwordError}</Alert>}
                       <Stack spacing={0.5}>
-                        <Typography variant="caption" color="text.secondary" fontWeight={600}>Текущий пароль *</Typography>
+                        <Typography variant="caption" color="text.secondary" fontWeight={600}>{t("profile.currentPassword")} *</Typography>
                         <TextField
                           value={oldPassword}
                           onChange={(e) => setOldPassword(e.target.value)}
@@ -753,14 +758,14 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
                         />
                       </Stack>
                       <Stack spacing={0.5}>
-                        <Typography variant="caption" color="text.secondary" fontWeight={600}>Новый пароль *</Typography>
+                        <Typography variant="caption" color="text.secondary" fontWeight={600}>{t("profile.newPassword")} *</Typography>
                         <TextField
                           value={newPassword}
                           onChange={(e) => setNewPassword(e.target.value)}
                           fullWidth
                           size="small"
                           type={showNewPassword ? "text" : "password"}
-                          placeholder="Минимум 8 символов"
+                          placeholder={t("profile.min8chars")}
                           InputProps={{
                             endAdornment: (
                               <InputAdornment position="end">
@@ -773,7 +778,7 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
                         />
                       </Stack>
                       <Stack spacing={0.5}>
-                        <Typography variant="caption" color="text.secondary" fontWeight={600}>Повторите новый пароль *</Typography>
+                        <Typography variant="caption" color="text.secondary" fontWeight={600}>{t("profile.repeatNewPassword")} *</Typography>
                         <TextField
                           value={confirmPassword}
                           onChange={(e) => setConfirmPassword(e.target.value)}
@@ -782,7 +787,7 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
                           type="password"
                           placeholder="••••••••"
                           error={!!confirmPassword && confirmPassword !== newPassword}
-                          helperText={confirmPassword && confirmPassword !== newPassword ? "Пароли не совпадают" : ""}
+                          helperText={confirmPassword && confirmPassword !== newPassword ? t("profile.passwordsDoNotMatch") : ""}
                         />
                       </Stack>
                     </Stack>
@@ -794,7 +799,7 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
                         disabled={busy}
                         sx={{ borderRadius: 24, flex: 1 }}
                       >
-                        Сохранить пароль
+                        {t("profile.savePassword")}
                       </Button>
                       <Button
                         variant="outlined"
@@ -803,7 +808,7 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
                         disabled={busy}
                         sx={{ borderRadius: 24, flex: 1 }}
                       >
-                        Назад
+                        {t("common.back")}
                       </Button>
                     </Stack>
                   </>
@@ -811,15 +816,15 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
                   /* ── РЕЖИМ РЕДАКТИРОВАНИЯ ── */
                   <>
                     <Box sx={{ textAlign: "center", mb: 1 }}>
-                      <Typography variant="h6" fontWeight="700">Редактирование профиля</Typography>
+                      <Typography variant="h6" fontWeight="700">{t("profile.editProfile")}</Typography>
                       <Typography variant="caption" color="text.secondary">
-                        Роль изменить нельзя — обратитесь к администратору
+                        {t("profile.roleCannotChange")}
                       </Typography>
                     </Box>
 
                     <Stack spacing={2} sx={{ width: '100%' }}>
                       <Stack spacing={0.5}>
-                        <Typography variant="caption" color="text.secondary" fontWeight={600}>ФИО *</Typography>
+                        <Typography variant="caption" color="text.secondary" fontWeight={600}>{t("profile.fullName")} *</Typography>
                         <TextField
                           value={editFullName}
                           onChange={(e) => { setEditFullName(e.target.value); setEditNameError(""); }}
@@ -827,12 +832,12 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
                           size="small"
                           error={Boolean(editNameError)}
                           helperText={editNameError}
-                          placeholder="Введите ФИО"
+                          placeholder={t("profile.enterFullName")}
                         />
                       </Stack>
 
                       <Stack spacing={0.5}>
-                        <Typography variant="caption" color="text.secondary" fontWeight={600}>Телефон</Typography>
+                        <Typography variant="caption" color="text.secondary" fontWeight={600}>{t("profile.phone")}</Typography>
                         <TextField
                           value={editPhone}
                           onChange={(e) => {
@@ -843,7 +848,7 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
                           size="small"
                           disabled
                           placeholder="XXX XXX XXX"
-                          helperText="Контактные данные обновляются через HR-модуль"
+                          helperText={t("profile.phoneViaHr")}
                           InputProps={{
                             startAdornment: (
                               <InputAdornment position="start" sx={{ mr: 1, ml: "-14px" }}>
@@ -856,7 +861,7 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
                       </Stack>
 
                       <Stack spacing={0.5}>
-                        <Typography variant="caption" color="text.secondary" fontWeight={600}>Email</Typography>
+                        <Typography variant="caption" color="text.secondary" fontWeight={600}>{t("profile.email")}</Typography>
                         <TextField
                           value={editEmail}
                           onChange={(e) => setEditEmail(e.target.value)}
@@ -868,29 +873,29 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
                       </Stack>
 
                       <Stack spacing={0.5}>
-                        <Typography variant="caption" color="text.secondary" fontWeight={600}>Telegram ID</Typography>
+                        <Typography variant="caption" color="text.secondary" fontWeight={600}>{t("profile.telegramId")}</Typography>
                         <TextField
                           value={editTelegram}
                           onChange={(e) => setEditTelegram(e.target.value.replace(/[^0-9]/g, ""))}
                           fullWidth
                           size="small"
                           disabled
-                          placeholder="Только цифры"
+                          placeholder={t("profile.onlyDigits")}
                           inputProps={{ inputMode: "numeric" }}
                         />
                       </Stack>
 
                       <Stack spacing={0.5}>
-                        <Typography variant="caption" color="text.secondary" fontWeight={600}>Банковский счёт</Typography>
+                        <Typography variant="caption" color="text.secondary" fontWeight={600}>{t("profile.bankAccount")}</Typography>
                         <TextField
                           value={editBank}
                           onChange={(e) => setEditBank(e.target.value.replace(/[^0-9]/g, "").slice(0, 16))}
                           fullWidth
                           size="small"
                           disabled
-                          placeholder="16 цифр"
+                          placeholder={t("profile.digits16")}
                           inputProps={{ inputMode: "numeric" }}
-                          helperText="Редактирование банковских реквизитов ограничено"
+                          helperText={t("profile.bankLimited")}
                           InputProps={{
                             startAdornment: (
                               <InputAdornment position="start">
@@ -910,7 +915,7 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
                         disabled={busy}
                         sx={{ borderRadius: 24, flex: 1 }}
                       >
-                        Сохранить
+                        {t("common.save")}
                       </Button>
                       <Button
                         variant="outlined"
@@ -919,7 +924,7 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
                         disabled={busy}
                         sx={{ borderRadius: 24, flex: 1 }}
                       >
-                        Отмена
+                        {t("common.cancel")}
                       </Button>
                     </Stack>
                   </>

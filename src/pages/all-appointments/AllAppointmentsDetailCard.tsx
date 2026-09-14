@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import {
     Typography,
     Box,
@@ -16,6 +17,7 @@ interface AllAppointmentsDetailCardProps {
 }
 
 export const AllAppointmentsDetailCard: React.FC<AllAppointmentsDetailCardProps> = ({ appointmentId }) => {
+    const { t } = useTranslation();
     const { format: formatKGS } = useBranchCurrency();
     const { item, loading } = useAppointmentDetails(appointmentId);
 
@@ -33,7 +35,7 @@ export const AllAppointmentsDetailCard: React.FC<AllAppointmentsDetailCardProps>
                     color: "text.secondary",
                 }}
             >
-                <Typography>Выберите прием для просмотра</Typography>
+                <Typography>{t("allAppointments.selectAppointmentToView")}</Typography>
             </Box>
         );
     }
@@ -54,7 +56,7 @@ export const AllAppointmentsDetailCard: React.FC<AllAppointmentsDetailCardProps>
     if (!item) {
         return (
             <Paper elevation={0} variant="outlined" sx={{ p: 2, height: "100%", display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Typography color="error">Данные не найдены</Typography>
+                <Typography color="error">{t("allAppointments.dataNotFound")}</Typography>
             </Paper>
         );
     }
@@ -71,7 +73,7 @@ export const AllAppointmentsDetailCard: React.FC<AllAppointmentsDetailCardProps>
             }}
         >
             <Box sx={{ p: 2, borderBottom: 1, borderColor: "divider" }}>
-                <Typography variant="h6">Детали приема</Typography>
+                <Typography variant="h6">{t("allAppointments.detailsTitle")}</Typography>
             </Box>
 
             <Box
@@ -88,11 +90,11 @@ export const AllAppointmentsDetailCard: React.FC<AllAppointmentsDetailCardProps>
             >
                 <Stack spacing={3}>
                     <Box>
-                        <Typography variant="subtitle2" color="text.secondary">Пациент</Typography>
+                        <Typography variant="subtitle2" color="text.secondary">{t("allAppointments.patient")}</Typography>
                         <Typography variant="body1" fontWeight={500}>{item.patient_name}</Typography>
                     </Box>
                     <Box>
-                        <Typography variant="subtitle2" color="text.secondary">Дата</Typography>
+                        <Typography variant="subtitle2" color="text.secondary">{t("common.date")}</Typography>
                         <Typography variant="body1">
                             {formatDateRu(item.appointment_at)} {new Date(item.appointment_at).toLocaleTimeString("ru-RU", { hour: '2-digit', minute: '2-digit' })}
                         </Typography>
@@ -101,7 +103,7 @@ export const AllAppointmentsDetailCard: React.FC<AllAppointmentsDetailCardProps>
                     <Divider />
 
                     <Box>
-                        <Typography variant="subtitle2" color="text.secondary" gutterBottom>Услуги</Typography>
+                        <Typography variant="subtitle2" color="text.secondary" gutterBottom>{t("allAppointments.services")}</Typography>
                         {(Array.isArray(item.services_json) ? item.services_json : []).map((srv: any, idx: number) => (
                             <Box key={idx} sx={{ display: 'flex', justifyContent: 'space-between', py: 0.5 }}>
                                 <Typography variant="body2" sx={{ flex: 1, mr: 2 }}>{srv.name || srv.service_name}</Typography>
@@ -113,13 +115,13 @@ export const AllAppointmentsDetailCard: React.FC<AllAppointmentsDetailCardProps>
                     <Divider />
 
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <Typography variant="subtitle2" color="text.secondary">Итого</Typography>
+                        <Typography variant="subtitle2" color="text.secondary">{t("common.total")}</Typography>
                         <Typography variant="h6" color="primary">{formatKGS(item.total_cost)}</Typography>
                     </Box>
 
                     {item.conclusion && (
                         <Box sx={{ mt: 2, p: 2, bgcolor: 'action.hover', borderRadius: 1 }}>
-                            <Typography variant="subtitle2" gutterBottom>Заключение</Typography>
+                            <Typography variant="subtitle2" gutterBottom>{t("allAppointments.conclusion")}</Typography>
                             <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>{item.conclusion}</Typography>
                         </Box>
                     )}

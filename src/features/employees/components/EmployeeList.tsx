@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import {
   Card,
   CardContent,
@@ -45,18 +46,19 @@ const EmployeeList: React.FC<EmployeeListProps> = ({
   isGrouped,
   roles = [],
 }) => {
+  const { t } = useTranslation();
   const renderItem = (e: EmployesRow) => {
     // Логика отображения роли (вместо тире)
     const statusText =
       e.status === "active"
-        ? "работает"
+        ? t("employees.statusActive")
         : e.status === "inactive"
-          ? "не работает"
+          ? t("employees.statusInactive")
           : e.status;
 
     // Ищем имя роли в массиве ролей
     const roleObj = roles.find((r) => r.id === e.role_id);
-    const roleText = roleObj?.display_name || roleObj?.name || (e.role_id === "admin" ? "Управляющий" : statusText || "Сотрудник");
+    const roleText = roleObj?.display_name || roleObj?.name || (e.role_id === "admin" ? t("employees.manager") : statusText || t("common.employee"));
 
     const photoUrl = e.photo_url || null;
 
@@ -70,12 +72,12 @@ const EmployeeList: React.FC<EmployeeListProps> = ({
           (onEdit || onDelete) && (
             <Stack direction="row" spacing={1}>
               {onEdit && (!canEdit || canEdit(e)) && (
-                <IconButton aria-label="Редактировать" onClick={() => onEdit(e)}>
+                <IconButton aria-label={t("common.edit")} onClick={() => onEdit(e)}>
                   <EditOutlined />
                 </IconButton>
               )}
               {onDelete && (
-                <IconButton aria-label="Удалить" onClick={() => onDelete(e)}>
+                <IconButton aria-label={t("common.delete")} onClick={() => onDelete(e)}>
                   <DeleteOutline />
                 </IconButton>
               )}
@@ -104,7 +106,7 @@ const EmployeeList: React.FC<EmployeeListProps> = ({
               sx: { whiteSpace: "normal", wordBreak: "break-word", fontWeight: 500 },
             }}
             secondaryTypographyProps={{ component: "div" }}
-            primary={e.full_name || "Без имени"}
+            primary={e.full_name || t("employees.noName")}
             secondary={
               <Stack direction="column" spacing={0.5} sx={{ minWidth: 0 }}>
                 <Typography variant="body2" component="span" color="text.secondary">
@@ -180,7 +182,7 @@ const EmployeeList: React.FC<EmployeeListProps> = ({
             mt: 1
           }}
         >
-          Прочие
+          {t("employees.otherGroup")}
         </ListSubheader>
       );
       others.forEach((item) => {
@@ -201,7 +203,7 @@ const EmployeeList: React.FC<EmployeeListProps> = ({
       >
         {items.length === 0 ? (
           <Typography sx={{ p: 2 }} color="text.secondary">
-            {loading ? "Загрузка…" : "Нет записей"}
+            {loading ? t("common.loading") : t("employees.noRecords")}
           </Typography>
         ) : (
           <List sx={{ py: 0 }}>
@@ -210,7 +212,7 @@ const EmployeeList: React.FC<EmployeeListProps> = ({
         )}
         <Box sx={{ px: 2, py: 1.25 }}>
           {loadingMore && (
-            <Typography variant="caption" color="text.secondary">Загрузка…</Typography>
+            <Typography variant="caption" color="text.secondary">{t("common.loading")}</Typography>
           )}
         </Box>
       </CardContent>

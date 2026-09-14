@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Box,
   Typography,
@@ -35,65 +36,13 @@ type PermissionEntry = {
   displayName: string;
 };
 
-const RESOURCE_LABELS: Record<string, string> = {
-  app_settings: "Настройки приложения",
-  appointment_groups: "Групповые приёмы",
-  appointments: "Приёмы",
-  branches: "Филиалы",
-  children: "Клиенты",
-  clients: "Клиенты",
-  conclusions: "Заключения",
-  employees: "Сотрудники",
-  expenses: "Расходы",
-  incoming_calls: "Входящие звонки",
-  organizations: "Организации",
-  payments: "Касса, продажи и платежи",
-  products: "Товары",
-  reports: "Отчёты",
-  roles: "Роли",
-  salary_rules: "Правила зарплаты",
-  sale_lines: "Касса, продажи и платежи",
-  sales: "Касса, продажи и платежи",
-  sellable_items: "Услуги и номенклатура",
-  service_salary_rules: "Зарплата по услугам",
-  services: "Услуги и номенклатура",
-  specializations: "Специализации",
-  users: "Пользователи",
-  work_shifts: "Рабочие смены",
-  schedules: "Расписание",
-  client_schedules: "Расписание клиентов",
-  client_balance_transactions: "Транзакции баланса",
-  diagnoses: "Диагнозы",
-  notifications: "Уведомления",
-  patient_documents: "Документы клиентов",
-  procedure_rooms: "Процедурные кабинеты",
-  sellable_item_categories: "Категории услуг",
-  service_categories: "Категории услуг",
-  shifts: "Смены",
-  work_schedule: "График работы",
-  balance_transactions: "Транзакции баланса",
-  cashbox: "Касса, продажи и платежи",
-  client_documents: "Документы клиентов",
-  employee_documents: "Документы сотрудников",
-  employee_schedules: "Расписание сотрудников",
-  expense_categories: "Категории расходов",
-  salary_payments: "Выплаты зарплат",
-  bonus_rules: "Правила бонусов",
-  discount_rules: "Правила скидок",
-  referral_sources: "Источники привлечения",
-  sms_templates: "SMS шаблоны",
-  tags: "Теги",
-  tasks: "Задачи",
-  permissions: "Права доступа",
-  reception: "Ресепшн",
-};
+// Резервные подписи разделов/действий (когда бэкенд не прислал displayName) — берутся из
+// roles.resources.<resource> / roles.actions.<action> в локалях, с фоллбэком на сам ключ.
+const getResourceLabel = (t: (key: string, opts?: any) => string, resource: string): string =>
+  t(`roles.resources.${resource}`, { defaultValue: resource });
 
-const ACTION_LABELS: Record<string, string> = {
-  create: "Создание",
-  read: "Просмотр",
-  update: "Редактирование",
-  delete: "Удаление",
-};
+const getActionLabel = (t: (key: string, opts?: any) => string, action: string): string =>
+  t(`roles.actions.${action}`, { defaultValue: action });
 
 const ACTION_ORDER = ["read", "create", "update", "delete"];
 
@@ -103,7 +52,8 @@ const normalizePermissions = (raw: any[]): string[] =>
   raw.map((p) => (typeof p === "string" ? p : (p?.name ?? ""))).filter(Boolean);
 
 const RolesPage: React.FC = () => {
-  usePageTitle("Роли и права");
+  const { t } = useTranslation();
+  usePageTitle(t("roles.pageTitle"));
   const { open: notify } = useNotification();
 
   const [roles, setRoles] = useState<Role[]>([]);
@@ -157,7 +107,7 @@ const RolesPage: React.FC = () => {
           const name = p?.name ?? "";
           const [resource, action] = name.split(".");
           const displayName = p?.displayName ?? p?.display_name
-            ?? `${RESOURCE_LABELS[resource] ?? resource}: ${ACTION_LABELS[action] ?? action}`;
+            ?? `${getResourceLabel(t, resource)}: ${getActionLabel(t, action)}`;
           return { name, displayName };
         });
       } else if (rawPerms && typeof rawPerms === "object") {
@@ -165,7 +115,7 @@ const RolesPage: React.FC = () => {
           const p = rawPerms[name];
           const [resource, action] = name.split(".");
           const displayName = p?.displayName ?? p?.display_name
-            ?? `${RESOURCE_LABELS[resource] ?? resource}: ${ACTION_LABELS[action] ?? action}`;
+            ?? `${getResourceLabel(t, resource)}: ${getActionLabel(t, action)}`;
           return { name, displayName };
         });
       }
@@ -180,11 +130,11 @@ const RolesPage: React.FC = () => {
         setEditedPermissions(new Set(firstPerms));
       }
     } catch (e: any) {
-      notify?.({ type: "error", message: e?.message ?? "Ошибка загрузки" });
+      notify?.({ type: "error", message: e?.message ?? t("roles.loadError") });
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
@@ -256,9 +206,9 @@ const RolesPage: React.FC = () => {
       setSelectedRole(updatedRole);
       setEditedPermissions(new Set(updatedPerms));
       setDirty(false);
-      notify?.({ type: "success", message: "Права сохранены" });
+      notify?.({ type: "success", message: t("roles.permissionsSaved") });
     } catch (e: any) {
-      notify?.({ type: "error", message: e?.message ?? "Ошибка сохранения" });
+      notify?.({ type: "error", message: e?.message ?? t("roles.saveError") });
     } finally {
       setSaving(false);
     }
@@ -295,13 +245,13 @@ const RolesPage: React.FC = () => {
         for (const [word, replace] of Object.entries(actionWords)) {
           if (label.startsWith(word)) { label = label.replace(word, replace); break; }
         }
-        map[resource] = label || RESOURCE_LABELS[resource] || resource;
+        map[resource] = label || getResourceLabel(t, resource);
       } else {
-        map[resource] = RESOURCE_LABELS[resource] ?? resource;
+        map[resource] = getResourceLabel(t, resource);
       }
     });
     return map;
-  }, [grouped]);
+  }, [grouped, t]);
 
   const allActions = useMemo(() => {
     const set = new Set<string>();
@@ -331,13 +281,13 @@ const RolesPage: React.FC = () => {
         overflow: "hidden",
       }}
     >
-      <PageHeader title="Роли и права доступа" />
+      <PageHeader title={t("roles.headerTitle")} />
       <Box sx={{ flex: 1, display: "flex", flexDirection: { xs: "column", lg: "row" }, overflow: "hidden", minHeight: 0 }}>
 
         {/* Левая панель */}
         <Box sx={{ width: { xs: "100%", lg: 210 }, maxHeight: { xs: 240, lg: "none" }, flexShrink: 0, borderRight: { xs: "none", lg: "1px solid" }, borderBottom: { xs: "1px solid", lg: "none" }, borderColor: "divider", overflowY: "auto", WebkitOverflowScrolling: "touch", bgcolor: "background.paper" }}>
           <Typography variant="caption" sx={{ px: 2, pt: 1.5, pb: 0.5, display: "block", fontWeight: 700, color: "text.disabled", textTransform: "uppercase", letterSpacing: 0.8, fontSize: "0.65rem" }}>
-            Роли
+            {t("roles.rolesLabel")}
           </Typography>
           <Divider />
           {roles.map((role) => {
@@ -350,9 +300,9 @@ const RolesPage: React.FC = () => {
                   px: 2, py: 1.5, cursor: "pointer",
                   borderLeft: "3px solid",
                   borderLeftColor: active ? "primary.main" : "transparent",
-                  bgcolor: active ? (t) => alpha(t.palette.primary.main, 0.08) : "transparent",
+                  bgcolor: active ? (theme) => alpha(theme.palette.primary.main, 0.08) : "transparent",
                   borderBottom: "1px solid", borderColor: "divider",
-                  "&:hover": { bgcolor: active ? (t) => alpha(t.palette.primary.main, 0.1) : "action.hover" },
+                  "&:hover": { bgcolor: active ? (theme) => alpha(theme.palette.primary.main, 0.1) : "action.hover" },
                   transition: "all 0.15s",
                 }}
               >
@@ -360,9 +310,9 @@ const RolesPage: React.FC = () => {
                   {role.displayName}
                 </Typography>
                 <Chip
-                  label={`${(role.permissions ?? []).length} прав`}
+                  label={t("roles.permissionsCount", { count: (role.permissions ?? []).length })}
                   size="small"
-                  sx={{ mt: 0.5, height: 18, fontSize: "0.62rem", fontWeight: 600, bgcolor: active ? (t) => alpha(t.palette.primary.main, 0.15) : "action.selected", color: active ? "primary.main" : "text.secondary" }}
+                  sx={{ mt: 0.5, height: 18, fontSize: "0.62rem", fontWeight: 600, bgcolor: active ? (theme) => alpha(theme.palette.primary.main, 0.15) : "action.selected", color: active ? "primary.main" : "text.secondary" }}
                 />
               </Box>
             );
@@ -377,7 +327,7 @@ const RolesPage: React.FC = () => {
                 <AdminPanelSettingsOutlined color="primary" fontSize="small" />
                 <Typography variant="h6" fontWeight={700}>{selectedRole.displayName}</Typography>
                 <Typography variant="body2" color="text.disabled">({selectedRole.name})</Typography>
-                {dirty && <Chip label="Не сохранено" size="small" color="warning" sx={{ height: 20, fontSize: "0.68rem" }} />}
+                {dirty && <Chip label={t("roles.unsaved")} size="small" color="warning" sx={{ height: 20, fontSize: "0.68rem" }} />}
               </Stack>
               <Button
                 variant="contained"
@@ -387,7 +337,7 @@ const RolesPage: React.FC = () => {
                 disabled={!dirty || saving}
                 sx={{ textTransform: "none", boxShadow: "none", borderRadius: 2 }}
               >
-                Сохранить
+                {t("common.save")}
               </Button>
             </Stack>
 
@@ -396,16 +346,16 @@ const RolesPage: React.FC = () => {
                 <Table size="small" stickyHeader>
                   <TableHead>
                     <TableRow>
-                      <TableCell sx={{ fontWeight: 700, width: 220, bgcolor: (t) => alpha(t.palette.primary.main, 0.06), borderBottom: "2px solid", borderColor: "primary.light" }}>
-                        Раздел
+                      <TableCell sx={{ fontWeight: 700, width: 220, bgcolor: (theme) => alpha(theme.palette.primary.main, 0.06), borderBottom: "2px solid", borderColor: "primary.light" }}>
+                        {t("roles.section")}
                       </TableCell>
                       {allActions.map((action) => {
                         const names = Object.values(grouped).flat().filter((p) => p.name.endsWith(`.${action}`)).map((p) => p.name);
                         const allChecked = names.length > 0 && names.every((n) => editedPermissions.has(n));
                         return (
-                          <TableCell key={action} align="center" sx={{ fontWeight: 700, bgcolor: (t) => alpha(t.palette.primary.main, 0.06), borderBottom: "2px solid", borderColor: "primary.light", minWidth: 120 }}>
+                          <TableCell key={action} align="center" sx={{ fontWeight: 700, bgcolor: (theme) => alpha(theme.palette.primary.main, 0.06), borderBottom: "2px solid", borderColor: "primary.light", minWidth: 120 }}>
                             <Stack alignItems="center" spacing={0.5}>
-                              <Typography variant="caption" fontWeight={700} color="text.primary">{ACTION_LABELS[action] ?? action}</Typography>
+                              <Typography variant="caption" fontWeight={700} color="text.primary">{getActionLabel(t, action)}</Typography>
                               <Switch
                                 size="small"
                                 checked={allChecked}
@@ -422,11 +372,11 @@ const RolesPage: React.FC = () => {
                     {Object.entries(grouped).map(([resource, perms]) => {
                       const names = perms.map((p) => p.name);
                       const allChecked = names.every((n) => editedPermissions.has(n));
-                      const label = resourceLabel[resource] ?? RESOURCE_LABELS[resource] ?? resource;
+                      const label = resourceLabel[resource] ?? getResourceLabel(t, resource);
                       return (
                         <TableRow
                           key={resource}
-                          sx={{ "&:hover": { bgcolor: (t) => alpha(t.palette.primary.main, 0.03) } }}
+                          sx={{ "&:hover": { bgcolor: (theme) => alpha(theme.palette.primary.main, 0.03) } }}
                         >
                           <TableCell sx={{ borderBottom: "1px solid", borderColor: "divider" }}>
                             <Stack direction="row" alignItems="center" spacing={1}>

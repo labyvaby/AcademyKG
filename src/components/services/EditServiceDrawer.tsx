@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import {
   Box,
   Button,
@@ -44,6 +45,7 @@ const DrawerBase: React.FC<{
   submitDisabled?: boolean;
   children?: React.ReactNode;
 }> = ({ open, title, busy, onClose, onSubmit, submitDisabled, children }) => {
+  const { t } = useTranslation();
   return (
     <Drawer
       anchor="right"
@@ -62,7 +64,7 @@ const DrawerBase: React.FC<{
           py={1.5}
         >
           <Typography variant="h6">{title}</Typography>
-          <IconButton onClick={busy ? undefined : onClose} aria-label="Закрыть">
+          <IconButton onClick={busy ? undefined : onClose} aria-label={t("common.close")}>
             <CloseOutlined />
           </IconButton>
         </Stack>
@@ -85,7 +87,7 @@ const DrawerBase: React.FC<{
         <Divider />
         <Box px={2} py={1.5} display="flex" justifyContent="flex-end" gap={1.5}>
           <Button onClick={onClose} disabled={busy}>
-            Отмена
+            {t("common.cancel")}
           </Button>
           <Button
             onClick={onSubmit}
@@ -95,10 +97,10 @@ const DrawerBase: React.FC<{
             {busy ? (
               <Stack direction="row" alignItems="center" spacing={1}>
                 <CircularProgress size={18} />
-                <span>Сохранение…</span>
+                <span>{t("common.saving")}</span>
               </Stack>
             ) : (
-              "Сохранить"
+              t("common.save")
             )}
           </Button>
         </Box>
@@ -108,6 +110,7 @@ const DrawerBase: React.FC<{
 };
 
 const EditServiceDrawer: React.FC<Props> = ({ open, onClose, record, onUpdated }) => {
+  const { t } = useTranslation();
   const { open: notify } = useNotification();
   const [name, setName] = React.useState(record.name);
   const [price, setPrice] = React.useState<string>(String(record.price ?? ""));
@@ -174,11 +177,11 @@ const EditServiceDrawer: React.FC<Props> = ({ open, onClose, record, onUpdated }
     setTouched(true);
     const priceNum = Number(price);
     if (!name.trim() || !price || !Number.isFinite(priceNum) || priceNum <= 0) {
-      notify?.({ type: "error", message: "Заполните название и положительную стоимость услуги" });
+      notify?.({ type: "error", message: t("services.fillNameAndCost") });
       return;
     }
     if (isGroup && (!maxParticipants || Number(maxParticipants) <= 0)) {
-      notify?.({ type: "error", message: "Укажите максимальное количество участников" });
+      notify?.({ type: "error", message: t("services.specifyMaxParticipantsCount") });
       return;
     }
 
@@ -211,7 +214,7 @@ const EditServiceDrawer: React.FC<Props> = ({ open, onClose, record, onUpdated }
       onClose();
     } catch (e) {
       console.error("Update service failed:", e);
-      notify?.({ type: "error", message: "Не удалось обновить услугу." });
+      notify?.({ type: "error", message: t("services.updateError") });
     } finally {
       setBusy(false);
     }
@@ -220,7 +223,7 @@ const EditServiceDrawer: React.FC<Props> = ({ open, onClose, record, onUpdated }
   return (
     <DrawerBase
       open={open}
-      title="Редактирование услуги"
+      title={t("services.editingService")}
       busy={busy}
       onClose={onClose}
       onSubmit={handleSubmit}

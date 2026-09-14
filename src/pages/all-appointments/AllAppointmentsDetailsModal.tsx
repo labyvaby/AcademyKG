@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import {
     Dialog,
     DialogTitle,
@@ -23,6 +24,7 @@ interface AllAppointmentsDetailsModalProps {
 }
 
 export const AllAppointmentsDetailsModal: React.FC<AllAppointmentsDetailsModalProps> = ({ open, onClose, appointmentId }) => {
+    const { t } = useTranslation();
     const { format: formatKGS } = useBranchCurrency();
     const theme = useTheme();
     const fullScreen = useMediaQuery(theme.breakpoints.down('md'));
@@ -39,7 +41,7 @@ export const AllAppointmentsDetailsModal: React.FC<AllAppointmentsDetailsModalPr
             fullWidth
         >
             <DialogTitle sx={{ m: 0, p: 2 }}>
-                <Typography variant="h6">Детали приема</Typography>
+                <Typography variant="h6">{t("allAppointments.detailsTitle")}</Typography>
                 <IconButton
                     aria-label="close"
                     onClick={onClose}
@@ -55,22 +57,22 @@ export const AllAppointmentsDetailsModal: React.FC<AllAppointmentsDetailsModalPr
             </DialogTitle>
             <DialogContent dividers>
                 {loading ? (
-                    <Typography>Загрузка...</Typography>
+                    <Typography>{t("common.loading")}</Typography>
                 ) : !item ? (
-                    <Typography>Данные не найдены</Typography>
+                    <Typography>{t("allAppointments.dataNotFound")}</Typography>
                 ) : (
                     <Stack spacing={2}>
                         <Box>
-                            <Typography variant="subtitle2" color="text.secondary">Пациент</Typography>
+                            <Typography variant="subtitle2" color="text.secondary">{t("allAppointments.patient")}</Typography>
                             <Typography variant="body1">{item.patient_name}</Typography>
                         </Box>
                         <Box>
-                            <Typography variant="subtitle2" color="text.secondary">Дата</Typography>
+                            <Typography variant="subtitle2" color="text.secondary">{t("common.date")}</Typography>
                             <Typography variant="body1">{formatDateRu(item.appointment_at)} {new Date(item.appointment_at).toLocaleTimeString()}</Typography>
                         </Box>
                         <Divider />
                         <Box>
-                            <Typography variant="subtitle2" color="text.secondary">Услуги</Typography>
+                            <Typography variant="subtitle2" color="text.secondary">{t("allAppointments.services")}</Typography>
                             {(Array.isArray(item.services_json) ? item.services_json : []).map((srv: any, idx: number) => (
                                 <Box key={idx} sx={{ display: 'flex', justifyContent: 'space-between', py: 0.5 }}>
                                     <Typography variant="body2">{srv.name || srv.service_name}</Typography>
@@ -80,12 +82,12 @@ export const AllAppointmentsDetailsModal: React.FC<AllAppointmentsDetailsModalPr
                         </Box>
                         <Divider />
                         <Box>
-                            <Typography variant="subtitle2" color="text.secondary">Итого</Typography>
+                            <Typography variant="subtitle2" color="text.secondary">{t("common.total")}</Typography>
                             <Typography variant="h6" color="primary">{formatKGS(item.total_cost)}</Typography>
                         </Box>
                         {item.conclusion && (
                             <Box sx={{ mt: 2, p: 2, bgcolor: 'action.hover', borderRadius: 1 }}>
-                                <Typography variant="subtitle2" gutterBottom>Заключение</Typography>
+                                <Typography variant="subtitle2" gutterBottom>{t("allAppointments.conclusion")}</Typography>
                                 <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>{item.conclusion}</Typography>
                             </Box>
                         )}

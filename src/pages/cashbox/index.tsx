@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import {
     Box,
     Grid2,
@@ -23,7 +24,8 @@ import { CashboxSummaryData } from "../../types/cashbox";
 import { useBranchContext } from "../../contexts/branch-context";
 
 const CashboxPage: React.FC = () => {
-    usePageTitle("Касса");
+    const { t } = useTranslation();
+    usePageTitle(t("menu.cashbox"));
     const { format: formatKGS } = useBranchCurrency();
     const theme = useTheme();
     const { open: notify } = useNotification();
@@ -49,14 +51,14 @@ const CashboxPage: React.FC = () => {
             setLoadedScopeKey(scopeKey);
         } catch (e: any) {
             if (signal?.aborted) return;
-            const message = e.message || "Ошибка загрузки данных кассы";
+            const message = e.message || t("cashbox.loadError");
             setError(message);
             setLoadedScopeKey(null);
             notify?.({ type: "error", message });
         } finally {
             if (!signal?.aborted) setLoading(false);
         }
-    }, [notify, scopeKey, selectedBranch?.id]);
+    }, [notify, scopeKey, selectedBranch?.id, t]);
 
     useEffect(() => {
         const controller = new AbortController();
@@ -123,7 +125,7 @@ const CashboxPage: React.FC = () => {
 
     return (
         <Box sx={{ height: "100%", display: "flex", flexDirection: "column", overflow: "auto" }}>
-            <PageHeader title="Касса" showTitle={false} showSearch={false} />
+            <PageHeader title={t("menu.cashbox")} showTitle={false} showSearch={false} />
 
             <Box
                 sx={(theme) => ({
@@ -151,7 +153,7 @@ const CashboxPage: React.FC = () => {
                             }}
                         >
                             <Typography variant="h6" color="error.main" sx={{ fontWeight: 700, mb: 1 }}>
-                                Не удалось загрузить кассу
+                                {t("cashbox.loadFailed")}
                             </Typography>
                             <Typography variant="body2" color="text.secondary">
                                 {error}
@@ -159,13 +161,13 @@ const CashboxPage: React.FC = () => {
                         </Paper>
                     ) : !visibleData ? (
                         <Typography variant="h6" color="text.secondary" textAlign="center">
-                            Данные отсутствуют
+                            {t("cashbox.noData")}
                         </Typography>
                     ) : (
                         <Grid2 container spacing={2.5}>
                             <Grid2 size={{ xs: 12, md: 6 }}>
                                 {renderCard(
-                                    "Наличные",
+                                    t("cashbox.cash"),
                                     Number(visibleData.net.cashSum),
                                     "success",
                                     <WalletIcon />,
@@ -173,7 +175,7 @@ const CashboxPage: React.FC = () => {
                             </Grid2>
                             <Grid2 size={{ xs: 12, md: 6 }}>
                                 {renderCard(
-                                    "Безнал",
+                                    t("cashbox.cashless"),
                                     Number(visibleData.net.cardSum),
                                     "info",
                                     <CreditCardIcon />,

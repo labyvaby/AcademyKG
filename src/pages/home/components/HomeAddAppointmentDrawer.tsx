@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { CustomDatePicker, CustomTimePicker } from "../../../components/ui";
 import { useNotification } from "@refinedev/core";
 import {
@@ -120,6 +121,7 @@ function serviceMatchesAppointmentMode(service: ServiceRow, mode: "single" | "gr
 export const HomeAddAppointmentDrawer: React.FC<
   HomeAddAppointmentDrawerProps
 > = ({ open, onClose, onCreated, initialPatientId, initialDate, initialDoctorId, selectedDate }) => {
+  const { t } = useTranslation();
   const { suffix } = useBranchCurrency();
   const { open: notify } = useNotification();
 
@@ -163,13 +165,13 @@ export const HomeAddAppointmentDrawer: React.FC<
   const [periodEndDate, setPeriodEndDate] = React.useState("");
 
   const WEEKDAYS = [
-    { label: "ПН", value: "monday", dayOfWeek: 1 },
-    { label: "ВТ", value: "tuesday", dayOfWeek: 2 },
-    { label: "СР", value: "wednesday", dayOfWeek: 3 },
-    { label: "ЧТ", value: "thursday", dayOfWeek: 4 },
-    { label: "ПТ", value: "friday", dayOfWeek: 5 },
-    { label: "СБ", value: "saturday", dayOfWeek: 6 },
-    { label: "ВС", value: "sunday", dayOfWeek: 0 },
+    { label: t("addAppt.weekdays.monday"), value: "monday", dayOfWeek: 1 },
+    { label: t("addAppt.weekdays.tuesday"), value: "tuesday", dayOfWeek: 2 },
+    { label: t("addAppt.weekdays.wednesday"), value: "wednesday", dayOfWeek: 3 },
+    { label: t("addAppt.weekdays.thursday"), value: "thursday", dayOfWeek: 4 },
+    { label: t("addAppt.weekdays.friday"), value: "friday", dayOfWeek: 5 },
+    { label: t("addAppt.weekdays.saturday"), value: "saturday", dayOfWeek: 6 },
+    { label: t("addAppt.weekdays.sunday"), value: "sunday", dayOfWeek: 0 },
   ];
 
   const periodDates = React.useMemo(() => {
@@ -528,7 +530,7 @@ export const HomeAddAppointmentDrawer: React.FC<
   const { handleClose: handleBackdropClose, handleCloseButton, ConfirmLeaveDialog } = useModalBackdropGuard({
     isDirty,
     onClose: handleClose,
-    confirmMessage: "Введённые данные приёма будут потеряны. Закрыть форму?",
+    confirmMessage: t("addAppt.confirmLeave"),
   });
 
   const normalizeDurationMinutes = React.useCallback((value: unknown, fallback = 30): number => {
@@ -650,7 +652,7 @@ export const HomeAddAppointmentDrawer: React.FC<
       if (!chosen || !chosen.isValid()) {
         notify?.({
           type: "error",
-          message: "Выберите корректную дату и время приёма",
+          message: t("addAppt.selectValidDateTime"),
         });
         isSavingRef.current = false;
         return;
@@ -695,11 +697,11 @@ export const HomeAddAppointmentDrawer: React.FC<
         if (conflict) {
           const docName = doctorsOpts.find((d) => d.id === conflict.doctorId)?.full_name
             ?? allDoctorsOpts.find((d) => d.id === conflict.doctorId)?.full_name
-            ?? "специалист";
+            ?? t("addAppt.specialistLower");
           notify?.({
             type: "error",
-            message: "Конфликт расписания",
-            description: `${docName} уже занят в интервале ${conflict.start}-${conflict.end}. Выберите другое время.`,
+            message: t("addAppt.scheduleConflict"),
+            description: t("addAppt.busyInterval", { name: docName, start: conflict.start, end: conflict.end }),
           });
           setIsSaving(false);
           isSavingRef.current = false;
@@ -733,7 +735,7 @@ export const HomeAddAppointmentDrawer: React.FC<
           delete dayAppointmentsCacheRef.current[bookingDate];
           notify?.({
             type: "error",
-            message: "Ошибка при создании записи на период",
+            message: t("addAppt.periodCreateError"),
             description: err?.message || String(err),
           });
           setIsSaving(false);
@@ -745,7 +747,7 @@ export const HomeAddAppointmentDrawer: React.FC<
         const patientForPayment = selectedPatient;
         const servicePrice = periodServicePrice;
         const firstRow = validServiceRows[0];
-        const serviceNameForPayment = allServicesOpts.find((s) => s.id === firstRow?.serviceId)?.name ?? "Услуга";
+        const serviceNameForPayment = allServicesOpts.find((s) => s.id === firstRow?.serviceId)?.name ?? t("details.service");
         const doctorNameForPayment = doctorsOpts.find((d) => d.id === firstRow?.doctorId)?.full_name
           ?? allDoctorsOpts.find((d) => d.id === firstRow?.doctorId)?.full_name
           ?? "";
@@ -767,7 +769,7 @@ export const HomeAddAppointmentDrawer: React.FC<
         onCreated?.();
         notify?.({
           type: "success",
-          message: `Запись на период создана (${lessonsCount} ${lessonsCount === 1 ? "занятие" : lessonsCount < 5 ? "занятия" : "занятий"})`,
+          message: t("addAppt.periodCreated", { count: lessonsCount }),
         });
 
         // Оплата — обычная, одним чеком на всю сумму.
@@ -814,13 +816,13 @@ export const HomeAddAppointmentDrawer: React.FC<
       if (appointmentMode === "group") {
         const firstRow = serviceRows[0];
         if (!firstRow?.doctorId || !firstRow?.serviceId) {
-          notify?.({ type: "error", message: "Выберите тренера и услугу" });
+          notify?.({ type: "error", message: t("addAppt.selectTrainerService") });
           setIsSaving(false);
           isSavingRef.current = false;
           return;
         }
         if (groupParticipants.length === 0) {
-          notify?.({ type: "error", message: "Добавьте хотя бы одного участника" });
+          notify?.({ type: "error", message: t("addAppt.addAtLeastOneParticipant") });
           setIsSaving(false);
           isSavingRef.current = false;
           return;
@@ -842,11 +844,11 @@ export const HomeAddAppointmentDrawer: React.FC<
             if (conflict) {
               const docName = doctorsOpts.find((d) => d.id === firstRow.doctorId)?.full_name
                 ?? allDoctorsOpts.find((d) => d.id === firstRow.doctorId)?.full_name
-                ?? "специалист";
+                ?? t("addAppt.specialistLower");
               notify?.({
                 type: "error",
-                message: "Конфликт расписания",
-                description: `${docName} уже занят в интервале ${conflict.start}-${conflict.end} (${date}). Выберите другое время.`,
+                message: t("addAppt.scheduleConflict"),
+                description: t("addAppt.busyIntervalDate", { name: docName, start: conflict.start, end: conflict.end, date }),
               });
               setIsSaving(false);
               isSavingRef.current = false;
@@ -873,7 +875,7 @@ export const HomeAddAppointmentDrawer: React.FC<
             const firstError = failed[0];
             notify?.({
               type: "error",
-              message: "Ошибка при создании групповых приёмов",
+              message: t("addAppt.groupCreateError"),
               description: firstError?.status === "rejected"
                 ? firstError.reason?.message || String(firstError.reason)
                 : undefined,
@@ -887,7 +889,7 @@ export const HomeAddAppointmentDrawer: React.FC<
             const firstError = failed[0];
             notify?.({
               type: "error",
-              message: `Создано ${succeeded} из ${results.length} групповых занятий`,
+              message: t("addAppt.groupCreatedPartial", { done: succeeded, total: results.length }),
               description: firstError?.status === "rejected"
                 ? firstError.reason?.message || String(firstError.reason)
                 : undefined,
@@ -906,7 +908,7 @@ export const HomeAddAppointmentDrawer: React.FC<
           handleClose();
           onCreated?.();
           if (failed.length === 0) {
-            notify?.({ type: "success", message: `Создано ${periodDates.length} групповых занятий!` });
+            notify?.({ type: "success", message: t("addAppt.groupCreatedAll", { count: periodDates.length }) });
           }
           return;
         }
@@ -922,11 +924,11 @@ export const HomeAddAppointmentDrawer: React.FC<
           if (conflict) {
             const docName = doctorsOpts.find((d) => d.id === firstRow.doctorId)?.full_name
               ?? allDoctorsOpts.find((d) => d.id === firstRow.doctorId)?.full_name
-              ?? "специалист";
+              ?? t("addAppt.specialistLower");
             notify?.({
               type: "error",
-              message: "Конфликт расписания",
-              description: `${docName} уже занят в интервале ${conflict.start}-${conflict.end}. Выберите другое время.`,
+              message: t("addAppt.scheduleConflict"),
+              description: t("addAppt.busyInterval", { name: docName, start: conflict.start, end: conflict.end }),
             });
             setIsSaving(false);
             isSavingRef.current = false;
@@ -944,7 +946,7 @@ export const HomeAddAppointmentDrawer: React.FC<
             patientNames: groupParticipants.map(p => p.fio ?? p.label ?? ""),
           });
         } catch (err: any) {
-          notify?.({ type: "error", message: "Ошибка при создании группового приёма", description: err?.message });
+          notify?.({ type: "error", message: t("addAppt.groupSingleCreateError"), description: err?.message });
           setIsSaving(false);
           isSavingRef.current = false;
           return;
@@ -957,7 +959,7 @@ export const HomeAddAppointmentDrawer: React.FC<
         setTouched(false);
         handleClose();
         onCreated?.();
-        notify?.({ type: "success", message: "Групповой приём создан!" });
+        notify?.({ type: "success", message: t("addAppt.groupSingleCreated") });
         return;
       }
 
@@ -1022,11 +1024,11 @@ export const HomeAddAppointmentDrawer: React.FC<
         if (conflict) {
           const docName = doctorsOpts.find((d) => d.id === conflict.doctorId)?.full_name
             ?? allDoctorsOpts.find((d) => d.id === conflict.doctorId)?.full_name
-            ?? "специалист";
+            ?? t("addAppt.specialistLower");
           notify?.({
             type: "error",
-            message: "Конфликт расписания",
-            description: `${docName} уже занят в интервале ${conflict.start}-${conflict.end}. Выберите другое время.`,
+            message: t("addAppt.scheduleConflict"),
+            description: t("addAppt.busyInterval", { name: docName, start: conflict.start, end: conflict.end }),
           });
           setIsSaving(false);
           isSavingRef.current = false;
@@ -1061,8 +1063,8 @@ export const HomeAddAppointmentDrawer: React.FC<
           dayAppointmentsCacheRef.current = {};
           notify?.({
             type: "error",
-            message: "Конфликт по времени",
-            description: "Это время уже занято у выбранного специалиста. Выберите другой слот.",
+            message: t("editAppt.timeConflict"),
+            description: t("editAppt.timeConflictDesc"),
           });
           setIsSaving(false);
           isSavingRef.current = false;
@@ -1070,7 +1072,7 @@ export const HomeAddAppointmentDrawer: React.FC<
         }
         notify?.({
           type: "error",
-          message: "Ошибка при создании приёма",
+          message: t("addAppt.appointmentCreateError"),
           description: err?.message || String(err),
         });
         setIsSaving(false);
@@ -1087,7 +1089,7 @@ export const HomeAddAppointmentDrawer: React.FC<
           ?? allDoctorsOpts.find((d) => d.id === row.doctorId)?.full_name
           ?? "";
         return {
-          name: svc?.name ?? "Услуга",
+          name: svc?.name ?? t("details.service"),
           price: Number(svc?.price ?? 0),
           quantity: 1,
           performer_name: docName,
@@ -1113,7 +1115,7 @@ export const HomeAddAppointmentDrawer: React.FC<
 
       notify?.({
         type: "success",
-        message: "Прием успешно создан!",
+        message: t("addAppt.appointmentCreated"),
       });
 
       // Авто-открытие окна оплаты сразу после создания (меньше кликов).
@@ -1151,7 +1153,7 @@ export const HomeAddAppointmentDrawer: React.FC<
           : undefined) ?? String(e);
       notify?.({
         type: "error",
-        message: "Ошибка при сохранении",
+        message: t("addAppt.saveError"),
         description: err,
       });
     } finally {
@@ -1213,23 +1215,23 @@ export const HomeAddAppointmentDrawer: React.FC<
   const isServiceListLoading = servicesLoading || (!!selectedDoctorId && doctorServicesLoading);
   const isDoctorServicesEmpty = Boolean(selectedDoctorId) && !doctorServicesLoading && serviceOptions.length === 0;
   const doctorNoOptionsText = doctorsLoading
-    ? "Загрузка тренеров..."
-    : "Нет доступных тренеров. Добавьте тренера в разделе сотрудников.";
+    ? t("addAppt.loadingTrainers")
+    : t("addAppt.noTrainers");
   const serviceNoOptionsText = isServiceListLoading
-    ? "Загрузка услуг..."
+    ? t("addAppt.loadingServices")
     : isDoctorServicesEmpty
       ? appointmentMode === "group"
-        ? "Для выбранного тренера нет групповых услуг."
-        : "Для выбранного тренера нет индивидуальных услуг."
+        ? t("addAppt.noGroupServicesForTrainer")
+        : t("addAppt.noSingleServicesForTrainer")
       : appointmentMode === "group"
-        ? "Нет доступных групповых услуг."
-        : "Нет доступных индивидуальных услуг.";
+        ? t("addAppt.noGroupServices")
+        : t("addAppt.noSingleServices");
   const serviceHelperText = touched && !serviceRows[0]?.serviceId
-    ? "Выберите услугу"
+    ? t("editAppt.selectService")
     : isDoctorServicesEmpty
       ? appointmentMode === "group"
-        ? "Для выбранного тренера нет групповых услуг."
-        : "Для выбранного тренера нет индивидуальных услуг."
+        ? t("addAppt.noGroupServicesForTrainer")
+        : t("addAppt.noSingleServicesForTrainer")
       : "";
 
   return (
@@ -1268,7 +1270,7 @@ export const HomeAddAppointmentDrawer: React.FC<
             py: 1,
           }}
         >
-          <Typography variant="h6">Добавить прием</Typography>
+          <Typography variant="h6">{t("home.addAppointment")}</Typography>
           <IconButton onClick={isSaving ? undefined : handleCloseButton}>
             <CloseOutlined />
           </IconButton>
@@ -1304,11 +1306,11 @@ export const HomeAddAppointmentDrawer: React.FC<
           >
             <ToggleButton value="single" sx={{ gap: 0.75 }}>
               <PersonOutlined fontSize="small" />
-              Обычный
+              {t("addAppt.single")}
             </ToggleButton>
             <ToggleButton value="group" sx={{ gap: 0.75 }}>
               <GroupsOutlined fontSize="small" />
-              Групповой
+              {t("addAppt.group")}
             </ToggleButton>
           </ToggleButtonGroup>
         </Box>
@@ -1337,10 +1339,10 @@ export const HomeAddAppointmentDrawer: React.FC<
                 },
               }}
             >
-              <ToggleButton value="once">Разовый</ToggleButton>
+              <ToggleButton value="once">{t("addAppt.once")}</ToggleButton>
               <ToggleButton value="period" sx={{ gap: 0.5 }}>
                 <CalendarMonthOutlined fontSize="small" />
-                На период
+                {t("addAppt.period")}
               </ToggleButton>
             </ToggleButtonGroup>
         </Box>
@@ -1371,7 +1373,7 @@ export const HomeAddAppointmentDrawer: React.FC<
           <Stack spacing={2}>
             {scheduleMode === "once" && (
             <CustomDateTimePicker
-              label="Дата и время *"
+              label={t("editAppt.dateTimeLabel")}
               value={visitDateTime ? dayjs(visitDateTime) : null}
               onChange={(val) => {
                 // Naive wall-clock без смещения: время трактуется как время филиала
@@ -1395,7 +1397,7 @@ export const HomeAddAppointmentDrawer: React.FC<
             {scheduleMode === "period" && (
               <Stack spacing={1.5}>
                 <Stack spacing={0.5}>
-                  <Typography variant="body2" color="text.secondary" fontWeight={500}>Дни недели</Typography>
+                  <Typography variant="body2" color="text.secondary" fontWeight={500}>{t("addAppt.weekdaysLabel")}</Typography>
                   <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
                     {WEEKDAYS.map((day) => (
                       <Chip
@@ -1424,7 +1426,7 @@ export const HomeAddAppointmentDrawer: React.FC<
                   }}
                 >
                   <Stack spacing={0.5} sx={{ minWidth: 0 }}>
-                    <Typography variant="body2" color="text.secondary" fontWeight={500}>Начало</Typography>
+                    <Typography variant="body2" color="text.secondary" fontWeight={500}>{t("addAppt.start")}</Typography>
                     <CustomDatePicker
                       value={periodStartDate ? dayjs(periodStartDate) : null}
                       // Бэк: приём задним числом — не более 5 календарных дней.
@@ -1438,7 +1440,7 @@ export const HomeAddAppointmentDrawer: React.FC<
                     />
                   </Stack>
                   <Stack spacing={0.5} sx={{ minWidth: 0 }}>
-                    <Typography variant="body2" color="text.secondary" fontWeight={500}>Конец</Typography>
+                    <Typography variant="body2" color="text.secondary" fontWeight={500}>{t("addAppt.end")}</Typography>
                     <CustomDatePicker
                       value={periodEndDate ? dayjs(periodEndDate) : null}
                       minDate={periodStartDate ? dayjs(periodStartDate) : undefined}
@@ -1458,14 +1460,14 @@ export const HomeAddAppointmentDrawer: React.FC<
                           error: Boolean(periodStartDate && periodEndDate && periodEndDate < periodStartDate),
                           helperText:
                             periodStartDate && periodEndDate && periodEndDate < periodStartDate
-                              ? "Конец периода раньше начала"
+                              ? t("addAppt.endBeforeStart")
                               : undefined,
                         },
                       }}
                     />
                   </Stack>
                   <Stack spacing={0.5} sx={{ minWidth: 0 }}>
-                    <Typography variant="body2" color="text.secondary" fontWeight={500}>Время</Typography>
+                    <Typography variant="body2" color="text.secondary" fontWeight={500}>{t("addAppt.time")}</Typography>
                     <CustomTimePicker
                       value={visitDateTime ? dayjs(visitDateTime) : null}
                       onChange={(val) => {
@@ -1483,7 +1485,7 @@ export const HomeAddAppointmentDrawer: React.FC<
                 {periodDates.length > 0 && (
                   <Box>
                     <Typography variant="caption" color="text.secondary">
-                      {periodDates.length} {periodDates.length === 1 ? "день" : periodDates.length < 5 ? "дня" : "дней"}:
+                      {t("addAppt.daysCount", { count: periodDates.length })}:
                     </Typography>
                     <Box sx={{ mt: 0.5, maxHeight: 120, overflowY: "auto", display: "flex", flexWrap: "wrap", gap: 0.5, p: 1, border: "1px solid", borderColor: "divider", borderRadius: 1 }}>
                       {periodDates.map((dateStr) => (
@@ -1493,12 +1495,12 @@ export const HomeAddAppointmentDrawer: React.FC<
                     {periodServicePrice !== null && (
                       <Box sx={{ mt: 1, px: 1.5, py: 0.75, bgcolor: "action.selected", borderRadius: 1, display: "inline-block" }}>
                         <Typography variant="body2" fontWeight={600} color="text.primary">
-                          Итого за период: {periodDates.length} × {periodServicePrice} = {periodDates.length * periodServicePrice} {suffix}
+                          {t("addAppt.periodTotal", { count: periodDates.length, price: periodServicePrice, total: periodDates.length * periodServicePrice })} {suffix}
                         </Typography>
                       </Box>
                     )}
                     <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.75 }}>
-                      Создаётся одна запись на {dayjs(visitDateTime || undefined).format("DD.MM.YYYY")} — оплата и чек на всю сумму в этот же день.
+                      {t("addAppt.oneRecordNote", { date: dayjs(visitDateTime || undefined).format("DD.MM.YYYY") })}
                     </Typography>
                   </Box>
                 )}
@@ -1507,7 +1509,7 @@ export const HomeAddAppointmentDrawer: React.FC<
             {/* ── ТРЕНЕР ── */}
             <Stack spacing={0.5}>
               <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
-                Тренер / Исполнитель *
+                {t("addAppt.trainerPerformer")}
               </Typography>
               <AppAutocomplete
                 fullWidth
@@ -1546,11 +1548,11 @@ export const HomeAddAppointmentDrawer: React.FC<
                 renderInput={(params) => (
                   <TextField
                     {...params}
-                    placeholder="Выберите тренера"
+                    placeholder={t("group.selectTrainer")}
                     size="small"
                     fullWidth
                     error={touched && !serviceRows[0]?.doctorId}
-                    helperText={touched && !serviceRows[0]?.doctorId ? "Выберите тренера" : ""}
+                    helperText={touched && !serviceRows[0]?.doctorId ? t("group.selectTrainer") : ""}
                   />
                 )}
               />
@@ -1559,7 +1561,7 @@ export const HomeAddAppointmentDrawer: React.FC<
             {/* ── УСЛУГА ── */}
             <Stack spacing={0.5}>
               <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
-                Услуга *
+                {t("details.service")} *
               </Typography>
               <AppAutocomplete
                 fullWidth
@@ -1605,7 +1607,7 @@ export const HomeAddAppointmentDrawer: React.FC<
                 renderInput={(params) => (
                   <TextField
                     {...params}
-                    placeholder="Выберите услугу"
+                    placeholder={t("editAppt.selectService")}
                     size="small"
                     fullWidth
                     error={touched && !serviceRows[0]?.serviceId}
@@ -1620,11 +1622,11 @@ export const HomeAddAppointmentDrawer: React.FC<
               <Stack spacing={0.5}>
                 <Stack direction="row" justifyContent="space-between" alignItems="center">
                   <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
-                    Клиент *
+                    {t("home.client")} *
                   </Typography>
                   {canReception && (
                     <Button size="small" onClick={() => setIsPatientDrawerOpen(true)}>
-                      + Новый клиент
+                      {t("addAppt.newClient")}
                     </Button>
                   )}
                 </Stack>
@@ -1642,7 +1644,7 @@ export const HomeAddAppointmentDrawer: React.FC<
                         size="small"
                       />
                     }
-                    label={<Typography variant="body2">Бронирование (без клиента)</Typography>}
+                    label={<Typography variant="body2">{t("editAppt.booking")}</Typography>}
                   />
                 </Box>
 
@@ -1656,7 +1658,7 @@ export const HomeAddAppointmentDrawer: React.FC<
                   getOptionLabel={(o: PatientOption) => {
                     const fio = o["ФИО клиента"] ?? o.fio ?? "";
                     const phone = o["Телефон"] ?? o.phone ?? "";
-                    return `${fio || "Нет ФИО"} — ${phone || "Нет телефона"}`;
+                    return `${fio || t("editAppt.noFio")} — ${phone || t("editAppt.noPhone")}`;
                   }}
                   filterOptions={(x) => x}
                   isOptionEqualToValue={(o, v) => o.id === (v?.id || "")}
@@ -1664,7 +1666,7 @@ export const HomeAddAppointmentDrawer: React.FC<
                     const { key, ...optionProps } = props;
                     const fio = option["ФИО клиента"] ?? option.fio ?? "";
                     const phone = option["Телефон"] ?? option.phone ?? "";
-                    return <li key={key} {...optionProps}>{`${fio || "Нет ФИО"} — ${phone || "Нет телефона"}`}</li>;
+                    return <li key={key} {...optionProps}>{`${fio || t("editAppt.noFio")} — ${phone || t("editAppt.noPhone")}`}</li>;
                   }}
                   openOnFocus
                   blurOnSelect="touch"
@@ -1681,11 +1683,11 @@ export const HomeAddAppointmentDrawer: React.FC<
                   renderInput={(params) => (
                     <TextField
                       {...params}
-                      placeholder="Поиск по ФИО или телефону"
+                      placeholder={t("editAppt.searchByFioPhone")}
                       fullWidth
                       size="small"
                       error={touched && !isBooking && !selectedPatient}
-                      helperText={touched && !isBooking && !selectedPatient ? "Выберите клиента" : ""}
+                      helperText={touched && !isBooking && !selectedPatient ? t("editAppt.selectClient") : ""}
                     />
                   )}
                 />
@@ -1694,10 +1696,10 @@ export const HomeAddAppointmentDrawer: React.FC<
                 {(selectedPatient || isBooking) && (
                   <Stack spacing={0.5} sx={{ mt: 1 }}>
                     <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
-                      Комментарий администратора
+                      {t("payment.adminComment")}
                     </Typography>
                     <TextField
-                      placeholder="Комментарий (необязательно)"
+                      placeholder={t("addAppt.commentOptional")}
                       value={adminComment}
                       onChange={(e) => setAdminComment(e.target.value)}
                       fullWidth
@@ -1723,15 +1725,15 @@ export const HomeAddAppointmentDrawer: React.FC<
                 <Stack spacing={0.75}>
                   <Stack direction="row" alignItems="center" justifyContent="space-between">
                     <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
-                      Клиенты *
+                      {t("addAppt.clientsRequired")}
                     </Typography>
                     {maxParts != null && (
                       <Typography
                         variant="caption"
                         sx={{ fontWeight: 600, color: isFull ? "primary.main" : "text.secondary" }}
                       >
-                        {groupParticipants.length}/{maxParts} уч.
-                        {isFull && " — достигнут лимит"}
+                        {t("group.participantsCount", { count: groupParticipants.length, max: maxParts })}
+                        {isFull && t("addAppt.limitReachedSuffix")}
                       </Typography>
                     )}
                   </Stack>
@@ -1747,17 +1749,17 @@ export const HomeAddAppointmentDrawer: React.FC<
                         getOptionLabel={(o: PatientOption) => {
                           const fio = o["ФИО клиента"] ?? o.fio ?? "";
                           const phone = o["Телефон"] ?? o.phone ?? "";
-                          return `${fio || "Нет ФИО"} — ${phone || "Нет телефона"}`;
+                          return `${fio || t("editAppt.noFio")} — ${phone || t("editAppt.noPhone")}`;
                         }}
                         filterOptions={(x) => x}
                         isOptionEqualToValue={(o, v) => o.id === v.id}
                         loading={groupPatientLoading}
-                        noOptionsText="Введите имя клиента"
+                        noOptionsText={t("addAppt.enterClientName")}
                         renderOption={(props, option) => {
                           const { key, ...optionProps } = props;
                           const fio = option["ФИО клиента"] ?? option.fio ?? "";
                           const phone = option["Телефон"] ?? option.phone ?? "";
-                          return <li key={key} {...optionProps}>{`${fio || "Нет ФИО"} — ${phone || "Нет телефона"}`}</li>;
+                          return <li key={key} {...optionProps}>{`${fio || t("editAppt.noFio")} — ${phone || t("editAppt.noPhone")}`}</li>;
                         }}
                         openOnFocus
                         blurOnSelect="touch"
@@ -1775,7 +1777,7 @@ export const HomeAddAppointmentDrawer: React.FC<
                           <TextField
                             {...params}
                             size="small"
-                            placeholder="Поиск клиента..."
+                            placeholder={t("group.searchClient")}
                             InputProps={{
                               ...params.InputProps,
                               endAdornment: (
@@ -1802,11 +1804,11 @@ export const HomeAddAppointmentDrawer: React.FC<
                           }}
                           sx={{ whiteSpace: "nowrap" }}
                         >
-                          Добавить
+                          {t("common.add")}
                         </Button>
                         {groupPatientInput && groupParticipants.some(p => p.id === groupPatientInput?.id) && (
                           <Typography variant="caption" color="warning.main" sx={{ whiteSpace: "nowrap", fontSize: "0.7rem" }}>
-                            Уже добавлен
+                            {t("addAppt.alreadyAdded")}
                           </Typography>
                         )}
                       </Stack>
@@ -1815,7 +1817,7 @@ export const HomeAddAppointmentDrawer: React.FC<
 
                   {isFull && (
                     <Typography variant="body2" color="primary.main" sx={{ fontWeight: 500 }}>
-                      Для услуги «{selectedSvc?.name}» уже набрано максимальное количество клиентов ({maxParts})
+                      {t("addAppt.maxClientsReached", { name: selectedSvc?.name, max: maxParts })}
                     </Typography>
                   )}
 
@@ -1862,7 +1864,7 @@ export const HomeAddAppointmentDrawer: React.FC<
                   )}
 
                   {touched && groupParticipants.length === 0 && (
-                    <Typography variant="caption" color="error">Добавьте хотя бы одного клиента</Typography>
+                    <Typography variant="caption" color="error">{t("addAppt.addAtLeastOneClient")}</Typography>
                   )}
                 </Stack>
               );
@@ -1881,7 +1883,7 @@ export const HomeAddAppointmentDrawer: React.FC<
         >
           <Stack direction="row" gap={1} justifyContent="flex-end">
             <Button variant="text" onClick={handleClose}>
-              Отмена
+              {t("common.cancel")}
             </Button>
             <Button
               variant="contained"
@@ -1907,12 +1909,12 @@ export const HomeAddAppointmentDrawer: React.FC<
               onClick={handleSave}
             >
               {isSaving
-                ? "Создание..."
+                ? t("addAppt.creating")
                 : scheduleMode === "period"
-                  ? `Записать на ${periodDates.length} ${periodDates.length === 1 ? "день" : periodDates.length < 5 ? "дня" : "дней"}`
+                  ? t("addAppt.bookForDays", { count: periodDates.length })
                   : appointmentMode === "group"
-                    ? "Добавить занятие"
-                    : "Добавить прием"}
+                    ? t("addAppt.addLesson")
+                    : t("home.addAppointment")}
             </Button>
           </Stack>
         </Box>

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
     Dialog,
     DialogTitle,
@@ -29,6 +30,7 @@ interface DailyLessonsDialogProps {
 }
 
 const DailyLessonsDialog: React.FC<DailyLessonsDialogProps> = ({ open, onClose, initialDate }) => {
+    const { t } = useTranslation();
     const { branch } = useReportBranchScope();
     const { suffix: currencySuffix } = useReportCurrency();
     const brandName = branch?.brandName || branch?.name || "Academy KG";
@@ -46,15 +48,15 @@ const DailyLessonsDialog: React.FC<DailyLessonsDialogProps> = ({ open, onClose, 
 
     const handleGenerate = async () => {
         if (!branch?.id) {
-            setError("Выберите конкретный филиал (не «Все филиалы») — отчёт строится по филиалу.");
+            setError(t("salaryReports.selectSpecificBranchReport"));
             return;
         }
         if (!date || !dayjs(date).isValid()) {
-            setError("Укажите дату отчёта.");
+            setError(t("salaryReports.specifyReportDate"));
             return;
         }
         if (dayjs(date).isAfter(dayjs(), "day")) {
-            setError("Дата в будущем — отчёт доступен по сегодняшний день включительно.");
+            setError(t("salaryReports.futureDateReportError"));
             return;
         }
         setLoading(true);
@@ -82,9 +84,9 @@ const DailyLessonsDialog: React.FC<DailyLessonsDialogProps> = ({ open, onClose, 
             // Ендпоинт может быть ещё не реализован бэком (404).
             const status = e?.status ?? e?.response?.status;
             if (status === 404) {
-                setError("Ендпоинт отчёта ещё не реализован на бэкенде (см. docs/backend-requests-2026-06-15.md).");
+                setError(t("salaryReports.endpointNotImplemented"));
             } else {
-                setError(e?.message || "Не удалось сформировать отчёт «Занятия за день».");
+                setError(e?.message || t("salaryReports.lessonsGenerationError"));
             }
         } finally {
             setLoading(false);
@@ -95,10 +97,10 @@ const DailyLessonsDialog: React.FC<DailyLessonsDialogProps> = ({ open, onClose, 
         <Dialog open={open} onClose={loading ? undefined : onClose} maxWidth="sm" fullWidth>
             <DialogTitle sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", pr: 1 }}>
                 <Box>
-                    <Typography variant="subtitle1" fontWeight={800}>Занятия за день</Typography>
+                    <Typography variant="subtitle1" fontWeight={800}>{t("salaryReports.dailyLessons")}</Typography>
                     <Typography variant="caption" color="text.secondary">{brandName}</Typography>
                 </Box>
-                <IconButton onClick={onClose} size="small" disabled={loading} aria-label="Закрыть">
+                <IconButton onClick={onClose} size="small" disabled={loading} aria-label={t("common.close")}>
                     <CloseIcon fontSize="small" />
                 </IconButton>
             </DialogTitle>
@@ -106,11 +108,11 @@ const DailyLessonsDialog: React.FC<DailyLessonsDialogProps> = ({ open, onClose, 
             <DialogContent dividers>
                 <Stack spacing={2}>
                     <Typography variant="body2" color="text.secondary">
-                        Детализация занятий за выбранный день по услугам + блок АФК. В отчёт входят только оплаченные занятия.
+                        {t("salaryReports.lessonsHint")}
                     </Typography>
 
                     <TextField
-                        label="Дата"
+                        label={t("reports.date")}
                         type="date"
                         value={date}
                         onChange={(e) => setDate(e.target.value)}
@@ -131,14 +133,14 @@ const DailyLessonsDialog: React.FC<DailyLessonsDialogProps> = ({ open, onClose, 
 
             <DialogActions sx={{ px: 3, py: 2, justifyContent: "flex-end" }}>
                 <Stack direction="row" spacing={1}>
-                    <Button onClick={onClose} disabled={loading}>Отмена</Button>
+                    <Button onClick={onClose} disabled={loading}>{t("common.cancel")}</Button>
                     <Button
                         variant="contained"
                         onClick={handleGenerate}
                         disabled={loading}
                         startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <FileDownloadIcon />}
                     >
-                        Сформировать PDF
+                        {t("salaryReports.generatePdf")}
                     </Button>
                 </Stack>
             </DialogActions>

@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import {
   Box,
   Paper,
@@ -62,6 +63,7 @@ type BranchDialogProps = {
 const BranchDialog: React.FC<BranchDialogProps> = ({
   open, initial, organizations, busy, onClose, onSubmit,
 }) => {
+  const { t } = useTranslation();
   const [name, setName] = React.useState("");
   const [address, setAddress] = React.useState("");
   const [orgId, setOrgId] = React.useState("");
@@ -84,9 +86,9 @@ const BranchDialog: React.FC<BranchDialogProps> = ({
 
   const handleSubmit = () => {
     let valid = true;
-    if (!name.trim()) { setNameError("Введите название филиала"); valid = false; }
+    if (!name.trim()) { setNameError(t("branches.enterBranchName")); valid = false; }
     else setNameError("");
-    if (!orgId) { setOrgError("Выберите организацию"); valid = false; }
+    if (!orgId) { setOrgError(t("branches.selectOrganization")); valid = false; }
     else setOrgError("");
     if (!valid) return;
     onSubmit({ name: name.trim(), address: address.trim(), organization: orgId, currency, timezone });
@@ -94,12 +96,12 @@ const BranchDialog: React.FC<BranchDialogProps> = ({
 
   return (
     <Dialog open={open} onClose={busy ? undefined : onClose} maxWidth="xs" fullWidth>
-      <DialogTitle>{initial ? "Редактировать филиал" : "Новый филиал"}</DialogTitle>
+      <DialogTitle>{initial ? t("branches.editBranch") : t("branches.newBranch")}</DialogTitle>
       <Divider />
       <DialogContent sx={{ pt: 2 }}>
         <Stack spacing={2}>
           <TextField
-            label="Название *"
+            label={t("categories.nameRequired")}
             value={name}
             onChange={(e) => { setName(e.target.value); setNameError(""); }}
             fullWidth
@@ -109,11 +111,11 @@ const BranchDialog: React.FC<BranchDialogProps> = ({
             onKeyDown={(e) => { if (e.key === "Enter") handleSubmit(); }}
           />
           <TextField
-            label="Адрес"
+            label={t("branches.address")}
             value={address}
             onChange={(e) => setAddress(e.target.value)}
             fullWidth
-            placeholder="ул. Примерная, 1"
+            placeholder={t("branches.addressPlaceholder")}
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
@@ -124,7 +126,7 @@ const BranchDialog: React.FC<BranchDialogProps> = ({
           />
           <TextField
             select
-            label="Организация *"
+            label={t("branches.organizationRequired")}
             value={orgId}
             onChange={(e) => { setOrgId(e.target.value); setOrgError(""); }}
             fullWidth
@@ -137,14 +139,14 @@ const BranchDialog: React.FC<BranchDialogProps> = ({
           </TextField>
           <TextField
             select
-            label="Валюта"
+            label={t("branches.currency")}
             value={currency}
             onChange={(e) => setCurrency(e.target.value)}
             fullWidth
-            helperText="Все суммы филиала показываются в этой валюте (без пересчёта по курсу)"
+            helperText={t("branches.currencyHint")}
           >
             {CURRENCY_OPTIONS.map((c) => (
-              <MenuItem key={c.code} value={c.code}>{c.label}</MenuItem>
+              <MenuItem key={c.code} value={c.code}>{t(`branches.currencyOptions.${c.code}`, { defaultValue: c.label })}</MenuItem>
             ))}
             {!CURRENCY_OPTIONS.some((c) => c.code === currency) && currency && (
               <MenuItem value={currency}>{currency}</MenuItem>
@@ -152,14 +154,14 @@ const BranchDialog: React.FC<BranchDialogProps> = ({
           </TextField>
           <TextField
             select
-            label="Таймзона"
+            label={t("branches.timezone")}
             value={timezone}
             onChange={(e) => setTimezone(e.target.value)}
             fullWidth
-            helperText="Время приёмов и границы суток в отчётах — по этой таймзоне"
+            helperText={t("branches.timezoneHint")}
           >
             {BRANCH_TIMEZONE_OPTIONS.map((tz) => (
-              <MenuItem key={tz.value} value={tz.value}>{tz.label}</MenuItem>
+              <MenuItem key={tz.value} value={tz.value}>{t(`branches.timezoneOptions.${tz.value}`, { defaultValue: tz.label })}</MenuItem>
             ))}
             {!BRANCH_TIMEZONE_OPTIONS.some((tz) => tz.value === timezone) && timezone && (
               <MenuItem value={timezone}>{timezone}</MenuItem>
@@ -168,14 +170,14 @@ const BranchDialog: React.FC<BranchDialogProps> = ({
         </Stack>
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 2 }}>
-        <Button onClick={onClose} disabled={busy}>Отмена</Button>
+        <Button onClick={onClose} disabled={busy}>{t("common.cancel")}</Button>
         <Button
           variant="contained"
           onClick={handleSubmit}
           disabled={busy || !name.trim() || !orgId}
           startIcon={busy ? <CircularProgress size={16} /> : undefined}
         >
-          {initial ? "Сохранить" : "Создать"}
+          {initial ? t("common.save") : t("employees.createButton")}
         </Button>
       </DialogActions>
     </Dialog>
@@ -191,33 +193,36 @@ type DeleteDialogProps = {
   onConfirm: () => void;
 };
 
-const DeleteDialog: React.FC<DeleteDialogProps> = ({ open, name, busy, onClose, onConfirm }) => (
-  <Dialog open={open} onClose={busy ? undefined : onClose} maxWidth="xs" fullWidth>
-    <DialogTitle>Удалить филиал?</DialogTitle>
-    <DialogContent>
-      <Typography variant="body2">
-        Вы уверены, что хотите удалить филиал <b>«{name}»</b>?
-        Это действие нельзя отменить.
-      </Typography>
-    </DialogContent>
-    <DialogActions>
-      <Button onClick={onClose} disabled={busy}>Отмена</Button>
-      <Button
-        variant="contained"
-        color="error"
-        onClick={onConfirm}
-        disabled={busy}
-        startIcon={busy ? <CircularProgress size={16} /> : <DeleteOutlined />}
-      >
-        Удалить
-      </Button>
-    </DialogActions>
-  </Dialog>
-);
+const DeleteDialog: React.FC<DeleteDialogProps> = ({ open, name, busy, onClose, onConfirm }) => {
+  const { t } = useTranslation();
+  return (
+    <Dialog open={open} onClose={busy ? undefined : onClose} maxWidth="xs" fullWidth>
+      <DialogTitle>{t("branches.deleteBranchTitle")}</DialogTitle>
+      <DialogContent>
+        <Typography variant="body2">
+          {t("branches.deleteBranchConfirmPrefix")} <b>«{name}»</b>? {t("branches.deleteBranchConfirmSuffix")}
+        </Typography>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose} disabled={busy}>{t("common.cancel")}</Button>
+        <Button
+          variant="contained"
+          color="error"
+          onClick={onConfirm}
+          disabled={busy}
+          startIcon={busy ? <CircularProgress size={16} /> : <DeleteOutlined />}
+        >
+          {t("common.delete")}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+};
 
 // ── Основная страница управления филиалами ────────────────────────────────
 const BranchManagePage: React.FC = () => {
-  usePageTitle("Управление филиалами");
+  const { t } = useTranslation();
+  usePageTitle(t("menu.branches"));
   const { open: notify } = useNotification();
   const theme = useTheme();
   const isTabletLayout = useMediaQuery(theme.breakpoints.down(900));
@@ -257,11 +262,11 @@ const BranchManagePage: React.FC = () => {
         createdAt: b.createdAt ?? "",
       })));
     } catch {
-      notify?.({ type: "error", message: "Не удалось загрузить филиалы" });
+      notify?.({ type: "error", message: t("branches.loadError") });
     } finally {
       setLoading(false);
     }
-  }, [notify]);
+  }, [notify, t]);
 
   React.useEffect(() => { load(); }, [load]);
 
@@ -272,11 +277,11 @@ const BranchManagePage: React.FC = () => {
         method: "POST",
         body: JSON.stringify(data),
       });
-      notify?.({ type: "success", message: "Филиал создан" });
+      notify?.({ type: "success", message: t("branches.branchCreated") });
       setFormOpen(false);
       await load();
     } catch (e) {
-      notify?.({ type: "error", message: "Не удалось создать филиал", description: e instanceof Error ? e.message : String(e) });
+      notify?.({ type: "error", message: t("branches.createError"), description: e instanceof Error ? e.message : String(e) });
     } finally {
       setFormBusy(false);
     }
@@ -290,12 +295,12 @@ const BranchManagePage: React.FC = () => {
         method: "PATCH",
         body: JSON.stringify(data),
       });
-      notify?.({ type: "success", message: "Филиал обновлён" });
+      notify?.({ type: "success", message: t("branches.branchUpdated") });
       setFormOpen(false);
       setEditTarget(null);
       await load();
     } catch (e) {
-      notify?.({ type: "error", message: "Не удалось обновить филиал", description: e instanceof Error ? e.message : String(e) });
+      notify?.({ type: "error", message: t("branches.updateError"), description: e instanceof Error ? e.message : String(e) });
     } finally {
       setFormBusy(false);
     }
@@ -306,11 +311,11 @@ const BranchManagePage: React.FC = () => {
     try {
       setDeleteBusy(true);
       await apiFetch(`/api/v1/branches/${deleteTarget.id}/`, { method: "DELETE" });
-      notify?.({ type: "success", message: "Филиал удалён" });
+      notify?.({ type: "success", message: t("branches.branchDeleted") });
       setDeleteTarget(null);
       await load();
     } catch (e) {
-      notify?.({ type: "error", message: "Не удалось удалить филиал", description: e instanceof Error ? e.message : String(e) });
+      notify?.({ type: "error", message: t("branches.deleteError"), description: e instanceof Error ? e.message : String(e) });
     } finally {
       setDeleteBusy(false);
     }
@@ -336,13 +341,13 @@ const BranchManagePage: React.FC = () => {
       }}
     >
       <PageHeader
-        title="Управление филиалами"
+        title={t("menu.branches")}
         showTitle={!isTabletLayout}
         showSearch={!isTabletLayout}
         searchVal={search}
         onSearchChange={setSearch}
-        searchPlaceholder="Поиск филиала..."
-        addButtonText="Добавить филиал"
+        searchPlaceholder={t("branches.searchPlaceholder")}
+        addButtonText={t("branches.addBranch")}
         onAdd={!isTabletLayout ? () => { setEditTarget(null); setFormOpen(true); } : undefined}
       />
 
@@ -395,9 +400,9 @@ const BranchManagePage: React.FC = () => {
                     <BusinessOutlined fontSize="small" />
                   </Box>
                   <Stack spacing={0.75} minWidth={0}>
-                    <Typography variant="h6" fontWeight={700}>Управление филиалами</Typography>
+                    <Typography variant="h6" fontWeight={700}>{t("menu.branches")}</Typography>
                     <Typography variant="body2" color="text.secondary">
-                      Создавайте филиалы, редактируйте адреса и распределяйте их по организациям.
+                      {t("branches.manageHint")}
                     </Typography>
                   </Stack>
                   {!loading && (
@@ -417,7 +422,7 @@ const BranchManagePage: React.FC = () => {
                 >
                   <TextField
                     size="small"
-                    placeholder="Поиск филиала..."
+                    placeholder={t("branches.searchPlaceholder")}
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                     InputProps={{
@@ -446,7 +451,7 @@ const BranchManagePage: React.FC = () => {
                       alignSelf: isTabletLayout ? "stretch" : "flex-start",
                     }}
                   >
-                    {isCompactLayout ? "Добавить филиал" : "Добавить"}
+                    {isCompactLayout ? t("branches.addBranch") : t("common.add")}
                   </Button>
                 </Stack>
               </Stack>
@@ -463,11 +468,11 @@ const BranchManagePage: React.FC = () => {
               <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", p: 6, gap: 1 }}>
                 <BusinessOutlined sx={{ fontSize: 48, color: "text.disabled" }} />
                 <Typography variant="body1" color="text.secondary">
-                  {search ? "Филиалы не найдены" : "Филиалов пока нет"}
+                  {search ? t("branches.branchesNotFound") : t("branches.noBranchesYet")}
                 </Typography>
                 {!search && (
                   <Button variant="outlined" startIcon={<AddOutlined />} onClick={() => { setEditTarget(null); setFormOpen(true); }} sx={{ mt: 1 }}>
-                    Создать первый филиал
+                    {t("branches.createFirstBranch")}
                   </Button>
                 )}
               </Box>
@@ -520,7 +525,7 @@ const BranchManagePage: React.FC = () => {
                         justifyContent={{ xs: "flex-end", sm: "flex-start" }}
                         sx={{ ml: { sm: "auto" } }}
                       >
-                        <Tooltip title="Редактировать">
+                        <Tooltip title={t("common.edit")}>
                           <IconButton
                             size="small"
                             onClick={() => { setEditTarget(branch); setFormOpen(true); }}
@@ -528,7 +533,7 @@ const BranchManagePage: React.FC = () => {
                             <EditOutlined fontSize="small" />
                           </IconButton>
                         </Tooltip>
-                        <Tooltip title="Удалить">
+                        <Tooltip title={t("common.delete")}>
                           <IconButton
                             size="small"
                             color="error"

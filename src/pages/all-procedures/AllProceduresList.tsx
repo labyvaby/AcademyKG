@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import {
     Box,
     Paper,
@@ -32,14 +33,10 @@ import { fetchMedicalStaff } from "../../services/employees";
 import { EmployeesRow } from "../expenses/types";
 import dayjs from "dayjs";
 
-// Names for months in Russian
-const MONTH_NAMES = [
-    "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
-    "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"
-];
-
 export const AllProceduresList: React.FC = () => {
-    usePageTitle("Все процедуры");
+    const { t } = useTranslation();
+    const MONTH_NAMES = t("common.months", { returnObjects: true }) as string[];
+    usePageTitle(t("allProcedures.title"));
     const { hasPermission, hasRole, employeeId } = usePermissions();
     const isSpecialist = hasRole('specialist');
     const canViewAll = hasPermission(PERMISSIONS.APPOINTMENTS_READ) && !isSpecialist;
@@ -183,9 +180,9 @@ export const AllProceduresList: React.FC = () => {
             return Array.from(docNames).filter(n => validNames.has(n));
         }
 
-        if (docNames.size === 0) docNames.add("Неизвестно");
+        if (docNames.size === 0) docNames.add(t("allProcedures.unknown"));
         return Array.from(docNames);
-    }, [doctors]);
+    }, [doctors, t]);
 
     // 4. Group by Employee -> Day (for hierarchy in Left Panel)
     const groupedByEmployee = React.useMemo(() => {
@@ -284,12 +281,12 @@ export const AllProceduresList: React.FC = () => {
             }}
         >
             <PageHeader
-                title="Все процедуры"
+                title={t("allProcedures.title")}
                 showTitle={false}
                 showSearch
                 searchVal={searchQuery}
                 onSearchChange={setSearchQuery}
-                searchPlaceholder="Поиск пациента, процедуры..."
+                searchPlaceholder={t("allProcedures.searchPlaceholder")}
             >
             </PageHeader>
 
@@ -336,7 +333,7 @@ export const AllProceduresList: React.FC = () => {
                                 sx={{ height: { xs: "auto", md: "100%" }, overflow: "hidden", display: "flex", flexDirection: "column" }}
                             >
                                 <Box sx={{ p: 1.5, borderBottom: 1, borderColor: "divider", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                                    <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>Период</Typography>
+                                    <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>{t("allProcedures.period")}</Typography>
                                     <Button
                                         size="small"
                                         onClick={() => {
@@ -348,14 +345,14 @@ export const AllProceduresList: React.FC = () => {
                                         }}
                                         sx={{ textTransform: 'none' }}
                                     >
-                                        Сброс
+                                        {t("common.reset")}
                                     </Button>
                                 </Box>
 
                                 <Box sx={{ overflowY: "auto", flex: 1, p: 2 }}>
                                     <Stack spacing={2}>
                                         <Stack spacing={0.5}>
-                                            <Typography variant="caption" color="text.secondary" fontWeight={600}>Год</Typography>
+                                            <Typography variant="caption" color="text.secondary" fontWeight={600}>{t("allAppointments.year")}</Typography>
                                             <TextField
                                                 select
                                                 size="small"
@@ -369,14 +366,14 @@ export const AllProceduresList: React.FC = () => {
                                                 }}
                                                 SelectProps={{ displayEmpty: true }}
                                             >
-                                                <MenuItem value=""><Typography variant="body2" color="text.secondary">Все годы</Typography></MenuItem>
+                                                <MenuItem value=""><Typography variant="body2" color="text.secondary">{t("allAppointments.allYears")}</Typography></MenuItem>
                                                 {availableYears.map(y => <MenuItem key={y} value={y}>{y}</MenuItem>)}
                                             </TextField>
                                         </Stack>
 
                                         {selectedYear && (
                                             <Stack spacing={0.5}>
-                                                <Typography variant="caption" color="text.secondary" fontWeight={600}>Месяц</Typography>
+                                                <Typography variant="caption" color="text.secondary" fontWeight={600}>{t("allAppointments.month")}</Typography>
                                                 <TextField
                                                     select
                                                     size="small"
@@ -390,7 +387,7 @@ export const AllProceduresList: React.FC = () => {
                                                     SelectProps={{ displayEmpty: true }}
                                                     disabled={availableMonths.length === 0}
                                                 >
-                                                    <MenuItem value=""><Typography variant="body2" color="text.secondary">Все месяцы</Typography></MenuItem>
+                                                    <MenuItem value=""><Typography variant="body2" color="text.secondary">{t("allAppointments.allMonths")}</Typography></MenuItem>
                                                     {availableMonths.map(m => (
                                                         <MenuItem key={m.value} value={m.value}>{MONTH_NAMES[m.monthIndex]}</MenuItem>
                                                     ))}
@@ -400,7 +397,7 @@ export const AllProceduresList: React.FC = () => {
 
                                         {selectedMonth && (
                                             <Stack spacing={0.5}>
-                                                <Typography variant="caption" color="text.secondary" fontWeight={600}>Сотрудники</Typography>
+                                                <Typography variant="caption" color="text.secondary" fontWeight={600}>{t("allAppointments.employees")}</Typography>
                                                 <List dense sx={{ py: 0 }}>
                                                     {groupedByEmployee.map(emp => {
                                                         const isExpanded = expandedEmployee === emp.employeeName;
@@ -485,13 +482,13 @@ export const AllProceduresList: React.FC = () => {
                             >
                                 <Box sx={{ p: 1.5, borderBottom: 1, borderColor: "divider" }}>
                                     <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-                                        Список процедур ({displayList.length})
+                                        {t("allProcedures.proceduresList", { count: displayList.length })}
                                     </Typography>
                                 </Box>
                                 <Box sx={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
                                     <Box sx={{ flex: 1, overflowY: 'auto' }}>
                                         <AppointmentsList
-                                            titleDate={selectedDate ? formatDateRu(selectedDate) : "Выбранный период"}
+                                            titleDate={selectedDate ? formatDateRu(selectedDate) : t("allAppointments.selectedPeriod")}
                                             loading={loading}
                                             errorMsg={null}
                                             items={displayList}

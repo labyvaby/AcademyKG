@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import {
     Box,
     Paper,
@@ -38,14 +39,10 @@ import { EmployeesRow } from "../expenses/types";
 import dayjs from "dayjs";
 import type { AppointmentGroup } from "../../features/group-appointments/model/types";
 
-// Names for months in Russian
-const MONTH_NAMES = [
-    "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
-    "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"
-];
-
 export const AllAppointmentsList: React.FC = () => {
-    usePageTitle("Все услуги");
+    const { t } = useTranslation();
+    const MONTH_NAMES = t("common.months", { returnObjects: true }) as string[];
+    usePageTitle(t("menu.allServices"));
     const { hasPermission, hasRole, employeeId, employee } = usePermissions();
     const isSpecialist = hasRole('specialist');
     const canViewAll = hasPermission(PERMISSIONS.APPOINTMENTS_READ) && !isSpecialist;
@@ -247,8 +244,12 @@ export const AllAppointmentsList: React.FC = () => {
             .map(([value, monthIndex]) => ({ value, monthIndex }));
     }, [selectedYear, activeMonthsSet]);
 
+    const noSpecialistLabel = t("allAppointments.noSpecialist");
+    const noServiceLabel = t("allAppointments.noService");
+    const noServiceNameLabel = t("allAppointments.noServiceName");
+
     const isDoctorInvolved = React.useCallback((h: Appointment, doctorName: string) => {
-        if (doctorName === "Без специалиста") {
+        if (doctorName === noSpecialistLabel) {
             const noMain = !h.doctor_name;
             const noServices = !h.parsed_services || h.parsed_services.length === 0 || h.parsed_services.every((s: any) => !s.performer_name && !s.doctor_name);
             if (noMain && noServices) return true;
@@ -260,7 +261,7 @@ export const AllAppointmentsList: React.FC = () => {
             return services.some((s: any) => s.performer_name === doctorName || s.doctor_name === doctorName);
         }
         return false;
-    }, []);
+    }, [noSpecialistLabel]);
 
     const getInvolvedDoctors = React.useCallback((h: Appointment, doctorsList: EmployeesRow[]) => {
         const docNames = new Set<string>();
@@ -288,9 +289,9 @@ export const AllAppointmentsList: React.FC = () => {
             }
         }
 
-        if (docNames.size === 0) docNames.add("Без специалиста");
+        if (docNames.size === 0) docNames.add(noSpecialistLabel);
         return Array.from(docNames);
-    }, []);
+    }, [noSpecialistLabel]);
 
     // 4. Group by Employee -> Day (for hierarchy in Left Panel)
     const groupedByEmployee = React.useMemo(() => {
@@ -332,16 +333,16 @@ export const AllAppointmentsList: React.FC = () => {
 
             if (services.length === 0) {
                 // Fallback: use doctor_name + service_names string
-                const empName = h.doctor_name || "Без специалиста";
-                const svcName = h.service_names || "Без услуги";
+                const empName = h.doctor_name || noSpecialistLabel;
+                const svcName = h.service_names || noServiceLabel;
                 if (!empMap.has(empName)) empMap.set(empName, new Map());
                 empMap.get(empName)!.set(svcName, (empMap.get(empName)!.get(svcName) || 0) + 1);
                 return;
             }
 
             services.forEach(s => {
-                const svcName = s.name || s.service_name || "Без названия";
-                const empName = s.performer_name || h.doctor_name || "Без специалиста";
+                const svcName = s.name || s.service_name || noServiceNameLabel;
+                const empName = s.performer_name || h.doctor_name || noSpecialistLabel;
                 if (!empMap.has(empName)) empMap.set(empName, new Map());
                 empMap.get(empName)!.set(svcName, (empMap.get(empName)!.get(svcName) || 0) + 1);
             });
@@ -356,7 +357,7 @@ export const AllAppointmentsList: React.FC = () => {
                     .map(([svcName, count]) => ({ svcName, count })),
             }))
             .sort((a, b) => b.total - a.total);
-    }, [filteredHistory]);
+    }, [filteredHistory, noSpecialistLabel, noServiceLabel, noServiceNameLabel]);
 
     // 6. Final Display List (Middle Panel)
     const displayList = React.useMemo(() => {
@@ -402,12 +403,12 @@ export const AllAppointmentsList: React.FC = () => {
             }}
         >
             <PageHeader
-                title="Все услуги"
+                title={t("menu.allServices")}
                 showTitle={false}
                 showSearch
                 searchVal={searchQuery}
                 onSearchChange={setSearchQuery}
-                searchPlaceholder="Поиск клиента, услуги..."
+                searchPlaceholder={t("allAppointments.searchPlaceholder")}
             >
             </PageHeader>
 
@@ -455,7 +456,7 @@ export const AllAppointmentsList: React.FC = () => {
                             >
                                 {/* Header with title and reset */}
                                 <Box sx={{ p: 1.5, borderBottom: 1, borderColor: "divider", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                                    <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>Фильтр</Typography>
+                                    <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>{t("allAppointments.filter")}</Typography>
                                     <Button
                                         size="small"
                                         onClick={() => {
@@ -468,7 +469,7 @@ export const AllAppointmentsList: React.FC = () => {
                                         }}
                                         sx={{ textTransform: 'none' }}
                                     >
-                                        Сброс
+                                        {t("common.reset")}
                                     </Button>
                                 </Box>
 
@@ -491,11 +492,11 @@ export const AllAppointmentsList: React.FC = () => {
                                     >
                                         <ToggleButton value="date" sx={{ textTransform: "none", gap: 0.5, fontSize: "0.75rem" }}>
                                             <CalendarMonthIcon fontSize="inherit" />
-                                            По дате
+                                            {t("allAppointments.byDate")}
                                         </ToggleButton>
                                         <ToggleButton value="services" sx={{ textTransform: "none", gap: 0.5, fontSize: "0.75rem" }}>
                                             <MedicalServicesIcon fontSize="inherit" />
-                                            По услугам
+                                            {t("allAppointments.byServices")}
                                         </ToggleButton>
                                     </ToggleButtonGroup>
                                 </Box>
@@ -504,7 +505,7 @@ export const AllAppointmentsList: React.FC = () => {
                                     {/* Period selectors (always visible) */}
                                     <Stack spacing={1.5} sx={{ mb: 1.5 }}>
                                         <Stack spacing={0.5}>
-                                            <Typography variant="caption" color="text.secondary" fontWeight={600}>Год</Typography>
+                                            <Typography variant="caption" color="text.secondary" fontWeight={600}>{t("allAppointments.year")}</Typography>
                                             <TextField
                                                 select
                                                 size="small"
@@ -519,14 +520,14 @@ export const AllAppointmentsList: React.FC = () => {
                                                 }}
                                                 SelectProps={{ displayEmpty: true }}
                                             >
-                                                <MenuItem value=""><Typography variant="body2" color="text.secondary">Все годы</Typography></MenuItem>
+                                                <MenuItem value=""><Typography variant="body2" color="text.secondary">{t("allAppointments.allYears")}</Typography></MenuItem>
                                                 {availableYears.map(y => <MenuItem key={y} value={y}>{y}</MenuItem>)}
                                             </TextField>
                                         </Stack>
 
                                         {selectedYear && (
                                             <Stack spacing={0.5}>
-                                                <Typography variant="caption" color="text.secondary" fontWeight={600}>Месяц</Typography>
+                                                <Typography variant="caption" color="text.secondary" fontWeight={600}>{t("allAppointments.month")}</Typography>
                                                 <TextField
                                                     select
                                                     size="small"
@@ -541,7 +542,7 @@ export const AllAppointmentsList: React.FC = () => {
                                                     SelectProps={{ displayEmpty: true }}
                                                     disabled={availableMonths.length === 0}
                                                 >
-                                                    <MenuItem value=""><Typography variant="body2" color="text.secondary">Все месяцы</Typography></MenuItem>
+                                                    <MenuItem value=""><Typography variant="body2" color="text.secondary">{t("allAppointments.allMonths")}</Typography></MenuItem>
                                                     {availableMonths.map(m => (
                                                         <MenuItem key={m.value} value={m.value}>{MONTH_NAMES[m.monthIndex]}</MenuItem>
                                                     ))}
@@ -553,7 +554,7 @@ export const AllAppointmentsList: React.FC = () => {
                                     {/* DATE MODE */}
                                     {filterMode === "date" && selectedMonth && (
                                         <Stack spacing={0.5}>
-                                            <Typography variant="caption" color="text.secondary" fontWeight={600}>Сотрудники</Typography>
+                                            <Typography variant="caption" color="text.secondary" fontWeight={600}>{t("allAppointments.employees")}</Typography>
                                             <List dense sx={{ py: 0 }}>
                                                 {groupedByEmployee.map(emp => {
                                                     const isExpanded = expandedEmployee === emp.employeeName;
@@ -618,11 +619,11 @@ export const AllAppointmentsList: React.FC = () => {
                                     {filterMode === "services" && (
                                         <Stack spacing={0.5}>
                                             <Typography variant="caption" color="text.secondary" fontWeight={600}>
-                                                Сотрудники и услуги
+                                                {t("allAppointments.employeesAndServices")}
                                             </Typography>
                                             {groupedByService.length === 0 && (
                                                 <Typography variant="body2" color="text.secondary" sx={{ py: 1 }}>
-                                                    Нет данных за выбранный период
+                                                    {t("allAppointments.noDataForPeriod")}
                                                 </Typography>
                                             )}
                                             <List dense sx={{ py: 0 }}>
@@ -707,14 +708,14 @@ export const AllAppointmentsList: React.FC = () => {
                                     <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
                                         {filterMode === "services" && selectedServiceEmployee
                                             ? `${selectedServiceEmployee} (${displayList.length})`
-                                            : `Список приемов (${displayList.length})`
+                                            : t("allAppointments.appointmentsList", { count: displayList.length })
                                         }
                                     </Typography>
                                 </Box>
                                 <Box sx={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
                                     <Box sx={{ flex: 1, overflowY: 'auto' }}>
                                         <AppointmentsList
-                                            titleDate={selectedDate ? formatDateRu(selectedDate) : "Выбранный период"}
+                                            titleDate={selectedDate ? formatDateRu(selectedDate) : t("allAppointments.selectedPeriod")}
                                             loading={loading}
                                             errorMsg={null}
                                             items={displayList}

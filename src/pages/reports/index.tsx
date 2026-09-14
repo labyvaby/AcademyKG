@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import {
     Box,
     Grid2,
@@ -132,7 +133,8 @@ const hasFinancialActivity = (day: Partial<DailyFinancialData>): boolean =>
     toNumber(day.waitingCount) > 0;
 
 const ReportsPage: React.FC = () => {
-    usePageTitle("Отчеты");
+    const { t } = useTranslation();
+    usePageTitle(t("menu.reports"));
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down("lg"));
     const { open: notify } = useNotification();
@@ -186,14 +188,14 @@ const ReportsPage: React.FC = () => {
         } catch (e) {
             if (signal?.aborted) return;
             console.error(e);
-            const message = e instanceof Error ? e.message : "Ошибка загрузки финансового отчета";
+            const message = e instanceof Error ? e.message : t("reports.loadError");
             setFinancialError(message);
             setLoadedScopeKey(null);
             notify?.({ type: "error", message });
         } finally {
             if (!signal?.aborted) setFinancialLoading(false);
         }
-    }, [branchKey, month, notify, branchId]);
+    }, [branchKey, month, notify, branchId, t]);
 
     useEffect(() => {
         // Ждём профиль: до него branchId не определён, и запрос без ?branch=
@@ -270,37 +272,37 @@ const ReportsPage: React.FC = () => {
 
         return [
             {
-                title: 'Услуги',
+                title: t("reports.services"),
                 primaryValue: formatKGS(servicesSum),
-                secondaryText: `${appointmentsCount} записей`,
+                secondaryText: t("reports.entriesCount", { count: appointmentsCount }),
                 color: 'primary',
             },
             {
-                title: 'Расходы',
+                title: t("reports.expenses"),
                 primaryValue: formatKGS(totalExpenses),
-                secondaryText: 'Операционные расходы',
+                secondaryText: t("reports.operationalExpenses"),
                 color: 'error',
             },
             {
-                title: 'Общая выручка',
+                title: t("reports.totalRevenue"),
                 primaryValue: formatKGS(totalRevenue),
-                secondaryText: 'Услуги + товары',
+                secondaryText: t("reports.servicesPlusProducts"),
                 color: 'success',
             },
             {
-                title: 'Скидки',
+                title: t("reports.discounts"),
                 primaryValue: formatKGS(reportTotals.discountSum),
-                secondaryText: 'Сумма скидок',
+                secondaryText: t("reports.discountsAmount"),
                 color: 'warning',
             },
             {
-                title: 'Долги',
+                title: t("reports.debts"),
                 primaryValue: formatKGS(reportTotals.debtSum),
-                secondaryText: 'Остаток к оплате',
+                secondaryText: t("reports.remainingToPay"),
                 color: 'error',
             },
         ];
-    }, [reportTotals, visibleReportData]);
+    }, [reportTotals, visibleReportData, t]);
 
     return (
         <Box sx={{
@@ -310,7 +312,7 @@ const ReportsPage: React.FC = () => {
             overflow: "hidden"
         }}>
             <PageHeader
-                title="Отчеты"
+                title={t("menu.reports")}
                 showTitle={false}
                 showSearch={false}
                 dateNavigation={<MonthNavigation date={selectedDate} setDate={setSelectedDate} activeMonths={activeMonths} />}
@@ -339,7 +341,7 @@ const ReportsPage: React.FC = () => {
                             }}
                         >
                             <Typography variant="h6" color="error.main" sx={{ fontWeight: 700, mb: 1 }}>
-                                Не удалось загрузить финансовый отчет
+                                {t("reports.loadFailed")}
                             </Typography>
                             <Typography variant="body2" color="text.secondary">
                                 {financialError}
@@ -369,7 +371,7 @@ const ReportsPage: React.FC = () => {
                                                 <Box sx={{ flex: 1 }}>
                                                     <Typography variant="subtitle1" fontWeight={800}>{dayjs(day.date).format('DD MMMM')}</Typography>
                                                     <Typography variant="caption" color="text.secondary">
-                                                        {dayjs(day.date).format('dddd')} • Записей: {day.appointmentsCount}
+                                                        {dayjs(day.date).format('dddd')} • {t("reports.entriesLabel")}: {day.appointmentsCount}
                                                     </Typography>
                                                 </Box>
                                             </Stack>
@@ -377,26 +379,26 @@ const ReportsPage: React.FC = () => {
                                             <Grid2 container spacing={2}>
                                                 <Grid2 size={6}>
                                                     <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                                        <PaymentsIcon sx={{ fontSize: 14, color: 'primary.main' }} /> Услуги
+                                                        <PaymentsIcon sx={{ fontSize: 14, color: 'primary.main' }} /> {t("reports.services")}
                                                     </Typography>
                                                     <Typography variant="subtitle1" fontWeight={800}>{formatKGS(day.servicesSum)}</Typography>
                                                 </Grid2>
                                                 <Grid2 size={6}>
                                                     <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                                        <WalletIcon sx={{ fontSize: 14, color: 'info.main' }} /> Товары
+                                                        <WalletIcon sx={{ fontSize: 14, color: 'info.main' }} /> {t("reports.products")}
                                                     </Typography>
                                                     <Typography variant="subtitle1" color="info.main" fontWeight={800}>{formatKGS(day.productsSum)}</Typography>
                                                 </Grid2>
                                                 <Grid2 size={6}>
                                                     <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                                        <CreditCardIcon sx={{ fontSize: 14, color: 'success.main' }} /> Выручка
+                                                        <CreditCardIcon sx={{ fontSize: 14, color: 'success.main' }} /> {t("reports.revenue")}
                                                     </Typography>
                                                     <Typography variant="subtitle1" color="success.main" fontWeight={800}>{formatKGS(getDayRevenue(day))}</Typography>
                                                 </Grid2>
                                                 {day.balanceSum > 0 && (
                                                     <Grid2 size={6}>
                                                         <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                                            <WalletIcon sx={{ fontSize: 14, color: 'secondary.main' }} /> Оплата балансом
+                                                            <WalletIcon sx={{ fontSize: 14, color: 'secondary.main' }} /> {t("reports.balancePayment")}
                                                         </Typography>
                                                         <Typography variant="subtitle1" color="secondary.main" fontWeight={800}>{formatKGS(day.balanceSum)}</Typography>
                                                     </Grid2>
@@ -405,15 +407,15 @@ const ReportsPage: React.FC = () => {
                                                     <Grid2 size={12}>
                                                         <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, justifyContent: 'space-between' }}>
                                                             <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
-                                                                <TrendingDownIcon sx={{ fontSize: 14, color: 'warning.main' }} /> Скидка / долг
+                                                                <TrendingDownIcon sx={{ fontSize: 14, color: 'warning.main' }} /> {t("reports.discountOrDebt")}
                                                             </Box>
                                                         </Typography>
                                                         <Stack direction="row" spacing={2}>
                                                             <Typography variant="subtitle2" color="warning.main" fontWeight={800}>
-                                                                Скидка: {formatKGS(day.discountSum)}
+                                                                {t("reports.discount")}: {formatKGS(day.discountSum)}
                                                             </Typography>
                                                             <Typography variant="subtitle2" color="error.main" fontWeight={800}>
-                                                                Долг: {formatKGS(day.debtSum)}
+                                                                {t("reports.debt")}: {formatKGS(day.debtSum)}
                                                             </Typography>
                                                         </Stack>
                                                     </Grid2>
@@ -424,7 +426,7 @@ const ReportsPage: React.FC = () => {
                                 ))}
                                 {dailyData.filter(hasFinancialActivity).length === 0 && (
                                     <Paper variant="outlined" sx={{ p: 4, textAlign: 'center', borderRadius: 3 }}>
-                                        <Typography color="text.secondary">Нет данных за этот период</Typography>
+                                        <Typography color="text.secondary">{t("reports.noDataForPeriod")}</Typography>
                                     </Paper>
                                 )}
                             </Stack>
@@ -434,7 +436,17 @@ const ReportsPage: React.FC = () => {
                                     <Table stickyHeader size="small">
                                         <TableHead>
                                             <TableRow>
-                                                {['Дата', 'Записи', 'В ожидании', 'Услуги', 'Расходы', 'Выручка', 'Баланс', 'Скидка', 'Долг'].map(h => <TableCell key={h} align={h === 'Дата' ? 'left' : h === 'Записи' || h === 'В ожидании' ? 'center' : 'right'} sx={{ fontWeight: 800, ...(h === 'В ожидании' ? { color: 'error.main' } : {}) }}>{h}</TableCell>)}
+                                                {[
+                                                    { key: 'date', label: t("reports.date") },
+                                                    { key: 'entries', label: t("reports.entriesLabel") },
+                                                    { key: 'waiting', label: t("reports.waiting") },
+                                                    { key: 'services', label: t("reports.services") },
+                                                    { key: 'expenses', label: t("reports.expenses") },
+                                                    { key: 'revenue', label: t("reports.revenue") },
+                                                    { key: 'balance', label: t("reports.balance") },
+                                                    { key: 'discount', label: t("reports.discount") },
+                                                    { key: 'debt', label: t("reports.debt") },
+                                                ].map(h => <TableCell key={h.key} align={h.key === 'date' ? 'left' : h.key === 'entries' || h.key === 'waiting' ? 'center' : 'right'} sx={{ fontWeight: 800, ...(h.key === 'waiting' ? { color: 'error.main' } : {}) }}>{h.label}</TableCell>)}
                                             </TableRow>
                                         </TableHead>
                                         <TableBody>
@@ -457,7 +469,7 @@ const ReportsPage: React.FC = () => {
                                                 </TableRow>
                                             ))}
                                             <TableRow sx={{ bgcolor: alpha(theme.palette.primary.main, 0.05) }}>
-                                                <TableCell sx={{ fontWeight: 800 }}>ИТОГО</TableCell>
+                                                <TableCell sx={{ fontWeight: 800 }}>{t("reports.totalCaps")}</TableCell>
                                                 <TableCell align="center" sx={{ fontWeight: 800 }}>{reportTotals.appointmentsCount}</TableCell>
                                                 <TableCell align="center" sx={{ fontWeight: 800, color: 'error.main' }}>{reportTotals.waitingCount > 0 ? reportTotals.waitingCount : '-'}</TableCell>
                                                 <TableCell align="right" sx={{ fontWeight: 800 }}>{formatKGS(reportTotals.servicesSum)}</TableCell>

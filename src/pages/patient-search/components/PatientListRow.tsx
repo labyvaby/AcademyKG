@@ -5,6 +5,7 @@
  * Не содержит логики загрузки/фильтрации/пагинации — только отображение и клик.
  */
 import React from "react";
+import { useTranslation } from "react-i18next";
 import {
   Avatar,
   ListItemButton,
@@ -43,6 +44,7 @@ const PatientListRow: React.FC<PatientListRowProps> = ({
   selected = false,
   onClick,
 }) => {
+  const { t } = useTranslation();
   return (
     <ListItemButton
       selected={!!selected}
@@ -83,10 +85,10 @@ const PatientListRow: React.FC<PatientListRowProps> = ({
           primary={
             <Stack direction="row" alignItems="center" spacing={1}>
               <Typography variant="subtitle2" noWrap>
-                {patient.fio || "Без имени"}
+                {patient.fio || t("employees.noName")}
               </Typography>
               {patient.is_blacklisted && (
-                <Tooltip title={patient.blacklist_reason || "Причина не указана"} arrow>
+                <Tooltip title={patient.blacklist_reason || t("patientSearch.reasonNotSpecified")} arrow>
                   <ReportProblemIcon color="error" sx={{ fontSize: 16 }} />
                 </Tooltip>
               )}

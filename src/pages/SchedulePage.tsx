@@ -6,6 +6,7 @@
  *  - Сборку всех компонентов календаря и боковых панелей
  */
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { Box } from "@mui/material";
 import ScheduleCalendar from "../components/schedule/ScheduleCalendar";
 import { PageHeader } from "../components/ui";
@@ -14,7 +15,8 @@ import { usePermissions } from "../hooks/usePermissions";
 import { PERMISSIONS } from "../constants/permissions";
 
 const SchedulePage: React.FC = () => {
-  usePageTitle("Расписание");
+  const { t } = useTranslation();
+  usePageTitle(t("menu.schedule"));
   const calendarRef = React.useRef<{ openAddShift: () => void }>(null);
 
   const { hasPermission, employeeId, hasRole } = usePermissions();
@@ -42,9 +44,9 @@ const SchedulePage: React.FC = () => {
       }}
     >
       <PageHeader
-        title="Расписание"
+        title={t("menu.schedule")}
         showTitle={false}
-        addButtonText={canManageSchedule ? "Добавить смену" : undefined}
+        addButtonText={canManageSchedule ? t("schedule.addShift") : undefined}
         onAdd={canManageSchedule ? handleAddShift : undefined}
       />
 

@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { Dialog, DialogTitle, DialogContent, DialogActions, CircularProgress, Typography, IconButton, Tooltip } from "@mui/material";
 import DeleteOutlined from "@mui/icons-material/DeleteOutlined";
 import type { EmployesRow } from "../types";
@@ -19,6 +20,7 @@ export type DeleteEmployeeDialogProps = {
 };
 
 const DeleteEmployeeDialog: React.FC<DeleteEmployeeDialogProps> = ({ record, onClose, onDeleted }) => {
+  const { t } = useTranslation();
   const open = Boolean(record);
   const [busy, setBusy] = React.useState(false);
   const { open: notify } = useNotification();
@@ -46,19 +48,19 @@ const DeleteEmployeeDialog: React.FC<DeleteEmployeeDialogProps> = ({ record, onC
       if (hasUpcomingAppointments) {
         notify?.({
           type: "error",
-          message: "Нельзя удалить сотрудника с назначенными приёмами",
-          description: "На сотрудника назначены текущие или будущие приёмы. Перенесите или отмените их перед удалением.",
+          message: t("employees.cannotDeleteWithAppointments"),
+          description: t("employees.cannotDeleteWithAppointmentsDescription"),
         });
         return;
       }
       await deleteEmployeeApi(String(record.id));
-      notify?.({ type: "success", message: "Сотрудник удалён" });
+      notify?.({ type: "success", message: t("employees.employeeDeleted") });
       onDeleted(record.id);
       onClose();
     } catch (e) {
-       
+
       console.error("Delete employee failed:", e);
-      notify?.({ type: "error", message: "Не удалось удалить сотрудника" });
+      notify?.({ type: "error", message: t("employees.deleteEmployeeError") });
     } finally {
       setBusy(false);
     }
@@ -66,13 +68,13 @@ const DeleteEmployeeDialog: React.FC<DeleteEmployeeDialogProps> = ({ record, onC
 
   return (
     <Dialog open={open} onClose={busy ? undefined : onClose} fullWidth maxWidth="xs">
-      <DialogTitle>Удалить сотрудника</DialogTitle>
+      <DialogTitle>{t("employees.deleteEmployeeTitle")}</DialogTitle>
       <DialogContent>
-        <Typography variant="body2">Действительно удалить сотрудника "{record?.full_name || record?.id}"?</Typography>
+        <Typography variant="body2">{t("employees.deleteEmployeeConfirm", { name: record?.full_name || record?.id })}</Typography>
       </DialogContent>
       <DialogActions>
-        <AppButton onClick={onClose} disabled={busy}>Отмена</AppButton>
-        <Tooltip title="Удалить сотрудника">
+        <AppButton onClick={onClose} disabled={busy}>{t("common.cancel")}</AppButton>
+        <Tooltip title={t("employees.deleteEmployeeTooltip")}>
           <IconButton
             onClick={handleDelete}
             color="error"

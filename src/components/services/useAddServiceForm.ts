@@ -6,6 +6,7 @@
  * - обработчики (handleSubmit, onPickPhoto, fileToDataUrl)
  */
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { useNotification } from "@refinedev/core";
 import { createService } from "../../services/services";
 import { useEffectiveBranch } from "../../hooks/useEffectiveBranch";
@@ -29,6 +30,7 @@ type UseAddServiceFormArgs = {
 };
 
 export function useAddServiceForm({ open, onClose, onCreated }: UseAddServiceFormArgs) {
+  const { t } = useTranslation();
   const { open: notify } = useNotification();
   // Не-суперадмину branch-context не отдаёт selectedBranch (филиал определяется
   // правами на сервере), поэтому берём эффективный филиал сотрудника
@@ -96,16 +98,16 @@ export function useAddServiceForm({ open, onClose, onCreated }: UseAddServiceFor
   const handleSubmit = React.useCallback(async () => {
     setTouched(true);
     if (!branchId) {
-      notify?.({ type: "error", message: "Выберите филиал, чтобы создать услугу" });
+      notify?.({ type: "error", message: t("services.selectBranchToCreate") });
       return;
     }
     const priceNum = Number(price);
     if (!name.trim() || !price || !Number.isFinite(priceNum) || priceNum <= 0) {
-      notify?.({ type: "error", message: "Заполните название и положительную стоимость услуги" });
+      notify?.({ type: "error", message: t("services.fillNameAndCost") });
       return;
     }
     if (isGroup && (!maxParticipants || Number(maxParticipants) <= 0)) {
-      notify?.({ type: "error", message: "Укажите максимальное количество участников" });
+      notify?.({ type: "error", message: t("services.specifyMaxParticipantsCount") });
       return;
     }
 
@@ -137,15 +139,15 @@ export function useAddServiceForm({ open, onClose, onCreated }: UseAddServiceFor
       };
 
       onCreated?.(out);
-      notify?.({ type: "success", message: "Услуга создана" });
+      notify?.({ type: "success", message: t("services.serviceCreated") });
       onClose();
     } catch (e: any) {
       console.error("Create service failed:", e);
-      notify?.({ type: "error", message: "Не удалось создать услугу" });
+      notify?.({ type: "error", message: t("services.createError") });
     } finally {
       setBusy(false);
     }
-  }, [name, price, photoFile, description, isActive, isGroup, maxParticipants, durationMinutes, branchId, onClose, onCreated, notify]);
+  }, [name, price, photoFile, description, isActive, isGroup, maxParticipants, durationMinutes, branchId, onClose, onCreated, notify, t]);
 
   const submitDisabled =
     !name.trim() ||

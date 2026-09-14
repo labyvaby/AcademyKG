@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import {
   Box,
   Paper,
@@ -51,6 +52,7 @@ type CategoryDialogProps = {
 };
 
 const CategoryDialog: React.FC<CategoryDialogProps> = ({ open, initial, busy, onClose, onSubmit }) => {
+  const { t } = useTranslation();
   const [name, setName] = React.useState("");
   const [isActive, setIsActive] = React.useState(true);
   const [nameError, setNameError] = React.useState("");
@@ -66,7 +68,7 @@ const CategoryDialog: React.FC<CategoryDialogProps> = ({ open, initial, busy, on
   const handleSubmit = () => {
     const trimmed = name.trim();
     if (!trimmed) {
-      setNameError("Введите название категории");
+      setNameError(t("categories.enterCategoryName"));
       return;
     }
     setNameError("");
@@ -75,12 +77,12 @@ const CategoryDialog: React.FC<CategoryDialogProps> = ({ open, initial, busy, on
 
   return (
     <Dialog open={open} onClose={busy ? undefined : onClose} maxWidth="xs" fullWidth>
-      <DialogTitle>{initial ? "Редактировать категорию" : "Новая категория"}</DialogTitle>
+      <DialogTitle>{initial ? t("categories.editCategory") : t("categories.newCategory")}</DialogTitle>
       <Divider />
       <DialogContent sx={{ pt: 2 }}>
         <Stack spacing={2}>
           <TextField
-            label="Название *"
+            label={t("categories.nameRequired")}
             value={name}
             onChange={(e) => { setName(e.target.value); setNameError(""); }}
             fullWidth
@@ -99,21 +101,21 @@ const CategoryDialog: React.FC<CategoryDialogProps> = ({ open, initial, busy, on
             }
             label={
               <Typography variant="body2" fontWeight={500}>
-                {isActive ? "Активна" : "Неактивна"}
+                {isActive ? t("categories.active") : t("categories.inactive")}
               </Typography>
             }
           />
         </Stack>
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 2 }}>
-        <Button onClick={onClose} disabled={busy}>Отмена</Button>
+        <Button onClick={onClose} disabled={busy}>{t("common.cancel")}</Button>
         <Button
           variant="contained"
           onClick={handleSubmit}
           disabled={busy || !name.trim()}
           startIcon={busy ? <CircularProgress size={16} /> : undefined}
         >
-          {initial ? "Сохранить" : "Создать"}
+          {initial ? t("common.save") : t("employees.createButton")}
         </Button>
       </DialogActions>
     </Dialog>
@@ -129,33 +131,36 @@ type DeleteDialogProps = {
   onConfirm: () => void;
 };
 
-const DeleteDialog: React.FC<DeleteDialogProps> = ({ open, name, busy, onClose, onConfirm }) => (
-  <Dialog open={open} onClose={busy ? undefined : onClose} maxWidth="xs" fullWidth>
-    <DialogTitle>Удалить категорию?</DialogTitle>
-    <DialogContent>
-      <Typography variant="body2">
-        Вы уверены, что хотите удалить категорию <b>«{name}»</b>?
-        Все расходы в этой категории останутся без категории.
-      </Typography>
-    </DialogContent>
-    <DialogActions>
-      <Button onClick={onClose} disabled={busy}>Отмена</Button>
-      <Button
-        variant="contained"
-        color="error"
-        onClick={onConfirm}
-        disabled={busy}
-        startIcon={busy ? <CircularProgress size={16} /> : <DeleteOutlined />}
-      >
-        Удалить
-      </Button>
-    </DialogActions>
-  </Dialog>
-);
+const DeleteDialog: React.FC<DeleteDialogProps> = ({ open, name, busy, onClose, onConfirm }) => {
+  const { t } = useTranslation();
+  return (
+    <Dialog open={open} onClose={busy ? undefined : onClose} maxWidth="xs" fullWidth>
+      <DialogTitle>{t("categories.deleteCategoryTitle")}</DialogTitle>
+      <DialogContent>
+        <Typography variant="body2">
+          {t("categories.deleteCategoryConfirmPrefix")} <b>«{name}»</b>? {t("categories.deleteCategoryConfirmSuffix")}
+        </Typography>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose} disabled={busy}>{t("common.cancel")}</Button>
+        <Button
+          variant="contained"
+          color="error"
+          onClick={onConfirm}
+          disabled={busy}
+          startIcon={busy ? <CircularProgress size={16} /> : <DeleteOutlined />}
+        >
+          {t("common.delete")}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+};
 
 // ── Основная страница ──────────────────────────────────────────────────────
 const CategoriesPage: React.FC = () => {
-  usePageTitle("Категории расходов");
+  const { t } = useTranslation();
+  usePageTitle(t("menu.expenseCategories"));
   const { open: notify } = useNotification();
   const theme = useTheme();
   const isTabletLayout = useMediaQuery(theme.breakpoints.down(900));
@@ -184,11 +189,11 @@ const CategoriesPage: React.FC = () => {
         createdAt: c.createdAt ?? "",
       })));
     } catch {
-      notify?.({ type: "error", message: "Не удалось загрузить категории" });
+      notify?.({ type: "error", message: t("categories.loadError") });
     } finally {
       setLoading(false);
     }
-  }, [notify]);
+  }, [notify, t]);
 
   React.useEffect(() => { load(); }, [load]);
 
@@ -199,11 +204,11 @@ const CategoriesPage: React.FC = () => {
         method: "POST",
         body: JSON.stringify({ name, isActive }),
       });
-      notify?.({ type: "success", message: "Категория создана" });
+      notify?.({ type: "success", message: t("categories.categoryCreated") });
       setFormOpen(false);
       await load();
     } catch (e) {
-      notify?.({ type: "error", message: "Не удалось создать категорию", description: e instanceof Error ? e.message : String(e) });
+      notify?.({ type: "error", message: t("categories.createError"), description: e instanceof Error ? e.message : String(e) });
     } finally {
       setFormBusy(false);
     }
@@ -217,11 +222,11 @@ const CategoriesPage: React.FC = () => {
         method: "PATCH",
         body: JSON.stringify({ name, isActive }),
       });
-      notify?.({ type: "success", message: "Категория обновлена" });
+      notify?.({ type: "success", message: t("categories.categoryUpdated") });
       setEditTarget(null);
       await load();
     } catch (e) {
-      notify?.({ type: "error", message: "Не удалось обновить категорию", description: e instanceof Error ? e.message : String(e) });
+      notify?.({ type: "error", message: t("categories.updateError"), description: e instanceof Error ? e.message : String(e) });
     } finally {
       setFormBusy(false);
     }
@@ -232,11 +237,11 @@ const CategoriesPage: React.FC = () => {
     try {
       setDeleteBusy(true);
       await apiFetch(`/api/v1/expense-categories/${deleteTarget.id}/`, { method: "DELETE" });
-      notify?.({ type: "success", message: "Категория удалена" });
+      notify?.({ type: "success", message: t("categories.categoryDeleted") });
       setDeleteTarget(null);
       await load();
     } catch (e) {
-      notify?.({ type: "error", message: "Не удалось удалить категорию", description: e instanceof Error ? e.message : String(e) });
+      notify?.({ type: "error", message: t("categories.deleteError"), description: e instanceof Error ? e.message : String(e) });
     } finally {
       setDeleteBusy(false);
     }
@@ -261,13 +266,13 @@ const CategoriesPage: React.FC = () => {
       }}
     >
       <PageHeader
-        title="Категории расходов"
+        title={t("menu.expenseCategories")}
         showTitle={!isTabletLayout}
         showSearch={!isTabletLayout}
         searchVal={search}
         onSearchChange={setSearch}
-        searchPlaceholder="Поиск категории..."
-        addButtonText="Добавить категорию"
+        searchPlaceholder={t("categories.searchPlaceholder")}
+        addButtonText={t("categories.addCategory")}
         onAdd={!isTabletLayout ? () => { setEditTarget(null); setFormOpen(true); } : undefined}
       />
 
@@ -325,10 +330,10 @@ const CategoriesPage: React.FC = () => {
                   </Box>
                   <Stack spacing={0.75} minWidth={0}>
                     <Typography variant="h6" fontWeight={700}>
-                      Категории расходов
+                      {t("menu.expenseCategories")}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
-                      Управляйте справочником категорий и быстро находите нужные записи.
+                      {t("categories.manageHint")}
                     </Typography>
                   </Stack>
                   {!loading && (
@@ -348,7 +353,7 @@ const CategoriesPage: React.FC = () => {
                 >
                   <TextField
                     size="small"
-                    placeholder="Поиск категории..."
+                    placeholder={t("categories.searchPlaceholder")}
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                     InputProps={{
@@ -377,7 +382,7 @@ const CategoriesPage: React.FC = () => {
                       alignSelf: isTabletLayout ? "stretch" : "flex-start",
                     }}
                   >
-                    {isCompactLayout ? "Добавить категорию" : "Добавить"}
+                    {isCompactLayout ? t("categories.addCategory") : t("common.add")}
                   </Button>
                 </Stack>
               </Stack>
@@ -394,11 +399,11 @@ const CategoriesPage: React.FC = () => {
               <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", p: 6, gap: 1 }}>
                 <CategoryOutlined sx={{ fontSize: 48, color: "text.disabled" }} />
                 <Typography variant="body1" color="text.secondary">
-                  {search ? "Категории не найдены" : "Категорий пока нет"}
+                  {search ? t("categories.categoriesNotFound") : t("categories.noCategoriesYet")}
                 </Typography>
                 {!search && (
                   <Button variant="outlined" startIcon={<AddOutlined />} onClick={() => { setEditTarget(null); setFormOpen(true); }} sx={{ mt: 1 }}>
-                    Создать первую категорию
+                    {t("categories.createFirstCategory")}
                   </Button>
                 )}
               </Box>
@@ -429,7 +434,7 @@ const CategoriesPage: React.FC = () => {
                           <Stack direction="row" alignItems="center" gap={1} flexWrap="wrap">
                             <Typography variant="body1" fontWeight={500}>{cat.name}</Typography>
                             <Chip
-                              label={cat.isActive ? "Активна" : "Неактивна"}
+                              label={cat.isActive ? t("categories.active") : t("categories.inactive")}
                               size="small"
                               color={cat.isActive ? "success" : "default"}
                               variant="outlined"
@@ -444,7 +449,7 @@ const CategoriesPage: React.FC = () => {
                         justifyContent={{ xs: "flex-end", sm: "flex-start" }}
                         sx={{ ml: { sm: "auto" } }}
                       >
-                        <Tooltip title="Редактировать">
+                        <Tooltip title={t("common.edit")}>
                           <IconButton
                             size="small"
                             onClick={() => { setEditTarget(cat); setFormOpen(true); }}
@@ -452,7 +457,7 @@ const CategoriesPage: React.FC = () => {
                             <EditOutlined fontSize="small" />
                           </IconButton>
                         </Tooltip>
-                        <Tooltip title="Удалить">
+                        <Tooltip title={t("common.delete")}>
                           <IconButton
                             size="small"
                             color="error"

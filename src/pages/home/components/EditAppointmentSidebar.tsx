@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import {
   Box,
   Button,
@@ -75,6 +76,7 @@ const EditAppointmentSidebar: React.FC<EditAppointmentSidebarProps> = ({
   item,
   onSaved,
 }) => {
+  const { t } = useTranslation();
   const { open: notify } = useNotification();
   const { suffix } = useBranchCurrency();
   const { hasPermission, employeeId } = usePermissions();
@@ -99,7 +101,7 @@ const EditAppointmentSidebar: React.FC<EditAppointmentSidebarProps> = ({
       item.patient_id
         ? {
           id: item.patient_id,
-          label: item.patient_name || "Без имени",
+          label: item.patient_name || t("editAppt.noName"),
           fio: item.patient_name,
           "ФИО клиента": item.patient_name,
         }
@@ -322,8 +324,8 @@ const EditAppointmentSidebar: React.FC<EditAppointmentSidebarProps> = ({
     if (dt && dayjs(dt).isBefore(dayjs().subtract(1, "day").startOf("day"))) {
       notify?.({
         type: "error",
-        message: "Нельзя сохранять приём в прошлом",
-        description: "Выберите вчерашнюю, сегодняшнюю или будущую дату.",
+        message: t("editAppt.pastError"),
+        description: t("editAppt.pastErrorDesc"),
       });
       return;
     }
@@ -379,15 +381,15 @@ const EditAppointmentSidebar: React.FC<EditAppointmentSidebarProps> = ({
 
       onSaved?.(updatedItem);
       onClose();
-      notify?.({ type: "success", message: "Прием сохранен" });
+      notify?.({ type: "success", message: t("editAppt.appointmentSaved") });
     } catch (e: any) {
       console.error("Update appointment failed:", e);
       const msg = String(e?.message ?? e ?? "").toLowerCase();
       const isOverlap = msg.includes("overlap") || msg.includes("conflict") || msg.includes("занят") || msg.includes("пересека");
       notify?.({
         type: "error",
-        message: isOverlap ? "Конфликт по времени" : "Не удалось сохранить изменения приёма",
-        description: isOverlap ? "Это время уже занято у выбранного специалиста. Выберите другой слот." : (e?.message || undefined),
+        message: isOverlap ? t("editAppt.timeConflict") : t("editAppt.saveError"),
+        description: isOverlap ? t("editAppt.timeConflictDesc") : (e?.message || undefined),
       });
     } finally {
       setBusy(false);
@@ -424,17 +426,17 @@ const EditAppointmentSidebar: React.FC<EditAppointmentSidebarProps> = ({
           px={2}
           py={1.5}
         >
-          <Typography variant="h6">Редактирование приема</Typography>
+          <Typography variant="h6">{t("editAppt.title")}</Typography>
         </Stack>
         <Divider />
 
         <Box px={2} py={2} sx={{ flex: 1, overflowY: "auto" }}>
           <Stack spacing={2}>
             <Typography variant="h6" sx={{ mb: 1, fontWeight: 600 }}>
-              Дата и время приема
+              {t("editAppt.appointmentDateTime")}
             </Typography>
             <CustomDateTimePicker
-              label="Дата и время *"
+              label={t("editAppt.dateTimeLabel")}
               value={dateTime ? dayjs(dateTime) : null}
               onChange={(val) =>
                 setDateTime(val ? val.format() : "")
@@ -463,14 +465,14 @@ const EditAppointmentSidebar: React.FC<EditAppointmentSidebarProps> = ({
                 alignItems="center"
               >
                 <Typography variant="body2" color="text.secondary">
-                  Клиент *
+                  {t("home.client")} *
                 </Typography>
                 {canReception && (
                   <Button
                     size="small"
                     onClick={() => setIsPatientDrawerOpen(true)}
                   >
-                    + Добавить клиента
+                    {t("editAppt.addClient")}
                   </Button>
                 )}
               </Stack>
@@ -484,7 +486,7 @@ const EditAppointmentSidebar: React.FC<EditAppointmentSidebarProps> = ({
                 getOptionLabel={(o: PatientOption) => {
                   const fio = o["ФИО клиента"] ?? o.fio ?? "";
                   const phone = o["Телефон"] ?? o.phone ?? "";
-                  return `${fio || "Нет ФИО"} — ${phone || "Нет телефона"}`;
+                  return `${fio || t("editAppt.noFio")} — ${phone || t("editAppt.noPhone")}`;
                 }}
                 filterOptions={(x) => x}
                 isOptionEqualToValue={(o, v) => o.id === (v?.id || "")}
@@ -493,7 +495,7 @@ const EditAppointmentSidebar: React.FC<EditAppointmentSidebarProps> = ({
                   const fio = option["ФИО клиента"] ?? option.fio ?? "";
                   const phone = option["Телефон"] ?? option.phone ?? "";
                   return (
-                    <li key={key} {...optionProps}>{`${fio || "Нет ФИО"} — ${phone || "Нет телефона"
+                    <li key={key} {...optionProps}>{`${fio || t("editAppt.noFio")} — ${phone || t("editAppt.noPhone")
                       }`}</li>
                   );
                 }}
@@ -512,10 +514,10 @@ const EditAppointmentSidebar: React.FC<EditAppointmentSidebarProps> = ({
                 renderInput={(params) => (
                   <TextField
                     {...params}
-                    placeholder="Поиск по ФИО или телефону"
+                    placeholder={t("editAppt.searchByFioPhone")}
                     fullWidth
                     error={touched && !isBooking && !selectedPatient}
-                    helperText={touched && !isBooking && !selectedPatient ? "Выберите клиента" : ""}
+                    helperText={touched && !isBooking && !selectedPatient ? t("editAppt.selectClient") : ""}
                   />
                 )}
               />
@@ -550,7 +552,7 @@ const EditAppointmentSidebar: React.FC<EditAppointmentSidebarProps> = ({
               >
                 <Stack direction="row" spacing={1} alignItems="center">
                   <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                    Бронирование (без клиента)
+                    {t("editAppt.booking")}
                   </Typography>
                 </Stack>
                 <Box
@@ -600,7 +602,7 @@ const EditAppointmentSidebar: React.FC<EditAppointmentSidebarProps> = ({
                           color="text.secondary"
                           sx={{ fontWeight: 600 }}
                         >
-                          Услуги
+                          {t("menu.services")}
                         </Typography>
                       </Stack>
 
@@ -613,7 +615,7 @@ const EditAppointmentSidebar: React.FC<EditAppointmentSidebarProps> = ({
                             <Stack spacing={1.5}>
                               {index === 0 && (
                                 <Typography variant="caption" color="text.secondary">
-                                  Специалист / Исполнитель
+                                  {t("editAppt.specialistPerformer")}
                                 </Typography>
                               )}
                               {/* Врач */}
@@ -647,7 +649,7 @@ const EditAppointmentSidebar: React.FC<EditAppointmentSidebarProps> = ({
                                   }
                                 }}
                                 getOptionLabel={(o) =>
-                                  `${o.full_name || o.id} — ${o.specialization || "Нет специализации"
+                                  `${o.full_name || o.id} — ${o.specialization || t("editAppt.noSpecialization")
                                   }`
                                 }
                                 filterOptions={createFilterOptions<EmployeesRow>({
@@ -672,18 +674,18 @@ const EditAppointmentSidebar: React.FC<EditAppointmentSidebarProps> = ({
                                 renderInput={(params) => (
                                   <TextField
                                     {...params}
-                                    placeholder="Исполнитель"
+                                    placeholder={t("editAppt.performer")}
                                     size="small"
                                     fullWidth
                                     error={touched && !row.doctorId}
-                                    helperText={touched && !row.doctorId ? "Выберите исполнителя" : ""}
+                                    helperText={touched && !row.doctorId ? t("editAppt.selectPerformer") : ""}
                                   />
                                 )}
                               />
 
                               {index === 0 && (
                                 <Typography variant="caption" color="text.secondary">
-                                  Наименование услуги
+                                  {t("editAppt.serviceName")}
                                 </Typography>
                               )}
                               {/* Услуга */}
@@ -739,16 +741,16 @@ const EditAppointmentSidebar: React.FC<EditAppointmentSidebarProps> = ({
                                   renderInput={(params) => (
                                     <TextField
                                       {...params}
-                                      placeholder="Услуга"
+                                      placeholder={t("details.service")}
                                       size="small"
                                       fullWidth
                                       error={touched && !row.serviceId}
-                                      helperText={touched && !row.serviceId ? "Выберите услугу" : ""}
+                                      helperText={touched && !row.serviceId ? t("editAppt.selectService") : ""}
                                     />
                                   )}
                                 />
                                 {serviceRows.length > 1 && (
-                                  <Tooltip title="Удалить услугу">
+                                  <Tooltip title={t("editAppt.deleteService")}>
                                     <IconButton
                                       size="small"
                                       color="error"
@@ -804,7 +806,7 @@ const EditAppointmentSidebar: React.FC<EditAppointmentSidebarProps> = ({
                           "&.Mui-focusVisible": { boxShadow: "none" },
                         }}
                       >
-                        + Добавить услугу
+                        {t("editAppt.addService")}
                       </Button>
 
                       <Divider />
@@ -816,7 +818,7 @@ const EditAppointmentSidebar: React.FC<EditAppointmentSidebarProps> = ({
                         alignItems="center"
                       >
                         <Typography variant="body2" color="text.secondary">
-                          Общая стоимость
+                          {t("editAppt.totalCost")}
                         </Typography>
                         <Typography variant="h6">
                           {serviceRows.reduce((sum, row) => {
@@ -832,7 +834,7 @@ const EditAppointmentSidebar: React.FC<EditAppointmentSidebarProps> = ({
                 </AppCard>
 
                 <TextField
-                  placeholder="Комментарий администратора"
+                  placeholder={t("payment.adminComment")}
                   value={adminComment}
                   onChange={(e) => setAdminComment(e.target.value)}
                   fullWidth
@@ -860,7 +862,7 @@ const EditAppointmentSidebar: React.FC<EditAppointmentSidebarProps> = ({
             onClick={onClose}
             disabled={busy}
           >
-            Отмена
+            {t("common.cancel")}
           </Button>
           <Button
             onClick={handleSubmit}
@@ -878,10 +880,10 @@ const EditAppointmentSidebar: React.FC<EditAppointmentSidebarProps> = ({
             {busy ? (
               <Stack direction="row" alignItems="center" spacing={1}>
                 <CircularProgress size={18} />
-                <span>Сохранение…</span>
+                <span>{t("common.saving")}</span>
               </Stack>
             ) : (
-              "Сохранить"
+              t("common.save")
             )}
           </Button>
         </Box>

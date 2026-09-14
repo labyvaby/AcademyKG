@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Drawer,
   Box,
@@ -56,6 +57,7 @@ export interface DoctorQuickViewDrawerProps {
 }
 
 export const DoctorQuickViewDrawer: React.FC<DoctorQuickViewDrawerProps> = ({ open, onClose, doctorId }) => {
+  const { t } = useTranslation();
   const { suffix } = useBranchCurrency();
   const [loading, setLoading] = useState(false);
   const [doctor, setDoctor] = useState<DoctorDetail | null>(null);
@@ -87,7 +89,7 @@ export const DoctorQuickViewDrawer: React.FC<DoctorQuickViewDrawerProps> = ({ op
           const spec = emp.specializations?.[0]?.name ?? emp.specialization ?? null;
           setDoctor({
             id: String(emp.id),
-            fullName: emp.fullName ?? emp.full_name ?? "Без имени",
+            fullName: emp.fullName ?? emp.full_name ?? t("employees.noName"),
             photoUrl: emp.photoUrl ?? emp.photo_url ?? null,
             role: roleName || null,
             specialization: spec,
@@ -100,7 +102,7 @@ export const DoctorQuickViewDrawer: React.FC<DoctorQuickViewDrawerProps> = ({ op
         if (active) {
           setServices(svcItems.map((s: any) => ({
             id: String(s.id),
-            name: s.displayName ?? s.display_name ?? s.name ?? "Услуга",
+            name: s.displayName ?? s.display_name ?? s.name ?? t("employees.serviceFallback"),
             price: s.price ? Number(s.price) : undefined,
           })));
         }
@@ -114,7 +116,7 @@ export const DoctorQuickViewDrawer: React.FC<DoctorQuickViewDrawerProps> = ({ op
             return {
               id: String(a.id),
               appointment_at: a.appointmentAt ?? a.appointment_at ?? "",
-              patient_name: a.patientName ?? a.patient_name ?? patNested?.fullName ?? patNested?.full_name ?? "Не указан",
+              patient_name: a.patientName ?? a.patient_name ?? patNested?.fullName ?? patNested?.full_name ?? t("employees.notSpecified"),
               service_names: a.serviceNames ?? a.service_names ?? "",
               status: normalizeStatus(a.status ?? ""),
             };
@@ -139,7 +141,7 @@ export const DoctorQuickViewDrawer: React.FC<DoctorQuickViewDrawerProps> = ({ op
       PaperProps={{ sx: { width: { xs: 320, sm: 480, md: 520 }, maxWidth: "100vw" } }}
     >
       <Box sx={{ p: 2, borderBottom: 1, borderColor: "divider", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <Typography variant="h6" fontWeight={600}>Информация о сотруднике</Typography>
+        <Typography variant="h6" fontWeight={600}>{t("employees.employeeInfo")}</Typography>
         <IconButton onClick={onClose} size="small"><CloseIcon /></IconButton>
       </Box>
 
@@ -170,7 +172,7 @@ export const DoctorQuickViewDrawer: React.FC<DoctorQuickViewDrawerProps> = ({ op
             <Box>
               <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1.5 }}>
                 <MedicalServicesIcon fontSize="small" color="success" />
-                <Typography variant="subtitle2" fontWeight={600}>Оказываемые услуги</Typography>
+                <Typography variant="subtitle2" fontWeight={600}>{t("employees.providedServices")}</Typography>
               </Stack>
               {services.length > 0 ? (
                 <List disablePadding>
@@ -184,7 +186,7 @@ export const DoctorQuickViewDrawer: React.FC<DoctorQuickViewDrawerProps> = ({ op
                   ))}
                 </List>
               ) : (
-                <Typography variant="body2" color="text.secondary" sx={{ py: 2, textAlign: "center" }}>Услуги не назначены</Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ py: 2, textAlign: "center" }}>{t("employees.noServicesAssigned")}</Typography>
               )}
             </Box>
 
@@ -194,7 +196,7 @@ export const DoctorQuickViewDrawer: React.FC<DoctorQuickViewDrawerProps> = ({ op
             <Box>
               <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1.5 }}>
                 <CalendarIcon fontSize="small" color="primary" />
-                <Typography variant="subtitle2" fontWeight={600}>Последние приемы</Typography>
+                <Typography variant="subtitle2" fontWeight={600}>{t("employees.recentAppointments")}</Typography>
               </Stack>
               {recentAppointments.length > 0 ? (
                 <List disablePadding>
@@ -215,8 +217,8 @@ export const DoctorQuickViewDrawer: React.FC<DoctorQuickViewDrawerProps> = ({ op
                         }
                         secondary={
                           <>
-                            <Typography variant="caption" display="block" color="text.secondary">Пациент: {a.patient_name}</Typography>
-                            {a.service_names && <Typography variant="caption" display="block" color="text.secondary">Услуги: {a.service_names}</Typography>}
+                            <Typography variant="caption" display="block" color="text.secondary">{t("employees.patientLabel")}: {a.patient_name}</Typography>
+                            {a.service_names && <Typography variant="caption" display="block" color="text.secondary">{t("employees.servicesLabel")}: {a.service_names}</Typography>}
                           </>
                         }
                       />
@@ -224,12 +226,12 @@ export const DoctorQuickViewDrawer: React.FC<DoctorQuickViewDrawerProps> = ({ op
                   ))}
                 </List>
               ) : (
-                <Typography variant="body2" color="text.secondary" sx={{ py: 2, textAlign: "center" }}>Нет записей о приемах</Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ py: 2, textAlign: "center" }}>{t("employees.noAppointmentRecords")}</Typography>
               )}
             </Box>
           </Stack>
         ) : (
-          <Typography variant="body2" color="text.secondary" align="center" sx={{ py: 4 }}>Сотрудник не найден</Typography>
+          <Typography variant="body2" color="text.secondary" align="center" sx={{ py: 4 }}>{t("employees.employeeNotFound")}</Typography>
         )}
       </Box>
     </Drawer>

@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { Box, Divider, Drawer, IconButton, Stack, Typography, CircularProgress } from "@mui/material";
 import CloseOutlined from "@mui/icons-material/CloseOutlined";
 import { AppButton } from "../../../components/ui";
@@ -24,9 +25,10 @@ const DrawerBase: React.FC<DrawerBaseProps> = ({
   busy,
   isDirty = false,
   onSubmit,
-  submitLabel = "Сохранить",
+  submitLabel,
   submitDisabled,
 }) => {
+  const { t } = useTranslation();
   const { handleClose, handleCloseButton, ConfirmLeaveDialog } = useModalBackdropGuard({
     isDirty,
     onClose,
@@ -77,17 +79,17 @@ const DrawerBase: React.FC<DrawerBaseProps> = ({
           </Box>
           <Box sx={{ p: 2, borderTop: 1, borderColor: 'divider', mt: 'auto', bgcolor: 'background.paper', display: 'flex', justifyContent: 'flex-end', gap: 1.5, flexShrink: 0 }}>
             <AppButton onClick={handleCloseButton} disabled={busy}>
-              Отмена
+              {t("common.cancel")}
             </AppButton>
             {onSubmit && (
               <AppButton onClick={onSubmit} variant="contained" disabled={busy || submitDisabled}>
                 {busy ? (
                   <Stack direction="row" alignItems="center" spacing={1}>
                     <CircularProgress size={18} />
-                    <span>Сохранение…</span>
+                    <span>{t("common.saving")}</span>
                   </Stack>
                 ) : (
-                  submitLabel
+                  submitLabel ?? t("common.save")
                 )}
               </AppButton>
             )}

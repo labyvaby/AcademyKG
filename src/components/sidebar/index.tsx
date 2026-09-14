@@ -48,6 +48,7 @@ import ManageAccountsOutlined from "@mui/icons-material/ManageAccountsOutlined";
 import SavingsOutlined from "@mui/icons-material/SavingsOutlined";
 
 import { useThemedLayoutContext } from "@refinedev/mui";
+import { useTranslation } from "react-i18next";
 import { logout } from "../../services/auth";
 import { Link as RouterLink, useLocation } from "react-router";
 import { useEffectiveBranch } from "../../hooks/useEffectiveBranch";
@@ -287,6 +288,7 @@ const MobileSidebarHeader: React.FC = () => {
 // Desktop header with logo and burger button on same level (>= 768px)
 const DesktopSidebarHeader: React.FC = () => {
   const { siderCollapsed, setSiderCollapsed } = useThemedLayoutContext();
+  const { t } = useTranslation();
   const branch = useEffectiveBranch();
   const logoSrc = withLogoCacheBust(branch?.logoUrl) || appLogo;
   const brandLabel = branch?.brandName || branch?.name || "";
@@ -359,7 +361,7 @@ const DesktopSidebarHeader: React.FC = () => {
       </Box>
 
       {/* Кнопка бургера - всегда видна */}
-      <Tooltip title={siderCollapsed ? "Открыть меню" : "Скрыть меню"} placement="right">
+      <Tooltip title={siderCollapsed ? t("common.openMenu") : t("common.hideMenu")} placement="right">
         <IconButton onClick={handleClick} size="small">
           <MenuOutlined />
         </IconButton>
@@ -388,6 +390,7 @@ const SidebarSecondary: React.FC = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const { hasPermission, loading: permissionsLoading } = usePermissions();
+  const { t } = useTranslation();
 
   const [activeCategory, setActiveCategory] = React.useState<MenuCategory | "all">(() => {
     if (typeof window === "undefined") return "all";
@@ -413,29 +416,29 @@ const SidebarSecondary: React.FC = () => {
 
   const entries: SidebarEntry[] = [
     // Моя работа — повседневные операции
-    { to: "/home", icon: <HomeOutlined />, label: "Регистратура", category: "work", visible: hasPermission(PERMISSIONS.APPOINTMENTS_READ) && hasPermission(PERMISSIONS.RECEPTION_READ) },
-    { to: "/specialist", icon: <LocalHospitalOutlined />, label: "Кабинет специалиста", category: "work", visible: hasPermission(PERMISSIONS.APPOINTMENTS_READ) },
-    { to: "/all-appointments", icon: <HistoryOutlined />, label: "Все услуги", category: "work", visible: hasPermission(PERMISSIONS.APPOINTMENTS_READ) },
-    { to: "/schedule", icon: <CalendarMonthOutlined />, label: "Расписание", category: "work", visible: hasPermission(PERMISSIONS.EMPLOYEE_SCHEDULES_READ) },
-    { to: "/skud", icon: <SecurityOutlined />, label: "СКУД", category: "work", visible: hasPermission(PERMISSIONS.WORK_SHIFTS_READ) || hasPermission(PERMISSIONS.WORK_SHIFTS_SELF_CLOCK_IN) },
-    { to: "/client-schedule", icon: <CalendarMonthOutlined />, label: "Клиентское расписание", category: "work", visible: hasPermission(PERMISSIONS.CLIENT_SCHEDULES_READ) },
-    { to: "/patient-search", icon: <SearchOutlined />, label: "Поиск клиентов", category: "work", visible: hasPermission(PERMISSIONS.CLIENTS_READ) },
+    { to: "/home", icon: <HomeOutlined />, label: t("menu.reception"), category: "work", visible: hasPermission(PERMISSIONS.APPOINTMENTS_READ) && hasPermission(PERMISSIONS.RECEPTION_READ) },
+    { to: "/specialist", icon: <LocalHospitalOutlined />, label: t("menu.specialist"), category: "work", visible: hasPermission(PERMISSIONS.APPOINTMENTS_READ) },
+    { to: "/all-appointments", icon: <HistoryOutlined />, label: t("menu.allServices"), category: "work", visible: hasPermission(PERMISSIONS.APPOINTMENTS_READ) },
+    { to: "/schedule", icon: <CalendarMonthOutlined />, label: t("menu.schedule"), category: "work", visible: hasPermission(PERMISSIONS.EMPLOYEE_SCHEDULES_READ) },
+    { to: "/skud", icon: <SecurityOutlined />, label: t("menu.skud"), category: "work", visible: hasPermission(PERMISSIONS.WORK_SHIFTS_READ) || hasPermission(PERMISSIONS.WORK_SHIFTS_SELF_CLOCK_IN) },
+    { to: "/client-schedule", icon: <CalendarMonthOutlined />, label: t("menu.clientSchedule"), category: "work", visible: hasPermission(PERMISSIONS.CLIENT_SCHEDULES_READ) },
+    { to: "/patient-search", icon: <SearchOutlined />, label: t("menu.clientSearch"), category: "work", visible: hasPermission(PERMISSIONS.CLIENTS_READ) },
 
     // Организация — структура
-    { to: "/employees", icon: <BadgeOutlined />, label: "Сотрудники", category: "org", visible: hasPermission(PERMISSIONS.EMPLOYEES_READ) },
-    { to: "/services", icon: <MedicalServicesOutlined />, label: "Услуги", category: "org", visible: hasPermission(PERMISSIONS.SERVICES_READ) },
-    { to: "/branches", icon: <BusinessOutlined />, label: "Управление филиалами", category: "org", visible: hasPermission(PERMISSIONS.APP_SETTINGS_UPDATE) },
+    { to: "/employees", icon: <BadgeOutlined />, label: t("menu.employees"), category: "org", visible: hasPermission(PERMISSIONS.EMPLOYEES_READ) },
+    { to: "/services", icon: <MedicalServicesOutlined />, label: t("menu.services"), category: "org", visible: hasPermission(PERMISSIONS.SERVICES_READ) },
+    { to: "/branches", icon: <BusinessOutlined />, label: t("menu.branches"), category: "org", visible: hasPermission(PERMISSIONS.APP_SETTINGS_UPDATE) },
 
     // Финансы — деньги, отчёты
-    { to: "/cashbox", icon: <AccountBalanceWalletOutlined />, label: "Касса", category: "finance", visible: hasPermission(PERMISSIONS.CASHBOX_READ) },
-    { to: "/expenses", icon: <PaymentsOutlined />, label: "Расходы", category: "finance", visible: hasPermission(PERMISSIONS.EXPENSES_READ) },
-    { to: "/categories", icon: <CategoryOutlined />, label: "Категории расходов", category: "finance", visible: hasPermission(PERMISSIONS.EXPENSES_READ) },
-    { to: "/reports", icon: <AnalyticsOutlined />, label: "Отчеты", category: "finance", visible: hasPermission(PERMISSIONS.REPORTS_READ) },
-    { to: "/admin/load", icon: <AnalyticsOutlined />, label: "Нагрузка", category: "finance", visible: hasPermission(PERMISSIONS.REPORTS_READ) },
-    { to: "/salary-reports", icon: <AccountBalanceWalletOutlined />, label: "Отчет по ЗП", category: "finance", visible: hasPermission(PERMISSIONS.REPORTS_READ) },
+    { to: "/cashbox", icon: <AccountBalanceWalletOutlined />, label: t("menu.cashbox"), category: "finance", visible: hasPermission(PERMISSIONS.CASHBOX_READ) },
+    { to: "/expenses", icon: <PaymentsOutlined />, label: t("menu.expenses"), category: "finance", visible: hasPermission(PERMISSIONS.EXPENSES_READ) },
+    { to: "/categories", icon: <CategoryOutlined />, label: t("menu.expenseCategories"), category: "finance", visible: hasPermission(PERMISSIONS.EXPENSES_READ) },
+    { to: "/reports", icon: <AnalyticsOutlined />, label: t("menu.reports"), category: "finance", visible: hasPermission(PERMISSIONS.REPORTS_READ) },
+    { to: "/admin/load", icon: <AnalyticsOutlined />, label: t("menu.load"), category: "finance", visible: hasPermission(PERMISSIONS.REPORTS_READ) },
+    { to: "/salary-reports", icon: <AccountBalanceWalletOutlined />, label: t("menu.salaryReports"), category: "finance", visible: hasPermission(PERMISSIONS.REPORTS_READ) },
 
     // Управление — админ-настройки
-    { to: "/roles", icon: <AdminPanelSettingsOutlined />, label: "Роли и права", category: "admin", visible: hasPermission(PERMISSIONS.APP_SETTINGS_UPDATE) },
+    { to: "/roles", icon: <AdminPanelSettingsOutlined />, label: t("menu.roles"), category: "admin", visible: hasPermission(PERMISSIONS.APP_SETTINGS_UPDATE) },
   ];
 
   const visibleEntries = entries.filter((e) => e.visible);
@@ -453,7 +456,7 @@ const SidebarSecondary: React.FC = () => {
       {showTiles && (
         <Stack spacing={0.75} sx={{ px: 0.5, pb: 1 }}>
           <CategoryTile
-            label="Все"
+            label={t("menu.category.all")}
             icon={<AppsOutlined fontSize="small" />}
             active={activeCategory === "all"}
             onClick={() => handleSetCategory("all")}
@@ -462,7 +465,7 @@ const SidebarSecondary: React.FC = () => {
           <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 0.75 }}>
             {categoriesWithItems.has("work") && (
               <CategoryTile
-                label="Моя работа"
+                label={t("menu.category.work")}
                 icon={<WorkOutlineOutlined fontSize="small" />}
                 active={activeCategory === "work"}
                 onClick={() => handleSetCategory("work")}
@@ -470,7 +473,7 @@ const SidebarSecondary: React.FC = () => {
             )}
             {categoriesWithItems.has("org") && (
               <CategoryTile
-                label="Организация"
+                label={t("menu.category.org")}
                 icon={<ApartmentOutlined fontSize="small" />}
                 active={activeCategory === "org"}
                 onClick={() => handleSetCategory("org")}
@@ -478,7 +481,7 @@ const SidebarSecondary: React.FC = () => {
             )}
             {categoriesWithItems.has("finance") && (
               <CategoryTile
-                label="Финансы"
+                label={t("menu.category.finance")}
                 icon={<SavingsOutlined fontSize="small" />}
                 active={activeCategory === "finance"}
                 onClick={() => handleSetCategory("finance")}
@@ -486,7 +489,7 @@ const SidebarSecondary: React.FC = () => {
             )}
             {categoriesWithItems.has("admin") && (
               <CategoryTile
-                label="Управление"
+                label={t("menu.category.admin")}
                 icon={<ManageAccountsOutlined fontSize="small" />}
                 active={activeCategory === "admin"}
                 onClick={() => handleSetCategory("admin")}
@@ -699,6 +702,7 @@ const SidebarMenuItem: React.FC<SidebarMenuItemProps> = ({
 // Bottom area (user info + logout)
 const SidebarFooter: React.FC = () => {
   const { siderCollapsed } = useThemedLayoutContext();
+  const { t } = useTranslation();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const isCollapsed = siderCollapsed && !isMobile;
@@ -730,12 +734,12 @@ const SidebarFooter: React.FC = () => {
       >
         {isCollapsed ? (
           <Stack spacing={1} alignItems="center">
-            <Tooltip title={fullName || "Профиль"} placement="right">
+            <Tooltip title={fullName || t("common.profile")} placement="right">
               <IconButton onClick={() => setSettingsOpen(true)} size="small">
                 <SettingsOutlined fontSize="small" />
               </IconButton>
             </Tooltip>
-            <Tooltip title="Выйти" placement="right">
+            <Tooltip title={t("common.logout")} placement="right">
               <IconButton onClick={handleLogoutClick} size="small" color="error">
                 <LogoutOutlined fontSize="small" />
               </IconButton>
@@ -761,12 +765,12 @@ const SidebarFooter: React.FC = () => {
             </Box>
 
             <Stack direction="row" spacing={0.5} flexShrink={0}>
-              <Tooltip title="Настройки" placement="top">
+              <Tooltip title={t("common.settings")} placement="top">
                 <IconButton onClick={() => setSettingsOpen(true)} size="small">
                   <SettingsOutlined fontSize="small" />
                 </IconButton>
               </Tooltip>
-              <Tooltip title="Выйти" placement="top">
+              <Tooltip title={t("common.logout")} placement="top">
                 <IconButton onClick={handleLogoutClick} size="small" color="error">
                   <LogoutOutlined fontSize="small" />
                 </IconButton>
@@ -786,19 +790,19 @@ const SidebarFooter: React.FC = () => {
         aria-describedby="logout-dialog-description"
       >
         <DialogTitle id="logout-dialog-title">
-          {"Выход из аккаунта"}
+          {t("auth.logoutTitle")}
         </DialogTitle>
         <DialogContent>
           <DialogContentText id="logout-dialog-description">
-            Вы действительно хотите выйти из аккаунта?
+            {t("auth.logoutConfirm")}
           </DialogContentText>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setLogoutOpen(false)} color="inherit">
-            Отмена
+            {t("common.cancel")}
           </Button>
           <Button onClick={handleConfirmLogout} color="error" variant="contained" autoFocus>
-            Выйти
+            {t("common.logout")}
           </Button>
         </DialogActions>
       </Dialog>

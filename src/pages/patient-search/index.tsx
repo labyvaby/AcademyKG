@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router";
 import { Box, Grid, Typography, Tabs, Tab } from "@mui/material";
 import useMediaQuery from "@mui/material/useMediaQuery";
@@ -33,7 +34,8 @@ import { apiFetch, resolveApiUrl } from "../../utility/apiClient";
 
 
 export const PatientSearchPage: React.FC = () => {
-  usePageTitle("Поиск клиентов");
+  const { t } = useTranslation();
+  usePageTitle(t("menu.clientSearch"));
   const { hasPermission } = usePermissions();
   const [searchParams, setSearchParams] = useSearchParams();
   const [addInitialPhone, setAddInitialPhone] = React.useState("");
@@ -271,7 +273,7 @@ export const PatientSearchPage: React.FC = () => {
 
   const tabs = [
     {
-      label: "Карточка",
+      label: t("patientSearch.cardTab"),
       content: (
         <PatientCard
           patient={patientCardProps}
@@ -289,7 +291,7 @@ export const PatientSearchPage: React.FC = () => {
       ),
     },
     {
-      label: "История",
+      label: t("patientSearch.historyTab"),
       content: (
         <PatientHistoryPanel
           selected={!!selected}
@@ -318,14 +320,14 @@ export const PatientSearchPage: React.FC = () => {
       }}
     >
       <PageHeader
-        title="Поиск клиента"
+        title={t("patientSearch.title")}
         showTitle={false}
-        addButtonText="Добавить клиент"
+        addButtonText={t("patientSearch.addClient")}
         onAdd={canCreatePatient ? () => setAddOpen(true) : undefined}
         showSearch
         searchVal={query}
         onSearchChange={setQuery}
-        searchPlaceholder="Поиск..."
+        searchPlaceholder={t("products.searchPlaceholder")}
         loading={loading}
       />
 
@@ -383,8 +385,8 @@ export const PatientSearchPage: React.FC = () => {
                     variant="fullWidth"
                     sx={{ flexShrink: 0, mb: 1 }}
                   >
-                    <Tab label="Карточка" />
-                    <Tab label="История" />
+                    <Tab label={t("patientSearch.cardTab")} />
+                    <Tab label={t("patientSearch.historyTab")} />
                   </Tabs>
                   <Box sx={{ flex: 1, overflowY: "auto", minHeight: 0, WebkitOverflowScrolling: "touch" }}>
                     {tabletTab === 0 && (
@@ -415,7 +417,7 @@ export const PatientSearchPage: React.FC = () => {
                 </Box>
               ) : (
                 <Box sx={{ px: 2, py: 4, height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <Typography color="text.secondary">Выберите клиента слева</Typography>
+                  <Typography color="text.secondary">{t("patientSearch.selectClientFromLeft")}</Typography>
                 </Box>
               )}
             </Grid>
@@ -441,7 +443,7 @@ export const PatientSearchPage: React.FC = () => {
                   />
                 ) : (
                   <Box sx={{ px: 2, py: 4, height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    <Typography color="text.secondary">Карточка клиента</Typography>
+                    <Typography color="text.secondary">{t("patientSearch.clientCard")}</Typography>
                   </Box>
                 )}
               </Grid>

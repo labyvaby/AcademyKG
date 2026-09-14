@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import {
   Box,
   Card,
@@ -133,7 +134,8 @@ function aggregateServices(rows: Array<Record<string, unknown>>): AggregatedServ
 }
 
 const ServicesPage: React.FC = () => {
-  usePageTitle("Услуги");
+  const { t } = useTranslation();
+  usePageTitle(t("menu.services"));
   const { suffix } = useBranchCurrency();
   const { open: notify } = useNotification();
   const { hasPermission } = usePermissions();
@@ -282,7 +284,7 @@ const ServicesPage: React.FC = () => {
   // Действия
   const handleEdit = (row: AggregatedService) => {
     if (!row.editable) {
-      notify?.({ type: "error", message: "Эту запись нельзя редактировать (нет ID в таблице изменений Services)." });
+      notify?.({ type: "error", message: t("services.cannotEditRecord") });
       return;
     }
     setEditingRec({
@@ -308,10 +310,10 @@ const ServicesPage: React.FC = () => {
 
       // Перезагружаем
       await loadAll();
-      notify?.({ type: "success", message: "Услуга удалена" });
+      notify?.({ type: "success", message: t("services.serviceDeleted") });
     } catch (e) {
       console.error("Delete service failed:", e);
-      notify?.({ type: "error", message: "Не удалось удалить услугу. Проверьте права RLS." });
+      notify?.({ type: "error", message: t("services.deleteError") });
     }
   };
 
@@ -359,11 +361,11 @@ const ServicesPage: React.FC = () => {
 
             <Stack sx={{ minWidth: 0, flex: 1 }}>
               <Typography variant="subtitle1" noWrap sx={{ opacity: s.is_active ? 1 : 0.6 }}>
-                {s.name || "Без названия"}
+                {s.name || t("services.noName")}
               </Typography>
               {!s.is_active && (
                 <Typography variant="caption" color="error">
-                  Неактивна
+                  {t("categories.inactive")}
                 </Typography>
               )}
             </Stack>
@@ -380,7 +382,7 @@ const ServicesPage: React.FC = () => {
               {Number.isFinite(Number(s.price)) ? Math.round(Number(s.price)).toLocaleString("ru-RU") : "0"} {suffix}
             </Typography>
             {canEdit && (
-              <Tooltip title={s.editable ? "Редактировать" : "Нельзя редактировать"}>
+              <Tooltip title={s.editable ? t("common.edit") : t("services.cannotEdit")}>
                 <span>
                   <IconButton size="small" onClick={() => handleEdit(s)} disabled={!s.editable}>
                     <EditOutlinedIcon fontSize="small" />
@@ -389,7 +391,7 @@ const ServicesPage: React.FC = () => {
               </Tooltip>
             )}
             {canDelete && (
-              <Tooltip title={s.editable ? "Удалить" : "Нельзя удалить"}>
+              <Tooltip title={s.editable ? t("common.delete") : t("services.cannotDelete")}>
                 <span>
                   <IconButton
                     size="small"
@@ -426,9 +428,9 @@ const ServicesPage: React.FC = () => {
       }}
     >
       <PageHeader
-        title="Услуги"
+        title={t("menu.services")}
         showTitle={false}
-        addButtonText={canCreate ? "Добавить услугу" : undefined}
+        addButtonText={canCreate ? t("services.addService") : undefined}
         onAdd={canCreate ? () => setAddOpen(true) : undefined}
         showSearch
         searchVal={searchQuery}
@@ -467,7 +469,7 @@ const ServicesPage: React.FC = () => {
               <>
                 {visibleServices.length === 0 ? (
                   <Typography variant="body2" sx={{ p: 2 }}>
-                    Нет услуг
+                    {t("services.noServices")}
                   </Typography>
                 ) : (
                   <Stack divider={<Divider flexItem />}>
@@ -478,7 +480,7 @@ const ServicesPage: React.FC = () => {
                 )}
                 <Stack alignItems="center" sx={{ px: 2, py: 1.5 }}>
                   <Typography variant="caption" color="text.secondary">
-                    {visibleCount < totalUnique ? "Прокрутите вниз, чтобы загрузить ещё…" : "Больше услуг нет"}
+                    {visibleCount < totalUnique ? t("services.scrollToLoadMore") : t("services.noMoreServices")}
                   </Typography>
                 </Stack>
                 <Box ref={sentinelRef} sx={{ height: 8 }} />
@@ -527,13 +529,13 @@ const ServicesPage: React.FC = () => {
 
       {/* Подтверждение удаления */}
       <Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)} fullWidth maxWidth="xs">
-        <DialogTitle>Удалить услугу</DialogTitle>
+        <DialogTitle>{t("services.deleteServiceTitle")}</DialogTitle>
         <DialogContent>
-          <Typography>Вы уверены, что хотите удалить услугу "{confirmRow?.name}"?</Typography>
+          <Typography>{t("services.deleteServiceConfirm", { name: confirmRow?.name })}</Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setConfirmOpen(false)}>Отмена</Button>
-          <Tooltip title="Удалить услугу">
+          <Button onClick={() => setConfirmOpen(false)}>{t("common.cancel")}</Button>
+          <Tooltip title={t("services.deleteServiceTitle")}>
             <IconButton
               color="error"
               onClick={async () => {

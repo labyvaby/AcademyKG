@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import {
     Stack,
     Typography,
@@ -23,6 +24,7 @@ const PassportPhotoUploader: React.FC<PassportPhotoUploaderProps> = ({
     onRemovePhoto,
     inputId = "passport-photo-input",
 }) => {
+    const { t } = useTranslation();
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
             onAddPhoto(e.target.files[0]);
@@ -32,7 +34,7 @@ const PassportPhotoUploader: React.FC<PassportPhotoUploaderProps> = ({
     return (
         <Stack spacing={1}>
             <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
-                Паспортные данные (фотографии)
+                {t("employees.passportPhotos")}
             </Typography>
 
             <Grid container spacing={1}>
@@ -91,7 +93,7 @@ const PassportPhotoUploader: React.FC<PassportPhotoUploaderProps> = ({
             </Grid>
 
             <Typography variant="caption" color="text.secondary">
-                Можно добавить несколько фотографий разворотов паспорта
+                {t("employees.passportPhotosHint")}
             </Typography>
         </Stack>
     );

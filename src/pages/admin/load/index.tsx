@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Box, Typography, Paper, CircularProgress } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
 import { apiFetch } from '../../../utility/apiClient';
@@ -11,7 +12,8 @@ import { usePageTitle } from '../../../hooks/usePageTitle';
 import { useBranchContext } from '../../../contexts/branch-context';
 
 export const LoadAnalyticsPage: React.FC = () => {
-    usePageTitle("Нагрузка");
+    const { t } = useTranslation();
+    usePageTitle(t("menu.load"));
     const { selectedBranch } = useBranchContext();
     const branchId = selectedBranch?.id ?? "all";
     const [selectedEmployees, setSelectedEmployees] = useState<string[]>([]);
@@ -87,7 +89,7 @@ export const LoadAnalyticsPage: React.FC = () => {
                 WebkitOverflowScrolling: 'touch',
             }}
         >
-            <Typography variant="h5" sx={{ fontWeight: 600 }}>Нагрузка (Аналитика)</Typography>
+            <Typography variant="h5" sx={{ fontWeight: 600 }}>{t("admin.loadAnalyticsTitle")}</Typography>
 
             <LoadFilters
                 selectedEmployees={selectedEmployees}

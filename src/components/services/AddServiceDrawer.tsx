@@ -6,6 +6,7 @@
  * Компонент собирает UI-блоки и передает им данные/колбэки через пропсы.
  */
 import React from "react";
+import { useTranslation } from "react-i18next";
 import {
   Box,
   Button,
@@ -42,6 +43,7 @@ const DrawerBase: React.FC<{
   submitDisabled?: boolean;
   children?: React.ReactNode;
 }> = ({ open, title, busy, onClose, onSubmit, submitDisabled, children }) => {
+  const { t } = useTranslation();
   return (
     <Drawer
       anchor="right"
@@ -60,7 +62,7 @@ const DrawerBase: React.FC<{
           py={1.5}
         >
           <Typography variant="h6">{title}</Typography>
-          <IconButton onClick={busy ? undefined : onClose} aria-label="Закрыть">
+          <IconButton onClick={busy ? undefined : onClose} aria-label={t("common.close")}>
             <CloseOutlined />
           </IconButton>
         </Stack>
@@ -83,7 +85,7 @@ const DrawerBase: React.FC<{
         <Divider />
         <Box px={2} py={1.5} display="flex" justifyContent="flex-end" gap={1.5}>
           <Button onClick={onClose} disabled={busy}>
-            Отмена
+            {t("common.cancel")}
           </Button>
           <Button
             onClick={onSubmit}
@@ -93,10 +95,10 @@ const DrawerBase: React.FC<{
             {busy ? (
               <Stack direction="row" alignItems="center" spacing={1}>
                 <CircularProgress size={18} />
-                <span>Сохранение…</span>
+                <span>{t("common.saving")}</span>
               </Stack>
             ) : (
-              "Сохранить"
+              t("common.save")
             )}
           </Button>
         </Box>
@@ -106,6 +108,7 @@ const DrawerBase: React.FC<{
 };
 
 const AddServiceDrawer: React.FC<Props> = ({ open, onClose, onCreated }) => {
+  const { t } = useTranslation();
   // Вся логика формы — в хуке; компонент только «собирает» UI-блоки
   const { state, handlers, submitDisabled } = useAddServiceForm({
     open,
@@ -116,7 +119,7 @@ const AddServiceDrawer: React.FC<Props> = ({ open, onClose, onCreated }) => {
   return (
     <DrawerBase
       open={open}
-      title="Добавление услуги"
+      title={t("services.addingService")}
       busy={state.busy}
       onClose={onClose}
       onSubmit={handlers.handleSubmit}

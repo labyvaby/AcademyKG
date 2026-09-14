@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import AppAutocomplete from "../../components/ui/AppAutocomplete";
 import { dayjsBranch } from "../../utility/branchTime";
 import {
@@ -31,7 +32,8 @@ import { apiFetch } from "../../utility/apiClient";
 import { useBranchContext } from "../../contexts/branch-context";
 
 const DoctorWorkPage: React.FC = () => {
-    usePageTitle("Кабинет специалиста");
+    const { t } = useTranslation();
+    usePageTitle(t("menu.specialist"));
     useNotification();
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down("md"));
@@ -216,7 +218,7 @@ const DoctorWorkPage: React.FC = () => {
 })}
         >
             <PageHeader
-                title="Кабинет специалиста"
+                title={t("menu.specialist")}
                 showTitle={false}
                 dateNavigation={
                     <DateNavigation
@@ -236,7 +238,7 @@ const DoctorWorkPage: React.FC = () => {
                         onChange={(_, v) => setSelectedDoctorId(v?.id ?? null)}
                         getOptionLabel={(d) => d.full_name ?? ""}
                         isOptionEqualToValue={(a, b) => a.id === b.id}
-                        noOptionsText="Нет специалистов"
+                        noOptionsText={t("doctor.noSpecialists")}
                         renderOption={(props, d) => {
                             const { key, ...optionProps } = props;
                             return (
@@ -253,7 +255,7 @@ const DoctorWorkPage: React.FC = () => {
                         renderInput={(params) => (
                             <TextField
                                 {...params}
-                                placeholder="Все специалисты"
+                                placeholder={t("doctor.allSpecialists")}
                                 size="small"
                                 sx={{ minWidth: 220, bgcolor: "background.paper", borderRadius: 1 }}
                             />
@@ -312,7 +314,7 @@ const DoctorWorkPage: React.FC = () => {
                                     color: "text.secondary",
                                     bgcolor: "background.paper"
 }}>
-                                    Выберите прием из списка
+                                    {t("doctor.selectAppointmentFromList")}
                                 </Box>
                             )}
                         </Grid>
@@ -327,8 +329,8 @@ const DoctorWorkPage: React.FC = () => {
                 >
                     <Box sx={{ borderBottom: 1, borderColor: "divider" }}>
                         <Tabs value={activeTab} onChange={(_, v) => setActiveTab(v)} variant="fullWidth">
-                            <Tab label="Прием" />
-                            <Tab label="Работа" />
+                            <Tab label={t("doctor.appointmentTab")} />
+                            <Tab label={t("doctor.workTab")} />
                         </Tabs>
                     </Box>
                     {activeTab === 0 && selectedAppointmentId && (
@@ -343,7 +345,7 @@ const DoctorWorkPage: React.FC = () => {
                     )}
                     {activeTab === 1 && (
                         <Box sx={{ p: 2 }}>
-                            <Typography variant="body2" color="text.secondary">Работа</Typography>
+                            <Typography variant="body2" color="text.secondary">{t("doctor.workTab")}</Typography>
                         </Box>
                     )}
                 </AppBottomSheet>

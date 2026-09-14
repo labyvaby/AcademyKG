@@ -8,6 +8,7 @@
  * Презентационный компонент: не содержит API-логики, принимает данные через пропсы.
  */
 import React from "react";
+import { useTranslation } from "react-i18next";
 import {
   Box,
   Card,
@@ -42,6 +43,7 @@ const PatientHistoryPanel: React.FC<Props> = ({
   history,
   onClick,
 }) => {
+  const { t } = useTranslation();
   const { format: formatKGS } = useBranchCurrency();
   return (
     <Box sx={{ height: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
@@ -51,7 +53,7 @@ const PatientHistoryPanel: React.FC<Props> = ({
             <Stack direction="row" alignItems="center" justifyContent="space-between" gap={1} flexWrap="wrap">
               <Stack direction="row" alignItems="center" gap={1.25}>
                 <HistoryOutlined color="primary" />
-                <Typography variant="h6">История приемов</Typography>
+                <Typography variant="h6">{t("patientSearch.appointmentsHistory")}</Typography>
               </Stack>
               <Chip size="small" label={history.length} />
             </Stack>
@@ -62,19 +64,19 @@ const PatientHistoryPanel: React.FC<Props> = ({
         <CardContent sx={{ p: 0, flex: 1, overflowY: "auto", minHeight: 0 }}>
           {!selected ? (
             <Typography sx={{ p: 2 }} variant="body2" color="text.secondary" align="center">
-              Выберите клиента слева
+              {t("patientSearch.selectClientFromLeft")}
             </Typography>
           ) : loading ? (
             <Typography sx={{ p: 2 }} variant="body2" color="text.secondary" align="center">
-              Загрузка…
+              {t("common.loading")}
             </Typography>
           ) : errorMsg ? (
             <Typography sx={{ p: 2 }} variant="body2" color="error" align="center">
-              Ошибка: {errorMsg}
+              {t("common.errorWithMsg", { msg: errorMsg })}
             </Typography>
           ) : history.length === 0 ? (
             <Typography sx={{ p: 2 }} variant="body2" color="text.secondary" align="center">
-              История пуста
+              {t("patientSearch.historyEmpty")}
             </Typography>
           ) : (
             <List disablePadding sx={{ px: 1, py: 0.5 }}>
@@ -109,11 +111,11 @@ const PatientHistoryPanel: React.FC<Props> = ({
                           : "—"}
                       </Typography>
                       <Typography variant="body2" color="text.secondary">
-                        Тренер: {h["Доктор ФИО"] || "—"}
+                        {t("patientSearch.trainer")}: {h["Доктор ФИО"] || "—"}
                       </Typography>
                       {h["Услуга"] && (
                         <Typography variant="body2" color="text.secondary">
-                          Услуга: {h["Услуга"]}
+                          {t("details.service")}: {h["Услуга"]}
                         </Typography>
                       )}
                     </Stack>

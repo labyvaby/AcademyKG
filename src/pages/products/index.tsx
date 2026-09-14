@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import {
   Box,
   Typography,
@@ -37,8 +38,9 @@ import { useBranchContext } from "../../contexts/branch-context";
 import { useBranchCurrency } from "../../hooks/useBranchCurrency";
 
 const ProductsPage: React.FC = () => {
+  const { t } = useTranslation();
   const { suffix } = useBranchCurrency();
-  usePageTitle("Товары");
+  usePageTitle(t("products.title"));
   const { selectedBranch, branchHydrated } = useBranchContext();
   const branchId = selectedBranch?.id ?? null;
   const theme = useTheme();
@@ -81,11 +83,11 @@ const ProductsPage: React.FC = () => {
       setProducts(data);
     } catch (e) {
       console.error("Failed to load products:", e);
-      notify?.({ type: "error", message: "Не удалось загрузить список товаров" });
+      notify?.({ type: "error", message: t("products.loadError") });
     } finally {
       setLoading(false);
     }
-  }, [notify]);
+  }, [notify, t]);
 
   React.useEffect(() => {
     if (!branchHydrated) return;
@@ -104,10 +106,10 @@ const ProductsPage: React.FC = () => {
 
   const handleDelete = async (p: Product) => {
     const confirmed = await confirm({
-      title: "Удалить товар?",
-      message: `Вы уверены, что хотите удалить "${p.name}"? Это действие нельзя отменить.`,
-      confirmText: "Удалить",
-      cancelText: "Отмена",
+      title: t("products.deleteProductTitle"),
+      message: t("products.deleteProductConfirm", { name: p.name }),
+      confirmText: t("common.delete"),
+      cancelText: t("common.cancel"),
       variant: "error",
     });
 
@@ -123,16 +125,16 @@ const ProductsPage: React.FC = () => {
 
       await fetchProducts();
 
-      notify?.({ type: "success", message: "Товар удален" });
+      notify?.({ type: "success", message: t("products.productDeleted") });
     } catch (err: unknown) {
       console.error("Delete failed:", err);
       const message = typeof err === "object" && err && "message" in err ? String((err as { message: unknown }).message) : "";
       if (message === "ARCHIVED") {
-        notify?.({ type: "success", message: "Товар перемещен в архив (есть история продаж)" });
+        notify?.({ type: "success", message: t("products.productArchived") });
         await fetchProducts();
         setSelectedProduct(null);
       } else {
-        notify?.({ type: "error", message: "Не удалось удалить товар" });
+        notify?.({ type: "error", message: t("products.deleteError") });
       }
     }
   };
@@ -220,14 +222,14 @@ const ProductsPage: React.FC = () => {
     >
       {/* Page Header */}
       <PageHeader
-        title="Товары"
+        title={t("products.title")}
         showTitle={false}
-        addButtonText={canCreate ? "Добавить товар" : undefined}
+        addButtonText={canCreate ? t("products.addProduct") : undefined}
         onAdd={canCreate ? () => setAddDrawerOpen(true) : undefined}
         showSearch
         searchVal={searchQuery}
         onSearchChange={setSearchQuery}
-        searchPlaceholder="Поиск..."
+        searchPlaceholder={t("products.searchPlaceholder")}
       />
 
       <Box
@@ -261,7 +263,7 @@ const ProductsPage: React.FC = () => {
               <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ p: 1.5, borderBottom: 1, borderColor: "divider" }}>
                 <Stack direction="row" alignItems="center" spacing={1}>
                   <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-                    Товары
+                    {t("products.title")}
                   </Typography>
                   <IconButton
                     size="small"
@@ -284,7 +286,7 @@ const ProductsPage: React.FC = () => {
                 ) : filteredProducts.length === 0 ? (
                   <Box sx={{ p: 4, textAlign: "center" }}>
                     <Typography variant="body2" color="text.secondary">
-                      {products.length === 0 ? "Список товаров пуст" : "Ничего не найдено"}
+                      {products.length === 0 ? t("products.listEmpty") : t("products.nothingFound")}
                     </Typography>
                   </Box>
                 ) : (
@@ -425,6 +427,7 @@ const ProductDetailCard: React.FC<{
   canEdit?: boolean;
   canDelete?: boolean;
 }> = ({ product, onEdit, onDelete, canEdit, canDelete }) => {
+  const { t } = useTranslation();
   const { suffix } = useBranchCurrency();
   const [expanded, setExpanded] = React.useState(false);
 
@@ -448,7 +451,7 @@ const ProductDetailCard: React.FC<{
           bgcolor: "background.paper",
         }}
       >
-        <Typography>Выберите товар для просмотра</Typography>
+        <Typography>{t("products.selectProductToView")}</Typography>
       </Box>
     );
   }
@@ -498,11 +501,11 @@ const ProductDetailCard: React.FC<{
                     startIcon={<EditOutlined />}
                     onClick={onEdit}
                   >
-                    Редактировать
+                    {t("common.edit")}
                   </Button>
                 )}
                 {canDelete && (
-                  <Tooltip title="Удалить товар">
+                  <Tooltip title={t("products.deleteProductTitle")}>
                     <IconButton
                       color="error"
                       size="small"
@@ -559,7 +562,7 @@ const ProductDetailCard: React.FC<{
                   {product.name}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  Штрихкод: {product.barcode || "—"}
+                  {t("products.barcode")}: {product.barcode || "—"}
                 </Typography>
               </Box>
 
@@ -567,7 +570,7 @@ const ProductDetailCard: React.FC<{
               <Box>
                 <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mb: 1 }}>
                   <Chip
-                    label={product.is_for_sale ? "Активен" : "Скрыт"}
+                    label={product.is_for_sale ? t("products.statusActive") : t("products.statusHidden")}
                     size="small"
                     sx={{
                       bgcolor: (theme) =>
@@ -581,7 +584,7 @@ const ProductDetailCard: React.FC<{
                     }}
                   />
                   <Chip
-                    label={product.stock && product.stock > 0 ? "В наличии" : "Нет в наличии"}
+                    label={product.stock && product.stock > 0 ? t("products.inStock") : t("products.outOfStock")}
                     size="small"
                     sx={{
                       bgcolor: (theme) =>
@@ -596,7 +599,7 @@ const ProductDetailCard: React.FC<{
                   />
                   {product.is_infusion && (
                     <Chip
-                      label="Капельница"
+                      label={t("products.infusion")}
                       size="small"
                       sx={{
                         bgcolor: (theme) => alpha(theme.palette.info.main, 0.1),
@@ -616,7 +619,7 @@ const ProductDetailCard: React.FC<{
               <Grid2 container spacing={2}>
                 <Grid2 size={6}>
                   <Typography variant="caption" color="text.secondary" display="block">
-                    Стоимость
+                    {t("products.cost")}
                   </Typography>
                   <Typography variant="body1" fontWeight={600}>
                     {product.price ? `${product.price.toLocaleString()} ${suffix}` : "—"}
@@ -624,7 +627,7 @@ const ProductDetailCard: React.FC<{
                 </Grid2>
                 <Grid2 size={6}>
                   <Typography variant="caption" color="text.secondary" display="block">
-                    Остаток
+                    {t("products.stock")}
                   </Typography>
                   <Typography variant="body1" fontWeight={600}>
                     {product.stock ?? 0} {product.unit}
@@ -632,7 +635,7 @@ const ProductDetailCard: React.FC<{
                 </Grid2>
                 <Grid2 size={6}>
                   <Typography variant="caption" color="text.secondary" display="block">
-                    Ед. измерения
+                    {t("products.unit")}
                   </Typography>
                   <Typography variant="body2">
                     {product.unit || "—"}
@@ -640,7 +643,7 @@ const ProductDetailCard: React.FC<{
                 </Grid2>
                 <Grid2 size={6}>
                   <Typography variant="caption" color="text.secondary" display="block">
-                    Категория
+                    {t("expenses.category")}
                   </Typography>
                   <Typography variant="body2">
                     {product.category || "—"}
@@ -656,7 +659,7 @@ const ProductDetailCard: React.FC<{
         {/* Описание на всю ширину */}
         <Box>
           <Typography variant="subtitle2" fontWeight={700} gutterBottom>
-            Описание
+            {t("products.description")}
           </Typography>
           <Paper
             elevation={0}
@@ -674,7 +677,7 @@ const ProductDetailCard: React.FC<{
                 color="text.primary"
                 sx={{ whiteSpace: "pre-wrap", lineHeight: 1.6 }}
               >
-                {product.description || "Описание отсутствует"}
+                {product.description || t("products.noDescription")}
               </Typography>
             </Collapse>
             {isLongDescription && (
@@ -684,7 +687,7 @@ const ProductDetailCard: React.FC<{
                 sx={{ mt: 1, textTransform: "none", fontSize: 13, p: 0, minWidth: 'auto', '&:hover': { bgcolor: 'transparent', textDecoration: 'underline' } }}
                 disableRipple
               >
-                {expanded ? "Свернуть" : "Читать полностью"}
+                {expanded ? t("products.collapse") : t("products.readMore")}
               </Button>
             )}
           </Paper>
@@ -693,7 +696,7 @@ const ProductDetailCard: React.FC<{
         {product.comment && (
           <Box sx={{ mt: 2 }}>
             <Typography variant="subtitle2" fontWeight={700} gutterBottom>
-              Комментарий
+              {t("expenses.comment")}
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ fontStyle: "italic" }}>
               {product.comment}

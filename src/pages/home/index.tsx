@@ -1,4 +1,5 @@
 import React, { useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { CustomDatePicker } from "../../components/ui";
 import { useNotification } from "@refinedev/core";
 import {
@@ -71,7 +72,8 @@ function useDebouncedValue<T>(value: T, delay = 300) {
 
 
 export const HomePage: React.FC = () => {
-  usePageTitle("Регистратура");
+  const { t } = useTranslation();
+  usePageTitle(t("menu.reception"));
   useNotification();
   const queryClient = useQueryClient();
   const { setOnRefresh } = useRefresh();
@@ -355,9 +357,9 @@ export const HomePage: React.FC = () => {
       })}
     >
       <PageHeader
-        title="Приемы"
+        title={t("home.appointments")}
         showTitle={false}
-        addButtonText="Добавить прием"
+        addButtonText={t("home.addAppointment")}
         onAdd={() => {
           setVisitOpen(true);
         }}
@@ -554,7 +556,7 @@ export const HomePage: React.FC = () => {
             py: 1,
           }}
         >
-          <Typography variant="h6">Фильтры приемов</Typography>
+          <Typography variant="h6">{t("home.appointmentFilters")}</Typography>
           <IconButton onClick={() => setFiltersOpen(false)}>
             <CloseOutlined />
           </IconButton>
@@ -562,14 +564,14 @@ export const HomePage: React.FC = () => {
         <Divider />
         <Stack spacing={2} sx={{ p: 2 }}>
           <CustomDatePicker
-            label="Дата"
+            label={t("common.date")}
             value={date ? dayjs(date) : null}
             onChange={(val) => handleDateChange(val ? val.format("YYYY-MM-DD") : "")}
             slotProps={{ textField: { fullWidth: true } }}
           />
 
 
-          <Typography variant="subtitle2">Доктор</Typography>
+          <Typography variant="subtitle2">{t("home.doctor")}</Typography>
           <AppAutocomplete
             options={doctors}
             loading={doctorsLoading}
@@ -587,7 +589,7 @@ export const HomePage: React.FC = () => {
             renderInput={(params) => (
               <TextField
                 {...params}
-                placeholder="Выберите доктора"
+                placeholder={t("home.selectDoctor")}
                 fullWidth
               />
             )}
@@ -595,10 +597,10 @@ export const HomePage: React.FC = () => {
 
           <Stack direction="row" gap={1}>
             <Button variant="contained" onClick={() => setFiltersOpen(false)}>
-              Применить
+              {t("common.apply")}
             </Button>
             <Button variant="text" onClick={resetFilters}>
-              Сбросить
+              {t("common.reset")}
             </Button>
           </Stack>
         </Stack>

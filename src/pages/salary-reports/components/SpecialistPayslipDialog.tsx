@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
     Dialog,
     DialogTitle,
@@ -63,6 +64,7 @@ const SpecialistPayslipDialog: React.FC<SpecialistPayslipDialogProps> = ({
     employeeName,
     month,
 }) => {
+    const { t } = useTranslation();
     const { branchId } = useReportBranchScope();
     const { suffix: currencySuffix } = useReportCurrency();
     const [monthStart, setMonthStart] = useState<Dayjs>(() => dayjs(`${month}-01`).startOf("month"));
@@ -82,8 +84,8 @@ const SpecialistPayslipDialog: React.FC<SpecialistPayslipDialogProps> = ({
     const range = useMemo(() => computeRange(monthStart, half), [monthStart, half]);
 
     const periodLabel = useMemo(() => {
-        return `с ${range.from.format("DD.MM")} - ${range.to.format("DD.MM.YYYY")}`;
-    }, [range]);
+        return t("salaryReports.periodRange", { from: range.from.format("DD.MM"), to: range.to.format("DD.MM.YYYY") });
+    }, [range, t]);
 
     const monthName = useMemo(() => capitalize(monthStart.format("MMMM YYYY")), [monthStart]);
 
@@ -113,7 +115,7 @@ const SpecialistPayslipDialog: React.FC<SpecialistPayslipDialogProps> = ({
                 half === "month" ? undefined : half,
                 branchId,
             );
-            if (!res?.data) throw new Error("Пустой ответ от сервера");
+            if (!res?.data) throw new Error(t("salaryReports.emptyServerResponse"));
 
             // Авансы/удержания специалиста за период — подмешиваем в дни PDF.
             // Сбой дозагрузки не должен срывать сам расчётный лист.
@@ -135,8 +137,7 @@ const SpecialistPayslipDialog: React.FC<SpecialistPayslipDialogProps> = ({
         } catch (e: any) {
             console.error(e);
             setError(
-                e?.message ||
-                    "Не удалось сформировать расчётный лист. Проверьте, что эндпоинт /api/v1/reports/specialist-payslip/ реализован на бэкенде.",
+                e?.message || t("salaryReports.payslipGenerationError"),
             );
         } finally {
             setLoading(false);
@@ -147,10 +148,10 @@ const SpecialistPayslipDialog: React.FC<SpecialistPayslipDialogProps> = ({
         <Dialog open={open} onClose={loading ? undefined : onClose} maxWidth="xs" fullWidth>
             <DialogTitle sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", pr: 1 }}>
                 <Box>
-                    <Typography variant="subtitle1" fontWeight={800}>Расчётный лист</Typography>
+                    <Typography variant="subtitle1" fontWeight={800}>{t("salaryReports.payslipTitle")}</Typography>
                     <Typography variant="caption" color="text.secondary">{employeeName}</Typography>
                 </Box>
-                <IconButton onClick={onClose} size="small" disabled={loading} aria-label="Закрыть">
+                <IconButton onClick={onClose} size="small" disabled={loading} aria-label={t("common.close")}>
                     <CloseIcon fontSize="small" />
                 </IconButton>
             </DialogTitle>
@@ -158,7 +159,7 @@ const SpecialistPayslipDialog: React.FC<SpecialistPayslipDialogProps> = ({
             <DialogContent dividers>
                 <Stack spacing={2}>
                     <Typography variant="body2" color="text.secondary">
-                        Выберите месяц и период: половину месяца или весь месяц.
+                        {t("salaryReports.selectMonthAndPeriod")}
                     </Typography>
 
                     <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1}>
@@ -166,7 +167,7 @@ const SpecialistPayslipDialog: React.FC<SpecialistPayslipDialogProps> = ({
                             size="small"
                             onClick={() => setMonthStart((m) => m.subtract(1, "month").startOf("month"))}
                             disabled={loading}
-                            aria-label="Предыдущий месяц"
+                            aria-label={t("salaryReports.previousMonth")}
                         >
                             <ChevronLeftIcon />
                         </IconButton>
@@ -178,7 +179,7 @@ const SpecialistPayslipDialog: React.FC<SpecialistPayslipDialogProps> = ({
                             size="small"
                             onClick={() => setMonthStart((m) => m.add(1, "month").startOf("month"))}
                             disabled={loading}
-                            aria-label="Следующий месяц"
+                            aria-label={t("salaryReports.nextMonth")}
                         >
                             <ChevronRightIcon />
                         </IconButton>
@@ -196,7 +197,7 @@ const SpecialistPayslipDialog: React.FC<SpecialistPayslipDialogProps> = ({
                         <ToggleButton value="second">
                             16 – {monthStart.endOf("month").format("DD")}
                         </ToggleButton>
-                        <ToggleButton value="month">Весь месяц</ToggleButton>
+                        <ToggleButton value="month">{t("salaryReports.wholeMonth")}</ToggleButton>
                     </ToggleButtonGroup>
 
                     {error && (
@@ -209,14 +210,14 @@ const SpecialistPayslipDialog: React.FC<SpecialistPayslipDialogProps> = ({
 
             <DialogActions sx={{ px: 3, py: 2, justifyContent: "flex-end" }}>
                 <Stack direction="row" spacing={1}>
-                    <Button onClick={onClose} disabled={loading}>Отмена</Button>
+                    <Button onClick={onClose} disabled={loading}>{t("common.cancel")}</Button>
                     <Button
                         variant="contained"
                         onClick={handleGenerate}
                         disabled={loading}
                         startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <FileDownloadIcon />}
                     >
-                        Сформировать PDF
+                        {t("salaryReports.generatePdf")}
                     </Button>
                 </Stack>
             </DialogActions>

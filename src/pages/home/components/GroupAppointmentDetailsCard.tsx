@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import AppAutocomplete from "../../../components/ui/AppAutocomplete";
 import { CustomDateTimePicker } from "../../../components/ui";
 import {
@@ -86,6 +87,7 @@ function participantToAppointment(p: GroupParticipant, group: AppointmentGroup):
 }
 
 const GroupAppointmentDetailsCard: React.FC<Props> = ({ group, onGroupUpdated, onClose }) => {
+  const { t } = useTranslation();
   const { suffix } = useBranchCurrency();
   const isFull = group.maxParticipants != null && group.participants.length >= group.maxParticipants;
   const totalDebt = group.participants.reduce((s, p) => s + p.debt, 0);
@@ -118,7 +120,7 @@ const GroupAppointmentDetailsCard: React.FC<Props> = ({ group, onGroupUpdated, o
       setDeleteOpen(false);
       onClose();
     } catch (e: any) {
-      const detail = e?.errors?.[0]?.detail ?? e?.message ?? "Ошибка при удалении";
+      const detail = e?.errors?.[0]?.detail ?? e?.message ?? t("group.deleteError");
       notify?.({ type: "error", message: detail });
     } finally { setDeleting(false); }
   };
@@ -285,8 +287,8 @@ const GroupAppointmentDetailsCard: React.FC<Props> = ({ group, onGroupUpdated, o
           <Stack direction="row" alignItems="center" justifyContent="space-between">
             <Stack direction="row" alignItems="center" spacing={1}>
               <GroupsOutlined color="primary" fontSize="small" />
-              <Typography variant="subtitle1" fontWeight={600}>Групповое занятие</Typography>
-              {isFull && <Chip label="Группа полная" size="small" color="error" />}
+              <Typography variant="subtitle1" fontWeight={600}>{t("group.groupLesson")}</Typography>
+              {isFull && <Chip label={t("group.groupFull")} size="small" color="error" />}
             </Stack>
             <Stack direction="row" spacing={0.5}>
               <Button
@@ -298,7 +300,7 @@ const GroupAppointmentDetailsCard: React.FC<Props> = ({ group, onGroupUpdated, o
                 onClick={handleClientNotCame}
                 sx={{ whiteSpace: "nowrap", fontSize: 12 }}
               >
-                Клиент не пришел
+                {t("details.clientNotCame")}
               </Button>
               <IconButton size="small" onClick={openEdit}>
                 <EditOutlined fontSize="small" />
@@ -328,26 +330,26 @@ const GroupAppointmentDetailsCard: React.FC<Props> = ({ group, onGroupUpdated, o
                 sx={{ cursor: "pointer", "&:hover span": { color: "primary.main", textDecoration: "underline" } }}
                 onClick={() => setDoctorViewId(group.performerId)}
               >
-                <b>Тренер:</b>{" "}
+                <b>{t("group.trainer")}:</b>{" "}
                 <span style={{ color: "inherit" }}>{group.performerName}</span>
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                <b>Занятие:</b> {group.sellableItemName}
+                <b>{t("group.lesson")}:</b> {group.sellableItemName}
               </Typography>
               <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap">
                 <Chip
-                  label={`${paidCount}/${group.participants.length} оплачено`}
+                  label={t("group.paidCount", { paid: paidCount, total: group.participants.length })}
                   size="small"
                   color={paidCount === group.participants.length && group.participants.length > 0 ? "success" : "warning"}
                 />
                 {group.maxParticipants != null && (
                   <Typography variant="caption" color="text.secondary">
-                    {group.participants.length}/{group.maxParticipants} уч.
+                    {t("group.participantsCount", { count: group.participants.length, max: group.maxParticipants })}
                   </Typography>
                 )}
                 {totalDebt > 0 && (
                   <Typography variant="caption" color="error.main" fontWeight={600}>
-                    Долг: {totalDebt.toLocaleString()} {suffix}
+                    {t("home.debt")}: {totalDebt.toLocaleString()} {suffix}
                   </Typography>
                 )}
               </Stack>
@@ -359,7 +361,7 @@ const GroupAppointmentDetailsCard: React.FC<Props> = ({ group, onGroupUpdated, o
             <Box>
               <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1.5 }}>
                 <Typography variant="subtitle2" fontWeight={600}>
-                  Участники ({group.participants.length})
+                  {t("group.participants", { count: group.participants.length })}
                 </Typography>
                 {!isFull && (
                   <Button
@@ -367,13 +369,13 @@ const GroupAppointmentDetailsCard: React.FC<Props> = ({ group, onGroupUpdated, o
                     startIcon={<PersonAddOutlined />}
                     onClick={() => setAddOpen(true)}
                   >
-                    Добавить
+                    {t("common.add")}
                   </Button>
                 )}
               </Stack>
 
               {group.participants.length === 0 ? (
-                <Typography variant="body2" color="text.secondary">Нет участников</Typography>
+                <Typography variant="body2" color="text.secondary">{t("home.noParticipants")}</Typography>
               ) : (
                 <Stack spacing={1}>
                   {group.participants.map((p, idx) => (
@@ -392,7 +394,7 @@ const GroupAppointmentDetailsCard: React.FC<Props> = ({ group, onGroupUpdated, o
 
               {isFull && (
                 <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>
-                  Достигнут лимит участников ({group.maxParticipants})
+                  {t("group.limitReached", { max: group.maxParticipants })}
                 </Typography>
               )}
             </Box>
@@ -415,7 +417,7 @@ const GroupAppointmentDetailsCard: React.FC<Props> = ({ group, onGroupUpdated, o
           }}
         >
           <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", px: 2, py: 1.5, borderBottom: "1px solid", borderColor: "divider" }}>
-            <Typography variant="h6">Добавить клиента</Typography>
+            <Typography variant="h6">{t("group.addClient")}</Typography>
             <IconButton size="small" onClick={() => { setAddOpen(false); setAddPatientInput(null); setAddPatientSearch(""); }}>
               <CloseOutlined />
             </IconButton>
@@ -431,7 +433,7 @@ const GroupAppointmentDetailsCard: React.FC<Props> = ({ group, onGroupUpdated, o
               filterOptions={(x) => x}
               isOptionEqualToValue={(a, b) => a.id === b.id}
               loading={addPatientLoading}
-              noOptionsText="Нет клиентов"
+              noOptionsText={t("group.noClients")}
               renderOption={(props, option) => {
                 const { key, ...optionProps } = props;
                 return (
@@ -444,7 +446,7 @@ const GroupAppointmentDetailsCard: React.FC<Props> = ({ group, onGroupUpdated, o
                 <TextField
                   {...params}
                   autoFocus
-                  label="Поиск клиента"
+                  label={t("group.searchClient")}
                   size="small"
                   fullWidth
                   InputProps={{
@@ -459,7 +461,7 @@ const GroupAppointmentDetailsCard: React.FC<Props> = ({ group, onGroupUpdated, o
           <Box sx={{ px: 2, py: 1.5, borderTop: "1px solid", borderColor: "divider" }}>
             <Stack direction="row" spacing={1} justifyContent="flex-end">
               <Button onClick={() => { setAddOpen(false); setAddPatientInput(null); setAddPatientSearch(""); }} disabled={addBusy}>
-                Отмена
+                {t("common.cancel")}
               </Button>
               <Button
                 variant="contained"
@@ -467,7 +469,7 @@ const GroupAppointmentDetailsCard: React.FC<Props> = ({ group, onGroupUpdated, o
                 onClick={handleAddParticipant}
                 startIcon={addBusy ? <CircularProgress size={16} color="inherit" /> : undefined}
               >
-                {addBusy ? "Добавление..." : "Добавить"}
+                {addBusy ? t("group.adding") : t("common.add")}
               </Button>
             </Stack>
           </Box>
@@ -515,7 +517,7 @@ const GroupAppointmentDetailsCard: React.FC<Props> = ({ group, onGroupUpdated, o
         PaperProps={{ sx: { width: { xs: "100%", sm: 400 }, display: "flex", flexDirection: "column" } }}
       >
         <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", px: 2, py: 1.5, borderBottom: "1px solid", borderColor: "divider" }}>
-          <Typography variant="h6">Редактировать занятие</Typography>
+          <Typography variant="h6">{t("group.editLesson")}</Typography>
           <IconButton size="small" onClick={() => setEditOpen(false)}><CloseOutlined /></IconButton>
         </Box>
         <Stack spacing={2.5} sx={{ p: 2, flex: 1, overflowY: "auto" }}>
@@ -524,7 +526,7 @@ const GroupAppointmentDetailsCard: React.FC<Props> = ({ group, onGroupUpdated, o
           ) : (
             <>
               <Stack spacing={0.5}>
-                <Typography variant="body2" color="text.secondary" fontWeight={500}>Дата и время</Typography>
+                <Typography variant="body2" color="text.secondary" fontWeight={500}>{t("group.dateTime")}</Typography>
                 <CustomDateTimePicker
                   value={editDateTime ? dayjs(editDateTime) : null}
                   onChange={(val) => setEditDateTime(val ? val.format("YYYY-MM-DDTHH:mm") : "")}
@@ -534,7 +536,7 @@ const GroupAppointmentDetailsCard: React.FC<Props> = ({ group, onGroupUpdated, o
               </Stack>
 
               <Stack spacing={0.5}>
-                <Typography variant="body2" color="text.secondary" fontWeight={500}>Тренер</Typography>
+                <Typography variant="body2" color="text.secondary" fontWeight={500}>{t("group.trainer")}</Typography>
                 <AppAutocomplete
                   options={editEmployees}
                   value={editEmployees.find(e => e.id === editPerformerId) ?? null}
@@ -542,13 +544,13 @@ const GroupAppointmentDetailsCard: React.FC<Props> = ({ group, onGroupUpdated, o
                   getOptionLabel={(o) => o.name}
                   isOptionEqualToValue={(a, b) => a.id === b.id}
                   renderInput={(params) => (
-                    <TextField {...params} size="small" placeholder="Выберите тренера" fullWidth />
+                    <TextField {...params} size="small" placeholder={t("group.selectTrainer")} fullWidth />
                   )}
                 />
               </Stack>
 
               <Stack spacing={0.5}>
-                <Typography variant="body2" color="text.secondary" fontWeight={500}>Услуга / Занятие</Typography>
+                <Typography variant="body2" color="text.secondary" fontWeight={500}>{t("group.serviceLesson")}</Typography>
                 <AppAutocomplete
                   options={editServices}
                   value={editServices.find(s => s.id === editServiceId) ?? null}
@@ -556,7 +558,7 @@ const GroupAppointmentDetailsCard: React.FC<Props> = ({ group, onGroupUpdated, o
                   getOptionLabel={(o) => o.name}
                   isOptionEqualToValue={(a, b) => a.id === b.id}
                   renderInput={(params) => (
-                    <TextField {...params} size="small" placeholder="Выберите занятие" fullWidth />
+                    <TextField {...params} size="small" placeholder={t("group.selectLesson")} fullWidth />
                   )}
                 />
               </Stack>
@@ -565,14 +567,14 @@ const GroupAppointmentDetailsCard: React.FC<Props> = ({ group, onGroupUpdated, o
         </Stack>
         <Box sx={{ px: 2, py: 1.5, borderTop: "1px solid", borderColor: "divider" }}>
           <Stack direction="row" spacing={1} justifyContent="flex-end">
-            <Button onClick={() => setEditOpen(false)}>Отмена</Button>
+            <Button onClick={() => setEditOpen(false)}>{t("common.cancel")}</Button>
             <Button
               variant="contained"
               disabled={editSaving || editLoading || !editDateTime}
               startIcon={editSaving ? <CircularProgress size={16} color="inherit" /> : undefined}
               onClick={handleEditSave}
             >
-              {editSaving ? "Сохранение..." : "Сохранить"}
+              {editSaving ? t("common.saving") : t("common.save")}
             </Button>
           </Stack>
         </Box>
@@ -580,14 +582,14 @@ const GroupAppointmentDetailsCard: React.FC<Props> = ({ group, onGroupUpdated, o
 
       {/* Delete confirm dialog */}
       <Dialog open={deleteOpen} onClose={() => setDeleteOpen(false)} maxWidth="xs" fullWidth>
-        <DialogTitle>Удалить занятие?</DialogTitle>
+        <DialogTitle>{t("group.deleteTitle")}</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            Групповое занятие «{group.sellableItemName}» от {dayjsBranch(group.appointmentAt).format("DD.MM.YYYY HH:mm")} будет удалено безвозвратно.
+            {t("group.deleteText", { name: group.sellableItemName, date: dayjsBranch(group.appointmentAt).format("DD.MM.YYYY HH:mm") })}
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setDeleteOpen(false)}>Отмена</Button>
+          <Button onClick={() => setDeleteOpen(false)}>{t("common.cancel")}</Button>
           <Button
             color="error"
             variant="contained"
@@ -595,7 +597,7 @@ const GroupAppointmentDetailsCard: React.FC<Props> = ({ group, onGroupUpdated, o
             startIcon={deleting ? <CircularProgress size={16} color="inherit" /> : undefined}
             onClick={handleDelete}
           >
-            {deleting ? "Удаление..." : "Удалить"}
+            {deleting ? t("group.deleting") : t("common.delete")}
           </Button>
         </DialogActions>
       </Dialog>
