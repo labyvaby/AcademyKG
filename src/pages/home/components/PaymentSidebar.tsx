@@ -353,6 +353,7 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
                     cashierName: appointment.updated_by_name ?? appointment.created_by_name ?? null,
                     orgName: selectedBranch?.brandName || selectedBranch?.name,
                     branchName: selectedBranch?.name ?? null,
+                    currency: selectedBranch?.currency ?? null,
                     // Заполнены только при оплате за период — добавляют в чек «Период с–по» и дни занятий.
                     periodFrom,
                     periodTo,
