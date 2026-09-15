@@ -74,8 +74,12 @@ export const noSpinnersSx = {
 type HomeAddAppointmentDrawerProps = {
   open: boolean;
   onClose: () => void;
-  /** Колбэк вызывается после успешного сохранения приёма */
-  onCreated?: () => void;
+  /**
+   * Колбэк вызывается после успешного сохранения приёма.
+   * createdId — id созданного приёма (для групп — `group_<id>`, как в списке дня);
+   * не передаётся, если колбэк вызван после оплаты уже созданного приёма.
+   */
+  onCreated?: (createdId?: string) => void;
   /** ID клиента для предзаполнения */
   initialPatientId?: string | null;
   /** Дата и время для предзаполнения (например, из слота расписания) */
@@ -766,7 +770,7 @@ export const HomeAddAppointmentDrawer: React.FC<
         setAdminComment("");
         setTouched(false);
         handleClose();
-        onCreated?.();
+        onCreated?.(createdPeriodId || undefined);
         notify?.({
           type: "success",
           message: t("addAppt.periodCreated", { count: lessonsCount }),
@@ -906,7 +910,13 @@ export const HomeAddAppointmentDrawer: React.FC<
           setAdminComment("");
           setTouched(false);
           handleClose();
-          onCreated?.();
+          {
+            // Показываем справа первую созданную группу периода
+            const firstCreated = results.find(
+              (r): r is PromiseFulfilledResult<Awaited<ReturnType<typeof createGroup>>> => r.status === "fulfilled"
+            );
+            onCreated?.(firstCreated?.value?.id ? `group_${firstCreated.value.id}` : undefined);
+          }
           if (failed.length === 0) {
             notify?.({ type: "success", message: t("addAppt.groupCreatedAll", { count: periodDates.length }) });
           }
@@ -935,8 +945,9 @@ export const HomeAddAppointmentDrawer: React.FC<
             return;
           }
         }
+        let createdGroupId = "";
         try {
-          await createGroup({
+          const createdGroup = await createGroup({
             appointmentAt: branchWallTime(visitDateTime).toISOString(),
             performerId: firstRow.doctorId,
             sellableItemId: firstRow.serviceId,
@@ -945,6 +956,7 @@ export const HomeAddAppointmentDrawer: React.FC<
             patientIds: groupParticipants.map(p => p.id),
             patientNames: groupParticipants.map(p => p.fio ?? p.label ?? ""),
           });
+          createdGroupId = createdGroup?.id ? `group_${createdGroup.id}` : "";
         } catch (err: any) {
           notify?.({ type: "error", message: t("addAppt.groupSingleCreateError"), description: err?.message });
           setIsSaving(false);
@@ -958,7 +970,7 @@ export const HomeAddAppointmentDrawer: React.FC<
         setAdminComment("");
         setTouched(false);
         handleClose();
-        onCreated?.();
+        onCreated?.(createdGroupId || undefined);
         notify?.({ type: "success", message: t("addAppt.groupSingleCreated") });
         return;
       }
@@ -1111,7 +1123,7 @@ export const HomeAddAppointmentDrawer: React.FC<
       setTouched(false);
 
       handleClose();
-      onCreated?.();
+      onCreated?.(createdAppointmentId || undefined);
 
       notify?.({
         type: "success",

@@ -338,6 +338,13 @@ export const HomePage: React.FC = () => {
     dailyAppointments.find(a => a.id === selectedAppointmentId) || null,
     [dailyAppointments, selectedAppointmentId]);
 
+  // id для карточки обычного приёма. Группа (`group_<id>`) могла быть только что
+  // создана и ещё не прийти в список дня — её не отдаём в AppointmentDetailsCard.
+  const regularAppointmentId =
+    selectedAppointment?.is_group || selectedAppointmentId?.startsWith("group_")
+      ? null
+      : selectedAppointmentId;
+
   const resetFilters = () => {
     const today = new Date();
     const [dd, mm, yyyy] = formatRuDate(today).split(".");
@@ -464,7 +471,7 @@ export const HomePage: React.FC = () => {
                 />
               ) : (
                 <AppointmentDetailsCard
-                  appointmentId={selectedAppointment?.is_group ? null : selectedAppointmentId}
+                  appointmentId={regularAppointmentId}
                   onClose={() => setSelectedAppointmentId(null)}
                   onUpdate={() => {
                     // Удаление/изменение приёма должно обновить и счётчики дней,
@@ -509,7 +516,7 @@ export const HomePage: React.FC = () => {
               />
             ) : (
               <AppointmentDetailsCard
-                appointmentId={selectedAppointment?.is_group ? null : selectedAppointmentId}
+                appointmentId={regularAppointmentId}
                 onClose={() => setSelectedAppointmentId(null)}
                 onUpdate={() => {
                   refetchAppointments();
@@ -534,7 +541,11 @@ export const HomePage: React.FC = () => {
           setInitialSlotDate(null);
           setInitialSlotDoctorId(null);
         }}
-        onCreated={() => {
+        onCreated={(createdId) => {
+          // Справа показываем только что созданный приём, а не ранее выбранный
+          if (createdId) setSelectedAppointmentId(createdId);
+          // После оплаты из дровера карточка должна показать актуальные суммы
+          queryClient.invalidateQueries({ queryKey: ["appointment-details"] });
           refetchAppointments();
         }}
         initialPatientId={initialPatientId}
