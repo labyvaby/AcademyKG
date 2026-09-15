@@ -216,6 +216,8 @@
     "appointmentCreated": "Прием успешно создан!",
     "saveError": "Ошибка при сохранении",
     "weekdaysLabel": "Дни недели",
+    "selectWeekdaysHint": "Выберите хотя бы один день недели",
+    "noLessonsInPeriodHint": "В выбранном периоде нет занятий по этим дням недели",
     "start": "Начало",
     "end": "Конец",
     "endBeforeStart": "Конец периода раньше начала",

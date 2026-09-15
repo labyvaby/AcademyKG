@@ -214,6 +214,8 @@
     "appointmentCreated": "Qabul muvaffaqiyatli yaratildi!",
     "saveError": "Saqlashda xatolik",
     "weekdaysLabel": "Hafta kunlari",
+    "selectWeekdaysHint": "Kamida bitta hafta kunini tanlang",
+    "noLessonsInPeriodHint": "Tanlangan davrda bu kunlarda mashg'ulot yo'q",
     "start": "Boshlanishi",
     "end": "Tugashi",
     "endBeforeStart": "Davr oxiri boshidan oldin",

@@ -214,6 +214,8 @@
     "appointmentCreated": "Кабыл алуу ийгиликтүү түзүлдү!",
     "saveError": "Сактоодо ката кетти",
     "weekdaysLabel": "Жума күндөрү",
+    "selectWeekdaysHint": "Жок дегенде бир жума күнүн тандаңыз",
+    "noLessonsInPeriodHint": "Тандалган мезгилде бул күндөрү сабак жок",
     "start": "Башталышы",
     "end": "Аякталышы",
     "endBeforeStart": "Мезгилдин аягы башталышынан мурун",

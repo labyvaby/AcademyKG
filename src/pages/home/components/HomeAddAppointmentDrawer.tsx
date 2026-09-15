@@ -1417,6 +1417,11 @@ export const HomeAddAppointmentDrawer: React.FC<
                       />
                     ))}
                   </Stack>
+                  {periodWeekdays.length === 0 ? (
+                    <Typography variant="caption" color="warning.main">{t("addAppt.selectWeekdaysHint")}</Typography>
+                  ) : periodStartDate && periodEndDate && periodDates.length === 0 ? (
+                    <Typography variant="caption" color="warning.main">{t("addAppt.noLessonsInPeriodHint")}</Typography>
+                  ) : null}
                 </Stack>
                 <Box
                   sx={{
