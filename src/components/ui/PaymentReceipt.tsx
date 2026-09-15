@@ -95,6 +95,8 @@ const RECEIPT_CSS = `
   .reprint { text-align: center; font-size: 16px; font-weight: 700; border: 2px solid #000; padding: 1mm 0; margin: 0 0 2mm; letter-spacing: 1px; }
   /* Название организации — центр, средний */
   .org    { text-align: center; font-size: 17px; font-weight: 700; margin-bottom: 1mm; }
+  /* Филиал — под организацией, если отличается от неё */
+  .branch { text-align: center; font-size: 15px; font-weight: 700; margin: -0.5mm 0 1mm; word-break: break-word; }
   /* Строка "1 Чек #XXXXX" */
   .chek   { font-size: 15px; font-weight: 700; margin: 1mm 0; }
   /* Дата+время — строка "метка слева / значение справа", влезает в 58mm */
@@ -218,12 +220,10 @@ export function buildReceiptHtml(data: ReceiptData): string {
   const currencyLabel = currencySuffix.charAt(0).toUpperCase() + currencySuffix.slice(1);
 
   // ── Строки таблицы услуг ─────────────────────────────────────────────
+  // Филиал у всех услуг чека один — он печатается в шапке, здесь только исполнитель
   function metaRow(performerName: string | null | undefined, cols: number): string {
-    const parts: string[] = [];
-    if (branchName)    parts.push(branchName);
-    if (performerName) parts.push(performerName);
-    if (!parts.length) return "";
-    return `<tr><td colspan="${cols}" style="font-size:15px;font-weight:700;padding-bottom:0;word-break:break-word">${parts.join(" / ")}</td></tr>`;
+    if (!performerName) return "";
+    return `<tr><td colspan="${cols}" style="font-size:15px;font-weight:700;padding-bottom:0;word-break:break-word">${performerName}</td></tr>`;
   }
 
   let servicesRows = "";
@@ -294,6 +294,7 @@ export function buildReceiptHtml(data: ReceiptData): string {
 
   <!-- Название организации по центру -->
   <div class="org">${orgName}</div>
+  ${branchName && branchName !== orgName ? `<div class="branch">${branchName}</div>` : ""}
 
   <!-- "1 Чек #XXXXX" — слева, обычный размер -->
   <div class="chek">1 Чек #${receiptNo}</div>
