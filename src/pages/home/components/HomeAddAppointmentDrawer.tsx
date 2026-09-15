@@ -1531,7 +1531,7 @@ export const HomeAddAppointmentDrawer: React.FC<
                 isOptionEqualToValue={(o, v) => o.id === v.id}
                 renderOption={(props, o) => {
                   const { key, ...optionProps } = props;
-                  return <li key={key} {...optionProps}>{o.full_name || o.id}{o.specialization ? ` — ${o.specialization}` : ""}</li>;
+                  return <li {...optionProps} key={o.id || key}>{o.full_name || o.id}{o.specialization ? ` — ${o.specialization}` : ""}</li>;
                 }}
                 openOnFocus
                 blurOnSelect="touch"
@@ -1590,7 +1590,7 @@ export const HomeAddAppointmentDrawer: React.FC<
                 isOptionEqualToValue={(o, v) => o.id === v.id}
                 renderOption={(props, o) => {
                   const { key, ...optionProps } = props;
-                  return <li key={key} {...optionProps}>{o.name}{o.price ? ` — ${o.price} ${suffix}` : ""}</li>;
+                  return <li {...optionProps} key={o.id || key}>{o.name}{o.price ? ` — ${o.price} ${suffix}` : ""}</li>;
                 }}
                 openOnFocus
                 blurOnSelect="touch"
@@ -1666,7 +1666,7 @@ export const HomeAddAppointmentDrawer: React.FC<
                     const { key, ...optionProps } = props;
                     const fio = option["ФИО клиента"] ?? option.fio ?? "";
                     const phone = option["Телефон"] ?? option.phone ?? "";
-                    return <li key={key} {...optionProps}>{`${fio || t("editAppt.noFio")} — ${phone || t("editAppt.noPhone")}`}</li>;
+                    return <li {...optionProps} key={option.id || key}>{`${fio || t("editAppt.noFio")} — ${phone || t("editAppt.noPhone")}`}</li>;
                   }}
                   openOnFocus
                   blurOnSelect="touch"
@@ -1759,7 +1759,7 @@ export const HomeAddAppointmentDrawer: React.FC<
                           const { key, ...optionProps } = props;
                           const fio = option["ФИО клиента"] ?? option.fio ?? "";
                           const phone = option["Телефон"] ?? option.phone ?? "";
-                          return <li key={key} {...optionProps}>{`${fio || t("editAppt.noFio")} — ${phone || t("editAppt.noPhone")}`}</li>;
+                          return <li {...optionProps} key={option.id || key}>{`${fio || t("editAppt.noFio")} — ${phone || t("editAppt.noPhone")}`}</li>;
                         }}
                         openOnFocus
                         blurOnSelect="touch"

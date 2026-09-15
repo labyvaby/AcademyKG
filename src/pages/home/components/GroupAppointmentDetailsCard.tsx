@@ -437,7 +437,7 @@ const GroupAppointmentDetailsCard: React.FC<Props> = ({ group, onGroupUpdated, o
               renderOption={(props, option) => {
                 const { key, ...optionProps } = props;
                 return (
-                  <li key={key} {...optionProps}>
+                  <li {...optionProps} key={option.id || key}>
                     {option["ФИО клиента"] ?? option.fio ?? ""} — {option["Телефон"] ?? option.phone ?? ""}
                   </li>
                 );

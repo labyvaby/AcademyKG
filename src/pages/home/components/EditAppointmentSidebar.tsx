@@ -495,7 +495,7 @@ const EditAppointmentSidebar: React.FC<EditAppointmentSidebarProps> = ({
                   const fio = option["ФИО клиента"] ?? option.fio ?? "";
                   const phone = option["Телефон"] ?? option.phone ?? "";
                   return (
-                    <li key={key} {...optionProps}>{`${fio || t("editAppt.noFio")} — ${phone || t("editAppt.noPhone")
+                    <li {...optionProps} key={option.id || key}>{`${fio || t("editAppt.noFio")} — ${phone || t("editAppt.noPhone")
                       }`}</li>
                   );
                 }}
