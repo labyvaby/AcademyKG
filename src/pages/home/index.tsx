@@ -361,6 +361,8 @@ export const HomePage: React.FC = () => {
         showTitle={false}
         addButtonText={t("home.addAppointment")}
         onAdd={() => {
+          // Выбранный в фильтре специалист сразу подставляется в дровер
+          setInitialSlotDoctorId(doctorId || null);
           setVisitOpen(true);
         }}
         dateNavigation={
