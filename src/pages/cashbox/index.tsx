@@ -1,127 +1,152 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
     Box,
-    Grid2,
-    Card,
-    CardContent,
-    Typography,
     Stack,
     CircularProgress,
-    Avatar,
     Paper,
+    Typography,
+    ToggleButton,
+    ToggleButtonGroup,
+    IconButton,
+    Tooltip,
 } from "@mui/material";
 import { alpha, useTheme } from "@mui/material/styles";
-import { useNotification } from "@refinedev/core";
-import WalletIcon from "@mui/icons-material/Wallet";
-import CreditCardIcon from "@mui/icons-material/CreditCard";
+import RefreshIcon from "@mui/icons-material/Refresh";
+import { DatePicker } from "@mui/x-date-pickers/DatePicker";
+import { useQueries, useQuery } from "@tanstack/react-query";
+import dayjs from "dayjs";
 
-import { PageHeader } from "../../components/ui";
+import { PageHeader, ReportBranchSelect } from "../../components/ui";
 import { usePageTitle } from "../../hooks/usePageTitle";
-import { useBranchCurrency } from "../../hooks/useBranchCurrency";
-import { getCashboxSummary } from "../../services/cashbox";
-import { CashboxSummaryData } from "../../types/cashbox";
+import { usePermissions } from "../../hooks/usePermissions";
+import { useReportBranchScope, useReportCurrency } from "../../hooks/useReportBranchScope";
 import { useBranchContext } from "../../contexts/branch-context";
+import { getCashboxSummary } from "../../services/cashbox";
+import { CASHBOX_DATE_FORMAT, CashboxPeriod, CashboxPreset, periodForPreset } from "./cashboxPeriod";
+import { CashboxBreakdown } from "./components/CashboxBreakdown";
+import { CashboxBranchesTable, CashboxBranchRow } from "./components/CashboxBranchesTable";
+
+const PRESETS: Exclude<CashboxPreset, "custom">[] = ["today", "yesterday", "week", "month"];
 
 const CashboxPage: React.FC = () => {
     const { t } = useTranslation();
     usePageTitle(t("menu.cashbox"));
-    const { format: formatKGS } = useBranchCurrency();
     const theme = useTheme();
-    const { open: notify } = useNotification();
-    const { selectedBranch } = useBranchContext();
+    const { isSuperAdmin } = usePermissions();
+    const { branches, setSelectedBranch } = useBranchContext();
+    // Тот же скоуп, что у отчётов: не-суперадмин всегда шлёт явный ?branch=
+    // (без него бэк отвечает 400 «Укажите организацию или филиал»).
+    const { branchId, branch, ready } = useReportBranchScope();
+    const { format } = useReportCurrency();
 
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-    const [data, setData] = useState<CashboxSummaryData | null>(null);
-    const scopeKey = `${selectedBranch?.id ?? "all"}`;
-    const [loadedScopeKey, setLoadedScopeKey] = useState<string | null>(null);
+    const [period, setPeriod] = useState<CashboxPeriod>(() => periodForPreset("today"));
+    const allBranchesMode = isSuperAdmin() && !branchId;
 
-    const fetchData = useCallback(async (signal?: AbortSignal) => {
-        try {
-            setLoading(true);
-            setError(null);
-            setLoadedScopeKey(null);
-            const res = await getCashboxSummary({
-                branch: selectedBranch?.id ?? undefined,
-                signal,
-            });
-            if (signal?.aborted) return;
-            setData(res.data);
-            setLoadedScopeKey(scopeKey);
-        } catch (e: any) {
-            if (signal?.aborted) return;
-            const message = e.message || t("cashbox.loadError");
-            setError(message);
-            setLoadedScopeKey(null);
-            notify?.({ type: "error", message });
-        } finally {
-            if (!signal?.aborted) setLoading(false);
+    const single = useQuery({
+        queryKey: ["cashbox-summary", branchId, period.dateFrom, period.dateTo],
+        queryFn: ({ signal }) =>
+            getCashboxSummary({ branch: branchId, dateFrom: period.dateFrom, dateTo: period.dateTo, signal }),
+        enabled: ready && !!branchId,
+    });
+
+    const perBranch = useQueries({
+        queries: (allBranchesMode && ready ? branches : []).map((b) => ({
+            queryKey: ["cashbox-summary", b.id, period.dateFrom, period.dateTo],
+            queryFn: ({ signal }: { signal: AbortSignal }) =>
+                getCashboxSummary({
+                    branch: b.id,
+                    dateFrom: period.dateFrom,
+                    dateTo: period.dateTo,
+                    signal,
+                    skipClientRateLimit: true,
+                }),
+        })),
+    });
+
+    const branchRows: CashboxBranchRow[] = allBranchesMode
+        ? branches.map((b, i) => ({
+              branch: b,
+              data: perBranch[i]?.data?.data,
+              loading: perBranch[i]?.isLoading ?? true,
+              error: perBranch[i]?.error ? (perBranch[i].error as Error).message : undefined,
+          }))
+        : [];
+
+    const refresh = () => {
+        if (allBranchesMode) perBranch.forEach((q) => void q.refetch());
+        else void single.refetch();
+    };
+    const isFetching = allBranchesMode ? perBranch.some((q) => q.isFetching) : single.isFetching;
+
+    const setCustomDate = (key: "dateFrom" | "dateTo", value: dayjs.Dayjs | null) => {
+        if (!value || !value.isValid()) return;
+        const next = { ...period, preset: "custom" as const, [key]: value.format(CASHBOX_DATE_FORMAT) };
+        // Не даём перевернуть период: двигаем вторую границу за первой.
+        if (next.dateFrom > next.dateTo) {
+            if (key === "dateFrom") next.dateTo = next.dateFrom;
+            else next.dateFrom = next.dateTo;
         }
-    }, [notify, scopeKey, selectedBranch?.id, t]);
+        setPeriod(next);
+    };
 
-    useEffect(() => {
-        const controller = new AbortController();
-        void fetchData(controller.signal);
-        return () => controller.abort();
-    }, [fetchData]);
+    const periodLabel =
+        period.dateFrom === period.dateTo
+            ? dayjs(period.dateFrom).format("DD.MM.YYYY")
+            : `${dayjs(period.dateFrom).format("DD.MM.YYYY")} — ${dayjs(period.dateTo).format("DD.MM.YYYY")}`;
 
-    const visibleData = loadedScopeKey === scopeKey ? data : null;
-    const effectiveLoading = loading || (!error && loadedScopeKey !== scopeKey);
-
-    const renderCard = (
-        title: string,
-        value: string | number,
-        color: "success" | "info",
-        icon: React.ReactNode,
-    ) => (
-        <Card
-            variant="outlined"
-            sx={{
-                borderRadius: 4,
-                height: "100%",
-                bgcolor: alpha(theme.palette[color].main, 0.04),
-                borderColor: alpha(theme.palette[color].main, 0.14),
-                transition: "transform 0.2s ease, box-shadow 0.2s ease",
-                "&:hover": {
-                    transform: "translateY(-4px)",
-                    boxShadow: `0 16px 36px -18px ${alpha(theme.palette[color].main, 0.35)}`,
-                },
-            }}
-        >
-            <CardContent sx={{ p: { xs: 2.25, md: 3 } }}>
-                <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2}>
-                    <Box minWidth={0}>
-                        <Typography variant="subtitle1" color="text.secondary" sx={{ fontWeight: 700, mb: 0.75 }}>
-                            {title}
-                        </Typography>
-                        <Typography
-                            variant="h3"
-                            sx={{
-                                fontWeight: 900,
-                                color: `${color}.main`,
-                                fontSize: { xs: "1.9rem", md: "2.5rem" },
-                                lineHeight: 1.1,
-                            }}
-                        >
-                            {formatKGS(value)}
-                        </Typography>
-                    </Box>
-                    <Avatar
-                        sx={{
-                            width: { xs: 52, md: 68 },
-                            height: { xs: 52, md: 68 },
-                            bgcolor: alpha(theme.palette[color].main, 0.12),
-                            color: `${color}.main`,
-                            flexShrink: 0,
-                        }}
-                    >
-                        {icon}
-                    </Avatar>
-                </Stack>
-            </CardContent>
-        </Card>
-    );
+    const renderContent = () => {
+        if (!ready) {
+            return (
+                <Box sx={{ display: "flex", justifyContent: "center", p: 10 }}>
+                    <CircularProgress size={54} thickness={4} />
+                </Box>
+            );
+        }
+        if (allBranchesMode) {
+            return (
+                <CashboxBranchesTable
+                    rows={branchRows}
+                    onSelectBranch={(b) => setSelectedBranch(b)}
+                />
+            );
+        }
+        if (!branchId) {
+            return (
+                <Typography variant="h6" color="text.secondary" textAlign="center">
+                    {t("cashbox.noBranch")}
+                </Typography>
+            );
+        }
+        if (single.isLoading) {
+            return (
+                <Box sx={{ display: "flex", justifyContent: "center", p: 10 }}>
+                    <CircularProgress size={54} thickness={4} />
+                </Box>
+            );
+        }
+        if (single.error || !single.data?.data) {
+            return (
+                <Paper
+                    variant="outlined"
+                    sx={{
+                        p: 3,
+                        borderRadius: 3,
+                        borderColor: "error.main",
+                        bgcolor: alpha(theme.palette.error.main, 0.05),
+                    }}
+                >
+                    <Typography variant="h6" color="error.main" sx={{ fontWeight: 700, mb: 1 }}>
+                        {t("cashbox.loadFailed")}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                        {(single.error as Error | null)?.message || t("cashbox.noData")}
+                    </Typography>
+                </Paper>
+            );
+        }
+        return <CashboxBreakdown data={single.data.data} format={format} />;
+    };
 
     return (
         <Box sx={{ height: "100%", display: "flex", flexDirection: "column", overflow: "auto" }}>
@@ -138,51 +163,72 @@ const CashboxPage: React.FC = () => {
                 })}
             >
                 <Stack spacing={2.5} sx={{ mt: 1 }}>
-                    {effectiveLoading ? (
-                        <Box sx={{ display: "flex", justifyContent: "center", p: 10 }}>
-                            <CircularProgress size={54} thickness={4} />
-                        </Box>
-                    ) : error ? (
-                        <Paper
-                            variant="outlined"
-                            sx={{
-                                p: 3,
-                                borderRadius: 3,
-                                borderColor: "error.main",
-                                bgcolor: alpha(theme.palette.error.main, 0.05),
-                            }}
+                    <Paper variant="outlined" sx={{ p: 2, borderRadius: 3 }}>
+                        <Stack
+                            direction={{ xs: "column", lg: "row" }}
+                            spacing={1.5}
+                            alignItems={{ xs: "stretch", lg: "center" }}
+                            useFlexGap
+                            flexWrap="wrap"
                         >
-                            <Typography variant="h6" color="error.main" sx={{ fontWeight: 700, mb: 1 }}>
-                                {t("cashbox.loadFailed")}
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary">
-                                {error}
-                            </Typography>
-                        </Paper>
-                    ) : !visibleData ? (
-                        <Typography variant="h6" color="text.secondary" textAlign="center">
-                            {t("cashbox.noData")}
-                        </Typography>
-                    ) : (
-                        <Grid2 container spacing={2.5}>
-                            <Grid2 size={{ xs: 12, md: 6 }}>
-                                {renderCard(
-                                    t("cashbox.cash"),
-                                    Number(visibleData.net.cashSum),
-                                    "success",
-                                    <WalletIcon />,
-                                )}
-                            </Grid2>
-                            <Grid2 size={{ xs: 12, md: 6 }}>
-                                {renderCard(
-                                    t("cashbox.cashless"),
-                                    Number(visibleData.net.cardSum),
-                                    "info",
-                                    <CreditCardIcon />,
-                                )}
-                            </Grid2>
-                        </Grid2>
-                    )}
+                            <ToggleButtonGroup
+                                size="small"
+                                exclusive
+                                value={period.preset === "custom" ? null : period.preset}
+                                onChange={(_, v: Exclude<CashboxPreset, "custom"> | null) => {
+                                    if (v) setPeriod(periodForPreset(v));
+                                }}
+                                sx={{ flexWrap: "wrap" }}
+                            >
+                                {PRESETS.map((p) => (
+                                    <ToggleButton key={p} value={p} sx={{ px: 1.75, textTransform: "none" }}>
+                                        {t(`cashbox.presets.${p}`)}
+                                    </ToggleButton>
+                                ))}
+                            </ToggleButtonGroup>
+
+                            <Stack direction="row" spacing={1.5} sx={{ flex: { lg: "0 1 380px" } }}>
+                                <DatePicker
+                                    label={t("cashbox.dateFrom")}
+                                    value={dayjs(period.dateFrom)}
+                                    onChange={(d) => setCustomDate("dateFrom", d)}
+                                    format="DD.MM.YYYY"
+                                    slotProps={{ textField: { size: "small", sx: { flex: 1, minWidth: 0 } } }}
+                                />
+                                <DatePicker
+                                    label={t("cashbox.dateTo")}
+                                    value={dayjs(period.dateTo)}
+                                    onChange={(d) => setCustomDate("dateTo", d)}
+                                    format="DD.MM.YYYY"
+                                    slotProps={{ textField: { size: "small", sx: { flex: 1, minWidth: 0 } } }}
+                                />
+                            </Stack>
+
+                            <ReportBranchSelect />
+
+                            <Box sx={{ flex: 1, display: { xs: "none", lg: "block" } }} />
+
+                            <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between">
+                                <Typography variant="body2" color="text.secondary">
+                                    {t("cashbox.periodCaption", {
+                                        period: periodLabel,
+                                        branch: allBranchesMode
+                                            ? t("cashbox.allBranches")
+                                            : branch?.brandName || branch?.name || "—",
+                                    })}
+                                </Typography>
+                                <Tooltip title={t("common.refresh")}>
+                                    <span>
+                                        <IconButton onClick={refresh} disabled={isFetching} size="small">
+                                            {isFetching ? <CircularProgress size={18} /> : <RefreshIcon />}
+                                        </IconButton>
+                                    </span>
+                                </Tooltip>
+                            </Stack>
+                        </Stack>
+                    </Paper>
+
+                    {renderContent()}
                 </Stack>
             </Box>
         </Box>

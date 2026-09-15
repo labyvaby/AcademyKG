@@ -8,6 +8,8 @@ export const getCashboxSummary = async (params: {
     branch?: string;
     method?: 'cash' | 'card';
     signal?: AbortSignal;
+    /** Пакетная загрузка по всем филиалам — не упираться в клиентский rate-limit */
+    skipClientRateLimit?: boolean;
 }): Promise<CashboxSummaryResponse> => {
     const queryParams = new URLSearchParams();
     if (params.dateFrom) queryParams.append("dateFrom", params.dateFrom);
@@ -19,5 +21,7 @@ export const getCashboxSummary = async (params: {
     return apiFetch<CashboxSummaryResponse>(
         `/api/v1/cashbox/summary/?${queryParams.toString()}`,
         { signal: params.signal },
+        false,
+        params.skipClientRateLimit ?? false,
     );
 };
