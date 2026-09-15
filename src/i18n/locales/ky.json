@@ -56,6 +56,14 @@
     "endOfList": "Тизменин аягы",
     "procedures": "Процедуралар"
   },
+  "receipts": {
+    "title": "Акыркы чектер",
+    "subtitle": "{{date}} күнкү төлөнгөн кабыл алуулар",
+    "empty": "Азырынча төлөмдөр жок",
+    "loadError": "Чектерди жүктөө мүмкүн болбоду",
+    "print": "Басып чыгаруу",
+    "fromBalance": "Эсептен"
+  },
   "payment": {
     "periodPayment": "Мезгил үчүн төлөм",
     "appointmentPayment": "Кабыл алуу төлөмү",

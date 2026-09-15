@@ -56,6 +56,14 @@
     "endOfList": "Конец списка",
     "procedures": "Процедуры"
   },
+  "receipts": {
+    "title": "Последние чеки",
+    "subtitle": "Оплаченные приёмы за {{date}}",
+    "empty": "Оплат пока нет",
+    "loadError": "Не удалось загрузить чеки",
+    "print": "Печать",
+    "fromBalance": "Со счёта"
+  },
   "payment": {
     "periodPayment": "Оплата за период",
     "appointmentPayment": "Оплата приема",

@@ -422,6 +422,39 @@ export function printReceipt(data: ReceiptData): void {
   }, 200);
 }
 
+/** Есть ли у приёма хоть какая-то оплата (иначе чек печатать нечего). */
+export function hasAppointmentPayment(item: Appointment): boolean {
+  return (item.paid_cash ?? 0) > 0 || (item.paid_card ?? 0) > 0 ||
+    (item.paid_balance ?? 0) > 0 || (item.paid_bonuses ?? 0) > 0;
+}
+
+/**
+ * Повторная печать чека по сохранённому приёму (карточка приёма, «Последние чеки»).
+ * Суммы берутся из полей приёма; период оплаты не восстанавливается — его на приёме нет.
+ */
+export function reprintAppointmentReceipt(
+  item: Appointment,
+  branch?: { name?: string | null; brandName?: string | null } | null,
+): void {
+  const baseTotal = Number(item.total_amount || item.total_cost || item.estimated_total || 0);
+  const disc = Number(item.discount || 0);
+  printReceipt({
+    appointment: item,
+    cashPaid: Number(item.paid_cash || 0),
+    cardPaid: Number(item.paid_card || 0),
+    balancePaid: Number(item.paid_balance || 0),
+    bonusesPaid: Number(item.paid_bonuses || 0),
+    discountPercent: baseTotal > 0 ? Math.round((disc / baseTotal) * 100) : 0,
+    discountAmount: disc,
+    basePrice: baseTotal,
+    finalPrice: Math.max(0, baseTotal - disc),
+    cashierName: item.updated_by_name ?? item.created_by_name ?? null,
+    orgName: branch?.brandName || branch?.name || undefined,
+    branchName: branch?.name ?? null,
+    isReprint: true,
+  });
+}
+
 // Компонент-заглушка (не используется напрямую, логика через printReceipt)
 const PaymentReceipt: React.FC<{ data: ReceiptData }> = () => null;
 export default PaymentReceipt;

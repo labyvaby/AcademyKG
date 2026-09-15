@@ -42,6 +42,8 @@ import AppointmentDetailsCard from "./components/AppointmentDetailsCard";
 import GroupAppointmentDetailsCard from "./components/GroupAppointmentDetailsCard";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import HomeAddAppointmentDrawer from "./components/HomeAddAppointmentDrawer";
+import RecentReceiptsDrawer from "./components/RecentReceiptsDrawer";
+import ReceiptLongOutlined from "@mui/icons-material/ReceiptLongOutlined";
 import { usePermissions } from "../../hooks/usePermissions";
 import { PERMISSIONS } from "../../constants/permissions";
 
@@ -154,6 +156,7 @@ export const HomePage: React.FC = () => {
   const [initialPatientId, setInitialPatientId] = React.useState<string | null>(null);
   const [initialSlotDate, setInitialSlotDate] = React.useState<string | null>(null);
   const [initialSlotDoctorId, setInitialSlotDoctorId] = React.useState<string | null>(null);
+  const [receiptsOpen, setReceiptsOpen] = React.useState(false);
 
 
   const handleDateChange = (newDate: string) => {
@@ -372,6 +375,19 @@ export const HomePage: React.FC = () => {
             dayCounts={dayCounts}
           />
         }
+        actions={
+          <Button
+            variant="outlined"
+            startIcon={<ReceiptLongOutlined />}
+            onClick={() => setReceiptsOpen(true)}
+            sx={(theme) => ({
+              whiteSpace: "nowrap",
+              minHeight: theme.appLayout.controls.buttonHeight,
+            })}
+          >
+            {t("receipts.title")}
+          </Button>
+        }
       />
 
 
@@ -525,6 +541,19 @@ export const HomePage: React.FC = () => {
         initialDate={initialSlotDate}
         initialDoctorId={initialSlotDoctorId}
         selectedDate={date}
+      />
+
+      {/* Последние чеки: повторная печать */}
+      <RecentReceiptsDrawer
+        open={receiptsOpen}
+        onClose={() => setReceiptsOpen(false)}
+        date={date}
+        onOpenAppointment={(appt) => {
+          // Чеки за выбранный день — приём уже в списке, просто открываем карточку
+          setDoctorId("");
+          setSelectedAppointmentId(appt.id);
+          setReceiptsOpen(false);
+        }}
       />
 
       {/* Filters Drawer (right) */}

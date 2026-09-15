@@ -56,6 +56,14 @@
     "endOfList": "Ro‘yxat oxiri",
     "procedures": "Muolajalar"
   },
+  "receipts": {
+    "title": "Oxirgi cheklar",
+    "subtitle": "{{date}} kungi to‘langan qabullar",
+    "empty": "Hozircha to‘lovlar yo‘q",
+    "loadError": "Cheklarni yuklab bo‘lmadi",
+    "print": "Chop etish",
+    "fromBalance": "Hisobdan"
+  },
   "payment": {
     "periodPayment": "Davr uchun to‘lov",
     "appointmentPayment": "Qabul uchun to‘lov",
