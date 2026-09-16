@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import {
   Box,
   Card,
@@ -41,7 +42,7 @@ import ServiceQuickViewDrawer from "../../../components/services/ServiceQuickVie
 import DoctorQuickViewDrawer from "../../../components/employees/DoctorQuickViewDrawer";
 import { PaymentInfoBlock } from "../../../components/ui";
 import PrintOutlinedIcon from "@mui/icons-material/PrintOutlined";
-import { printReceipt } from "../../../components/ui/PaymentReceipt";
+import { hasAppointmentPayment, reprintAppointmentReceipt } from "../../../components/ui/PaymentReceipt";
 import { useEffectiveBranch } from "../../../hooks/useEffectiveBranch";
 
 import { apiFetch } from "../../../utility/apiClient";
@@ -80,6 +81,7 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
   showPaymentAction = false,
   readOnly = false,
 }) => {
+  const { t } = useTranslation();
   const theme = useTheme(); // Need theme for matches
   const { suffix, format: formatKGS } = useBranchCurrency();
   // Hide specific elements on mobile if requested, but here we use it for logic
@@ -192,12 +194,12 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
         method: "PATCH",
         body: JSON.stringify(body),
       });
-      open?.({ message: "Статус обновлён", type: "success" });
+      open?.({ message: t("details.statusUpdated"), type: "success" });
       handleRefresh();
     } catch (e: unknown) {
       const description = e && typeof e === "object" && "message" in e
         ? String((e as { message?: unknown }).message) : String(e);
-      open?.({ message: "Ошибка при обновлении статуса", type: "error", description });
+      open?.({ message: t("details.statusUpdateError"), type: "error", description });
     } finally {
       setActionLoading(false);
     }
@@ -228,7 +230,7 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
         } catch { /* ignore */ }
 
         open?.({
-          message: "Прием удален",
+          message: t("details.appointmentDeleted"),
           type: "success",
         });
         onClose();
@@ -241,7 +243,7 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
             ? String((e as { message?: unknown }).message)
             : String(e);
         open?.({
-          message: "Не удалось удалить прием",
+          message: t("details.appointmentDeleteError"),
           type: "error",
           description,
         });
@@ -286,7 +288,7 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
         }}
       >
         <Typography align="center">
-          Выберите прием для просмотра подробной информации
+          {t("details.selectAppointment")}
         </Typography>
       </Box>
     );
@@ -336,7 +338,7 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
                         disabled={actionLoading}
                         onClick={promptNotCame}
                       >
-                        Не пришел
+                        {t("details.notCameShort")}
                       </Button>
                       <Button
                         variant="outlined"
@@ -346,7 +348,7 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
                         disabled={actionLoading}
                         onClick={promptCancel}
                       >
-                        Отменить
+                        {t("details.cancelAppointment")}
                       </Button>
                     </>
                   )}
@@ -362,7 +364,7 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
                         disabled={actionLoading}
                         onClick={promptNotCame}
                       >
-                        Клиент не пришел
+                        {t("details.clientNotCame")}
                       </Button>
                       <Button
                         variant="outlined"
@@ -371,7 +373,7 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
                         disabled={actionLoading}
                         onClick={promptCancel}
                       >
-                        Отменить
+                        {t("details.cancelAppointment")}
                       </Button>
                     </>
                   )}
@@ -384,7 +386,7 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
                       startIcon={<EditOutlined />}
                       onClick={() => setEditOpen(true)}
                     >
-                      Изменить
+                      {t("common.change")}
                     </Button>
                   )}
                 </>
@@ -401,7 +403,7 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
 
                 {/* Кнопка удаления приема - только для Супер-админа */}
                 {isSuperAdmin() && (
-                  <Tooltip title="Удалить">
+                  <Tooltip title={t("common.delete")}>
                     <span>
                       <IconButton
                         size="small"
@@ -459,7 +461,7 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
       }}>
         {
           loading ? (
-            <Typography variant="caption">Загрузка...</Typography>
+            <Typography variant="caption">{t("common.loading")}</Typography>
           ) : item ? (
             <Stack direction="row" alignItems="center" gap={1.5} flexWrap="wrap" sx={{ mt: 0.5 }}>
               <CalendarMonthOutlined fontSize="medium" sx={{ color: 'primary.main' }} />
@@ -470,12 +472,12 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
               <Stack direction="column" spacing={0} sx={{ ml: 1 }}>
                 {item.created_by_name && (
                   <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.725rem', lineHeight: 1.2 }}>
-                    Создано: {item.created_by_name} {dayjs(item.created_at).format("DD.MM HH:mm")}
+                    {t("details.createdBy", { name: item.created_by_name, date: dayjs(item.created_at).format("DD.MM HH:mm") })}
                   </Typography>
                 )}
                 {item.updated_by_name && item.updated_at && item.updated_at !== item.created_at && (
                   <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.725rem', lineHeight: 1.2 }}>
-                    Изм: {item.updated_by_name} {dayjs(item.updated_at).format("DD.MM HH:mm")}
+                    {t("details.updatedBy", { name: item.updated_by_name, date: dayjs(item.updated_at).format("DD.MM HH:mm") })}
                   </Typography>
                 )}
               </Stack>
@@ -487,7 +489,7 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
             <CircularProgress />
           </Box>
         ) : errorMsg ? (
-          <Typography color="error">Ошибка: {errorMsg}</Typography>
+          <Typography color="error">{t("common.errorWithMsg", { msg: errorMsg })}</Typography>
         ) : item ? (
           <Stack spacing={3}>
 
@@ -530,7 +532,7 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
                               px: hasPayment ? 1.5 : 2,
                             }}
                           >
-                            {hasPayment ? "Изменить оплату" : "Принять оплату"}
+                            {hasPayment ? t("details.editPayment") : t("details.acceptPayment")}
                           </Button>
                         );
                       })()
@@ -539,7 +541,7 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
                 />
                 {item.debt === 0 && (
                   <Stack direction="row" alignItems="center" spacing={0.5} sx={{ mt: -1 }}>
-                    <Tooltip title={item.attended ? "Пришёл — нажмите чтобы снять отметку" : "Отметить как пришедшего"} disableInteractive>
+                    <Tooltip title={item.attended ? t("details.attendedTooltipOn") : t("details.attendedTooltipOff")} disableInteractive>
                       <span>
                         <Checkbox
                           size="small"
@@ -552,43 +554,19 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
                       </span>
                     </Tooltip>
                     <Typography variant="caption" color={item.attended ? "success.main" : "text.secondary"}>
-                      {item.attended ? "Пришёл" : "Пришёл?"}
+                      {item.attended ? t("details.attended") : t("details.attendedQuestion")}
                     </Typography>
                   </Stack>
                 )}
-                {((item.paid_cash ?? 0) > 0 || (item.paid_card ?? 0) > 0 ||
-                  (item.paid_balance ?? 0) > 0 || (item.paid_bonuses ?? 0) > 0) && (
+                {hasAppointmentPayment(item) && (
                   <Button
                     size="small"
                     variant="text"
                     startIcon={<PrintOutlinedIcon fontSize="small" />}
                     sx={{ alignSelf: "flex-start", textTransform: "none", px: 0.5 }}
-                    onClick={() => {
-                      const baseTotal = Number(item.total_amount || item.total_cost || item.estimated_total || 0);
-                      const disc = Number(item.discount || 0);
-                      const cash = Number(item.paid_cash || 0);
-                      const card = Number(item.paid_card || 0);
-                      const bal = Number(item.paid_balance || 0);
-                      const bon = Number(item.paid_bonuses || 0);
-                      const pct = baseTotal > 0 ? Math.round((disc / baseTotal) * 100) : 0;
-                      printReceipt({
-                        appointment: item,
-                        cashPaid: cash,
-                        cardPaid: card,
-                        balancePaid: bal,
-                        bonusesPaid: bon,
-                        discountPercent: pct,
-                        discountAmount: disc,
-                        basePrice: baseTotal,
-                        finalPrice: Math.max(0, baseTotal - disc),
-                        cashierName: item.updated_by_name ?? item.created_by_name ?? null,
-                        orgName: selectedBranch?.brandName || selectedBranch?.name,
-                        branchName: selectedBranch?.name ?? null,
-                        isReprint: true,
-                      });
-                    }}
+                    onClick={() => reprintAppointmentReceipt(item, selectedBranch)}
                   >
-                    Печать чека
+                    {t("payment.printReceipt")}
                   </Button>
                 )}
                 <Divider />
@@ -598,7 +576,7 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
             {/* Patient */}
             <Box>
               <Typography variant="caption" color="text.secondary" gutterBottom display="block">
-                Клиент
+                {t("home.client")}
               </Typography>
               <Paper
                 variant={isMobile ? "elevation" : "outlined"}
@@ -631,7 +609,7 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
                 </Avatar>
                 <Box sx={{ flex: 1 }}>
                   <Typography variant="body1" fontWeight={600}>
-                    {item.patient_name || "Не указан"}
+                    {item.patient_name || t("details.notSpecified")}
                   </Typography>
 
                   {patientData?.phone && (
@@ -656,7 +634,7 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
                       {patientBalance.balance !== 0 && (
                         <Stack direction="row" alignItems="center" spacing={0.5}>
                           <Typography variant="caption" color="text.secondary">
-                            {patientBalance.balance < 0 ? "Баланс (долг):" : "Счёт:"}
+                            {patientBalance.balance < 0 ? t("details.balanceDebt") : t("details.account")}
                           </Typography>
                           <Typography
                             variant="caption"
@@ -669,7 +647,7 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
                       )}
                       {patientBalance.bonuses > 0 && (
                         <Stack direction="row" alignItems="center" spacing={0.5}>
-                          <Typography variant="caption" color="text.secondary">Баллы:</Typography>
+                          <Typography variant="caption" color="text.secondary">{t("details.points")}</Typography>
                           <Typography variant="caption" fontWeight={700} color="warning.main">
                             {patientBalance.bonuses.toLocaleString()} {suffix}
                           </Typography>
@@ -685,7 +663,7 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
             {/* Services Grouped by Doctor */}
             <Box>
               <Typography variant="caption" color="text.secondary" gutterBottom display="block">
-                Услуги и специалисты
+                {t("details.servicesAndSpecialists")}
               </Typography>
               <Stack spacing={2}>
                 {(() => {
@@ -726,7 +704,7 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
                           grouped[docId] = {
                             doctor: {
                               id: docId,
-                              name: svc.doctor_name || svc.performer_name || "Специалист",
+                              name: svc.doctor_name || svc.performer_name || t("home.specialist"),
                               photo: svc.doctor_photo || svc.performer_photo || null
                             },
                             services: []
@@ -744,7 +722,7 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
                       // svc.id = UUID AppointmentService (только для ключей React)
                       const sellableId = svc.service_id || null;
                       const sidStr = sellableId ? String(sellableId) : null;
-                      const serviceName = svc.name ?? svc.service_name ?? 'Услуга';
+                      const serviceName = svc.name ?? svc.service_name ?? t("details.service");
                       const servicePrice = Number(svc.price ?? svc.cost ?? 0);
                       const servicePhoto = svc.image_url || (sidStr && servicesPhotos ? servicesPhotos.get(sidStr) : null);
 
@@ -836,7 +814,7 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
                                 {group.doctor.name?.charAt(0) || '?'}
                               </Avatar>
                               <Typography variant="subtitle2" fontWeight={700}>
-                                {group.doctor.name || "Специалист"}
+                                {group.doctor.name || t("home.specialist")}
                               </Typography>
                             </Paper>
 
@@ -851,7 +829,7 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
                         {noDoctorServices.length > 0 && (
                           <Box>
                             <Typography variant="subtitle2" color="text.secondary" gutterBottom sx={{ ml: 1 }}>
-                              Другие услуги
+                              {t("details.otherServices")}
                             </Typography>
                             <Stack spacing={1}>
                               {noDoctorServices.map((svc, idx) => renderServiceItem(svc, idx))}
@@ -873,7 +851,7 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
             {item.status?.startsWith("Отмен") && (
               <Box>
                 <Typography variant="subtitle2" color="error.main" gutterBottom>
-                  Причина отмены
+                  {t("details.cancellationReason")}
                 </Typography>
                 <Typography
                   variant="body2"
@@ -887,7 +865,7 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
                     fontStyle: item.cancellation_reason ? "normal" : "italic",
                   }}
                 >
-                  {item.cancellation_reason || "Причина не указана"}
+                  {item.cancellation_reason || t("details.reasonNotSpecified")}
                 </Typography>
               </Box>
             )}
@@ -896,7 +874,7 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
             {item.admin_comment && (
               <Box>
                 <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                  Комментарий администратора
+                  {t("payment.adminComment")}
                 </Typography>
                 <Typography variant="body2" sx={{ bgcolor: "background.paper", p: 1, borderRadius: 1, border: "1px solid", borderColor: "divider" }}>
                   {item.admin_comment}
@@ -909,7 +887,7 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
               <>
                 <Divider />
                 <Typography variant="caption" color="text.secondary" display="block">
-                  Информация об оплате
+                  {t("details.paymentInfo")}
                 </Typography>
                 <PaymentInfoBlock
                   payment={{
@@ -946,41 +924,22 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
                               px: hasPayment ? 1.5 : 2,
                             }}
                           >
-                            {hasPayment ? "Изменить оплату" : "Принять оплату"}
+                            {hasPayment ? t("details.editPayment") : t("details.acceptPayment")}
                           </Button>
                         );
                       })()
                     ) : undefined
                   }
                 />
-                {((item.paid_cash ?? 0) > 0 || (item.paid_card ?? 0) > 0 ||
-                  (item.paid_balance ?? 0) > 0 || (item.paid_bonuses ?? 0) > 0) && (
+                {hasAppointmentPayment(item) && (
                   <Button
                     size="small"
                     variant="text"
                     startIcon={<PrintOutlinedIcon fontSize="small" />}
                     sx={{ alignSelf: "flex-start", textTransform: "none", px: 0.5 }}
-                    onClick={() => {
-                      const baseTotal = Number(item.total_amount || item.total_cost || item.estimated_total || 0);
-                      const disc = Number(item.discount || 0);
-                      printReceipt({
-                        appointment: item,
-                        cashPaid: Number(item.paid_cash || 0),
-                        cardPaid: Number(item.paid_card || 0),
-                        balancePaid: Number(item.paid_balance || 0),
-                        bonusesPaid: Number(item.paid_bonuses || 0),
-                        discountPercent: baseTotal > 0 ? Math.round((disc / baseTotal) * 100) : 0,
-                        discountAmount: disc,
-                        basePrice: baseTotal,
-                        finalPrice: Math.max(0, baseTotal - disc),
-                        cashierName: item.updated_by_name ?? item.created_by_name ?? null,
-                        orgName: selectedBranch?.brandName || selectedBranch?.name,
-                        branchName: selectedBranch?.name ?? null,
-                        isReprint: true,
-                      });
-                    }}
+                    onClick={() => reprintAppointmentReceipt(item, selectedBranch)}
                   >
-                    Печать чека
+                    {t("payment.printReceipt")}
                   </Button>
                 )}
               </>
@@ -991,7 +950,7 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
           </Stack>
         ) : (
           <Typography variant="body2" color="text.secondary" align="center">
-            Прием не найден
+            {t("details.appointmentNotFound")}
           </Typography>
         )}
       </CardContent>
@@ -1023,19 +982,19 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
         onClose={() => setConfirmOpen(false)}
       >
         <DialogTitle>
-          {confirmAction === 'delete' ? "Удалить прием?" : confirmAction === 'not_came' ? "Отметить как не пришел?" : "Отменить запись?"}
+          {confirmAction === 'delete' ? t("details.deleteTitle") : confirmAction === 'not_came' ? t("details.notCameTitle") : t("details.cancelTitle")}
         </DialogTitle>
         <DialogContent>
           <DialogContentText>
             {confirmAction === 'delete'
-              ? "Это действие необратимо. Прием будет полностью удален из базы данных."
+              ? t("details.deleteText")
               : confirmAction === 'not_came'
-              ? "Прием будет отмечен как 'Клиент не пришел'."
-              : "Запись будет переведена в статус 'Отменено'. Она не удалится из истории."}
+              ? t("details.notCameText")
+              : t("details.cancelText")}
           </DialogContentText>
           {confirmAction === 'cancel' && (
             <TextField
-              label="Причина отмены"
+              label={t("details.cancellationReason")}
               required
               fullWidth
               multiline
@@ -1044,13 +1003,13 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
               value={cancellationReason}
               onChange={(e) => setCancellationReason(e.target.value)}
               error={cancellationReason.length > 0 && !cancellationReason.trim()}
-              helperText="Укажите причину отмены приёма"
+              helperText={t("details.cancellationReasonHelper")}
               sx={{ mt: 2 }}
             />
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setConfirmOpen(false)}>Назад</Button>
+          <Button onClick={() => setConfirmOpen(false)}>{t("common.back")}</Button>
           <Button
             onClick={handleConfirmAction}
             color={confirmAction === 'not_came' ? "warning" : "error"}
@@ -1058,7 +1017,7 @@ export const AppointmentDetailsCard: React.FC<AppointmentDetailsCardProps> = ({
             autoFocus={confirmAction !== 'cancel'}
             disabled={confirmAction === 'cancel' && !cancellationReason.trim()}
           >
-            {confirmAction === 'delete' ? "Удалить" : confirmAction === 'not_came' ? "Подтвердить" : "Подтвердить отмену"}
+            {confirmAction === 'delete' ? t("common.delete") : confirmAction === 'not_came' ? t("common.confirm") : t("details.confirmCancel")}
           </Button>
         </DialogActions>
       </Dialog>

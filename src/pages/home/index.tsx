@@ -1,4 +1,5 @@
 import React, { useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { CustomDatePicker } from "../../components/ui";
 import { useNotification } from "@refinedev/core";
 import {
@@ -41,6 +42,8 @@ import AppointmentDetailsCard from "./components/AppointmentDetailsCard";
 import GroupAppointmentDetailsCard from "./components/GroupAppointmentDetailsCard";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import HomeAddAppointmentDrawer from "./components/HomeAddAppointmentDrawer";
+import RecentReceiptsDrawer from "./components/RecentReceiptsDrawer";
+import ReceiptLongOutlined from "@mui/icons-material/ReceiptLongOutlined";
 import { usePermissions } from "../../hooks/usePermissions";
 import { PERMISSIONS } from "../../constants/permissions";
 
@@ -71,7 +74,8 @@ function useDebouncedValue<T>(value: T, delay = 300) {
 
 
 export const HomePage: React.FC = () => {
-  usePageTitle("Регистратура");
+  const { t } = useTranslation();
+  usePageTitle(t("menu.reception"));
   useNotification();
   const queryClient = useQueryClient();
   const { setOnRefresh } = useRefresh();
@@ -152,6 +156,7 @@ export const HomePage: React.FC = () => {
   const [initialPatientId, setInitialPatientId] = React.useState<string | null>(null);
   const [initialSlotDate, setInitialSlotDate] = React.useState<string | null>(null);
   const [initialSlotDoctorId, setInitialSlotDoctorId] = React.useState<string | null>(null);
+  const [receiptsOpen, setReceiptsOpen] = React.useState(false);
 
 
   const handleDateChange = (newDate: string) => {
@@ -333,6 +338,13 @@ export const HomePage: React.FC = () => {
     dailyAppointments.find(a => a.id === selectedAppointmentId) || null,
     [dailyAppointments, selectedAppointmentId]);
 
+  // id для карточки обычного приёма. Группа (`group_<id>`) могла быть только что
+  // создана и ещё не прийти в список дня — её не отдаём в AppointmentDetailsCard.
+  const regularAppointmentId =
+    selectedAppointment?.is_group || selectedAppointmentId?.startsWith("group_")
+      ? null
+      : selectedAppointmentId;
+
   const resetFilters = () => {
     const today = new Date();
     const [dd, mm, yyyy] = formatRuDate(today).split(".");
@@ -355,10 +367,12 @@ export const HomePage: React.FC = () => {
       })}
     >
       <PageHeader
-        title="Приемы"
+        title={t("home.appointments")}
         showTitle={false}
-        addButtonText="Добавить прием"
+        addButtonText={t("home.addAppointment")}
         onAdd={() => {
+          // Выбранный в фильтре специалист сразу подставляется в дровер
+          setInitialSlotDoctorId(doctorId || null);
           setVisitOpen(true);
         }}
         dateNavigation={
@@ -367,6 +381,19 @@ export const HomePage: React.FC = () => {
             setDate={handleDateChange}
             dayCounts={dayCounts}
           />
+        }
+        actions={
+          <Button
+            variant="outlined"
+            startIcon={<ReceiptLongOutlined />}
+            onClick={() => setReceiptsOpen(true)}
+            sx={(theme) => ({
+              whiteSpace: "nowrap",
+              minHeight: theme.appLayout.controls.buttonHeight,
+            })}
+          >
+            {t("receipts.title")}
+          </Button>
         }
       />
 
@@ -444,7 +471,7 @@ export const HomePage: React.FC = () => {
                 />
               ) : (
                 <AppointmentDetailsCard
-                  appointmentId={selectedAppointment?.is_group ? null : selectedAppointmentId}
+                  appointmentId={regularAppointmentId}
                   onClose={() => setSelectedAppointmentId(null)}
                   onUpdate={() => {
                     // Удаление/изменение приёма должно обновить и счётчики дней,
@@ -489,7 +516,7 @@ export const HomePage: React.FC = () => {
               />
             ) : (
               <AppointmentDetailsCard
-                appointmentId={selectedAppointment?.is_group ? null : selectedAppointmentId}
+                appointmentId={regularAppointmentId}
                 onClose={() => setSelectedAppointmentId(null)}
                 onUpdate={() => {
                   refetchAppointments();
@@ -514,13 +541,30 @@ export const HomePage: React.FC = () => {
           setInitialSlotDate(null);
           setInitialSlotDoctorId(null);
         }}
-        onCreated={() => {
+        onCreated={(createdId) => {
+          // Справа показываем только что созданный приём, а не ранее выбранный
+          if (createdId) setSelectedAppointmentId(createdId);
+          // После оплаты из дровера карточка должна показать актуальные суммы
+          queryClient.invalidateQueries({ queryKey: ["appointment-details"] });
           refetchAppointments();
         }}
         initialPatientId={initialPatientId}
         initialDate={initialSlotDate}
         initialDoctorId={initialSlotDoctorId}
         selectedDate={date}
+      />
+
+      {/* Последние чеки: повторная печать */}
+      <RecentReceiptsDrawer
+        open={receiptsOpen}
+        onClose={() => setReceiptsOpen(false)}
+        date={date}
+        onOpenAppointment={(appt) => {
+          // Чеки за выбранный день — приём уже в списке, просто открываем карточку
+          setDoctorId("");
+          setSelectedAppointmentId(appt.id);
+          setReceiptsOpen(false);
+        }}
       />
 
       {/* Filters Drawer (right) */}
@@ -554,7 +598,7 @@ export const HomePage: React.FC = () => {
             py: 1,
           }}
         >
-          <Typography variant="h6">Фильтры приемов</Typography>
+          <Typography variant="h6">{t("home.appointmentFilters")}</Typography>
           <IconButton onClick={() => setFiltersOpen(false)}>
             <CloseOutlined />
           </IconButton>
@@ -562,14 +606,14 @@ export const HomePage: React.FC = () => {
         <Divider />
         <Stack spacing={2} sx={{ p: 2 }}>
           <CustomDatePicker
-            label="Дата"
+            label={t("common.date")}
             value={date ? dayjs(date) : null}
             onChange={(val) => handleDateChange(val ? val.format("YYYY-MM-DD") : "")}
             slotProps={{ textField: { fullWidth: true } }}
           />
 
 
-          <Typography variant="subtitle2">Доктор</Typography>
+          <Typography variant="subtitle2">{t("home.doctor")}</Typography>
           <AppAutocomplete
             options={doctors}
             loading={doctorsLoading}
@@ -587,7 +631,7 @@ export const HomePage: React.FC = () => {
             renderInput={(params) => (
               <TextField
                 {...params}
-                placeholder="Выберите доктора"
+                placeholder={t("home.selectDoctor")}
                 fullWidth
               />
             )}
@@ -595,10 +639,10 @@ export const HomePage: React.FC = () => {
 
           <Stack direction="row" gap={1}>
             <Button variant="contained" onClick={() => setFiltersOpen(false)}>
-              Применить
+              {t("common.apply")}
             </Button>
             <Button variant="text" onClick={resetFilters}>
-              Сбросить
+              {t("common.reset")}
             </Button>
           </Stack>
         </Stack>

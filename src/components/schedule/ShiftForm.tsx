@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Stack,
   TextField,
@@ -51,13 +52,13 @@ type Props = {
 };
 
 const WEEKDAYS = [
-  { label: "ПН", value: "monday", dayOfWeek: 1 },
-  { label: "ВТ", value: "tuesday", dayOfWeek: 2 },
-  { label: "СР", value: "wednesday", dayOfWeek: 3 },
-  { label: "ЧТ", value: "thursday", dayOfWeek: 4 },
-  { label: "ПТ", value: "friday", dayOfWeek: 5 },
-  { label: "СБ", value: "saturday", dayOfWeek: 6 },
-  { label: "ВС", value: "sunday", dayOfWeek: 0 },
+  { value: "monday", dayOfWeek: 1 },
+  { value: "tuesday", dayOfWeek: 2 },
+  { value: "wednesday", dayOfWeek: 3 },
+  { value: "thursday", dayOfWeek: 4 },
+  { value: "friday", dayOfWeek: 5 },
+  { value: "saturday", dayOfWeek: 6 },
+  { value: "sunday", dayOfWeek: 0 },
 ];
 
 const employeeFilter = createFilterOptions<Employee>({
@@ -81,7 +82,13 @@ const ShiftForm: React.FC<Props> = ({
   isSpecialist,
   currentEmployeeId,
 }) => {
+  const { t } = useTranslation();
   const { open: notify } = useNotification();
+  const weekdayLabels = t("schedule.weekdaysAllCaps", { returnObjects: true }) as string[];
+  const getWeekdayLabel = (value: string) => {
+    const idx = WEEKDAYS.findIndex(w => w.value === value);
+    return idx >= 0 ? weekdayLabels[idx] : value;
+  };
 
   const [employee, setEmployee] = useState<Employee | null>(null);
   const [startDate, setStartDate] = useState('');
@@ -169,7 +176,7 @@ const ShiftForm: React.FC<Props> = ({
         current = current.add(1, 'day');
       }
       if (shifts.length === 0) {
-        notify?.({ type: "error", message: "В указанном диапазоне нет выбранных дней недели!" });
+        notify?.({ type: "error", message: t("schedule.noWeekdaysError") });
         return;
       }
       onSuccess(shifts);
@@ -196,12 +203,12 @@ const ShiftForm: React.FC<Props> = ({
     >
       <Stack spacing={2.5}>
         <Typography variant="h6" fontWeight={600}>
-          {mode === 'edit' ? 'Редактировать смену' : 'Новая смена'}
+          {mode === 'edit' ? t("schedule.editShift") : t("schedule.newShift")}
         </Typography>
 
         {/* Сотрудник */}
         <Box>
-          <Label>Сотрудник *</Label>
+          <Label>{t("schedule.employeeRequired")}</Label>
           <AppAutocomplete
             options={allEmployees}
             value={employee}
@@ -215,11 +222,11 @@ const ShiftForm: React.FC<Props> = ({
             renderInput={(params) => (
               <TextField
                 {...params}
-                placeholder="Выберите сотрудника"
+                placeholder={t("schedule.selectEmployee")}
                 fullWidth
                 size="small"
                 error={touched && !employee}
-                helperText={touched && !employee ? "Выберите сотрудника" : ""}
+                helperText={touched && !employee ? t("schedule.selectEmployee") : ""}
               />
             )}
           />
@@ -231,7 +238,7 @@ const ShiftForm: React.FC<Props> = ({
 
             {/* Дата начала */}
             <Box>
-              <Label>Дата *</Label>
+              <Label>{t("schedule.dateRequired")}</Label>
               <CustomDatePicker
                 value={startDate ? dayjs(startDate) : null}
                 onChange={(val) => {
@@ -250,7 +257,7 @@ const ShiftForm: React.FC<Props> = ({
             {/* Дата окончания диапазона (только при выбранных днях) */}
             {selectedWeekdays.length > 0 && (
               <Box>
-                <Label>Дата окончания диапазона</Label>
+                <Label>{t("schedule.endDateRangeLabel")}</Label>
                 <CustomDatePicker
                   value={endDate ? dayjs(endDate) : null}
                   onChange={(val) => setEndDate(val ? val.format('YYYY-MM-DD') : '')}
@@ -263,7 +270,7 @@ const ShiftForm: React.FC<Props> = ({
             <LocalizationProvider dateAdapter={AdapterDayjs}>
               <Stack direction="row" spacing={1.5}>
                 <Box sx={{ flex: 1, minWidth: 0 }}>
-                  <Label>Начало</Label>
+                  <Label>{t("schedule.startLabel")}</Label>
                   <CustomTimePicker
                     value={dayjs(`2000-01-01T${startTime}`)}
                     onChange={(val) => setStartTime(val ? val.format("HH:mm") : "")}
@@ -271,7 +278,7 @@ const ShiftForm: React.FC<Props> = ({
                   />
                 </Box>
                 <Box sx={{ flex: 1, minWidth: 0 }}>
-                  <Label>Конец</Label>
+                  <Label>{t("schedule.endLabel")}</Label>
                   <CustomTimePicker
                     value={dayjs(`2000-01-01T${endTime}`)}
                     onChange={(val) => setEndTime(val ? val.format("HH:mm") : "")}
@@ -290,13 +297,13 @@ const ShiftForm: React.FC<Props> = ({
                     onClick={() => setHasLunch(true)}
                     size="small"
                   >
-                    Добавить обед
+                    {t("schedule.addLunch")}
                   </Button>
                 </Box>
               ) : (
                 <Box>
                   <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
-                    <Label>Обеденный перерыв (1 час)</Label>
+                    <Label>{t("schedule.lunchBreak")}</Label>
                     <Button
                       size="small"
                       startIcon={<Close />}
@@ -304,12 +311,12 @@ const ShiftForm: React.FC<Props> = ({
                       color="error"
                       sx={{ minWidth: 'auto', px: 1 }}
                     >
-                      Убрать
+                      {t("schedule.remove")}
                     </Button>
                   </Stack>
                   <Stack direction="row" spacing={1.5}>
                     <Box sx={{ flex: 1, minWidth: 0 }}>
-                      <Label>Начало обеда</Label>
+                      <Label>{t("schedule.lunchStart")}</Label>
                       <CustomTimePicker
                         value={dayjs(`2000-01-01T${lunchStart}`)}
                         onChange={(val) => setLunchStart(val ? val.format("HH:mm") : "")}
@@ -317,7 +324,7 @@ const ShiftForm: React.FC<Props> = ({
                       />
                     </Box>
                     <Box sx={{ flex: 1, minWidth: 0 }}>
-                      <Label>Конец обеда</Label>
+                      <Label>{t("schedule.lunchEnd")}</Label>
                       <TextField value={lunchEnd} size="small" fullWidth disabled />
                     </Box>
                   </Stack>
@@ -329,12 +336,12 @@ const ShiftForm: React.FC<Props> = ({
 
             {/* Дни недели */}
             <Box>
-              <Label>Рабочие дни недели (не обязательно)</Label>
+              <Label>{t("schedule.workDaysLabel")}</Label>
               <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
                 {WEEKDAYS.map((day) => (
                   <Chip
                     key={day.value}
-                    label={day.label}
+                    label={getWeekdayLabel(day.value)}
                     onClick={() => handleWeekdayToggle(day.value)}
                     color={selectedWeekdays.includes(day.value) ? "primary" : "default"}
                     variant={selectedWeekdays.includes(day.value) ? "filled" : "outlined"}
@@ -345,8 +352,11 @@ const ShiftForm: React.FC<Props> = ({
               {selectedWeekdays.length > 0 && startDate && endDate && (
                 <>
                   <Alert severity="warning" sx={{ mt: 1.5 }}>
-                    Смены на {selectedWeekdays.map(d => WEEKDAYS.find(w => w.value === d)?.label).join(', ')}
-                    {' '}с {dayjs(startDate).format('DD.MM.YYYY')} по {dayjs(endDate).format('DD.MM.YYYY')}
+                    {t("schedule.shiftsRangeAlert", {
+                      days: selectedWeekdays.map(d => getWeekdayLabel(d)).join(', '),
+                      from: dayjs(startDate).format('DD.MM.YYYY'),
+                      to: dayjs(endDate).format('DD.MM.YYYY'),
+                    })}
                   </Alert>
 
                   {/* Список конкретных дат, которые попадают под выбранные дни недели */}
@@ -365,7 +375,7 @@ const ShiftForm: React.FC<Props> = ({
                     return (
                       <Box sx={{ mt: 1, border: '1px solid', borderColor: 'divider', borderRadius: 1, overflow: 'hidden' }}>
                         <Typography variant="caption" color="text.secondary" sx={{ display: 'block', px: 1.5, pt: 1, pb: 0.5, fontWeight: 600 }}>
-                          Будет создано {dates.length} смен{dates.length === 1 ? 'а' : dates.length < 5 ? 'ы' : ''}:
+                          {t("schedule.willCreateCount", { count: dates.length })}
                         </Typography>
                         <Stack direction="row" flexWrap="wrap" gap={0.5} sx={{ px: 1.5, pb: 1 }}>
                           {dates.map(d => (
@@ -390,7 +400,7 @@ const ShiftForm: React.FC<Props> = ({
         {/* Кнопки */}
         <Stack direction="row" spacing={1} justifyContent="flex-end" flexWrap="wrap" useFlexGap>
           <Button onClick={onCancel} color="inherit" sx={{ minWidth: 0 }}>
-            Отмена
+            {t("common.cancel")}
           </Button>
           <Button
             variant="contained"
@@ -400,7 +410,7 @@ const ShiftForm: React.FC<Props> = ({
             disabled={!employee || !startDate || !endDate}
             sx={{ minWidth: 0 }}
           >
-            {mode === 'edit' ? 'Сохранить' : 'Добавить'}
+            {mode === 'edit' ? t("common.save") : t("common.add")}
           </Button>
           {mode === 'edit' && onDelete && (
             <Button
@@ -410,7 +420,7 @@ const ShiftForm: React.FC<Props> = ({
               startIcon={<Delete />}
               sx={{ minWidth: 0 }}
             >
-              Удалить
+              {t("common.delete")}
             </Button>
           )}
         </Stack>

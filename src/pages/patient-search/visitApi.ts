@@ -1,5 +1,6 @@
 import { apiFetch } from "../../utility/apiClient";
 import { branchWallTime } from "../../utility/branchTime";
+import i18n from "../../i18n";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -77,7 +78,7 @@ async function resolveEmployeeId(input: string): Promise<string | null> {
   }
 
   if (!match) {
-    throw new Error("Не удалось однозначно определить специалиста. Укажите UUID или точное ФИО.");
+    throw new Error(i18n.t("patientSearch.cannotDetermineSpecialist"));
   }
 
   return getString(match.id);
@@ -86,7 +87,7 @@ async function resolveEmployeeId(input: string): Promise<string | null> {
 async function resolveServiceId(input: string): Promise<string> {
   const value = input.trim();
   if (!value) {
-    throw new Error("Укажите услугу для приёма.");
+    throw new Error(i18n.t("patientSearch.specifyServiceForVisit"));
   }
   if (UUID_RE.test(value)) return value;
 
@@ -107,12 +108,12 @@ async function resolveServiceId(input: string): Promise<string> {
   }
 
   if (!match) {
-    throw new Error("Не удалось однозначно определить услугу. Укажите UUID или точное название.");
+    throw new Error(i18n.t("patientSearch.cannotDetermineService"));
   }
 
   const serviceId = getString(match.id);
   if (!serviceId) {
-    throw new Error("API вернул услугу без идентификатора.");
+    throw new Error(i18n.t("patientSearch.serviceWithoutId"));
   }
   return serviceId;
 }
@@ -133,7 +134,7 @@ export async function createPatientVisit(params: {
 }) {
   const appointmentAt = branchWallTime(params.dateTime);
   if (!appointmentAt.isValid()) {
-    throw new Error("Укажите корректные дату и время.");
+    throw new Error(i18n.t("patientSearch.specifyValidDateTime"));
   }
 
   const [serviceId, performerId] = await Promise.all([
@@ -165,7 +166,7 @@ export async function updatePatientVisit(params: {
 }) {
   const appointmentAt = branchWallTime(params.dateTime);
   if (!appointmentAt.isValid()) {
-    throw new Error("Укажите корректные дату и время.");
+    throw new Error(i18n.t("patientSearch.specifyValidDateTime"));
   }
 
   const detailRes: any = await apiFetch(`/api/v1/appointments/${params.appointmentId}/`);
@@ -173,7 +174,7 @@ export async function updatePatientVisit(params: {
   const currentServices = asArray<AppointmentServiceLike>(detail?.services);
 
   if (currentServices.length > 1) {
-    throw new Error("Этот приём содержит несколько услуг. Измените его из полной карточки приёма.");
+    throw new Error(i18n.t("patientSearch.multiServiceAppointmentError"));
   }
 
   const currentService = currentServices[0] ?? null;

@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import {
   Box,
   Card,
@@ -132,7 +133,9 @@ type AddSlotButtonProps = {
   onClick: () => void;
 };
 
-const AddSlotButton: React.FC<AddSlotButtonProps> = ({ timeStr, onClick }) => (
+const AddSlotButton: React.FC<AddSlotButtonProps> = ({ timeStr, onClick }) => {
+  const { t } = useTranslation();
+  return (
   <Box
     onClick={onClick}
     sx={{
@@ -161,10 +164,11 @@ const AddSlotButton: React.FC<AddSlotButtonProps> = ({ timeStr, onClick }) => (
   >
     <AddCircleOutline sx={{ fontSize: 18, mr: 1, opacity: 0.8 }} />
     <Typography variant="body2" fontWeight={600}>
-      Есть окно на {timeStr}
+      {t("home.slotAvailable", { time: timeStr })}
     </Typography>
   </Box>
-);
+  );
+};
 
 // --- Gap Calculation Logic ---
 
@@ -199,6 +203,7 @@ export const AppointmentsList: React.FC<AppointmentsListProps & { onAddSlot?: (d
   restrictToDoctorId,
   selectedDoctorName,
 }) => {
+  const { t } = useTranslation();
   const { suffix, format: formatKGS } = useBranchCurrency();
   const theme = useTheme();
   const [selectedDoctor, setSelectedDoctor] = React.useState<string | null>(null);
@@ -256,7 +261,7 @@ export const AppointmentsList: React.FC<AppointmentsListProps & { onAddSlot?: (d
           const fullInfo = doctors?.find(d => d.id === docId);
           doctorMap.set(docId, {
             id: docId,
-            name: docName || fullInfo?.full_name || "Специалист",
+            name: docName || fullInfo?.full_name || t("home.specialist"),
             photoUrl: svc.performer_photo || svc.doctor_photo || fullInfo?.avatar_url || null,
             nickname: fullInfo?.nickname
           });
@@ -291,7 +296,7 @@ export const AppointmentsList: React.FC<AppointmentsListProps & { onAddSlot?: (d
         const fullInfo = doctors?.find(d => d.id === shift.employee?.id);
         doctorMap.set(shift.employee?.id, {
           id: shift.employee?.id,
-          name: fullInfo?.full_name || shift.employee?.fullName || "Специалист",
+          name: fullInfo?.full_name || shift.employee?.fullName || t("home.specialist"),
           photoUrl: fullInfo?.avatar_url || null,
           nickname: fullInfo?.nickname
         });
@@ -376,7 +381,7 @@ export const AppointmentsList: React.FC<AppointmentsListProps & { onAddSlot?: (d
     currentDayShifts.forEach(shift => {
       const fullInfo = doctors?.find(d => d.id === shift.employee?.id);
       if (fullInfo) {
-        const docName = fullInfo.full_name || "Специалист";
+        const docName = fullInfo.full_name || t("home.specialist");
         const docId = shift.employee?.id;
 
         if (restrictToDoctorId && docId !== restrictToDoctorId) return;
@@ -470,7 +475,7 @@ export const AppointmentsList: React.FC<AppointmentsListProps & { onAddSlot?: (d
         const fallbackId = item.doctor_id ?? item.performer_ids?.[0];
         if (restrictToDoctorId && fallbackId && fallbackId !== restrictToDoctorId) return;
         if (restrictToDoctorId && !fallbackId) return;
-        const noDocName = "Без специалиста";
+        const noDocName = t("home.noSpecialist");
         if (effectiveSelectedDoctor && noDocName !== effectiveSelectedDoctor) return;
         if (!rawGroups[noDocName]) rawGroups[noDocName] = [];
         rawGroups[noDocName].push(item);
@@ -657,7 +662,7 @@ export const AppointmentsList: React.FC<AppointmentsListProps & { onAddSlot?: (d
           >
             {/* Title fixed */}
             <Typography variant="subtitle1" noWrap sx={{ fontWeight: 700 }}>
-              Приемы ({titleDate})
+              {t("home.appointmentsWithDate", { date: titleDate })}
             </Typography>
 
             {/* Stories Filter лента */}
@@ -697,10 +702,10 @@ export const AppointmentsList: React.FC<AppointmentsListProps & { onAddSlot?: (d
                         transition: "all 0.2s ease",
                       }}
                     >
-                      <Typography variant="body2" sx={{ fontWeight: 700 }}>Все</Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 700 }}>{t("common.all")}</Typography>
                     </Box>
                     <Typography variant="caption" sx={{ fontWeight: selectedDoctor === null ? 700 : 500, fontSize: "0.75rem" }}>
-                      Все
+                      {t("common.all")}
                     </Typography>
                   </Stack>
                 )}
@@ -721,7 +726,7 @@ export const AppointmentsList: React.FC<AppointmentsListProps & { onAddSlot?: (d
           </Stack>
         }
         action={
-          <IconButton onClick={onOpenFilters} aria-label="Фильтры" sx={{ display: "none" }}>
+          <IconButton onClick={onOpenFilters} aria-label={t("common.filters")} sx={{ display: "none" }}>
             <FilterListOutlined />
           </IconButton>
         }
@@ -742,10 +747,10 @@ export const AppointmentsList: React.FC<AppointmentsListProps & { onAddSlot?: (d
         }}
       >
         {errorMsg ? (
-          <Typography sx={{ p: 2 }} variant="body2" color="error">Ошибка: {errorMsg}</Typography>
+          <Typography sx={{ p: 2 }} variant="body2" color="error">{t("common.errorWithMsg", { msg: errorMsg })}</Typography>
         ) : Object.keys(groupedItemsWithGaps).length === 0 ? (
           <Typography sx={{ p: 2, color: loading ? "text.disabled" : "text.primary" }} variant="body2">
-            {loading ? "Загрузка…" : "Нет записей"}
+            {loading ? t("common.loading") : t("home.noRecords")}
           </Typography>
         ) : (
           <Stack spacing={0} sx={{ pb: "calc(env(safe-area-inset-bottom, 0px) + 16px)" }}>
@@ -756,7 +761,7 @@ export const AppointmentsList: React.FC<AppointmentsListProps & { onAddSlot?: (d
                   {!restrictToDoctorId && (
                     <Box sx={{ px: 2, py: 1, bgcolor: "action.selected", borderTop: "1px solid", borderBottom: "1px solid", borderColor: "divider", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                       <Typography variant="subtitle2" fontWeight="bold">{docName}</Typography>
-                      <Chip label={`${apptCount} приемов`} size="small" variant="outlined" sx={{ height: 20, fontSize: '0.7rem', fontWeight: 700, bgcolor: 'background.paper' }} />
+                      <Chip label={t("home.appointmentsCount", { count: apptCount })} size="small" variant="outlined" sx={{ height: 20, fontSize: '0.7rem', fontWeight: 700, bgcolor: 'background.paper' }} />
                     </Box>
                   )}
                   <Box>
@@ -795,19 +800,19 @@ export const AppointmentsList: React.FC<AppointmentsListProps & { onAddSlot?: (d
                                 </Stack>
                                 <Typography variant="body2" color="text.secondary" noWrap>{g.sellableItemName}</Typography>
                                 <Typography variant="caption" color="text.disabled">
-                                  {g.participants.map((p) => p.patientName).join(", ") || "Нет участников"}
+                                  {g.participants.map((p) => p.patientName).join(", ") || t("home.noParticipants")}
                                 </Typography>
                               </Stack>
                               <Stack alignItems="flex-end" spacing={0.25}>
                                 <Chip
-                                  label={`${paidCount}/${g.participants.length} уч.`}
+                                  label={t("home.participantsShort", { paid: paidCount, total: g.participants.length })}
                                   size="small"
                                   color={allPaid ? "success" : "warning"}
                                   sx={{ height: 20, fontSize: 11 }}
                                 />
                                 {debt > 0 && (
                                   <Typography variant="caption" color="error.main" fontWeight={600}>
-                                    Долг: {debt.toLocaleString()} {suffix}
+                                    {t("home.debt")}: {debt.toLocaleString()} {suffix}
                                   </Typography>
                                 )}
                               </Stack>
@@ -854,7 +859,7 @@ export const AppointmentsList: React.FC<AppointmentsListProps & { onAddSlot?: (d
                               <Stack direction="row" alignItems="center" gap={0.5}>
                                 <Typography variant="subtitle2">{dayjs(a.appointment_at).format("HH:mm")}</Typography>
                               </Stack>
-                              <Typography variant="body2" color="text.secondary">Клиент: {a.patient_name}</Typography>
+                              <Typography variant="body2" color="text.secondary">{t("home.client")}: {a.patient_name}</Typography>
                             </Stack>
                             <Stack alignItems="flex-end">
                               <Stack direction="row" alignItems="center" gap={1} flexWrap="wrap" justifyContent="flex-end">
@@ -866,7 +871,7 @@ export const AppointmentsList: React.FC<AppointmentsListProps & { onAddSlot?: (d
                                 />
                                 {discountPct > 0 && (
                                   <Chip
-                                    label={`Со скидкой ${discountPct}%`}
+                                    label={t("home.withDiscount", { pct: discountPct })}
                                     size="small"
                                     color="secondary"
                                     variant="outlined"
@@ -882,12 +887,12 @@ export const AppointmentsList: React.FC<AppointmentsListProps & { onAddSlot?: (d
                                   </Stack>
                                 )}
                                 {(a.has_conclusion || a.conclusion || (a.diagnosis_data && a.diagnosis_data.length > 0)) && (
-                                  <Tooltip title="Есть заключение"><PrintOutlinedIcon sx={{ fontSize: 20, color: "action.active", opacity: 0.8 }} /></Tooltip>
+                                  <Tooltip title={t("home.hasConclusion")}><PrintOutlinedIcon sx={{ fontSize: 20, color: "action.active", opacity: 0.8 }} /></Tooltip>
                                 )}
                               </Stack>
                               {(a.total_amount != null || a.total_cost != null || a.estimated_total != null) && (
                                 <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                                  Итого: {formatKGS(Number(a.total_amount || a.total_cost || a.estimated_total || 0) - discountAbs)}
+                                  {t("common.total")}: {formatKGS(Number(a.total_amount || a.total_cost || a.estimated_total || 0) - discountAbs)}
                                 </Typography>
                               )}
                             </Stack>
@@ -902,7 +907,7 @@ export const AppointmentsList: React.FC<AppointmentsListProps & { onAddSlot?: (d
             <Box sx={{ px: 2, py: 1.5, display: "flex", alignItems: "center", gap: 1.5 }}>
               <Box sx={{ flex: 1, height: "1px", bgcolor: "divider" }} />
               <Typography variant="caption" color="text.disabled" sx={{ whiteSpace: "nowrap", fontSize: "0.7rem" }}>
-                Конец списка
+                {t("home.endOfList")}
               </Typography>
               <Box sx={{ flex: 1, height: "1px", bgcolor: "divider" }} />
             </Box>

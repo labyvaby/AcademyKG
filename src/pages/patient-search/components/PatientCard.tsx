@@ -3,6 +3,7 @@
  * Карточка выбранного клиента (правая колонка).
  */
 import React from "react";
+import { useTranslation } from "react-i18next";
 import {
   Card,
   CardHeader,
@@ -87,7 +88,7 @@ type Props = {
   onDeleteDocument?: (docId: string | number) => Promise<void>;
 };
 
-function calculateAge(birthDateStr: string): string {
+function calculateAge(birthDateStr: string, t: (key: string, opts?: any) => string): string {
   const birthDate = new Date(birthDateStr);
   const now = new Date();
   if (isNaN(birthDate.getTime())) return "";
@@ -95,17 +96,12 @@ function calculateAge(birthDateStr: string): string {
   let m = now.getMonth() - birthDate.getMonth();
   if (now.getDate() < birthDate.getDate()) m--;
   if (m < 0) { m += 12; y--; }
-  const yearStr = getDeclension(y, ["год", "года", "лет"]);
-  const monthStr = getDeclension(m, ["месяц", "месяца", "месяцев"]);
-  if (y === 0 && m === 0) return "(меньше месяца)";
-  if (y === 0) return `(${m} ${monthStr})`;
-  if (m === 0) return `(${y} ${yearStr})`;
-  return `(${y} ${yearStr} и ${m} ${monthStr})`;
-}
-
-function getDeclension(number: number, titles: [string, string, string]): string {
-  const cases = [2, 0, 1, 1, 1, 2];
-  return titles[number % 100 > 4 && number % 100 < 20 ? 2 : cases[number % 10 < 5 ? number % 10 : 5]];
+  const yearStr = t("employees.ageYears", { count: y });
+  const monthStr = t("employees.ageMonths", { count: m });
+  if (y === 0 && m === 0) return `(${t("patientSearch.lessThanMonth")})`;
+  if (y === 0) return `(${monthStr})`;
+  if (m === 0) return `(${yearStr})`;
+  return `(${yearStr} ${t("employees.and")} ${monthStr})`;
 }
 
 function isImageUrl(url: string): boolean {
@@ -127,6 +123,7 @@ const PatientCard: React.FC<Props> = ({
   onAddDocument,
   onDeleteDocument,
 }) => {
+  const { t } = useTranslation();
   const { suffix } = useBranchCurrency();
   const [addDocOpen, setAddDocOpen] = React.useState(false);
   const [docTitle, setDocTitle] = React.useState("");
@@ -159,9 +156,9 @@ const PatientCard: React.FC<Props> = ({
       setAddDocOpen(false);
       setDocTitle("");
       setDocFile(null);
-      showSnack("Документ успешно добавлен");
+      showSnack(t("employees.documentAdded"));
     } catch {
-      showSnack("Ой, что-то пошло не так", "error");
+      showSnack(t("employees.somethingWentWrong"), "error");
     } finally {
       setDocBusy(false);
     }
@@ -173,9 +170,9 @@ const PatientCard: React.FC<Props> = ({
     setConfirmDeleteId(null);
     try {
       await onDeleteDocument(confirmDeleteId);
-      showSnack("Документ успешно удалён");
+      showSnack(t("employees.documentDeleted"));
     } catch {
-      showSnack("Ой, что-то пошло не так", "error");
+      showSnack(t("employees.somethingWentWrong"), "error");
     } finally {
       setDeletingId(null);
     }
@@ -189,18 +186,18 @@ const PatientCard: React.FC<Props> = ({
             <Stack direction="row" alignItems="center" justifyContent="space-between" gap={1} flexWrap="wrap">
               <Stack direction="row" alignItems="center" gap={1.25}>
                 <PersonOutlineOutlined color="primary" />
-                <Typography variant="h6">Карточка клиента</Typography>
+                <Typography variant="h6">{t("patientSearch.clientCardTitle")}</Typography>
               </Stack>
               {patient && (onTopUp || onEdit) && (
                 <Stack direction="row" spacing={1} flexShrink={0}>
                   {onTopUp && (
                     <Button size="small" variant="outlined" color="success" onClick={onTopUp} startIcon={<AccountBalanceWalletOutlined />}>
-                      Пополнить
+                      {t("patientSearch.topUp")}
                     </Button>
                   )}
                   {onEdit && (
                     <Button size="small" variant="contained" onClick={onEdit} startIcon={<EditOutlined />}>
-                      Редактировать
+                      {t("common.edit")}
                     </Button>
                   )}
                 </Stack>
@@ -215,8 +212,8 @@ const PatientCard: React.FC<Props> = ({
             <Stack spacing={2} sx={{ p: 2 }}>
               {patient.is_blacklisted && (
                 <Alert severity="error" variant="filled">
-                  <AlertTitle>В черном списке</AlertTitle>
-                  {patient.blacklist_reason || "Причина не указана"}
+                  <AlertTitle>{t("patientSearch.blacklisted")}</AlertTitle>
+                  {patient.blacklist_reason || t("patientSearch.reasonNotSpecified")}
                 </Alert>
               )}
 
@@ -240,7 +237,7 @@ const PatientCard: React.FC<Props> = ({
                   <Stack direction="row" alignItems="center" gap={1} flexWrap="wrap">
                     <Chip
                       icon={<FamilyRestroomOutlined sx={{ fontSize: 16 }} />}
-                      label="Ребёнок сотрудника"
+                      label={t("patientSearch.employeeChild")}
                       size="small"
                       color="success"
                       variant="outlined"
@@ -248,7 +245,7 @@ const PatientCard: React.FC<Props> = ({
                     />
                     {typeof patient.employee_child_discount_percent === "number" && (
                       <Chip
-                        label={`Скидка ${patient.employee_child_discount_percent}%`}
+                        label={t("patientSearch.discountPercent", { percent: patient.employee_child_discount_percent })}
                         size="small"
                         color="success"
                         sx={{ height: 24 }}
@@ -256,9 +253,9 @@ const PatientCard: React.FC<Props> = ({
                     )}
                   </Stack>
                   <Typography variant="body2" color="text.secondary" sx={{ wordBreak: "break-word" }}>
-                    Сотрудник:{" "}
+                    {t("common.employee")}:{" "}
                     <Typography component="span" variant="body2" color="text.primary" fontWeight={500}>
-                      {patient.employee_parent_name || "Не выбран"}
+                      {patient.employee_parent_name || t("patientSearch.notSelected")}
                     </Typography>
                   </Typography>
                 </Box>
@@ -287,13 +284,13 @@ const PatientCard: React.FC<Props> = ({
                   })()}
                   <Stack direction="row" alignItems="center" gap={1} color="text.secondary" sx={{ mt: 0.5 }}>
                     <BadgeOutlined fontSize="small" />
-                    <Typography variant="body2">ИНН: {patient.inn || "отсутствует"}</Typography>
+                    <Typography variant="body2">{t("employees.inn")}: {patient.inn || t("patientSearch.absent")}</Typography>
                   </Stack>
                   {patient.birth_date && (
                     <Stack direction="row" alignItems="center" gap={1} color="text.secondary" sx={{ mt: 0.5 }}>
                       <CalendarMonthOutlined fontSize="small" />
                       <Typography variant="body2">
-                        {formatDateRu(patient.birth_date)} {calculateAge(patient.birth_date)}
+                        {formatDateRu(patient.birth_date)} {calculateAge(patient.birth_date, t)}
                       </Typography>
                     </Stack>
                   )}
@@ -305,7 +302,7 @@ const PatientCard: React.FC<Props> = ({
                 <>
                   <Divider sx={{ my: 1 }} />
                   <Stack spacing={1}>
-                    <Typography variant="subtitle2" color="text.secondary">Ответственные лица</Typography>
+                    <Typography variant="subtitle2" color="text.secondary">{t("patientSearch.responsiblePersons")}</Typography>
                     {patient.responsiblePersons.map((person, idx) => (
                       <Stack key={idx} spacing={0.25}>
                         <Typography variant="body2" fontWeight={500}>{person.fullName}</Typography>
@@ -327,12 +324,12 @@ const PatientCard: React.FC<Props> = ({
                 <>
                   <Divider sx={{ my: 2 }} />
                   <Stack spacing={1}>
-                    <Typography variant="subtitle2" color="text.secondary">Последние измерения</Typography>
+                    <Typography variant="subtitle2" color="text.secondary">{t("patientSearch.lastMeasurements")}</Typography>
                     <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap">
-                      {lastHeight && <Chip label={`Рост: ${lastHeight} см`} size="small" variant="outlined" />}
-                      {lastWeight && <Chip label={`Вес: ${lastWeight} кг`} size="small" variant="outlined" />}
+                      {lastHeight && <Chip label={t("patientSearch.heightCm", { value: lastHeight })} size="small" variant="outlined" />}
+                      {lastWeight && <Chip label={t("patientSearch.weightKg", { value: lastWeight })} size="small" variant="outlined" />}
                       {lastTemperature && (
-                        <Chip label={`Темп: ${lastTemperature} °C`} size="small" variant="outlined" color={lastTemperature > 37 ? "warning" : "default"} />
+                        <Chip label={t("patientSearch.tempC", { value: lastTemperature })} size="small" variant="outlined" color={lastTemperature > 37 ? "warning" : "default"} />
                       )}
                     </Stack>
                   </Stack>
@@ -346,12 +343,12 @@ const PatientCard: React.FC<Props> = ({
                   <Stack spacing={1}>
                     <Stack direction="row" alignItems="center" gap={1}>
                       <AccountBalanceWalletOutlined fontSize="small" color="action" />
-                      <Typography variant="subtitle2" color="text.secondary">Счёт клиента</Typography>
+                      <Typography variant="subtitle2" color="text.secondary">{t("patientSearch.clientAccount")}</Typography>
                     </Stack>
                     <Stack direction="row" spacing={1.5} flexWrap="wrap">
                       <Box sx={{ flex: 1, minWidth: 70, borderRadius: 1, border: "1px solid", borderColor: "divider", px: 1.5, py: 1, textAlign: "center" }}>
                         <Typography variant="caption" color="text.secondary" display="block">
-                          {balance.balance < 0 ? "Баланс (долг)" : "Баланс"}
+                          {balance.balance < 0 ? t("patientSearch.balanceDebt") : t("patientSearch.balanceType")}
                         </Typography>
                         <Typography
                           variant="body2"
@@ -368,7 +365,7 @@ const PatientCard: React.FC<Props> = ({
                         </Typography>
                       </Box>
                       <Box sx={{ flex: 1, minWidth: 70, borderRadius: 1, border: "1px solid", borderColor: "divider", px: 1.5, py: 1, textAlign: "center" }}>
-                        <Typography variant="caption" color="text.secondary" display="block">Баллы</Typography>
+                        <Typography variant="caption" color="text.secondary" display="block">{t("patientSearch.bonusesType")}</Typography>
                         <Typography variant="body2" fontWeight={600} color={balance.bonuses > 0 ? "warning.main" : "text.primary"}>
                           {balance.bonuses.toLocaleString("ru-RU")} {suffix}
                         </Typography>
@@ -386,9 +383,9 @@ const PatientCard: React.FC<Props> = ({
                     <Stack direction="row" alignItems="center" justifyContent="space-between">
                       <Stack direction="row" alignItems="center" gap={1}>
                         <FolderOutlined fontSize="small" color="action" />
-                        <Typography variant="subtitle2" color="text.secondary">Документы</Typography>
+                        <Typography variant="subtitle2" color="text.secondary">{t("employees.documents")}</Typography>
                       </Stack>
-                      <Tooltip title="Добавить документ">
+                      <Tooltip title={t("employees.addDocument")}>
                         <IconButton size="small" onClick={() => setAddDocOpen(true)}>
                           <AddCircleOutlineOutlined fontSize="small" />
                         </IconButton>
@@ -432,7 +429,7 @@ const PatientCard: React.FC<Props> = ({
                                 >
                                   <ZoomInOutlined sx={{ color: "white", fontSize: 28 }} />
                                 </Box>
-                                <Tooltip title="Удалить">
+                                <Tooltip title={t("common.delete")}>
                                   <IconButton
                                     size="small"
                                     onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(doc.id); }}
@@ -487,7 +484,7 @@ const PatientCard: React.FC<Props> = ({
                       </>
                     ) : (
                       <Typography variant="body2" color="text.disabled" sx={{ pl: 0.5 }}>
-                        Нет документов
+                        {t("patientSearch.noDocuments")}
                       </Typography>
                     )}
                   </Stack>
@@ -499,7 +496,7 @@ const PatientCard: React.FC<Props> = ({
                 <>
                   <Divider sx={{ my: 2 }} />
                   <Stack spacing={1}>
-                    <Typography variant="subtitle2" color="text.secondary">Последний прием</Typography>
+                    <Typography variant="subtitle2" color="text.secondary">{t("patientSearch.lastAppointment")}</Typography>
                     {lastDateTime && (
                       <Stack direction="row" alignItems="center" gap={1} color="text.secondary">
                         <CalendarMonthOutlined fontSize="small" />
@@ -508,13 +505,13 @@ const PatientCard: React.FC<Props> = ({
                     )}
                     {lastService && (
                       <Typography variant="body2">
-                        <Typography component="span" variant="body2" color="text.secondary" sx={{ mr: 0.5 }}>Услуга:</Typography>
+                        <Typography component="span" variant="body2" color="text.secondary" sx={{ mr: 0.5 }}>{t("details.service")}:</Typography>
                         {lastService}
                       </Typography>
                     )}
                     {lastComplaints && (
                       <Typography variant="body2">
-                        <Typography component="span" variant="body2" color="text.secondary" sx={{ mr: 0.5 }}>Жалобы:</Typography>
+                        <Typography component="span" variant="body2" color="text.secondary" sx={{ mr: 0.5 }}>{t("patientSearch.complaints")}:</Typography>
                         {lastComplaints}
                       </Typography>
                     )}
@@ -525,7 +522,7 @@ const PatientCard: React.FC<Props> = ({
           ) : (
             <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", py: 4, opacity: 0.6 }}>
               <PersonOutlineOutlined sx={{ fontSize: 48, mb: 1, color: "text.secondary" }} />
-              <Typography variant="body1" color="text.secondary">Выберите клиента из списка</Typography>
+              <Typography variant="body1" color="text.secondary">{t("patientSearch.selectClientFromList")}</Typography>
             </Box>
           )}
         </CardContent>
@@ -533,40 +530,40 @@ const PatientCard: React.FC<Props> = ({
 
       {/* Добавить документ */}
       <Dialog open={addDocOpen} onClose={docBusy ? undefined : () => { setAddDocOpen(false); setDocTitle(""); setDocFile(null); }} maxWidth="xs" fullWidth>
-        <DialogTitle>Добавить документ</DialogTitle>
+        <DialogTitle>{t("employees.addDocument")}</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1 }}>
             <TextField
-              label="Название"
+              label={t("patientSearch.documentName")}
               value={docTitle}
               onChange={(e) => setDocTitle(e.target.value)}
               fullWidth
               size="small"
-              placeholder="Необязательно"
+              placeholder={t("products.optional")}
             />
             <Button variant="outlined" component="label" fullWidth>
-              {docFile ? docFile.name : "Выбрать файл"}
+              {docFile ? docFile.name : t("employees.selectFile")}
               <input type="file" hidden onChange={(e) => setDocFile(e.target.files?.[0] ?? null)} />
             </Button>
           </Stack>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => { setAddDocOpen(false); setDocTitle(""); setDocFile(null); }} disabled={docBusy}>Отмена</Button>
+          <Button onClick={() => { setAddDocOpen(false); setDocTitle(""); setDocFile(null); }} disabled={docBusy}>{t("common.cancel")}</Button>
           <Button variant="contained" onClick={handleAddDoc} disabled={!docFile || docBusy}>
-            {docBusy ? <CircularProgress size={18} /> : "Загрузить"}
+            {docBusy ? <CircularProgress size={18} /> : t("patientSearch.upload")}
           </Button>
         </DialogActions>
       </Dialog>
 
       {/* Подтверждение удаления */}
       <Dialog open={confirmDeleteId != null} onClose={() => setConfirmDeleteId(null)} maxWidth="xs" fullWidth>
-        <DialogTitle>Удалить документ?</DialogTitle>
+        <DialogTitle>{t("employees.deleteDocumentTitle")}</DialogTitle>
         <DialogContent>
-          <Typography variant="body2">Вы уверены, что хотите удалить этот документ? Это действие нельзя отменить.</Typography>
+          <Typography variant="body2">{t("patientSearch.deleteDocumentConfirm")}</Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setConfirmDeleteId(null)}>Отмена</Button>
-          <Button variant="contained" color="error" onClick={handleConfirmDelete}>Удалить</Button>
+          <Button onClick={() => setConfirmDeleteId(null)}>{t("common.cancel")}</Button>
+          <Button variant="contained" color="error" onClick={handleConfirmDelete}>{t("common.delete")}</Button>
         </DialogActions>
       </Dialog>
 

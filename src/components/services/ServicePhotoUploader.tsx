@@ -5,6 +5,7 @@
  * Вся логика выбора файла делегируется через onPickPhoto.
  */
 import React from "react";
+import { useTranslation } from "react-i18next";
 import {
   Stack,
   Typography,
@@ -28,6 +29,7 @@ const ServicePhotoUploader: React.FC<ServicePhotoUploaderProps> = ({
   inputId = "add-service-file-input",
   onPickPhoto,
 }) => {
+  const { t } = useTranslation();
   const displayUrl = React.useMemo(() => {
     return resolveApiUrl(photoPreview) ?? undefined;
   }, [photoPreview]);
@@ -35,7 +37,7 @@ const ServicePhotoUploader: React.FC<ServicePhotoUploaderProps> = ({
   return (
     <Stack spacing={0.5}>
       <Typography variant="body2" color="text.secondary">
-        Картинка
+        {t("services.image")}
       </Typography>
       <Card variant="outlined" sx={{ borderStyle: "dashed" }}>
         <CardContent
@@ -60,10 +62,10 @@ const ServicePhotoUploader: React.FC<ServicePhotoUploaderProps> = ({
           </Avatar>
           <Box sx={{ flex: 1 }}>
             <Typography variant="subtitle1" sx={{ fontWeight: 600, lineHeight: 1.2 }}>
-              {photoPreview ? "Сменить фото" : "Добавить фото"}
+              {photoPreview ? t("products.changePhoto") : t("services.addPhoto")}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Необязательно
+              {t("products.optional")}
             </Typography>
           </Box>
           <input

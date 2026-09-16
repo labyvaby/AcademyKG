@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
     TableRow,
     TableCell,
@@ -55,6 +56,7 @@ function calcShiftHours(shift: Shift): number {
 }
 
 const DailyBreakdown: React.FC<{ employeeId: string; month: string }> = ({ employeeId, month }) => {
+    const { t } = useTranslation();
     const theme = useTheme();
     const [shifts, setShifts] = React.useState<Shift[] | null>(null);
     const [loading, setLoading] = React.useState(true);
@@ -95,7 +97,7 @@ const DailyBreakdown: React.FC<{ employeeId: string; month: string }> = ({ emplo
     if (!shifts || shifts.length === 0) {
         return (
             <Box sx={{ py: 1.5, px: 2 }}>
-                <Typography variant="caption" color="text.disabled">Нет данных о сменах за этот месяц</Typography>
+                <Typography variant="caption" color="text.disabled">{t("salaryReports.noShiftsForMonth")}</Typography>
             </Box>
         );
     }
@@ -105,12 +107,12 @@ const DailyBreakdown: React.FC<{ employeeId: string; month: string }> = ({ emplo
             <Table size="small" sx={{ '& td, & th': { fontSize: '0.75rem', py: 0.6, px: 1.5, border: 'none' } }}>
                 <TableHead>
                     <TableRow sx={{ '& th': { color: 'text.disabled', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, fontSize: '0.65rem' } }}>
-                        <TableCell>Дата</TableCell>
-                        <TableCell align="center">Тип</TableCell>
-                        <TableCell align="center">Начало</TableCell>
-                        <TableCell align="center">Конец</TableCell>
-                        <TableCell align="center">Часов</TableCell>
-                        <TableCell align="center">Статус</TableCell>
+                        <TableCell>{t("reports.date")}</TableCell>
+                        <TableCell align="center">{t("salaryReports.type")}</TableCell>
+                        <TableCell align="center">{t("schedule.startLabel")}</TableCell>
+                        <TableCell align="center">{t("schedule.endLabel")}</TableCell>
+                        <TableCell align="center">{t("salaryReports.hoursLabel")}</TableCell>
+                        <TableCell align="center">{t("salaryReports.statusLabel")}</TableCell>
                     </TableRow>
                 </TableHead>
                 <TableBody>
@@ -147,14 +149,14 @@ const DailyBreakdown: React.FC<{ employeeId: string; month: string }> = ({ emplo
                                     {shift.endTime || '—'}
                                 </TableCell>
                                 <TableCell align="center" sx={{ fontWeight: 700, color: COLORS.day }}>
-                                    {hours > 0 ? `${hours}ч` : '—'}
+                                    {hours > 0 ? `${hours}${t("salaryReports.hoursUnit")}` : '—'}
                                 </TableCell>
                                 <TableCell align="center">
                                     {isClosed
-                                        ? <Box component="span" sx={{ px: 0.75, py: 0.2, borderRadius: 0.75, bgcolor: alpha(COLORS.paid, 0.12), color: COLORS.paid, fontWeight: 700, fontSize: '0.65rem' }}>Закрыта</Box>
+                                        ? <Box component="span" sx={{ px: 0.75, py: 0.2, borderRadius: 0.75, bgcolor: alpha(COLORS.paid, 0.12), color: COLORS.paid, fontWeight: 700, fontSize: '0.65rem' }}>{t("salaryReports.shiftClosed")}</Box>
                                         : isOpen
-                                            ? <Box component="span" sx={{ px: 0.75, py: 0.2, borderRadius: 0.75, bgcolor: alpha(COLORS.advance, 0.12), color: COLORS.advance, fontWeight: 700, fontSize: '0.65rem' }}>Открыта</Box>
-                                            : <Box component="span" sx={{ px: 0.75, py: 0.2, borderRadius: 0.75, bgcolor: alpha(theme.palette.text.disabled, 0.1), color: 'text.disabled', fontWeight: 700, fontSize: '0.65rem' }}>Запланирована</Box>
+                                            ? <Box component="span" sx={{ px: 0.75, py: 0.2, borderRadius: 0.75, bgcolor: alpha(COLORS.advance, 0.12), color: COLORS.advance, fontWeight: 700, fontSize: '0.65rem' }}>{t("salaryReports.shiftOpen")}</Box>
+                                            : <Box component="span" sx={{ px: 0.75, py: 0.2, borderRadius: 0.75, bgcolor: alpha(theme.palette.text.disabled, 0.1), color: 'text.disabled', fontWeight: 700, fontSize: '0.65rem' }}>{t("salaryReports.shiftScheduled")}</Box>
                                     }
                                 </TableCell>
                             </TableRow>
@@ -167,6 +169,7 @@ const DailyBreakdown: React.FC<{ employeeId: string; month: string }> = ({ emplo
 };
 
 const SalaryReportRow: React.FC<SalaryReportRowProps> = ({ row, isMobile, month }) => {
+    const { t } = useTranslation();
     const theme = useTheme();
     const { format: formatKGS } = useReportCurrency();
     const [open, setOpen] = useState(false);
@@ -215,19 +218,19 @@ const SalaryReportRow: React.FC<SalaryReportRowProps> = ({ row, isMobile, month 
                                 <Stack direction="row" spacing={0.5} alignItems="center" flexWrap="wrap">
                                     <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.68rem' }}>{row.roleName}</Typography>
                                     {row.paidOut && (
-                                        <Chip label="Выплачено" size="small" sx={{ height: 16, fontSize: '0.6rem', bgcolor: alpha(COLORS.paid, 0.12), color: COLORS.paid, fontWeight: 700, '& .MuiChip-label': { px: 0.75 } }} />
+                                        <Chip label={t("salaryReports.paidOut")} size="small" sx={{ height: 16, fontSize: '0.6rem', bgcolor: alpha(COLORS.paid, 0.12), color: COLORS.paid, fontWeight: 700, '& .MuiChip-label': { px: 0.75 } }} />
                                     )}
                                 </Stack>
                             </Box>
                         </Stack>
                         <Stack direction="row" alignItems="center" spacing={0.5}>
-                            <Tooltip title="Скачать расчётный лист (PDF)">
+                            <Tooltip title={t("salaryReports.downloadPayslipPdf")}>
                                 <IconButton size="small" onClick={openPayslip} sx={{ p: 0.5, color: COLORS.netSalary }}>
                                     <PictureAsPdfOutlinedIcon sx={{ fontSize: '1.05rem' }} />
                                 </IconButton>
                             </Tooltip>
                             <Box textAlign="right">
-                                <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.6rem', display: 'block' }}>К выплате</Typography>
+                                <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.6rem', display: 'block' }}>{t("salaryReports.toPayout")}</Typography>
                                 <Typography fontWeight={800} sx={{ color: COLORS.netSalary, fontSize: '0.95rem', lineHeight: 1.1 }}>
                                     {formatKGS(row.netSalary)}
                                 </Typography>
@@ -240,15 +243,15 @@ const SalaryReportRow: React.FC<SalaryReportRowProps> = ({ row, isMobile, month 
 
                     <Grid2 container spacing={1} sx={{ mt: 1 }}>
                         <Grid2 size={4}>
-                            <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.6rem', display: 'block' }}>Часы</Typography>
+                            <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.6rem', display: 'block' }}>{t("salaryReports.hoursLabel")}</Typography>
                             <Typography sx={{ fontSize: '0.78rem', fontWeight: 700, color: COLORS.day }}>{row.dayHours}</Typography>
                         </Grid2>
                         <Grid2 size={4}>
-                            <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.6rem', display: 'block' }}>Приемы</Typography>
+                            <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.6rem', display: 'block' }}>{t("salaryReports.appointmentsLabel")}</Typography>
                             <Typography sx={{ fontSize: '0.78rem', fontWeight: 700 }}>{row.paidAppointmentsCount}</Typography>
                         </Grid2>
                         <Grid2 size={4}>
-                            <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.6rem', display: 'block' }}>Аванс</Typography>
+                            <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.6rem', display: 'block' }}>{t("salaryReports.advanceLabel")}</Typography>
                             <Typography sx={{ fontSize: '0.78rem', fontWeight: 700, color: COLORS.advance }}>{formatKGS(row.advancesSum)}</Typography>
                         </Grid2>
                     </Grid2>
@@ -258,30 +261,30 @@ const SalaryReportRow: React.FC<SalaryReportRowProps> = ({ row, isMobile, month 
                     <Box sx={{ borderTop: `1px solid`, borderColor: 'divider', px: 1.5, pt: 1.25, pb: 0.5 }}>
                         <Grid2 container spacing={1} sx={{ mb: 1 }}>
                             <Grid2 size={6}>
-                                <Typography variant="caption" color="text.disabled">ЗП (%)</Typography>
+                                <Typography variant="caption" color="text.disabled">{t("salaryReports.salaryPercentShort")}</Typography>
                                 <Typography fontWeight={700} sx={{ fontSize: '0.85rem' }}>{formatKGS(row.percentSum)}</Typography>
                             </Grid2>
                             <Grid2 size={6}>
-                                <Typography variant="caption" color="text.disabled">Оклад</Typography>
+                                <Typography variant="caption" color="text.disabled">{t("salaryReports.fixedSalaryShort")}</Typography>
                                 <Typography fontWeight={700} sx={{ fontSize: '0.85rem' }}>{formatKGS(row.fixedSum)}</Typography>
                             </Grid2>
                             <Grid2 size={4}>
-                                <Typography variant="caption" color="text.disabled">Выплаты</Typography>
+                                <Typography variant="caption" color="text.disabled">{t("salaryReports.payouts")}</Typography>
                                 <Typography fontWeight={700} sx={{ fontSize: '0.85rem', color: COLORS.payout }}>{formatKGS(row.payoutsSum)}</Typography>
                             </Grid2>
                             <Grid2 size={4}>
-                                <Typography variant="caption" color="text.disabled">Удержания</Typography>
+                                <Typography variant="caption" color="text.disabled">{t("salaryReports.deductions")}</Typography>
                                 <Typography fontWeight={700} sx={{ fontSize: '0.85rem', color: COLORS.deduction }}>{formatKGS(row.deductionsSum)}</Typography>
                             </Grid2>
                             <Grid2 size={4}>
-                                <Typography variant="caption" color="text.disabled">Списано</Typography>
+                                <Typography variant="caption" color="text.disabled">{t("salaryReports.writtenOffShort")}</Typography>
                                 <Typography fontWeight={700} sx={{ fontSize: '0.85rem' }}>{formatKGS(row.expensesSum)}</Typography>
                             </Grid2>
                         </Grid2>
                     </Box>
                     <Box sx={{ borderTop: `1px dashed`, borderColor: alpha(theme.palette.divider, 0.5), pb: 1 }}>
                         <Typography variant="caption" color="text.disabled" sx={{ px: 1.5, pt: 1, display: 'block', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, fontSize: '0.6rem' }}>
-                            Смены за месяц
+                            {t("salaryReports.shiftsForMonth")}
                         </Typography>
                         <DailyBreakdown employeeId={row.employeeId} month={month} />
                     </Box>
@@ -316,14 +319,14 @@ const SalaryReportRow: React.FC<SalaryReportRowProps> = ({ row, isMobile, month 
                             <Typography variant="caption" color="text.disabled">{row.roleName}</Typography>
                         </Box>
                         {row.status?.hasWarning && (
-                            <Tooltip title="Есть предупреждения по сменам">
+                            <Tooltip title={t("salaryReports.hasShiftWarnings")}>
                                 <ReportProblemIcon sx={{ color: COLORS.advance, fontSize: '0.95rem' }} />
                             </Tooltip>
                         )}
                         {row.paidOut && (
-                            <Chip label="Выплачено" size="small" sx={{ height: 18, fontSize: '0.62rem', bgcolor: alpha(COLORS.paid, 0.1), color: COLORS.paid, fontWeight: 700, '& .MuiChip-label': { px: 0.75 } }} />
+                            <Chip label={t("salaryReports.paidOut")} size="small" sx={{ height: 18, fontSize: '0.62rem', bgcolor: alpha(COLORS.paid, 0.1), color: COLORS.paid, fontWeight: 700, '& .MuiChip-label': { px: 0.75 } }} />
                         )}
-                        <Tooltip title="Скачать расчётный лист (PDF)">
+                        <Tooltip title={t("salaryReports.downloadPayslipPdf")}>
                             <IconButton size="small" onClick={openPayslip} sx={{ p: 0.5, color: COLORS.netSalary }}>
                                 <PictureAsPdfOutlinedIcon sx={{ fontSize: '1.05rem' }} />
                             </IconButton>
@@ -350,7 +353,7 @@ const SalaryReportRow: React.FC<SalaryReportRowProps> = ({ row, isMobile, month 
                     <Collapse in={open} timeout="auto" unmountOnExit>
                         <Box sx={{ bgcolor: alpha(COLORS.netSalary, 0.02), borderBottom: `1px solid`, borderColor: 'divider' }}>
                             <Typography variant="caption" color="text.disabled" sx={{ px: 3, pt: 1.5, pb: 0.5, display: 'block', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, fontSize: '0.65rem' }}>
-                                Детализация по сменам
+                                {t("salaryReports.shiftsBreakdown")}
                             </Typography>
                             <DailyBreakdown employeeId={row.employeeId} month={month} />
                         </Box>

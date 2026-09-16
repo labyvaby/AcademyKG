@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useTheme, useMediaQuery } from '@mui/material';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 
@@ -7,6 +8,7 @@ interface Props {
 }
 
 export const LoadChart: React.FC<Props> = ({ data }) => {
+    const { t } = useTranslation();
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
@@ -57,8 +59,8 @@ export const LoadChart: React.FC<Props> = ({ data }) => {
                 <Tooltip
                     contentStyle={{ borderRadius: 8, border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
                     labelStyle={{ fontWeight: 'bold', color: '#333' }}
-                    formatter={(value) => [typeof value === 'number' ? value : Number(value ?? 0), 'Приемов']}
-                    labelFormatter={(label) => `Время: ${label}`}
+                    formatter={(value) => [typeof value === 'number' ? value : Number(value ?? 0), t("admin.appointmentsGenitive")]}
+                    labelFormatter={(label) => t("admin.timeLabelWithValue", { time: label })}
                 />
                 <Area
                     type="monotone"

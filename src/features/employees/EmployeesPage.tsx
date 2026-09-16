@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import {
   Box,
   Typography,
@@ -27,7 +28,8 @@ import { PERMISSIONS } from "../../constants/permissions";
 
 
 const EmployeesPage: React.FC = () => {
-  usePageTitle("Сотрудники");
+  const { t } = useTranslation();
+  usePageTitle(t("menu.employees"));
   const state = useEmployeesPageState();
   const [isGrouped, setIsGrouped] = React.useState(true);
   const { hasPermission, employeeId, hasRole } = usePermissions();
@@ -71,9 +73,9 @@ const EmployeesPage: React.FC = () => {
     >
       {/* --- ШАПКА --- */}
       <PageHeader
-        title="Сотрудники"
+        title={t("menu.employees")}
         showTitle={false}
-        addButtonText="Добавить сотрудника"
+        addButtonText={t("employees.addEmployee")}
         onAdd={hasPermission(PERMISSIONS.EMPLOYEES_CREATE) ? () => state.setAddOpen(true) : undefined}
         showSearch
         searchVal={state.q}
@@ -100,12 +102,12 @@ const EmployeesPage: React.FC = () => {
               },
             }}
           >
-            <Tooltip title="Группировать по ролям">
+            <Tooltip title={t("employees.groupByRoles")}>
               <ToggleButton value={true}>
                 <GroupsOutlined fontSize="small" />
               </ToggleButton>
             </Tooltip>
-            <Tooltip title="Список">
+            <Tooltip title={t("employees.listView")}>
               <ToggleButton value={false}>
                 <ViewModuleOutlined fontSize="small" />
               </ToggleButton>
@@ -197,7 +199,7 @@ const EmployeesPage: React.FC = () => {
                       color: "text.secondary",
                     }}
                   >
-                    <Typography>Выберите сотрудника для просмотра</Typography>
+                    <Typography>{t("employees.selectEmployeeToView")}</Typography>
                   </Box>
                 )}
               </Box>

@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import AppAutocomplete from "../../components/ui/AppAutocomplete";
 import {
     Drawer,
@@ -36,6 +37,7 @@ const ProductFilterDrawer: React.FC<Props> = ({
     onReset,
     availableCategories
 }) => {
+    const { t } = useTranslation();
     const [localFilters, setLocalFilters] = React.useState<ProductFilters>(filters);
 
     // Sync local state when drawer opens or filters change externally
@@ -69,7 +71,7 @@ const ProductFilterDrawer: React.FC<Props> = ({
 }}
         >
             <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", p: 2 }}>
-                <Typography variant="h6">Фильтры</Typography>
+                <Typography variant="h6">{t("common.filters")}</Typography>
                 <IconButton onClick={onClose} size="small">
                     <CloseIcon />
                 </IconButton>
@@ -95,36 +97,36 @@ const ProductFilterDrawer: React.FC<Props> = ({
                         value={localFilters.category}
                         onChange={(_, newValue) => handleChange("category", newValue)}
                         renderInput={(params) => (
-                            <TextField {...params} label="Категория" placeholder="Все категории" />
+                            <TextField {...params} label={t("expenses.category")} placeholder={t("expenses.allCategories")} />
                         )}
-                        noOptionsText="Нет категорий"
+                        noOptionsText={t("products.noCategoriesFilter")}
                         isOptionEqualToValue={(option, value) => option === value}
                     />
 
                     {/* Sale Status */}
                     <TextField
                         select
-                        label="Статус продажи"
+                        label={t("products.saleStatus")}
                         value={localFilters.saleStatus}
                         onChange={(e) => handleChange("saleStatus", e.target.value)}
                         fullWidth
                     >
-                        <MenuItem value="all">Все</MenuItem>
-                        <MenuItem value="active">В продаже</MenuItem>
-                        <MenuItem value="inactive">Снят с продажи</MenuItem>
+                        <MenuItem value="all">{t("common.all")}</MenuItem>
+                        <MenuItem value="active">{t("products.forSale")}</MenuItem>
+                        <MenuItem value="inactive">{t("products.discontinued")}</MenuItem>
                     </TextField>
 
                     {/* Stock Status */}
                     <TextField
                         select
-                        label="Наличие на складе"
+                        label={t("products.stockAvailability")}
                         value={localFilters.stockStatus}
                         onChange={(e) => handleChange("stockStatus", e.target.value)}
                         fullWidth
                     >
-                        <MenuItem value="all">Не важно</MenuItem>
-                        <MenuItem value="in_stock">В наличии</MenuItem>
-                        <MenuItem value="out_of_stock">Нет в наличии</MenuItem>
+                        <MenuItem value="all">{t("products.notImportant")}</MenuItem>
+                        <MenuItem value="in_stock">{t("products.inStock")}</MenuItem>
+                        <MenuItem value="out_of_stock">{t("products.outOfStock")}</MenuItem>
                     </TextField>
                 </Stack>
             </Box>
@@ -132,10 +134,10 @@ const ProductFilterDrawer: React.FC<Props> = ({
             <Divider />
             <Box sx={{ p: 2, display: "flex", gap: 2 }}>
                 <Button variant="outlined" fullWidth onClick={handleReset}>
-                    Сбросить
+                    {t("common.reset")}
                 </Button>
                 <Button variant="contained" fullWidth onClick={handleApply}>
-                    Применить
+                    {t("common.apply")}
                 </Button>
             </Box>
         </Drawer>

@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import AppAutocomplete from "../../../components/ui/AppAutocomplete";
 import { Box, TextField, Button, ButtonGroup, Paper } from '@mui/material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
@@ -15,6 +16,7 @@ interface Props {
 }
 
 export const LoadFilters: React.FC<Props> = ({ selectedEmployees, onEmployeesChange, dateRange, onDateRangeChange }) => {
+    const { t } = useTranslation();
     const { selectedBranch } = useBranchContext();
     const branchId = selectedBranch?.id ?? "all";
     const { data: employees } = useQuery({
@@ -31,7 +33,7 @@ export const LoadFilters: React.FC<Props> = ({ selectedEmployees, onEmployeesCha
                     getOptionLabel={(o) => o.full_name || ''}
                     value={employees?.filter((e: any) => selectedEmployees.includes(e.id)) || []}
                     onChange={(_, newValue) => onEmployeesChange(newValue.map(n => n.id))}
-                    renderInput={(params) => <TextField {...params} label="Сотрудники" size="small" />}
+                    renderInput={(params) => <TextField {...params} label={t("menu.employees")} size="small" />}
                     sx={{ width: '100%' }}
                     size="small"
                 />
@@ -39,13 +41,13 @@ export const LoadFilters: React.FC<Props> = ({ selectedEmployees, onEmployeesCha
                 <Box sx={{ display: 'flex', gap: 1.5, flexDirection: { xs: 'column', md: 'row' }, alignItems: { md: 'center' } }}>
                     <Box sx={{ display: 'flex', gap: 1.5, flex: 1 }}>
                         <DatePicker
-                            label="Дата начала"
+                            label={t("admin.startDate")}
                             value={dateRange[0]}
                             onChange={(d) => onDateRangeChange([d, dateRange[1]])}
                             slotProps={{ textField: { size: 'small', sx: { flex: 1, minWidth: 0 } } }}
                         />
                         <DatePicker
-                            label="Дата окончания"
+                            label={t("admin.endDate")}
                             value={dateRange[1]}
                             onChange={(d) => onDateRangeChange([dateRange[0], d])}
                             slotProps={{ textField: { size: 'small', sx: { flex: 1, minWidth: 0 } } }}
@@ -57,13 +59,13 @@ export const LoadFilters: React.FC<Props> = ({ selectedEmployees, onEmployeesCha
                             onClick={() => onDateRangeChange([dayjs().startOf('day'), dayjs().endOf('day')])}
                             sx={{ flex: { xs: 1, md: 'unset' } }}
                         >
-                            Сегодня
+                            {t("admin.today")}
                         </Button>
                         <Button
                             onClick={() => onDateRangeChange([dayjs().subtract(7, 'day').startOf('day'), dayjs().endOf('day')])}
                             sx={{ flex: { xs: 1, md: 'unset' } }}
                         >
-                            7 Дней
+                            {t("admin.sevenDays")}
                         </Button>
                     </ButtonGroup>
                 </Box>

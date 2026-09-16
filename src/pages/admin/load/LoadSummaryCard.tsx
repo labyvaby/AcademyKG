@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Card, CardContent, Typography, Box } from '@mui/material';
 import AssessmentIcon from '@mui/icons-material/Assessment';
 import SpeedIcon from '@mui/icons-material/Speed';
@@ -10,6 +11,7 @@ interface Props {
 }
 
 export const LoadSummaryCard: React.FC<Props> = ({ data, totalAppointments, daysCount }) => {
+    const { t } = useTranslation();
     const peak = useMemo(() => {
         if (!data.length) return { time: '-', value: 0 };
         return data.reduce((max, d) => d.value > max.value ? d : max, data[0]);
@@ -40,14 +42,14 @@ export const LoadSummaryCard: React.FC<Props> = ({ data, totalAppointments, days
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
                         <SpeedIcon sx={{ fontSize: { xs: 18, sm: 24 } }} />
                         <Typography variant="subtitle2" fontWeight="bold" sx={{ fontSize: { xs: '0.75rem', sm: '1rem' } }}>
-                            Пиковое время
+                            {t("admin.peakTime")}
                         </Typography>
                     </Box>
                     <Typography fontWeight="bold" sx={{ fontSize: { xs: '1.5rem', sm: '2.125rem' } }}>
                         {peak.time}
                     </Typography>
                     <Typography sx={{ opacity: 0.8, fontSize: { xs: '0.7rem', sm: '0.875rem' } }}>
-                        {peak.value} приемов
+                        {t("admin.appointmentsCount", { count: peak.value })}
                     </Typography>
                 </CardContent>
             </Card>
@@ -63,14 +65,14 @@ export const LoadSummaryCard: React.FC<Props> = ({ data, totalAppointments, days
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5, color: 'text.secondary' }}>
                         <AssessmentIcon sx={{ fontSize: { xs: 18, sm: 24 } }} />
                         <Typography variant="subtitle2" fontWeight="bold" sx={{ fontSize: { xs: '0.75rem', sm: '1rem' }, lineHeight: 1.2 }}>
-                            В среднем за день
+                            {t("admin.averagePerDay")}
                         </Typography>
                     </Box>
                     <Typography fontWeight="bold" color="primary" sx={{ fontSize: { xs: '1.5rem', sm: '2.125rem' } }}>
                         {averageDaily}
                     </Typography>
                     <Typography color="text.secondary" sx={{ mt: 0.5, fontSize: { xs: '0.65rem', sm: '0.75rem' } }}>
-                        За {daysCount} дн. (Всего: {totalAppointments})
+                        {t("admin.forDaysTotal", { days: daysCount, total: totalAppointments })}
                     </Typography>
                 </CardContent>
             </Card>

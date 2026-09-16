@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
     Dialog,
     DialogTitle,
@@ -39,6 +40,7 @@ const isManagerRole = (role?: string): boolean =>
     MANAGER_ROLE_TOKENS.includes((role ?? "").toLowerCase().trim());
 
 const DailySummaryDialog: React.FC<DailySummaryDialogProps> = ({ open, onClose, initialDate }) => {
+    const { t } = useTranslation();
     const { branch } = useReportBranchScope();
     const { suffix: currencySuffix } = useReportCurrency();
     const { employeeId } = usePermissions();
@@ -76,15 +78,15 @@ const DailySummaryDialog: React.FC<DailySummaryDialogProps> = ({ open, onClose, 
 
     const handleGenerate = async () => {
         if (!branch?.id) {
-            setError("Выберите конкретный филиал (не «Все филиалы») — сводка дня строится по филиалу.");
+            setError(t("salaryReports.selectSpecificBranch"));
             return;
         }
         if (!date || !dayjs(date).isValid()) {
-            setError("Укажите дату сводки.");
+            setError(t("salaryReports.specifySummaryDate"));
             return;
         }
         if (dayjs(date).isAfter(dayjs(), "day")) {
-            setError("Дата в будущем — сводка дня доступна по сегодняшний день включительно.");
+            setError(t("salaryReports.futureDateError"));
             return;
         }
         setLoading(true);
@@ -112,7 +114,7 @@ const DailySummaryDialog: React.FC<DailySummaryDialogProps> = ({ open, onClose, 
             onClose();
         } catch (e: any) {
             console.error(e);
-            setError(e?.message || "Не удалось сформировать сводку дня.");
+            setError(e?.message || t("salaryReports.summaryGenerationError"));
         } finally {
             setLoading(false);
         }
@@ -122,10 +124,10 @@ const DailySummaryDialog: React.FC<DailySummaryDialogProps> = ({ open, onClose, 
         <Dialog open={open} onClose={loading ? undefined : onClose} maxWidth="sm" fullWidth>
             <DialogTitle sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", pr: 1 }}>
                 <Box>
-                    <Typography variant="subtitle1" fontWeight={800}>Сводка дня</Typography>
+                    <Typography variant="subtitle1" fontWeight={800}>{t("salaryReports.daySummary")}</Typography>
                     <Typography variant="caption" color="text.secondary">{brandName}</Typography>
                 </Box>
-                <IconButton onClick={onClose} size="small" disabled={loading} aria-label="Закрыть">
+                <IconButton onClick={onClose} size="small" disabled={loading} aria-label={t("common.close")}>
                     <CloseIcon fontSize="small" />
                 </IconButton>
             </DialogTitle>
@@ -133,11 +135,11 @@ const DailySummaryDialog: React.FC<DailySummaryDialogProps> = ({ open, onClose, 
             <DialogContent dividers>
                 <Stack spacing={2}>
                     <Typography variant="body2" color="text.secondary">
-                        Выберите день. Все итоги «с 01» считаются от 1-го числа месяца до выбранного дня.
+                        {t("salaryReports.selectDayHint")}
                     </Typography>
 
                     <TextField
-                        label="Дата"
+                        label={t("reports.date")}
                         type="date"
                         value={date}
                         onChange={(e) => setDate(e.target.value)}
@@ -152,7 +154,7 @@ const DailySummaryDialog: React.FC<DailySummaryDialogProps> = ({ open, onClose, 
                         Его расходы за день и за период попадут в сводку. */}
                     <TextField
                         select
-                        label="Ответственный (сотрудник)"
+                        label={t("salaryReports.responsibleEmployee")}
                         value={responsible?.id ?? ""}
                         onChange={(e) =>
                             setResponsible(employees.find((emp) => emp.id === e.target.value) ?? null)
@@ -162,16 +164,16 @@ const DailySummaryDialog: React.FC<DailySummaryDialogProps> = ({ open, onClose, 
                         size="small"
                         helperText={
                             employeesLoading
-                                ? "Загрузка сотрудников…"
+                                ? t("salaryReports.loadingEmployees")
                                 : !employees.length
-                                    ? "Сотрудники филиала не найдены."
-                                    : "Расходы выбранного сотрудника за день и за период попадут в сводку."
+                                    ? t("salaryReports.noBranchEmployees")
+                                    : t("salaryReports.responsibleEmployeeHint")
                         }
                     >
                         {employees.map((emp) => (
                             <MenuItem key={emp.id} value={emp.id}>
                                 {emp.full_name}
-                                {isManagerRole(emp.role) ? " — руководитель" : ""}
+                                {isManagerRole(emp.role) ? ` — ${t("salaryReports.managerSuffix")}` : ""}
                             </MenuItem>
                         ))}
                     </TextField>
@@ -186,7 +188,7 @@ const DailySummaryDialog: React.FC<DailySummaryDialogProps> = ({ open, onClose, 
 
             <DialogActions sx={{ px: 3, py: 2, justifyContent: "flex-end" }}>
                 <Stack direction="row" spacing={1}>
-                    <Button onClick={onClose} disabled={loading}>Отмена</Button>
+                    <Button onClick={onClose} disabled={loading}>{t("common.cancel")}</Button>
                     <Button
                         variant="contained"
                         onClick={handleGenerate}
@@ -195,7 +197,7 @@ const DailySummaryDialog: React.FC<DailySummaryDialogProps> = ({ open, onClose, 
                         disabled={loading || employeesLoading}
                         startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <FileDownloadIcon />}
                     >
-                        Сформировать PDF
+                        {t("salaryReports.generatePdf")}
                     </Button>
                 </Stack>
             </DialogActions>

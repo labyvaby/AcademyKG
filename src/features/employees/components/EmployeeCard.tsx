@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import {
   Divider,
   Stack,
@@ -48,7 +49,7 @@ function isImage(url: string): boolean {
   return /\.(jpg|jpeg|png|gif|webp|bmp|svg)(\?|$)/i.test(url);
 }
 
-const calculateAge = (birthDate: string): string => {
+const calculateAge = (birthDate: string, t: (key: string, opts?: any) => string): string => {
   if (!birthDate) return "";
   const birth = new Date(birthDate);
   const now = new Date();
@@ -58,11 +59,9 @@ const calculateAge = (birthDate: string): string => {
   if (now.getDate() < birth.getDate()) monthDiff--;
   const y = Math.floor(monthDiff / 12);
   const m = monthDiff % 12;
-  const decl = (n: number, t: [string, string, string]) =>
-    t[n % 100 > 4 && n % 100 < 20 ? 2 : [2, 0, 1, 1, 1, 2][n % 10 < 5 ? n % 10 : 5]];
-  return `(${y} ${decl(y, ["год", "года", "лет"])}${
-    m > 0 ? ` и ${m} ${decl(m, ["месяц", "месяца", "месяцев"])}` : ""
-  })`;
+  const yearsStr = t("employees.ageYears", { count: y });
+  const monthsStr = m > 0 ? ` ${t("employees.and")} ${t("employees.ageMonths", { count: m })}` : "";
+  return `(${yearsStr}${monthsStr})`;
 };
 
 type EmployeeDocument = { id: string; title: string; fileUrl: string };
@@ -96,11 +95,11 @@ type EmployeeDetail = {
   schedules?: EmployeeSchedule[];
 };
 
-const STATUS_LABEL: Record<string, string> = {
-  active: "Работает",
-  inactive: "Не активен",
-  fired: "Уволен",
-  on_vacation: "В отпуске",
+const STATUS_LABEL_KEYS: Record<string, string> = {
+  active: "employees.statusWorking",
+  inactive: "employees.statusNotActive",
+  fired: "employees.statusFired",
+  on_vacation: "employees.statusOnVacation",
 };
 
 const STATUS_COLOR: Record<string, "success" | "default" | "error" | "warning"> = {
@@ -116,7 +115,8 @@ const InfoRow: React.FC<{
   label: string;
   value?: string | null;
   href?: string;
-}> = ({ icon, label, value, href }) => (
+  emptyLabel: string;
+}> = ({ icon, label, value, href, emptyLabel }) => (
   <Stack direction="row" spacing={2} alignItems="flex-start">
     <Box sx={{ color: "text.secondary", mt: 0.25, flexShrink: 0 }}>{icon}</Box>
     <Box>
@@ -135,7 +135,7 @@ const InfoRow: React.FC<{
         )
       ) : (
         <Typography variant="body2" color="text.disabled">
-          (не заполнено)
+          {emptyLabel}
         </Typography>
       )}
     </Box>
@@ -148,6 +148,7 @@ export type EmployeeCardProps = {
 };
 
 const EmployeeCard: React.FC<EmployeeCardProps> = ({ emp }) => {
+  const { t } = useTranslation();
   const { suffix } = useBranchCurrency();
   const [detail, setDetail] = React.useState<EmployeeDetail | null>(null);
   const [detailLoading, setDetailLoading] = React.useState(false);
@@ -237,7 +238,7 @@ const EmployeeCard: React.FC<EmployeeCardProps> = ({ emp }) => {
   const fio = d?.fullName || emp.full_name || emp.id || "";
   const photo = resolveUrl(d?.photoUrl ?? emp.photo_url);
   const status = d?.status ?? emp.status ?? null;
-  const statusLabel = status ? STATUS_LABEL[status] ?? status : null;
+  const statusLabel = status ? (STATUS_LABEL_KEYS[status] ? t(STATUS_LABEL_KEYS[status]) : status) : null;
   const statusColor = status ? STATUS_COLOR[status] ?? "default" : "default";
   const roleText = d?.roleName ?? (emp as any).roleName ?? "";
   const specializations = d?.specializations ?? [];
@@ -262,9 +263,9 @@ const EmployeeCard: React.FC<EmployeeCardProps> = ({ emp }) => {
             }
           : prev
       );
-      setSnackbar({ open: true, message: "Документ успешно удалён", severity: "success" });
+      setSnackbar({ open: true, message: t("employees.documentDeleted"), severity: "success" });
     } catch {
-      setSnackbar({ open: true, message: "Ой, что-то пошло не так", severity: "error" });
+      setSnackbar({ open: true, message: t("employees.somethingWentWrong"), severity: "error" });
     } finally {
       setDeletingDocId(null);
     }
@@ -298,12 +299,12 @@ const EmployeeCard: React.FC<EmployeeCardProps> = ({ emp }) => {
             }
           : prev
       );
-      setSnackbar({ open: true, message: "Документ успешно добавлен", severity: "success" });
+      setSnackbar({ open: true, message: t("employees.documentAdded"), severity: "success" });
       setAddDocOpen(false);
       setAddDocTitle("");
       setAddDocFile(null);
     } catch {
-      setSnackbar({ open: true, message: "Ой, что-то пошло не так", severity: "error" });
+      setSnackbar({ open: true, message: t("employees.somethingWentWrong"), severity: "error" });
     } finally {
       setAddDocLoading(false);
     }
@@ -328,7 +329,7 @@ const EmployeeCard: React.FC<EmployeeCardProps> = ({ emp }) => {
       >
         <PersonOutlineOutlined color="primary" fontSize="small" />
         <Typography variant="subtitle1" fontWeight={600}>
-          Карточка сотрудника
+          {t("employees.cardTitle")}
         </Typography>
       </Box>
 
@@ -383,7 +384,7 @@ const EmployeeCard: React.FC<EmployeeCardProps> = ({ emp }) => {
               <>
                 <Box sx={{ mb: 2 }}>
                   <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.25 }}>
-                    Должность
+                    {t("employees.position")}
                   </Typography>
                   <Typography variant="body1" fontWeight={600}>
                     {roleText}
@@ -399,7 +400,7 @@ const EmployeeCard: React.FC<EmployeeCardProps> = ({ emp }) => {
                 <Grid container spacing={2} sx={{ mb: 2 }}>
                   <Grid item xs={6}>
                     <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.25 }}>
-                      Телефон
+                      {t("employees.phone")}
                     </Typography>
                     {(d?.phone ?? emp.phone) ? (
                       <Stack direction="row" spacing={0.75} alignItems="center">
@@ -414,20 +415,20 @@ const EmployeeCard: React.FC<EmployeeCardProps> = ({ emp }) => {
                         </Link>
                       </Stack>
                     ) : (
-                      <Typography variant="body2" color="text.disabled">(не заполнено)</Typography>
+                      <Typography variant="body2" color="text.disabled">{t("employees.notFilled")}</Typography>
                     )}
                   </Grid>
                   <Grid item xs={6}>
                     <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.25 }}>
-                      Дата рождения
+                      {t("employees.birthDate")}
                     </Typography>
                     {(d?.birthDate ?? emp.birth_date) ? (
                       <Typography variant="body2" fontWeight={500}>
                         {formatDateRu(d?.birthDate ?? emp.birth_date ?? "")}{" "}
-                        {calculateAge(d?.birthDate ?? emp.birth_date ?? "")}
+                        {calculateAge(d?.birthDate ?? emp.birth_date ?? "", t)}
                       </Typography>
                     ) : (
-                      <Typography variant="body2" color="text.disabled">(не заполнено)</Typography>
+                      <Typography variant="body2" color="text.disabled">{t("employees.notFilled")}</Typography>
                     )}
                   </Grid>
                 </Grid>
@@ -441,22 +442,26 @@ const EmployeeCard: React.FC<EmployeeCardProps> = ({ emp }) => {
                 icon={<TelegramIcon fontSize="small" />}
                 label="Telegram ID"
                 value={d?.telegramId ?? emp.telegram_id ?? null}
+                emptyLabel={t("employees.notFilled")}
               />
               <InfoRow
                 icon={<EmailOutlined fontSize="small" />}
                 label="Email"
                 value={d?.email ?? emp.email ?? null}
                 href={d?.email ?? emp.email ? `mailto:${d?.email ?? emp.email}` : undefined}
+                emptyLabel={t("employees.notFilled")}
               />
               <InfoRow
                 icon={<CreditCardOutlined fontSize="small" />}
-                label="Номер счёта"
+                label={t("employees.accountNumber")}
                 value={d?.bankAccountNumber ?? emp.bank_account_number ?? null}
+                emptyLabel={t("employees.notFilled")}
               />
               <InfoRow
                 icon={<CreditCardOutlined fontSize="small" />}
-                label="ИНН"
+                label={t("employees.inn")}
                 value={d?.inn ?? emp.inn ?? null}
+                emptyLabel={t("employees.notFilled")}
               />
             </Stack>
 
@@ -467,12 +472,12 @@ const EmployeeCard: React.FC<EmployeeCardProps> = ({ emp }) => {
               <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
                 <LocalOfferOutlined fontSize="small" color="primary" />
                 <Typography variant="subtitle2" fontWeight={600}>
-                  Услуги сотрудника
+                  {t("employees.employeeServices")}
                 </Typography>
               </Stack>
               {services.length === 0 ? (
                 <Typography variant="body2" color="text.secondary">
-                  Нет привязанных услуг
+                  {t("employees.noLinkedServices")}
                 </Typography>
               ) : (
                 <Stack direction="row" flexWrap="wrap" gap={0.75}>
@@ -505,10 +510,10 @@ const EmployeeCard: React.FC<EmployeeCardProps> = ({ emp }) => {
                 <Stack direction="row" spacing={1} alignItems="center">
                   <WorkOutlined fontSize="small" color="primary" />
                   <Typography variant="subtitle2" fontWeight={600}>
-                    Документы
+                    {t("employees.documents")}
                   </Typography>
                 </Stack>
-                <Tooltip title="Добавить документ">
+                <Tooltip title={t("employees.addDocument")}>
                   <IconButton size="small" onClick={() => setAddDocOpen(true)}>
                     <AddCircleOutlineOutlined fontSize="small" />
                   </IconButton>
@@ -517,7 +522,7 @@ const EmployeeCard: React.FC<EmployeeCardProps> = ({ emp }) => {
 
               {documents.length === 0 ? (
                 <Typography variant="body2" color="text.secondary">
-                  Документы не прикреплены
+                  {t("employees.noDocumentsAttached")}
                 </Typography>
               ) : (
                 <Stack spacing={1}>
@@ -667,18 +672,18 @@ const EmployeeCard: React.FC<EmployeeCardProps> = ({ emp }) => {
         maxWidth="xs"
         fullWidth
       >
-        <DialogTitle>Удалить документ?</DialogTitle>
+        <DialogTitle>{t("employees.deleteDocumentTitle")}</DialogTitle>
         <DialogContent>
           <Typography variant="body2">
-            Вы уверены, что хотите удалить «{deleteDoc?.title}»? Это действие необратимо.
+            {t("employees.deleteDocumentConfirm", { title: deleteDoc?.title })}
           </Typography>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDeleteDoc(null)} variant="outlined">
-            Отмена
+            {t("common.cancel")}
           </Button>
           <Button onClick={handleDeleteDoc} variant="contained" color="error">
-            Удалить
+            {t("common.delete")}
           </Button>
         </DialogActions>
       </Dialog>
@@ -694,13 +699,13 @@ const EmployeeCard: React.FC<EmployeeCardProps> = ({ emp }) => {
         maxWidth="xs"
         fullWidth
       >
-        <DialogTitle>Добавить документ</DialogTitle>
+        <DialogTitle>{t("employees.addDocument")}</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ pt: 1 }}>
             <Box
               component="input"
               type="text"
-              placeholder="Название (необязательно)"
+              placeholder={t("employees.documentNameOptional")}
               value={addDocTitle}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => setAddDocTitle(e.target.value)}
               style={{
@@ -718,7 +723,7 @@ const EmployeeCard: React.FC<EmployeeCardProps> = ({ emp }) => {
               startIcon={<AttachFileOutlined />}
               size="small"
             >
-              {addDocFile ? addDocFile.name : "Выбрать файл"}
+              {addDocFile ? addDocFile.name : t("employees.selectFile")}
               <input
                 type="file"
                 hidden
@@ -737,7 +742,7 @@ const EmployeeCard: React.FC<EmployeeCardProps> = ({ emp }) => {
             variant="outlined"
             disabled={addDocLoading}
           >
-            Отмена
+            {t("common.cancel")}
           </Button>
           <Button
             onClick={handleAddDoc}
@@ -747,7 +752,7 @@ const EmployeeCard: React.FC<EmployeeCardProps> = ({ emp }) => {
               addDocLoading ? <CircularProgress size={16} color="inherit" /> : undefined
             }
           >
-            {addDocLoading ? "Загрузка…" : "Добавить"}
+            {addDocLoading ? t("common.loading") : t("common.add")}
           </Button>
         </DialogActions>
       </Dialog>

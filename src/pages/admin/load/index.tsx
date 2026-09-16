@@ -1,7 +1,10 @@
 import React, { useState, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Box, Typography, Paper, CircularProgress } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
-import { apiFetch } from '../../../utility/apiClient';
+import { fetchAllPages } from '../../../utility/pagination';
+import { dayjsBranch } from '../../../utility/branchTime';
+import { mapAggregatedRowToAppointment, type AggregatedAppointmentRow } from '../../home/types';
 import dayjs, { Dayjs } from 'dayjs';
 
 import { LoadFilters } from './LoadFilters';
@@ -10,24 +13,32 @@ import { LoadSummaryCard } from './LoadSummaryCard';
 import { usePageTitle } from '../../../hooks/usePageTitle';
 import { useBranchContext } from '../../../contexts/branch-context';
 
+const CANCELLED_STATUSES = new Set(['cancelled', 'canceled']);
+
 export const LoadAnalyticsPage: React.FC = () => {
-    usePageTitle("Нагрузка");
+    const { t } = useTranslation();
+    usePageTitle(t("menu.load"));
     const { selectedBranch } = useBranchContext();
     const branchId = selectedBranch?.id ?? "all";
     const [selectedEmployees, setSelectedEmployees] = useState<string[]>([]);
     const [dateRange, setDateRange] = useState<[Dayjs | null, Dayjs | null]>([dayjs().startOf('day'), dayjs().endOf('day')]);
 
+    const dateFrom = dateRange[0]?.format('YYYY-MM-DD');
+    const dateTo = dateRange[1]?.format('YYYY-MM-DD');
+
     // Fetch appointments for the selected date range
     const { data: appointments, isLoading } = useQuery({
-        queryKey: ['appointmentsLoad', branchId, dateRange[0]?.toISOString(), dateRange[1]?.toISOString()],
+        queryKey: ['appointmentsLoad', branchId, dateFrom, dateTo],
         queryFn: async () => {
-            const params = new URLSearchParams({ pageSize: '500', excludeStatus: 'cancelled' });
-            if (dateRange[0]) params.set('dateFrom', dateRange[0].startOf('day').toISOString());
-            if (dateRange[1]) params.set('dateTo', dateRange[1].endOf('day').toISOString());
-            const res: any = await apiFetch(`/api/v1/appointments/?${params.toString()}`);
-            return (res?.data?.results ?? res?.results ?? []) as { id: string; appointment_at: string; performer_ids?: string[]; status: string }[];
+            // Бэк принимает даты в формате YYYY-MM-DD и отдаёт camelCase —
+            // все страницы забираем через fetchAllPages и нормализуем общим маппером.
+            const params = new URLSearchParams({ dateFrom: dateFrom!, dateTo: dateTo! });
+            const rows = await fetchAllPages<AggregatedAppointmentRow>(`/api/v1/appointments/?${params.toString()}`);
+            return rows
+                .filter(r => !CANCELLED_STATUSES.has(String((r as any).status ?? '').toLowerCase()))
+                .map(mapAggregatedRowToAppointment);
         },
-        enabled: !!dateRange[0] && !!dateRange[1],
+        enabled: !!dateFrom && !!dateTo,
     });
 
     // Filter by employee locally to avoid refetching on UI changes.
@@ -53,7 +64,7 @@ export const LoadAnalyticsPage: React.FC = () => {
 
         filteredData.forEach(app => {
             if (app.appointment_at) {
-                const hour = dayjs(app.appointment_at).hour();
+                const hour = dayjsBranch(app.appointment_at).hour();
                 const hourStr = hour.toString().padStart(2, '0') + ':00';
                 // Only count within 8-22 or add dynamically
                 if (bins[hourStr] !== undefined) {
@@ -87,7 +98,7 @@ export const LoadAnalyticsPage: React.FC = () => {
                 WebkitOverflowScrolling: 'touch',
             }}
         >
-            <Typography variant="h5" sx={{ fontWeight: 600 }}>Нагрузка (Аналитика)</Typography>
+            <Typography variant="h5" sx={{ fontWeight: 600 }}>{t("admin.loadAnalyticsTitle")}</Typography>
 
             <LoadFilters
                 selectedEmployees={selectedEmployees}

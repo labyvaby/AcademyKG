@@ -217,7 +217,7 @@ const CreateGroupAppointmentDrawer: React.FC<Props> = ({ open, onClose, onCreate
                 renderOption={(props, option) => {
                   const { key, ...optionProps } = props;
                   return (
-                    <li key={key} {...optionProps}>
+                    <li {...optionProps} key={option.id || key}>
                       {`${option.label || "Нет ФИО"} — ${option.phone || "Нет телефона"}`}
                     </li>
                   );

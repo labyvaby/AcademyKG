@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { useNotification } from "@refinedev/core";
 import type { Patient } from "../../types/models";
 import { createPatientVisit } from "./visitApi";
@@ -22,6 +23,7 @@ export type VisitFormState = {
 type Options = { onSuccess?: () => void };
 
 export function useVisitForm(selected: Patient | null, opts?: Options): VisitFormState {
+  const { t } = useTranslation();
   const { open: notify } = useNotification();
   const [open, setOpen] = React.useState(false);
   const [dateTime, setDateTime] = React.useState("");
@@ -39,15 +41,15 @@ export function useVisitForm(selected: Patient | null, opts?: Options): VisitFor
 
   const submit = React.useCallback(async () => {
     if (!selected?.id) {
-      notify?.({ type: "error", message: "Сначала выберите клиента" });
+      notify?.({ type: "error", message: t("patientSearch.selectClientFirst") });
       return;
     }
     if (!dateTime) {
-      notify?.({ type: "error", message: "Укажите дату и время приёма" });
+      notify?.({ type: "error", message: t("patientSearch.specifyAppointmentDateTime") });
       return;
     }
     if (!service.trim()) {
-      notify?.({ type: "error", message: "Укажите услугу" });
+      notify?.({ type: "error", message: t("patientSearch.specifyService") });
       return;
     }
 
@@ -59,17 +61,17 @@ export function useVisitForm(selected: Patient | null, opts?: Options): VisitFor
         doctorInput: doctor,
         serviceInput: service,
       });
-      notify?.({ type: "success", message: "Приём создан" });
+      notify?.({ type: "success", message: t("patientSearch.appointmentCreated") });
       setOpen(false);
       reset();
       opts?.onSuccess?.();
     } catch (e) {
-      const message = e instanceof Error ? e.message : "Не удалось создать приём";
-      notify?.({ type: "error", message: "Ошибка при создании приёма", description: message });
+      const message = e instanceof Error ? e.message : t("patientSearch.createAppointmentError");
+      notify?.({ type: "error", message: t("patientSearch.createAppointmentErrorTitle"), description: message });
     } finally {
       setSubmitting(false);
     }
-  }, [dateTime, doctor, notify, opts, reset, selected, service]);
+  }, [dateTime, doctor, notify, opts, reset, selected, service, t]);
 
   return { open, setOpen, dateTime, setDateTime, doctor, setDoctor, service, setService, price, setPrice, submitting, submit, reset };
 }

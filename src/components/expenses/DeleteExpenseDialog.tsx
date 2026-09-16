@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import {
   Button,
   Dialog,
@@ -39,6 +40,7 @@ export const DeleteExpenseDialog: React.FC<DeleteExpenseDialogProps> = ({
 
   // Custom Service - Imported at top
 
+  const { t } = useTranslation();
   const [busy, setBusy] = React.useState(false);
   const { open: notify } = useNotification();
   const theme = useTheme();
@@ -56,10 +58,10 @@ export const DeleteExpenseDialog: React.FC<DeleteExpenseDialogProps> = ({
       onClose();
     } catch (e: unknown) {
       console.error("Delete expense failed:", e);
-      const message = e instanceof Error ? e.message : "Не удалось удалить расход";
+      const message = e instanceof Error ? e.message : t("expenses.deleteExpenseError");
       notify?.({
         type: "error",
-        message: "Не удалось удалить расход",
+        message: t("expenses.deleteExpenseError"),
         description: message,
       });
     } finally {
@@ -69,15 +71,15 @@ export const DeleteExpenseDialog: React.FC<DeleteExpenseDialogProps> = ({
 
   return (
     <Dialog open={open} onClose={busy ? undefined : onClose} fullWidth maxWidth="xs" fullScreen={fullScreen}>
-      <DialogTitle>Удалить расход</DialogTitle>
+      <DialogTitle>{t("expenses.deleteExpenseTitle")}</DialogTitle>
       <DialogContent>
         <DialogContentText>
-          Действительно удалить расход{record ? ` “${record.name}”` : ""}? Это действие необратимо.
+          {record ? t("expenses.deleteExpenseConfirmNamed", { name: record.name }) : t("expenses.deleteExpenseConfirm")}
         </DialogContentText>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose} disabled={busy}>Отмена</Button>
-        <Tooltip title="Удалить расход">
+        <Button onClick={onClose} disabled={busy}>{t("common.cancel")}</Button>
+        <Tooltip title={t("expenses.deleteExpenseTooltip")}>
           <IconButton
             onClick={handleDelete}
             color="error"

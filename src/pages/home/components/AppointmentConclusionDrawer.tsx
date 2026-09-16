@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import AppAutocomplete from "../../../components/ui/AppAutocomplete";
 import { useUpdate } from "@refinedev/core";
 import { apiFetch } from "../../../utility/apiClient";
@@ -44,6 +45,7 @@ export const AppointmentConclusionDrawer: React.FC<AppointmentConclusionDrawerPr
     initialDoctorComplaints,
     onSuccess
 }) => {
+    const { t } = useTranslation();
     const theme = useTheme();
 
     // Состояние формы (локальное для простоты, или react-hook-form)
@@ -148,7 +150,7 @@ export const AppointmentConclusionDrawer: React.FC<AppointmentConclusionDrawerPr
                     borderBottom: `1px solid ${theme.palette.divider}`
 }}
             >
-                <Typography variant="h6">Заключение специалиста</Typography>
+                <Typography variant="h6">{t("conclusion.title")}</Typography>
                 <IconButton onClick={onClose}>
                     <CloseOutlined />
                 </IconButton>
@@ -160,7 +162,7 @@ export const AppointmentConclusionDrawer: React.FC<AppointmentConclusionDrawerPr
                     {/* Выбор диагноза */}
                     <Box>
                         <Typography variant="subtitle2" sx={{ mb: 1 }}>
-                            Диагноз (Избранное клиники)
+                            {t("conclusion.diagnosisFavorite")}
                         </Typography>
                         {isLoadingDiagnoses ? (
                             <CircularProgress size={20} />
@@ -175,12 +177,12 @@ export const AppointmentConclusionDrawer: React.FC<AppointmentConclusionDrawerPr
                                 renderInput={(params) => (
                                     <TextField
                                         {...params}
-                                        placeholder="Выберите диагноз (например, ОРВИ)"
+                                        placeholder={t("conclusion.selectDiagnosisPlaceholder")}
                                         variant="outlined"
                                         helperText={
                                             selectedDiagnosis?.diagnosis_code
-                                                ? `Код МКБ-10: ${selectedDiagnosis.diagnosis_code}`
-                                                : "Выберите диагноз из списка"
+                                                ? t("conclusion.icdCode", { code: selectedDiagnosis.diagnosis_code })
+                                                : t("conclusion.selectFromList")
                                         }
                                     />
                                 )}
@@ -191,7 +193,7 @@ export const AppointmentConclusionDrawer: React.FC<AppointmentConclusionDrawerPr
                                             <Stack>
                                                 <Typography variant="body1">{option.title}</Typography>
                                                 <Typography variant="caption" color="text.secondary">
-                                                    Код: {option.diagnosis_code}
+                                                    {t("conclusion.codeLabel")}: {option.diagnosis_code}
                                                 </Typography>
                                             </Stack>
                                         </li>
@@ -204,13 +206,13 @@ export const AppointmentConclusionDrawer: React.FC<AppointmentConclusionDrawerPr
                     {/* Жалобы (специалист) */}
                     <Box>
                         <Typography variant="subtitle2" sx={{ mb: 1 }}>
-                            Жалобы (специалист)
+                            {t("conclusion.complaints")}
                         </Typography>
                         <TextField
                             fullWidth
                             multiline
                             minRows={3}
-                            placeholder="Запишите жалобы клиента..."
+                            placeholder={t("conclusion.complaintsPlaceholder")}
                             value={doctorComplaints}
                             onChange={(e) => setDoctorComplaints(e.target.value)}
                         />
@@ -219,13 +221,13 @@ export const AppointmentConclusionDrawer: React.FC<AppointmentConclusionDrawerPr
                     {/* Поле заключения */}
                     <Box>
                         <Typography variant="subtitle2" sx={{ mb: 1 }}>
-                            Медицинское заключение
+                            {t("conclusion.medicalConclusion")}
                         </Typography>
                         <TextField
                             fullWidth
                             multiline
                             minRows={6}
-                            placeholder="Опишите жалобы, анамнез, объективные данные и рекомендации..."
+                            placeholder={t("conclusion.conclusionPlaceholder")}
                             value={conclusion}
                             onChange={(e) => setConclusion(e.target.value)}
                         />
@@ -244,7 +246,7 @@ export const AppointmentConclusionDrawer: React.FC<AppointmentConclusionDrawerPr
 }}
             >
                 <Button variant="outlined" onClick={onClose} color="inherit">
-                    Отмена
+                    {t("common.cancel")}
                 </Button>
                 <Button
                     variant="contained"
@@ -252,7 +254,7 @@ export const AppointmentConclusionDrawer: React.FC<AppointmentConclusionDrawerPr
                     startIcon={<SaveOutlined />}
                     disabled={isUpdating}
                 >
-                    {isUpdating ? "Сохранение..." : "Завершить прием"}
+                    {isUpdating ? t("common.saving") : t("conclusion.finishAppointment")}
                 </Button>
             </Box>
         </Drawer>

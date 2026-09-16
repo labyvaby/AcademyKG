@@ -4,6 +4,7 @@
  */
 import React from "react";
 import { dayjsBranch } from "../../utility/branchTime";
+import { getCurrencySuffix } from "../../utility/currency";
 import type { Appointment, AppointmentServiceJson } from "../../pages/home/types";
 
 export type ReceiptData = {
@@ -30,6 +31,8 @@ export type ReceiptData = {
   orgName?: string;
   /** Название филиала */
   branchName?: string | null;
+  /** Код валюты филиала (branch.currency) — подпись итоговой строки «Сом»/«Сум»/… */
+  currency?: string | null;
   /** Повторная печать чека (из карточки/истории, а не сразу после оплаты) */
   isReprint?: boolean;
   /** Оплата за период: начало периода (YYYY-MM-DD). */
@@ -92,6 +95,8 @@ const RECEIPT_CSS = `
   .reprint { text-align: center; font-size: 16px; font-weight: 700; border: 2px solid #000; padding: 1mm 0; margin: 0 0 2mm; letter-spacing: 1px; }
   /* Название организации — центр, средний */
   .org    { text-align: center; font-size: 17px; font-weight: 700; margin-bottom: 1mm; }
+  /* Филиал — под организацией, если отличается от неё */
+  .branch { text-align: center; font-size: 15px; font-weight: 700; margin: -0.5mm 0 1mm; word-break: break-word; }
   /* Строка "1 Чек #XXXXX" */
   .chek   { font-size: 15px; font-weight: 700; margin: 1mm 0; }
   /* Дата+время — строка "метка слева / значение справа", влезает в 58mm */
@@ -123,21 +128,27 @@ const RECEIPT_CSS = `
   th:first-child, td:first-child { text-align: left; }
   /* Название услуги — жирным */
   tbody td:first-child { font-weight: 700; }
-  th.num, td.num { text-align: center; width: 14mm; }
-  th.amt, td.amt { text-align: right; width: 16mm; white-space: nowrap; }
+  th.num, td.num { text-align: center; width: 9mm; white-space: nowrap; }
+  th.amt, td.amt { text-align: right; white-space: nowrap; padding-left: 2mm; }
   /* Нижняя отрывная — только одна линия */
   .tear { border-top: 2px dashed #000; margin: 3mm 0 2mm; }
   /* Второй чек — разрыв страницы перед ним */
   .receipt-copy { page-break-before: always; width: 58mm !important; max-width: 58mm !important; margin: 0 !important; padding: 3mm 3mm 4mm !important; box-sizing: border-box !important; font-family: "Courier New", Courier, monospace !important; font-size: 16px !important; font-weight: 700 !important; line-height: 1.4 !important; color: #000 !important; background: #fff !important; }
 `;
 
-// Формат как на референсе: "800.00" без знака валюты в таблице/строках
+// "110 000" без знака валюты; копейки только если они есть.
+// Неразрывный пробел — чтобы сумма не переносилась на 58mm ленте.
 function formatMoney(v: number): string {
-  return v.toFixed(2);
+  const [int, frac] = Math.abs(v).toFixed(2).split(".");
+  const grouped = int.replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+  return `${v < 0 ? "-" : ""}${grouped}${frac === "00" ? "" : `.${frac}`}`;
 }
-// Для строки "Сом" снизу — без суффикса
-function formatTotal(v: number): string {
-  return v.toFixed(2);
+// Для итоговой строки валюты снизу — без суффикса
+const formatTotal = formatMoney;
+
+// Количество: "1", дробное — "1.5"
+function formatQty(v: number): string {
+  return Number.isInteger(v) ? String(v) : String(Number(v.toFixed(2)));
 }
 
 function shortId(id: string): string {
@@ -173,6 +184,7 @@ export function buildReceiptHtml(data: ReceiptData): string {
     cashierName,
     orgName = "Аутизм победим KG",
     branchName = null,
+    currency = null,
     isReprint = false,
     periodFrom = null,
     periodTo = null,
@@ -203,14 +215,15 @@ export function buildReceiptHtml(data: ReceiptData): string {
   const receiptNo = shortId(appointment.id);
   const services  = parseServices(appointment);
   const totalPaid = cashPaid + cardPaid + balancePaid + bonusesPaid;
+  // «сом» → «Сом», «сум» → «Сум»; для символов ($, ₽) не меняется
+  const currencySuffix = getCurrencySuffix(currency);
+  const currencyLabel = currencySuffix.charAt(0).toUpperCase() + currencySuffix.slice(1);
 
   // ── Строки таблицы услуг ─────────────────────────────────────────────
+  // Филиал у всех услуг чека один — он печатается в шапке, здесь только исполнитель
   function metaRow(performerName: string | null | undefined, cols: number): string {
-    const parts: string[] = [];
-    if (branchName)    parts.push(branchName);
-    if (performerName) parts.push(performerName);
-    if (!parts.length) return "";
-    return `<tr><td colspan="${cols}" style="font-size:15px;font-weight:700;padding-bottom:0;word-break:break-word">${parts.join(" / ")}</td></tr>`;
+    if (!performerName) return "";
+    return `<tr><td colspan="${cols}" style="font-size:15px;font-weight:700;padding-bottom:0;word-break:break-word">${performerName}</td></tr>`;
   }
 
   let servicesRows = "";
@@ -224,12 +237,12 @@ export function buildReceiptHtml(data: ReceiptData): string {
       const perfName = s.performer_name || s.doctor_name || null;
       servicesRows += `${metaRow(perfName, 3)}<tr>
         <td>${name}</td>
-        <td class="num">${qty.toFixed(2)}</td>
+        <td class="num">${formatQty(qty)}</td>
         <td class="amt">${formatMoney(total)}</td>
       </tr>`;
       servicesRowsNoAmt += `${metaRow(perfName, 2)}<tr>
         <td>${name}</td>
-        <td class="num">${qty.toFixed(2)}</td>
+        <td class="num">${formatQty(qty)}</td>
       </tr>`;
     });
   } else {
@@ -237,12 +250,12 @@ export function buildReceiptHtml(data: ReceiptData): string {
     const perfName    = appointment.doctor_name || null;
     servicesRows = `${metaRow(perfName, 3)}<tr>
       <td>${serviceName}</td>
-      <td class="num">${(1).toFixed(2)}</td>
+      <td class="num">1</td>
       <td class="amt">${formatMoney(basePrice)}</td>
     </tr>`;
     servicesRowsNoAmt = `${metaRow(perfName, 2)}<tr>
       <td>${serviceName}</td>
-      <td class="num">${(1).toFixed(2)}</td>
+      <td class="num">1</td>
     </tr>`;
   }
 
@@ -281,6 +294,7 @@ export function buildReceiptHtml(data: ReceiptData): string {
 
   <!-- Название организации по центру -->
   <div class="org">${orgName}</div>
+  ${branchName && branchName !== orgName ? `<div class="branch">${branchName}</div>` : ""}
 
   <!-- "1 Чек #XXXXX" — слева, обычный размер -->
   <div class="chek">1 Чек #${receiptNo}</div>
@@ -308,7 +322,7 @@ export function buildReceiptHtml(data: ReceiptData): string {
     <thead>
       <tr>
         <th>Услуги</th>
-        <th class="num">Кол-во</th>
+        <th class="num">Кол.</th>
         <th class="amt">Сумма</th>
       </tr>
     </thead>
@@ -335,10 +349,10 @@ export function buildReceiptHtml(data: ReceiptData): string {
   <!-- Способы оплаты -->
   ${paymentLines.join("")}
 
-  <!-- Нижняя строка "Сом + итог" -->
+  <!-- Нижняя строка "валюта + итог" -->
   <div class="sep"></div>
   <div class="row" style="font-size:16px">
-    <span class="row-l bold">Сом</span>
+    <span class="row-l bold">${currencyLabel}</span>
     <span class="row-r bold">${formatTotal(totalPaid)}</span>
   </div>
 
@@ -363,7 +377,7 @@ ${isReprint ? "" : `<div class="receipt-copy">
     <thead>
       <tr>
         <th>Услуги</th>
-        <th class="num">Кол-во</th>
+        <th class="num">Кол.</th>
       </tr>
     </thead>
     <tbody>${servicesRowsNoAmt}</tbody>
@@ -420,6 +434,40 @@ export function printReceipt(data: ReceiptData): void {
     // Fallback: убираем iframe если afterprint не сработал
     setTimeout(cleanup, 60000);
   }, 200);
+}
+
+/** Есть ли у приёма хоть какая-то оплата (иначе чек печатать нечего). */
+export function hasAppointmentPayment(item: Appointment): boolean {
+  return (item.paid_cash ?? 0) > 0 || (item.paid_card ?? 0) > 0 ||
+    (item.paid_balance ?? 0) > 0 || (item.paid_bonuses ?? 0) > 0;
+}
+
+/**
+ * Повторная печать чека по сохранённому приёму (карточка приёма, «Последние чеки»).
+ * Суммы берутся из полей приёма; период оплаты не восстанавливается — его на приёме нет.
+ */
+export function reprintAppointmentReceipt(
+  item: Appointment,
+  branch?: { name?: string | null; brandName?: string | null; currency?: string | null } | null,
+): void {
+  const baseTotal = Number(item.total_amount || item.total_cost || item.estimated_total || 0);
+  const disc = Number(item.discount || 0);
+  printReceipt({
+    appointment: item,
+    cashPaid: Number(item.paid_cash || 0),
+    cardPaid: Number(item.paid_card || 0),
+    balancePaid: Number(item.paid_balance || 0),
+    bonusesPaid: Number(item.paid_bonuses || 0),
+    discountPercent: baseTotal > 0 ? Math.round((disc / baseTotal) * 100) : 0,
+    discountAmount: disc,
+    basePrice: baseTotal,
+    finalPrice: Math.max(0, baseTotal - disc),
+    cashierName: item.updated_by_name ?? item.created_by_name ?? null,
+    orgName: branch?.brandName || branch?.name || undefined,
+    branchName: branch?.name ?? null,
+    currency: branch?.currency ?? null,
+    isReprint: true,
+  });
 }
 
 // Компонент-заглушка (не используется напрямую, логика через printReceipt)

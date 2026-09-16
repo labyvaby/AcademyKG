@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import {
     Drawer,
     Box,
@@ -52,6 +53,7 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
     periodTo = null,
     periodDates,
 }) => {
+    const { t } = useTranslation();
     const { open: notify } = useNotification();
     const selectedBranch = useEffectiveBranch();
     const suffix = getCurrencySuffix(selectedBranch?.currency);
@@ -351,6 +353,7 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
                     cashierName: appointment.updated_by_name ?? appointment.created_by_name ?? null,
                     orgName: selectedBranch?.brandName || selectedBranch?.name,
                     branchName: selectedBranch?.name ?? null,
+                    currency: selectedBranch?.currency ?? null,
                     // Заполнены только при оплате за период — добавляют в чек «Период с–по» и дни занятий.
                     periodFrom,
                     periodTo,
@@ -362,7 +365,7 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
 
             notify?.({
                 type: "success",
-                message: "Оплата успешно сохранена",
+                message: t("payment.paymentSaved"),
             });
             onSaved();
             // Не закрываем сразу — даём напечатать чек. Пользователь закроет вручную.
@@ -415,7 +418,7 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
                     : String(e);
             notify?.({
                 type: "error",
-                message: "Ошибка при сохранении оплаты",
+                message: t("payment.paymentSaveError"),
                 description: rollbackFailed
                     ? `${message}. Откат выполнен не полностью: ${rollbackErrors.join("; ")}`
                     : message,
@@ -442,7 +445,7 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
             }}
         >
             <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", px: 2, py: 1.5 }}>
-                <Typography variant="h6">{isPeriodPayment ? "Оплата за период" : "Оплата приема"}</Typography>
+                <Typography variant="h6">{isPeriodPayment ? t("payment.periodPayment") : t("payment.appointmentPayment")}</Typography>
                 <IconButton onClick={onClose}><CloseOutlined /></IconButton>
             </Box>
 
@@ -474,14 +477,14 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
                         {/* Patient Info & Balance Section */}
                         <Box>
                             <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.5, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                                Клиент
+                                {t("home.client")}
                             </Typography>
                             <Typography variant="body1" sx={{ mb: isPeriodPayment ? 0.5 : 2, fontWeight: 600 }}>
                                 {appointment?.patient_name}
                             </Typography>
                             {isPeriodPayment && (
                                 <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 2 }}>
-                                    {lessonsCount} {lessonsCount === 1 ? "занятие" : lessonsCount < 5 ? "занятия" : "занятий"} — один чек на всю сумму
+                                    {t("payment.lessonsCount", { count: lessonsCount })}
                                 </Typography>
                             )}
 
@@ -498,12 +501,13 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
                                     }}
                                 >
                                     <Typography variant="caption" color="info.main" fontWeight={600} display="block">
-                                        Ребёнок сотрудника
+                                        {t("payment.employeeChild")}
                                     </Typography>
                                     <Typography variant="caption" color="text.secondary">
-                                        Льготную скидку{employeeChildPercent !== null ? ` (${employeeChildPercent}%)` : ""} и
-                                        удержание остатка{employeeParentName ? ` на «${employeeParentName}»` : " на родителя-сотрудника"} оформит
-                                        система при проведении оплаты. Наличные вносить не нужно.
+                                        {t("payment.employeeChildInfo", {
+                                            discount: employeeChildPercent !== null ? ` (${employeeChildPercent}%)` : "",
+                                            target: employeeParentName ? `«${employeeParentName}»` : t("payment.employeeParentDefault"),
+                                        })}
                                     </Typography>
                                 </Paper>
                             )}
@@ -511,10 +515,10 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
                             <Stack spacing={0.5}>
                                     <Stack direction="row" justifyContent="space-between" alignItems="center">
                                         <Typography variant="caption" color="text.secondary">
-                                            Со счёта / баллов
+                                            {t("payment.fromBalance")}
                                         </Typography>
                                         <Typography variant="caption" color="success.main" fontWeight={600}>
-                                            доступно: {((patientBalance?.balance ?? 0) + (patientBalance?.bonuses ?? 0)).toLocaleString()} {suffix}
+                                            {t("payment.availableLabel")}: {((patientBalance?.balance ?? 0) + (patientBalance?.bonuses ?? 0)).toLocaleString()} {suffix}
                                         </Typography>
                                     </Stack>
                                     <Stack direction="row" alignItems="center" spacing={0} sx={{ border: '1px solid', borderColor: (balanceUsed + pointsUsed) > 0 ? 'success.main' : 'divider', borderRadius: 1, bgcolor: 'background.paper', transition: 'border-color 0.2s' }}>
@@ -556,7 +560,7 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
                             <Stack direction="row" spacing={2} alignItems="flex-start">
                                 <Box flex={1}>
                                     <Typography variant="caption" color="text.secondary" display="block" gutterBottom>
-                                        Стоимость
+                                        {t("payment.cost")}
                                     </Typography>
                                     <Typography variant="h6" fontWeight={600}>
                                         {basePrice.toLocaleString()} {suffix}
@@ -564,7 +568,7 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
                                 </Box>
                                 <Box flex={1}>
                                     <Typography variant="caption" color="text.secondary" display="block" gutterBottom>
-                                        Скидка, %
+                                        {t("payment.discountPercent")}
                                     </Typography>
                                     <TextField
                                         type="number"
@@ -583,7 +587,7 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
                                 <Stack flex={1} spacing={0.5}>
                                     <Stack direction="row" justifyContent="space-between" alignItems="center">
                                         <Typography variant="caption" color="text.secondary" display="block">
-                                            Наличные
+                                            {t("payment.cash")}
                                         </Typography>
                                         <Button
                                             size="small"
@@ -624,7 +628,7 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
                                 <Stack flex={1} spacing={0.5}>
                                     <Stack direction="row" justifyContent="space-between" alignItems="center">
                                         <Typography variant="caption" color="text.secondary" display="block">
-                                            Безналичные
+                                            {t("payment.cashless")}
                                         </Typography>
                                         <Button
                                             size="small"
@@ -666,7 +670,7 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
                             {(balanceUsed + pointsUsed) > 0 && (
                                 <Paper elevation={0} sx={{ p: 1.25, bgcolor: (theme) => alpha(theme.palette.success.main, 0.06), border: '1px solid', borderColor: (theme) => alpha(theme.palette.success.main, 0.2), borderRadius: 1 }}>
                                     <Stack direction="row" justifyContent="space-between">
-                                        <Typography variant="caption" color="success.main">Со счёта / баллов</Typography>
+                                        <Typography variant="caption" color="success.main">{t("payment.fromBalance")}</Typography>
                                         <Typography variant="caption" color="success.main" fontWeight={600}>− {(balanceUsed + pointsUsed).toLocaleString()} {suffix}</Typography>
                                     </Stack>
                                 </Paper>
@@ -677,7 +681,7 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
                             {/* Итого к оплате */}
                             <Stack direction="row" justifyContent="space-between" alignItems="center">
                                 <Typography variant="body2" color="text.secondary" fontWeight={600}>
-                                    Итого к оплате
+                                    {t("payment.totalDue")}
                                 </Typography>
                                 <Typography variant="h5" fontWeight={700} color="success.main">
                                     {finalPrice.toLocaleString()} {suffix}
@@ -687,10 +691,10 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
                             {/* Предварительный расчет */}
                             <Stack direction="row" justifyContent="space-between" alignItems="center">
                                 <Typography variant="body2" color="text.secondary">
-                                    Предпросмотр
+                                    {t("payment.preview")}
                                 </Typography>
                                 <Chip
-                                    label={previewDebt <= 0 ? "Сумма закрыта" : totalPaid > 0 ? "Частичное покрытие" : "Без оплаты"}
+                                    label={previewDebt <= 0 ? t("payment.amountClosed") : totalPaid > 0 ? t("payment.partialCoverage") : t("payment.noPayment")}
                                     size="small"
                                     color={previewDebt <= 0 ? "success" : totalPaid > 0 ? "warning" : "default"}
                                     sx={{ fontWeight: 600 }}
@@ -698,7 +702,7 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
                             </Stack>
 
                             <Typography variant="caption" color="text.secondary">
-                                Фактические статус и долг вернет сервер после сохранения оплаты.
+                                {t("payment.serverStatusNote")}
                             </Typography>
 
                             {previewDebt > 0 && (
@@ -714,7 +718,7 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
                                 >
                                     <Stack direction="row" justifyContent="space-between" alignItems="center">
                                         <Typography variant="body2" color="error.main" fontWeight={600}>
-                                            Предварительный остаток
+                                            {t("payment.previewRemaining")}
                                         </Typography>
                                         <Typography variant="h6" color="error.main" fontWeight={700}>
                                             {previewDebt.toLocaleString()} {suffix}
@@ -727,7 +731,7 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
                 </Paper>
                 <Stack spacing={0.5}>
                     <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                        Комментарий администратора
+                        {t("payment.adminComment")}
                     </Typography>
                     <TextField
                         fullWidth
@@ -735,7 +739,7 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
                         rows={3}
                         value={adminComment}
                         onChange={(e) => setAdminComment(e.target.value)}
-                        placeholder="Необязательное поле"
+                        placeholder={t("common.optionalField")}
                     />
                 </Stack>
 
@@ -751,7 +755,7 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
                             startIcon={<PrintOutlinedIcon />}
                             onClick={() => printReceipt(lastReceiptData)}
                         >
-                            Печать чека
+                            {t("payment.printReceipt")}
                         </Button>
                     )}
                     <Button
@@ -764,14 +768,14 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
                         {loading ? (
                             <CircularProgress size={24} color="inherit" />
                         ) : lastReceiptData ? (
-                            "Перепровести оплату"
+                            t("payment.reprocessPayment")
                         ) : (
                             (appointment?.paid_cash || 0) > 0 ||
                             (appointment?.paid_card || 0) > 0 ||
                             (appointment?.paid_balance || 0) > 0 ||
                             (appointment?.paid_bonuses || 0) > 0
-                                ? "Обновить оплату"
-                                : "Подтвердить оплату"
+                                ? t("payment.updatePayment")
+                                : t("payment.confirmPayment")
                         )}
                     </Button>
                     {lastReceiptData && (
@@ -782,7 +786,7 @@ export const PaymentSidebar: React.FC<PaymentSidebarProps> = ({
                             size="large"
                             onClick={onClose}
                         >
-                            Закрыть
+                            {t("common.close")}
                         </Button>
                     )}
                 </Stack>

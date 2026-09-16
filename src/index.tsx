@@ -10,6 +10,7 @@ dayjs.tz.setDefault("Asia/Bishkek");
 
 import App from "./App";
 import { ErrorBoundary } from "./components/ErrorBoundary";
+import "./i18n"; // инициализация локализации (RU/KG/UZ) до первого рендера
 
 // Dev-only: перехват fetch, чтобы отследить источники частых запросов к Employes
 if (import.meta.env.DEV && typeof window !== 'undefined' && typeof window.fetch === 'function') {

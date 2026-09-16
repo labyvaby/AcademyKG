@@ -32,6 +32,8 @@ export type BranchOption = {
   currency?: string;
   /** IANA-таймзона филиала (Asia/Bishkek/Asia/Tashkent/…); пока бэк поле не отдаёт — undefined. */
   timezone?: string;
+  /** Организация филиала — нужна кассе для сводки «Все филиалы» одним запросом. */
+  organizationId?: string;
 };
 type BranchApiItem = {
   id: string | number;
@@ -42,6 +44,8 @@ type BranchApiItem = {
   logo_url?: string | null;
   currency?: string | null;
   timezone?: string | null;
+  organization?: { id?: string | number } | string | number | null;
+  organizationId?: string | number | null;
 };
 type BranchListResponse = {
   data?: { results?: BranchApiItem[] };
@@ -151,6 +155,11 @@ export const BranchProvider: React.FC<{ isSuperAdmin: boolean; permissionsLoadin
           logoUrl: b.logoUrl ?? b.logo_url ?? null,
           currency: b.currency ?? undefined,
           timezone: b.timezone ?? undefined,
+          organizationId: (() => {
+            const raw =
+              b.organization && typeof b.organization === "object" ? b.organization.id : b.organization ?? b.organizationId;
+            return raw ? String(raw) : undefined;
+          })(),
         }));
         setBranches(fetched);
 

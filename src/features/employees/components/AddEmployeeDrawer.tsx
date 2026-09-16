@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { Stack, TextField, InputAdornment, Checkbox, Typography, MenuItem } from "@mui/material";
 import CreditCardOutlined from "@mui/icons-material/CreditCardOutlined";
 import AppAutocomplete from "../../../components/ui/AppAutocomplete";
@@ -22,6 +23,7 @@ import {
 import { usePermissions } from "../../../hooks/usePermissions";
 import { PERMISSIONS } from "../../../constants/permissions";
 import { isApiError } from "../../../utility/apiClient";
+import { useBranchCurrency } from "../../../hooks/useBranchCurrency";
 
 export type AddEmployeeDrawerProps = {
   open: boolean;
@@ -36,8 +38,10 @@ type BranchRow = { id: string; name: string; organizationId: string };
 const FALLBACK_ROLES: RoleRow[] = [];
 
 const AddEmployeeDrawer: React.FC<AddEmployeeDrawerProps> = ({ open, onClose, onCreated }) => {
+  const { t } = useTranslation();
   const { open: notify } = useNotification();
   const { hasPermission } = usePermissions();
+  const { suffix: currencySuffix } = useBranchCurrency();
 
   const [fullName, setFullName] = React.useState("");
   const [phone, setPhone] = React.useState("");
@@ -129,21 +133,21 @@ const AddEmployeeDrawer: React.FC<AddEmployeeDrawerProps> = ({ open, onClose, on
 
   const validateEmail = (val: string) => {
     if (!val.trim()) return "";
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) return "Некорректный формат email";
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) return t("employees.invalidEmailFormat");
     return "";
   };
 
   const handleSubmit = async () => {
     const fullNameTrim = fullName.trim();
     const maxLen = getPhoneLocalMaxLength(phoneCountryCode);
-    if (!fullNameTrim) { notify?.({ type: "error", message: "Введите ФИО сотрудника" }); return; }
+    if (!fullNameTrim) { notify?.({ type: "error", message: t("employees.enterFullName") }); return; }
     if (phone.trim().length > 0 && phone.trim().length !== maxLen) { setPhoneError(true); return; }
     if (emailErrorMsg) return;
-    if (!roleId) { notify?.({ type: "error", message: "Выберите роль сотрудника" }); return; }
-    if (!branchId) { notify?.({ type: "error", message: "Выберите филиал сотрудника" }); return; }
-    if (!organizationId) { notify?.({ type: "error", message: "Для выбранного филиала не найдена организация" }); return; }
+    if (!roleId) { notify?.({ type: "error", message: t("employees.selectRole") }); return; }
+    if (!branchId) { notify?.({ type: "error", message: t("employees.selectBranch") }); return; }
+    if (!organizationId) { notify?.({ type: "error", message: t("employees.organizationNotFound") }); return; }
     if ((selectedRole?.name === 'specialist') && !specializationId) {
-      notify?.({ type: "error", message: "Выберите специализацию" }); return;
+      notify?.({ type: "error", message: t("employees.selectSpecialization") }); return;
     }
 
     try {
@@ -200,7 +204,7 @@ const AddEmployeeDrawer: React.FC<AddEmployeeDrawerProps> = ({ open, onClose, on
         }));
       }
 
-      notify?.({ type: "success", message: "Сотрудник создан" });
+      notify?.({ type: "success", message: t("employees.employeeCreated") });
       onCreated({} as unknown as EmployesRow);
       onClose();
     } catch (e: unknown) {
@@ -217,7 +221,7 @@ const AddEmployeeDrawer: React.FC<AddEmployeeDrawerProps> = ({ open, onClose, on
           return;
         }
       }
-      const msg = e instanceof Error ? employeeFormUtils.translateAuthError(e) : "Не удалось создать сотрудника";
+      const msg = e instanceof Error ? employeeFormUtils.translateAuthError(e) : t("employees.createEmployeeError");
       notify?.({ type: "error", message: msg });
     } finally {
       setBusy(false);
@@ -225,13 +229,13 @@ const AddEmployeeDrawer: React.FC<AddEmployeeDrawerProps> = ({ open, onClose, on
   };
 
   return (
-    <DrawerBase open={open} title="Новый сотрудник" onClose={onClose} busy={busy}
-      onSubmit={handleSubmit} submitLabel="Создать"
+    <DrawerBase open={open} title={t("employees.newEmployee")} onClose={onClose} busy={busy}
+      onSubmit={handleSubmit} submitLabel={t("employees.createButton")}
       submitDisabled={(phone.trim().length > 0 && phoneError) || !!emailErrorMsg}
     >
       <Stack spacing={3}>
         <Stack spacing={0.5}>
-          <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>Фото</Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>{t("employees.photo")}</Typography>
           <ServicePhotoUploader photoFile={null} photoPreview={photoPreview} inputId="emp-add-photo-input"
             onPickPhoto={f => {
               setPhotoFile(f);
@@ -244,17 +248,17 @@ const AddEmployeeDrawer: React.FC<AddEmployeeDrawerProps> = ({ open, onClose, on
         </Stack>
 
         <Stack spacing={0.5}>
-          <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>ФИО *</Typography>
-          <TextField value={fullName} onChange={e => setFullName(e.target.value)} required fullWidth placeholder="Введите ФИО" />
+          <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>{t("employees.fullNameRequired")}</Typography>
+          <TextField value={fullName} onChange={e => setFullName(e.target.value)} required fullWidth placeholder={t("employees.enterFullNamePlaceholder")} />
         </Stack>
 
         <Stack spacing={0.5}>
-          <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>Псевдоним</Typography>
-          <TextField value={nickname} onChange={e => setNickname(e.target.value)} fullWidth placeholder="Введите псевдоним" />
+          <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>{t("employees.nickname")}</Typography>
+          <TextField value={nickname} onChange={e => setNickname(e.target.value)} fullWidth placeholder={t("employees.enterNickname")} />
         </Stack>
 
         <Stack spacing={0.5}>
-          <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>Телефон</Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>{t("employees.phone")}</Typography>
           <TextField
             value={phone} placeholder="XXX XXX XXX"
             onChange={e => {
@@ -268,7 +272,7 @@ const AddEmployeeDrawer: React.FC<AddEmployeeDrawerProps> = ({ open, onClose, on
               phoneApiError
                 ? phoneApiError
                 : phone.trim().length > 0 && phoneError
-                  ? `Введите ${getPhoneLocalMaxLength(phoneCountryCode)} цифр`
+                  ? t("employees.enterDigitsCount", { count: getPhoneLocalMaxLength(phoneCountryCode) })
                   : ""
             }
             fullWidth
@@ -282,13 +286,13 @@ const AddEmployeeDrawer: React.FC<AddEmployeeDrawerProps> = ({ open, onClose, on
           />
           {phoneDuplicateHint && (
             <Typography variant="caption" color="warning.main">
-              Сотрудник с таким номером уже существует. Найдите его карточку и добавьте нужный филиал в «Доступные филиалы».
+              {t("employees.phoneDuplicateHint")}
             </Typography>
           )}
         </Stack>
 
         <Stack spacing={0.5}>
-          <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>Роль *</Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>{t("employees.roleRequired")}</Typography>
           <TextField select value={roleId}
             onChange={e => {
               setRoleId(e.target.value);
@@ -299,14 +303,14 @@ const AddEmployeeDrawer: React.FC<AddEmployeeDrawerProps> = ({ open, onClose, on
               }
             }}
             fullWidth required
-            helperText={canManageSensitive ? "" : "Роль назначается в рамках ваших прав доступа"}
+            helperText={canManageSensitive ? "" : t("employees.roleAssignedWithinPermissions")}
           >
             {roles.map(r => <MenuItem key={r.id} value={r.id}>{r.display_name || r.name}</MenuItem>)}
           </TextField>
         </Stack>
 
         <Stack spacing={0.5}>
-          <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>Филиал *</Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>{t("employees.branchRequired")}</Typography>
           <TextField
             select
             value={branchId}
@@ -330,7 +334,7 @@ const AddEmployeeDrawer: React.FC<AddEmployeeDrawerProps> = ({ open, onClose, on
         </Stack>
 
         <Stack spacing={0.5}>
-          <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>Доступные филиалы</Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>{t("employees.allowedBranches")}</Typography>
           <AppAutocomplete
             multiple
             options={branches.filter(b => b.id !== branchId)}
@@ -347,16 +351,16 @@ const AddEmployeeDrawer: React.FC<AddEmployeeDrawerProps> = ({ open, onClose, on
                 </li>
               );
             }}
-            renderInput={params => <TextField {...params} placeholder="Выберите дополнительные филиалы" />}
+            renderInput={params => <TextField {...params} placeholder={t("employees.selectAdditionalBranches")} />}
           />
           <Typography variant="caption" color="text.disabled">
-            Сотрудник будет виден в этих филиалах дополнительно к основному.
+            {t("employees.allowedBranchesHint")}
           </Typography>
         </Stack>
 
         {isTrainerRole && (
           <Stack spacing={0.5}>
-            <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>Специализация *</Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>{t("employees.specializationRequired")}</Typography>
             <TextField select value={specializationId} onChange={e => setSpecializationId(e.target.value)} fullWidth required>
               {specializations.map(s => <MenuItem key={s.id} value={s.id}>{s.name}</MenuItem>)}
             </TextField>
@@ -364,27 +368,27 @@ const AddEmployeeDrawer: React.FC<AddEmployeeDrawerProps> = ({ open, onClose, on
         )}
 
         <Stack spacing={0.5}>
-          <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>Дата рождения</Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>{t("employees.birthDate")}</Typography>
           <CustomDatePicker value={birthDate ? dayjs(birthDate) : null}
             onChange={val => setBirthDate(val ? val.format('YYYY-MM-DD') : '')}
-            slotProps={{ textField: { fullWidth: true, placeholder: "дд.мм.гггг" } }}
+            slotProps={{ textField: { fullWidth: true, placeholder: t("common.dateFormatPlaceholder") } }}
           />
         </Stack>
 
         <Stack spacing={0.5}>
-          <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>Статус</Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>{t("employees.status")}</Typography>
           <TextField select value={status} onChange={e => setStatus(e.target.value)} fullWidth>
-            <MenuItem value="active">Работает</MenuItem>
-            <MenuItem value="inactive">Не работает</MenuItem>
+            <MenuItem value="active">{t("employees.statusWorking")}</MenuItem>
+            <MenuItem value="inactive">{t("employees.statusNotWorking")}</MenuItem>
           </TextField>
         </Stack>
 
         {isTrainerRole && (
           <Stack spacing={0.5}>
-            <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>Услуги</Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>{t("employees.services")}</Typography>
             <AppAutocomplete multiple limitTags={2} loading={servicesLoading} options={services}
               value={selectedServices} disableCloseOnSelect
-              getOptionLabel={o => typeof o.price === 'number' ? `${o.name} (${o.price} с)` : o.name || ''}
+              getOptionLabel={o => typeof o.price === 'number' ? `${o.name} (${o.price} ${currencySuffix})` : o.name || ''}
               isOptionEqualToValue={(o, v) => o.id === v.id}
               onChange={(_, v) => setSelectedServices(v)}
               renderOption={(props, option, { selected }) => {
@@ -392,18 +396,18 @@ const AddEmployeeDrawer: React.FC<AddEmployeeDrawerProps> = ({ open, onClose, on
                 return (
                   <li key={key} {...optionProps}>
                     <Checkbox icon={<CheckBoxOutlineBlankIcon fontSize="small" />} checkedIcon={<CheckBoxIcon fontSize="small" />} style={{ marginRight: 8 }} checked={selected} />
-                    {option.name} {typeof option.price === 'number' ? `(${option.price} с)` : ""}
+                    {option.name} {typeof option.price === 'number' ? `(${option.price} ${currencySuffix})` : ""}
                   </li>
                 );
               }}
-              renderInput={params => <TextField {...params} placeholder="Выберите услуги" />}
+              renderInput={params => <TextField {...params} placeholder={t("employees.selectServices")} />}
             />
           </Stack>
         )}
 
         <Stack spacing={0.5}>
           <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>Telegram ID</Typography>
-          <TextField value={telegramId} onChange={e => setTelegramId(e.target.value.replace(/[^0-9]/g, ''))} fullWidth placeholder="Только цифры" inputProps={{ inputMode: "numeric" }} />
+          <TextField value={telegramId} onChange={e => setTelegramId(e.target.value.replace(/[^0-9]/g, ''))} fullWidth placeholder={t("employees.digitsOnly")} inputProps={{ inputMode: "numeric" }} />
         </Stack>
 
         <Stack spacing={0.5}>
@@ -413,7 +417,7 @@ const AddEmployeeDrawer: React.FC<AddEmployeeDrawerProps> = ({ open, onClose, on
         </Stack>
 
         <Stack spacing={0.5}>
-          <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>Расчетный счет</Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>{t("employees.accountNumber")}</Typography>
           <TextField value={bankAccountNumber}
             onChange={e => setBankAccountNumber(e.target.value.replace(/[^0-9]/g, '').slice(0, 16))}
             fullWidth placeholder="0000 0000 0000 0000"
@@ -423,10 +427,10 @@ const AddEmployeeDrawer: React.FC<AddEmployeeDrawerProps> = ({ open, onClose, on
         </Stack>
 
         <Stack spacing={0.5}>
-          <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>ИНН</Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>{t("employees.inn")}</Typography>
           <TextField value={inn}
             onChange={e => setInn(e.target.value.replace(/[^0-9]/g, '').slice(0, 14))}
-            fullWidth placeholder="Введите ИНН"
+            fullWidth placeholder={t("employees.enterInn")}
             inputProps={{ inputMode: "numeric" }}
             helperText={`${inn.length}/14`}
           />

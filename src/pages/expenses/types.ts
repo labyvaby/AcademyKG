@@ -44,10 +44,10 @@ export type ExpenseFormValues = {
 
 export type PayrollKind = "advance" | "payout" | "deduction";
 
-export const PAYROLL_KIND_OPTIONS: Array<{ value: PayrollKind; label: string }> = [
-  { value: "advance", label: "Аванс" },
-  { value: "payout", label: "Выплата" },
-  { value: "deduction", label: "Удержание" },
+export const PAYROLL_KIND_OPTIONS: Array<{ value: PayrollKind }> = [
+  { value: "advance" },
+  { value: "payout" },
+  { value: "deduction" },
 ];
 
 export type PayrollTransaction = {

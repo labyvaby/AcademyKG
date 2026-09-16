@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigate, useSearchParams } from "react-router";
 import { motion, AnimatePresence, type Variants } from "framer-motion";
 import {
@@ -21,6 +22,7 @@ import PhoneOutlined from "@mui/icons-material/PhoneOutlined";
 import smallIcon from "../../assets/img/icon_2s.png";
 import AuthLayout from "../../components/auth/AuthLayout";
 import AuthCard from "../../components/auth/AuthCard";
+import { LanguageSwitcher } from "../../components/language/LanguageSwitcher";
 import { PhoneCountryCodeSelect } from "../../components/ui";
 import {
   composePhone,
@@ -51,6 +53,7 @@ function clearFailState() {
 }
 
 const LoginPage: React.FC = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const redirectTo = params.get("to") || "/";
@@ -127,7 +130,7 @@ const LoginPage: React.FC = () => {
     if (typeof err === "object" && err !== null && "message" in err) {
       return String((err as { message: unknown }).message);
     }
-    return "Произошла неизвестная ошибка";
+    return t("login.unknownError");
   };
 
   // Если сервер вернул 429 — применяем серверную блокировку с таймером
@@ -150,13 +153,13 @@ const LoginPage: React.FC = () => {
     const maxLen = getPhoneLocalMaxLength(phoneCountryCode);
 
     if (digits.length < maxLen) {
-      setErrorMsg("Введите полный номер телефона");
+      setErrorMsg(t("login.enterFullPhone"));
       return;
     }
 
     const fullPhone = composePhone(phoneCountryCode, phoneLocal);
     if (!fullPhone) {
-      setErrorMsg("Введите номер телефона");
+      setErrorMsg(t("login.enterPhone"));
       return;
     }
 
@@ -168,7 +171,7 @@ const LoginPage: React.FC = () => {
       await requestSmsCode(fullPhone);
       setLastSentPhone(fullPhone);
       setIsOtpSent(true);
-      setInfoMsg("Код отправлен на " + fullPhone);
+      setInfoMsg(t("login.codeSentTo", { phone: fullPhone }));
     } catch (err) {
       setErrorMsg(getErrorMessage(err));
     } finally {
@@ -181,12 +184,12 @@ const LoginPage: React.FC = () => {
     const fullPhone = lastSentPhone ?? composePhone(phoneCountryCode, phoneLocal);
 
     if (!fullPhone) {
-      setErrorMsg("Телефон не определён");
+      setErrorMsg(t("login.phoneUndefined"));
       return;
     }
 
     if (!otpCode.trim()) {
-      setErrorMsg("Введите код из SMS");
+      setErrorMsg(t("login.enterSmsCode"));
       return;
     }
 
@@ -211,7 +214,7 @@ const LoginPage: React.FC = () => {
     e.preventDefault();
     if (isLocked) return;
     if (!email.trim() || !password.trim()) {
-      setErrorMsg("Введите email и пароль");
+      setErrorMsg(t("login.enterEmailPassword"));
       return;
     }
 
@@ -244,6 +247,9 @@ const LoginPage: React.FC = () => {
   return (
     <AuthLayout>
       <AuthCard>
+        <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 1 }}>
+          <LanguageSwitcher />
+        </Box>
         <Box sx={{ textAlign: "center", mb: 4 }}>
           {/* Логотип со скруглением и без белого фона */}
           <Box
@@ -288,7 +294,7 @@ const LoginPage: React.FC = () => {
             </Typography>
           </Typography>
           <Typography variant="body1" color="text.secondary" fontWeight={500}>
-            Вход в систему
+            {t("login.subtitle")}
           </Typography>
         </Box>
 
@@ -321,7 +327,7 @@ const LoginPage: React.FC = () => {
           <Tab
             icon={<PhoneOutlined sx={{ fontSize: 20 }} />}
             iconPosition="start"
-            label="Телефон"
+            label={t("login.tabPhone")}
             value="phone"
           />
           <Tab
@@ -336,13 +342,13 @@ const LoginPage: React.FC = () => {
           {isLocked ? (
             <motion.div key="alert-locked" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}>
               <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }}>
-                Слишком много неудачных попыток. Вход заблокирован на {Math.floor(lockCountdown / 60)}:{String(lockCountdown % 60).padStart(2, "0")}
+                {t("login.tooManyAttempts", { time: `${Math.floor(lockCountdown / 60)}:${String(lockCountdown % 60).padStart(2, "0")}` })}
               </Alert>
             </motion.div>
           ) : failCount > 0 && failCount < MAX_ATTEMPTS ? (
             <motion.div key="alert-fail" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}>
               <Alert severity="warning" sx={{ mb: 3, borderRadius: 2 }}>
-                Неверные данные. Осталось попыток: {MAX_ATTEMPTS - failCount}
+                {t("login.invalidAttemptsLeft", { count: MAX_ATTEMPTS - failCount })}
               </Alert>
             </motion.div>
           ) : errorMsg ? (
@@ -369,7 +375,7 @@ const LoginPage: React.FC = () => {
                 <Stack component="form" onSubmit={handleSendCode} spacing={3}>
                   <Box>
                     <Typography variant="subtitle2" fontWeight={600} mb={1} color="text.primary">
-                      Номер телефона
+                      {t("login.phoneNumber")}
                     </Typography>
                     <TextField
                       value={phoneLocal}
@@ -432,7 +438,7 @@ const LoginPage: React.FC = () => {
                     }}
                     startIcon={loading ? <CircularProgress size={20} color="inherit" /> : undefined}
                   >
-                    {loading ? "Отправка..." : "Получить код"}
+                    {loading ? t("login.sending") : t("login.getCode")}
                   </Button>
                 </Stack>
               </motion.div>
@@ -447,7 +453,7 @@ const LoginPage: React.FC = () => {
                 <Stack component="form" onSubmit={handleVerifyCode} spacing={3}>
                   <Box textAlign="center">
                     <Typography variant="body2" color="text.secondary" mb={0.5}>
-                      Код отправлен на номер
+                      {t("login.codeSentToNumber")}
                     </Typography>
                     <Typography variant="subtitle1" fontWeight={700} color="text.primary">
                       {lastSentPhone}
@@ -456,7 +462,7 @@ const LoginPage: React.FC = () => {
 
                   <Box>
                     <TextField
-                      placeholder="Введите 4 цифры"
+                      placeholder={t("login.enter4digits")}
                       value={otpCode}
                       onChange={(e) => setOtpCode(e.target.value.replace(/[^0-9]/g, "").slice(0, 4))}
                       fullWidth
@@ -507,7 +513,7 @@ const LoginPage: React.FC = () => {
                     }}
                     startIcon={loading ? <CircularProgress size={20} color="inherit" /> : undefined}
                   >
-                    {loading ? "Проверка..." : isLocked ? `Заблокировано (${Math.floor(lockCountdown / 60)}:${String(lockCountdown % 60).padStart(2, "0")})` : "Войти"}
+                    {loading ? t("login.verifying") : isLocked ? t("login.blocked", { time: `${Math.floor(lockCountdown / 60)}:${String(lockCountdown % 60).padStart(2, "0")}` }) : t("login.signIn")}
                   </Button>
 
                   <Button
@@ -526,7 +532,7 @@ const LoginPage: React.FC = () => {
                       "&:hover": { color: "primary.main", background: "transparent" }
                     }}
                   >
-                    Ввести другой номер
+                    {t("login.enterAnotherNumber")}
                   </Button>
                 </Stack>
               </motion.div>
@@ -542,7 +548,7 @@ const LoginPage: React.FC = () => {
               <Stack component="form" onSubmit={handleEmailLogin} spacing={3}>
                 <Box>
                   <Typography variant="subtitle2" fontWeight={600} mb={1} color="text.primary">
-                    Email адрес
+                    {t("login.emailAddress")}
                   </Typography>
                   <TextField
                     value={email}
@@ -567,7 +573,7 @@ const LoginPage: React.FC = () => {
                 </Box>
                 <Box>
                   <Typography variant="subtitle2" fontWeight={600} mb={1} color="text.primary">
-                    Пароль
+                    {t("login.password")}
                   </Typography>
                   <TextField
                     value={password}
@@ -610,7 +616,7 @@ const LoginPage: React.FC = () => {
                       "&:hover": { color: "primary.main", background: "transparent" }
                     }}
                   >
-                    Забыли пароль?
+                    {t("login.forgotPassword")}
                   </Button>
                 </Box>
                 <Button
@@ -634,7 +640,7 @@ const LoginPage: React.FC = () => {
                   }}
                   startIcon={loading ? <CircularProgress size={20} color="inherit" /> : undefined}
                 >
-                  {loading ? "Вход..." : isLocked ? `Заблокировано (${Math.floor(lockCountdown / 60)}:${String(lockCountdown % 60).padStart(2, "0")})` : "Войти"}
+                  {loading ? t("login.signingIn") : isLocked ? t("login.blocked", { time: `${Math.floor(lockCountdown / 60)}:${String(lockCountdown % 60).padStart(2, "0")}` }) : t("login.signIn")}
                 </Button>
               </Stack>
             </motion.div>

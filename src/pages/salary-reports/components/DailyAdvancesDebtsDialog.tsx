@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
     Dialog,
     DialogTitle,
@@ -29,6 +30,7 @@ interface DailyAdvancesDebtsDialogProps {
 }
 
 const DailyAdvancesDebtsDialog: React.FC<DailyAdvancesDebtsDialogProps> = ({ open, onClose, initialDate }) => {
+    const { t } = useTranslation();
     const { branch } = useReportBranchScope();
     const { suffix: currencySuffix } = useReportCurrency();
     const brandName = branch?.brandName || branch?.name || "Academy KG";
@@ -46,15 +48,15 @@ const DailyAdvancesDebtsDialog: React.FC<DailyAdvancesDebtsDialogProps> = ({ ope
 
     const handleGenerate = async () => {
         if (!branch?.id) {
-            setError("Выберите конкретный филиал (не «Все филиалы») — отчёт строится по филиалу.");
+            setError(t("salaryReports.selectSpecificBranchReport"));
             return;
         }
         if (!date || !dayjs(date).isValid()) {
-            setError("Укажите дату отчёта.");
+            setError(t("salaryReports.specifyReportDate"));
             return;
         }
         if (dayjs(date).isAfter(dayjs(), "day")) {
-            setError("Дата в будущем — отчёт доступен по сегодняшний день включительно.");
+            setError(t("salaryReports.futureDateReportError"));
             return;
         }
         setLoading(true);
@@ -79,7 +81,7 @@ const DailyAdvancesDebtsDialog: React.FC<DailyAdvancesDebtsDialogProps> = ({ ope
             onClose();
         } catch (e: any) {
             console.error(e);
-            setError(e?.message || "Не удалось сформировать отчёт «Авансы и долги».");
+            setError(e?.message || t("salaryReports.advancesDebtsGenerationError"));
         } finally {
             setLoading(false);
         }
@@ -89,10 +91,10 @@ const DailyAdvancesDebtsDialog: React.FC<DailyAdvancesDebtsDialogProps> = ({ ope
         <Dialog open={open} onClose={loading ? undefined : onClose} maxWidth="xs" fullWidth>
             <DialogTitle sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", pr: 1 }}>
                 <Box>
-                    <Typography variant="subtitle1" fontWeight={800}>Авансы и долги</Typography>
+                    <Typography variant="subtitle1" fontWeight={800}>{t("salaryReports.advancesAndDebts")}</Typography>
                     <Typography variant="caption" color="text.secondary">{brandName}</Typography>
                 </Box>
-                <IconButton onClick={onClose} size="small" disabled={loading} aria-label="Закрыть">
+                <IconButton onClick={onClose} size="small" disabled={loading} aria-label={t("common.close")}>
                     <CloseIcon fontSize="small" />
                 </IconButton>
             </DialogTitle>
@@ -100,12 +102,11 @@ const DailyAdvancesDebtsDialog: React.FC<DailyAdvancesDebtsDialogProps> = ({ ope
             <DialogContent dividers>
                 <Stack spacing={2}>
                     <Typography variant="body2" color="text.secondary">
-                        Детализация за день: кому выданы авансы и кто из детей остался должен.
-                        Долг показывается актуальный — погашенный позже долг в отчёт не попадает.
+                        {t("salaryReports.advancesDebtsHint")}
                     </Typography>
 
                     <TextField
-                        label="Дата"
+                        label={t("reports.date")}
                         type="date"
                         value={date}
                         onChange={(e) => setDate(e.target.value)}
@@ -126,14 +127,14 @@ const DailyAdvancesDebtsDialog: React.FC<DailyAdvancesDebtsDialogProps> = ({ ope
 
             <DialogActions sx={{ px: 3, py: 2, justifyContent: "flex-end" }}>
                 <Stack direction="row" spacing={1}>
-                    <Button onClick={onClose} disabled={loading}>Отмена</Button>
+                    <Button onClick={onClose} disabled={loading}>{t("common.cancel")}</Button>
                     <Button
                         variant="contained"
                         onClick={handleGenerate}
                         disabled={loading}
                         startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <FileDownloadIcon />}
                     >
-                        Сформировать PDF
+                        {t("salaryReports.generatePdf")}
                     </Button>
                 </Stack>
             </DialogActions>

@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
     Box,
     Typography,
@@ -25,6 +26,7 @@ import {
 } from "@mui/material";
 import { fetchServices } from "../../../services/services";
 import { apiFetch } from "../../../utility/apiClient";
+import { useBranchCurrency } from "../../../hooks/useBranchCurrency";
 import {
     Add,
     DeleteOutline,
@@ -59,7 +61,9 @@ interface SalarySettingsProps {
 }
 
 const SalarySettings: React.FC<SalarySettingsProps> = ({ employeeId, initialValue, onChange }) => {
+    const { t } = useTranslation();
     const theme = useTheme();
+    const { suffix: currencySuffix } = useBranchCurrency();
     const [state, setState] = useState<SalaryState>(initialValue || {
         fixed_salary: {
             enabled: false,
@@ -185,7 +189,7 @@ const SalarySettings: React.FC<SalarySettingsProps> = ({ employeeId, initialValu
     return (
         <Box sx={{ width: "100%", mt: 1 }}>
             <Typography variant="caption" sx={{ fontWeight: 700, mb: 1.5, display: 'block', color: "text.secondary", textTransform: "uppercase", letterSpacing: 1 }}>
-                Зарплатные правила
+                {t("employees.salaryRules")}
             </Typography>
 
             {/* --- Фиксированная зарплата --- */}
@@ -217,7 +221,7 @@ const SalarySettings: React.FC<SalarySettingsProps> = ({ employeeId, initialValu
                             <AccessTime sx={{ fontSize: 18 }} />
                         </Box>
                         <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                            Фикс (оклад/час/прием)
+                            {t("employees.fixedSalaryLabel")}
                         </Typography>
                     </Stack>
                     <Switch size="small" checked={state.fixed_salary.enabled} onChange={toggleFixedSalary} color="primary" />
@@ -234,9 +238,9 @@ const SalarySettings: React.FC<SalarySettingsProps> = ({ employeeId, initialValu
                     }}
                 >
                     {[
-                        { label: "Оклад (месяц)", key: "monthly_rate" },
-                        { label: "Ставка (день/час)", key: "day_hourly_rate" },
-                        { label: "Ставка за прием", key: "appointment_rate" },
+                        { label: t("employees.monthlyRateLabel"), key: "monthly_rate" },
+                        { label: t("employees.dayHourlyRateLabel"), key: "day_hourly_rate" },
+                        { label: t("employees.appointmentRateLabel"), key: "appointment_rate" },
                     ].map((item) => (
                         <Stack key={item.key} spacing={0.5}>
                             <Typography variant="caption" sx={{ fontSize: "0.6rem", color: "text.secondary", textAlign: "center", fontWeight: 500 }}>
@@ -249,7 +253,7 @@ const SalarySettings: React.FC<SalarySettingsProps> = ({ employeeId, initialValu
                                 value={state.fixed_salary[item.key as keyof SalaryState["fixed_salary"]] || ""}
                                 onChange={(e) => handleFixedInput(item.key as keyof SalaryState["fixed_salary"], e.target.value)}
                                 InputProps={{
-                                    endAdornment: <Typography variant="caption" sx={{ ml: 0.25, color: "text.disabled", fontSize: '0.65rem' }}>с</Typography>,
+                                    endAdornment: <Typography variant="caption" sx={{ ml: 0.25, color: "text.disabled", fontSize: '0.65rem' }}>{currencySuffix}</Typography>,
                                 }}
                                 sx={{
                                     "& .MuiInputBase-root": { fontSize: "0.75rem", p: "2px 6px", bgcolor: "action.hover", height: 32 },
@@ -291,7 +295,7 @@ const SalarySettings: React.FC<SalarySettingsProps> = ({ employeeId, initialValu
                             <PaidOutlined sx={{ fontSize: 18 }} />
                         </Box>
                         <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                            Динамические (услуги)
+                            {t("employees.dynamicSalaryLabel")}
                         </Typography>
                     </Stack>
                     <Button
@@ -302,7 +306,7 @@ const SalarySettings: React.FC<SalarySettingsProps> = ({ employeeId, initialValu
                         onClick={addDynamicRule}
                         sx={{ fontSize: "0.7rem", fontWeight: 700, minWidth: 0, p: '2px 8px' }}
                     >
-                        Добавить
+                        {t("common.add")}
                     </Button>
                 </Stack>
 
@@ -310,9 +314,9 @@ const SalarySettings: React.FC<SalarySettingsProps> = ({ employeeId, initialValu
                     <Table size="small">
                         <TableHead sx={{ bgcolor: "action.hover" }}>
                             <TableRow>
-                                <TableCell sx={{ fontWeight: 700, p: 1, fontSize: "0.6rem", color: "text.disabled", textTransform: "uppercase" }}>Услуги</TableCell>
+                                <TableCell sx={{ fontWeight: 700, p: 1, fontSize: "0.6rem", color: "text.disabled", textTransform: "uppercase" }}>{t("employees.services")}</TableCell>
                                 <TableCell align="center" sx={{ fontWeight: 700, p: 0.5, fontSize: "0.6rem", color: "text.disabled", textTransform: "uppercase", width: 45 }}>%</TableCell>
-                                <TableCell align="center" sx={{ fontWeight: 700, p: 0.5, fontSize: "0.6rem", color: "text.disabled", textTransform: "uppercase", width: 65 }}>Фикс</TableCell>
+                                <TableCell align="center" sx={{ fontWeight: 700, p: 0.5, fontSize: "0.6rem", color: "text.disabled", textTransform: "uppercase", width: 65 }}>{t("employees.fixedShort")}</TableCell>
                                 <TableCell align="center" sx={{ width: 32, p: 0 }}></TableCell>
                             </TableRow>
                         </TableHead>
@@ -320,7 +324,7 @@ const SalarySettings: React.FC<SalarySettingsProps> = ({ employeeId, initialValu
                             {state.dynamic_rules.length === 0 ? (
                                 <TableRow>
                                     <TableCell colSpan={4} align="center" sx={{ py: 2, color: "text.disabled", fontSize: "0.7rem" }}>
-                                        Правила не заданы
+                                        {t("employees.noRulesSet")}
                                     </TableCell>
                                 </TableRow>
                             ) : (

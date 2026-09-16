@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import {
     Box,
     useMediaQuery,
@@ -106,7 +107,8 @@ const normalizePayrollReport = (report: PayrollReportResponse | null | undefined
 };
 
 const SalaryReportsPage: React.FC = () => {
-    usePageTitle("Отчет по ЗП");
+    const { t } = useTranslation();
+    usePageTitle(t("menu.salaryReports"));
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down("lg"));
     const { open: notify } = useNotification();
@@ -146,14 +148,14 @@ const SalaryReportsPage: React.FC = () => {
         } catch (e: any) {
             if (signal?.aborted) return;
             console.error(e);
-            const message = e?.message || "Ошибка загрузки данных зарплаты";
+            const message = e?.message || t("salaryReports.loadError");
             setError(message);
             setLoadedScopeKey(null);
             notify?.({ type: "error", message });
         } finally {
             if (!signal?.aborted) setLoading(false);
         }
-    }, [month, notify, permissionsLoading, scopeKey, branchId, branchReady]);
+    }, [month, notify, permissionsLoading, scopeKey, branchId, branchReady, t]);
 
     useEffect(() => {
         const controller = new AbortController();
@@ -253,7 +255,7 @@ const SalaryReportsPage: React.FC = () => {
             }}
         >
             <PageHeader
-                title="Отчет по зарплате"
+                title={t("salaryReports.headerTitle")}
                 showTitle={false}
                 showSearch={false}
                 dateNavigation={<MonthNavigation date={selectedDate} setDate={setSelectedDate} activeMonths={activeMonths} />}
@@ -281,7 +283,7 @@ const SalaryReportsPage: React.FC = () => {
                             startIcon={<FileDownloadOutlined />}
                             onClick={() => setAdvancesDebtsOpen(true)}
                         >
-                            Авансы и долги
+                            {t("salaryReports.advancesAndDebts")}
                         </Button>
                         <Button
                             variant="outlined"
@@ -289,7 +291,7 @@ const SalaryReportsPage: React.FC = () => {
                             startIcon={<PrintOutlined />}
                             onClick={() => setDailySummaryOpen(true)}
                         >
-                            Сводка дня
+                            {t("salaryReports.daySummary")}
                         </Button>
                         <Button
                             variant="outlined"
@@ -297,17 +299,17 @@ const SalaryReportsPage: React.FC = () => {
                             startIcon={<PrintOutlined />}
                             onClick={() => setDailyLessonsOpen(true)}
                         >
-                            Занятия за день
+                            {t("salaryReports.dailyLessons")}
                         </Button>
                     </Stack>
 
                     {/* Summary Indicators */}
                     <Stack direction="row" spacing={1} justifyContent="center" alignItems="center" flexWrap="wrap" useFlexGap sx={{ px: 0.5 }}>
                         {[
-                            { icon: <ReportProblemIcon sx={{ fontSize: { xs: '0.85rem', md: '1.2rem' } }} />, color: C.advance, value: summary.warningsCount || 0, label: 'Предупр.' },
-                            { icon: <AccessTimeIcon sx={{ fontSize: { xs: '0.85rem', md: '1.2rem' } }} />, color: C.day, value: summary.openShiftsCount || 0, label: 'Откр. смен' },
-                            { icon: <CheckCircleOutlineIcon sx={{ fontSize: { xs: '0.85rem', md: '1.2rem' } }} />, color: C.payout, value: summary.paidOutCount || 0, label: 'Выплачено' },
-                            { icon: <Typography fontWeight={800} sx={{ fontSize: { xs: '0.55rem', md: '0.72rem' }, lineHeight: 1 }}>{branchCurrency || 'KGS'}</Typography>, color: C.net, value: formatKGS(netSalaryTotal), label: 'К выплате' },
+                            { icon: <ReportProblemIcon sx={{ fontSize: { xs: '0.85rem', md: '1.2rem' } }} />, color: C.advance, value: summary.warningsCount || 0, label: t("salaryReports.warningsShort") },
+                            { icon: <AccessTimeIcon sx={{ fontSize: { xs: '0.85rem', md: '1.2rem' } }} />, color: C.day, value: summary.openShiftsCount || 0, label: t("salaryReports.openShiftsShort") },
+                            { icon: <CheckCircleOutlineIcon sx={{ fontSize: { xs: '0.85rem', md: '1.2rem' } }} />, color: C.payout, value: summary.paidOutCount || 0, label: t("salaryReports.paidOut") },
+                            { icon: <Typography fontWeight={800} sx={{ fontSize: { xs: '0.55rem', md: '0.72rem' }, lineHeight: 1 }}>{branchCurrency || 'KGS'}</Typography>, color: C.net, value: formatKGS(netSalaryTotal), label: t("salaryReports.toPayout") },
                         ].map((item, i) => (
                             <Stack key={i} direction="row" spacing={1} alignItems="center" sx={{ minWidth: { xs: 110, md: 160 }, bgcolor: alpha(item.color, 0.05), border: `1px solid ${alpha(item.color, 0.15)}`, borderRadius: 1.5, px: { xs: 1, md: 2 }, py: { xs: 0.75, md: 1.25 } }}>
                                 <Box sx={{ color: item.color, display: 'flex', flexShrink: 0 }}>{item.icon}</Box>
@@ -330,7 +332,7 @@ const SalaryReportsPage: React.FC = () => {
                             }}
                         >
                             <Typography variant="h6" color="error.main" sx={{ fontWeight: 700, mb: 1 }}>
-                                Не удалось загрузить зарплатный отчет
+                                {t("salaryReports.loadFailed")}
                             </Typography>
                             <Typography variant="body2" color="text.secondary">
                                 {error}
@@ -344,7 +346,7 @@ const SalaryReportsPage: React.FC = () => {
                         </Stack>
                     ) : groups.length === 0 ? (
                         <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}>
-                            <Typography color="text.secondary">Нет данных за выбранный месяц</Typography>
+                            <Typography color="text.secondary">{t("salaryReports.noDataForMonth")}</Typography>
                         </Box>
                     ) : (
                         groups.map((group: PayrollGroup) => (
@@ -354,7 +356,7 @@ const SalaryReportsPage: React.FC = () => {
                                         {group.title}
                                     </Typography>
                                     <Typography variant="caption" color="text.disabled" fontWeight={600}>
-                                        Итого: <Box component="span" sx={{ color: C.net, fontWeight: 800 }}>{formatKGS(group.totals.netSalary)}</Box>
+                                        {t("common.total")}: <Box component="span" sx={{ color: C.net, fontWeight: 800 }}>{formatKGS(group.totals.netSalary)}</Box>
                                     </Typography>
                                 </Stack>
                                 {isMobile ? (
@@ -387,17 +389,17 @@ const SalaryReportsPage: React.FC = () => {
                                         <Table size="small" sx={{ tableLayout: 'fixed', minWidth: 1100, '& th, & td': { whiteSpace: 'nowrap' } }}>
                                             <TableHead>
                                                 <TableRow sx={{ bgcolor: '#E6E6FA' }}>
-                                                    <TableCell sx={{ width: 240, fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: 0.4, color: 'text.secondary', pl: 1.5 }}>Сотрудник</TableCell>
-                                                    <TableCell align="center" sx={{ width: 70, fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: 0.4, color: C.day }}>Часы</TableCell>
-                                                    <TableCell align="center" sx={{ width: 80, fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: 0.4, color: 'text.secondary' }}>Приемы</TableCell>
-                                                    <TableCell align="center" sx={{ width: 90, fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: 0.4, color: C.day }}>Распред.</TableCell>
-                                                    <TableCell align="right" sx={{ width: 90, fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: 0.4, color: 'text.secondary' }}>ЗП (%)</TableCell>
-                                                    <TableCell align="right" sx={{ width: 90, fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: 0.4, color: 'text.secondary' }}>Оклад</TableCell>
-                                                    <TableCell align="right" sx={{ width: 100, fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: 0.4, color: C.advance }}>Аванс</TableCell>
-                                                    <TableCell align="right" sx={{ width: 110, fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: 0.4, color: C.payout }}>Выплаты</TableCell>
-                                                    <TableCell align="right" sx={{ width: 95, fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: 0.4, color: C.deduction }}>Удерж.</TableCell>
-                                                    <TableCell align="right" sx={{ width: 100, fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: 0.4, color: 'text.secondary' }}>Списано</TableCell>
-                                                    <TableCell align="right" sx={{ width: 115, fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: 0.4, color: C.net }}>К выплате</TableCell>
+                                                    <TableCell sx={{ width: 240, fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: 0.4, color: 'text.secondary', pl: 1.5 }}>{t("common.employee")}</TableCell>
+                                                    <TableCell align="center" sx={{ width: 70, fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: 0.4, color: C.day }}>{t("salaryReports.hoursShort")}</TableCell>
+                                                    <TableCell align="center" sx={{ width: 80, fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: 0.4, color: 'text.secondary' }}>{t("salaryReports.appointmentsShort")}</TableCell>
+                                                    <TableCell align="center" sx={{ width: 90, fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: 0.4, color: C.day }}>{t("salaryReports.distributedShort")}</TableCell>
+                                                    <TableCell align="right" sx={{ width: 90, fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: 0.4, color: 'text.secondary' }}>{t("salaryReports.salaryPercentShort")}</TableCell>
+                                                    <TableCell align="right" sx={{ width: 90, fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: 0.4, color: 'text.secondary' }}>{t("salaryReports.fixedSalaryShort")}</TableCell>
+                                                    <TableCell align="right" sx={{ width: 100, fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: 0.4, color: C.advance }}>{t("salaryReports.advanceShort")}</TableCell>
+                                                    <TableCell align="right" sx={{ width: 110, fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: 0.4, color: C.payout }}>{t("salaryReports.payoutsShort")}</TableCell>
+                                                    <TableCell align="right" sx={{ width: 95, fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: 0.4, color: C.deduction }}>{t("salaryReports.deductionsShort")}</TableCell>
+                                                    <TableCell align="right" sx={{ width: 100, fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: 0.4, color: 'text.secondary' }}>{t("salaryReports.writtenOffShort")}</TableCell>
+                                                    <TableCell align="right" sx={{ width: 115, fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: 0.4, color: C.net }}>{t("salaryReports.toPayout")}</TableCell>
                                                 </TableRow>
                                             </TableHead>
                                             <TableBody>
@@ -405,7 +407,7 @@ const SalaryReportsPage: React.FC = () => {
                                                     <SalaryReportRow key={row.employeeId} row={row} month={month} />
                                                 ))}
                                                 <TableRow sx={{ bgcolor: alpha(C.net, 0.04), '& td': { borderTop: `1px solid ${alpha(C.net, 0.15)}` } }}>
-                                                    <TableCell colSpan={6} sx={{ fontWeight: 800, fontSize: '0.75rem', color: 'text.secondary', pl: 1.5 }}>ИТОГО {group.title.toUpperCase()}</TableCell>
+                                                    <TableCell colSpan={6} sx={{ fontWeight: 800, fontSize: '0.75rem', color: 'text.secondary', pl: 1.5 }}>{t("reports.totalCaps")} {group.title.toUpperCase()}</TableCell>
                                                     <TableCell align="right" sx={{ fontWeight: 800, color: C.advance }}>{formatKGS(group.totals.advancesSum)}</TableCell>
                                                     <TableCell align="right" sx={{ fontWeight: 800, color: C.payout }}>{formatKGS(group.totals.payoutsSum)}</TableCell>
                                                     <TableCell align="right" sx={{ fontWeight: 800, color: C.deduction }}>{formatKGS(group.totals.deductionsSum)}</TableCell>
@@ -425,31 +427,31 @@ const SalaryReportsPage: React.FC = () => {
                         <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, bgcolor: alpha(C.net, 0.04), borderColor: alpha(C.net, 0.2) }}>
                             <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ xs: 'flex-start', sm: 'center' }} gap={2}>
                                 <Typography variant="subtitle2" fontWeight={800} color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: 0.5, fontSize: '0.72rem' }}>
-                                    Общий итог
+                                    {t("salaryReports.overallTotal")}
                                 </Typography>
                                 <Stack direction="row" spacing={3} flexWrap="wrap" useFlexGap alignItems="flex-end">
                                     <Box textAlign="right">
-                                        <Typography variant="caption" color="text.disabled" sx={{ display: 'block', mb: 0.1 }}>Грязная ЗП</Typography>
+                                        <Typography variant="caption" color="text.disabled" sx={{ display: 'block', mb: 0.1 }}>{t("salaryReports.grossSalary")}</Typography>
                                         <Typography variant="body1" fontWeight={700}>{formatKGS(totals.grossEarnings)}</Typography>
                                     </Box>
                                     <Box textAlign="right">
-                                        <Typography variant="caption" sx={{ color: C.advance, display: 'block', mb: 0.1 }}>Авансы</Typography>
+                                        <Typography variant="caption" sx={{ color: C.advance, display: 'block', mb: 0.1 }}>{t("salaryReports.advances")}</Typography>
                                         <Typography variant="body1" fontWeight={700} sx={{ color: C.advance }}>{formatKGS(totals.advancesSum)}</Typography>
                                     </Box>
                                     <Box textAlign="right">
-                                        <Typography variant="caption" sx={{ color: C.payout, display: 'block', mb: 0.1 }}>Выплаты</Typography>
+                                        <Typography variant="caption" sx={{ color: C.payout, display: 'block', mb: 0.1 }}>{t("salaryReports.payouts")}</Typography>
                                         <Typography variant="body1" fontWeight={700} sx={{ color: C.payout }}>{formatKGS(totals.payoutsSum)}</Typography>
                                     </Box>
                                     <Box textAlign="right">
-                                        <Typography variant="caption" sx={{ color: C.deduction, display: 'block', mb: 0.1 }}>Удержания</Typography>
+                                        <Typography variant="caption" sx={{ color: C.deduction, display: 'block', mb: 0.1 }}>{t("salaryReports.deductions")}</Typography>
                                         <Typography variant="body1" fontWeight={700} sx={{ color: C.deduction }}>{formatKGS(totals.deductionsSum)}</Typography>
                                     </Box>
                                     <Box textAlign="right">
-                                        <Typography variant="caption" color="text.disabled" sx={{ display: 'block', mb: 0.1 }}>Всего списано</Typography>
+                                        <Typography variant="caption" color="text.disabled" sx={{ display: 'block', mb: 0.1 }}>{t("salaryReports.totalWrittenOff")}</Typography>
                                         <Typography variant="body1" fontWeight={700}>{formatKGS(totals.expensesSum)}</Typography>
                                     </Box>
                                     <Box textAlign="right" sx={{ pl: 2, borderLeft: `2px solid ${alpha(C.net, 0.3)}` }}>
-                                        <Typography variant="caption" sx={{ color: C.net, display: 'block', mb: 0.1 }}>К выплате</Typography>
+                                        <Typography variant="caption" sx={{ color: C.net, display: 'block', mb: 0.1 }}>{t("salaryReports.toPayout")}</Typography>
                                         <Typography variant="h6" fontWeight={900} sx={{ color: C.net }}>{formatKGS(netSalaryTotal)}</Typography>
                                     </Box>
                                 </Stack>

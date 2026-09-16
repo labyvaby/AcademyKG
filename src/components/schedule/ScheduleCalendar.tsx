@@ -1,4 +1,5 @@
 import React, { useMemo, useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Avatar,
   Box,
@@ -30,7 +31,8 @@ import ShiftForm from "./ShiftForm";
 import { useConfirmDialog } from "../../hooks/useConfirmDialog";
 import { apiFetch } from "../../utility/apiClient";
 import { fetchAllPages } from "../../utility/pagination";
-import { fetchShifts, createShift, updateShift, deleteShift, Shift as ServiceShift } from "../../services/shifts";
+import { createEmployeeSchedulesBulk, type EmployeeScheduleBulkItem } from "../../services/employeeSchedules";
+import { useEffectiveBranch } from "../../hooks/useEffectiveBranch";
 
 dayjs.extend(isBetween);
 dayjs.extend(isoWeek);
@@ -139,7 +141,7 @@ const generateWeeksGrid = (monthDate: dayjs.Dayjs): dayjs.Dayjs[][] => {
 // ==========================
 // Логика сегментов
 // ==========================
-const getSegmentsForDay = (shift: Shift, day: dayjs.Dayjs): DaySegment[] => {
+const getSegmentsForDay = (shift: Shift, day: dayjs.Dayjs, unknownLabel: string): DaySegment[] => {
   const segments: DaySegment[] = [];
   const fullDayStart = 0;
   const fullDayEnd = 1439;
@@ -148,7 +150,7 @@ const getSegmentsForDay = (shift: Shift, day: dayjs.Dayjs): DaySegment[] => {
     return segments;
   }
 
-  const employeeName = shift.employee?.full_name ?? "Неизвестно";
+  const employeeName = shift.employee?.full_name ?? unknownLabel;
   const employeePhoto = shift.employee?.photo;
   const employeeId = shift.employes_id;
 
@@ -400,12 +402,16 @@ interface ScheduleCalendarProps {
 }
 
 const ScheduleCalendar = React.forwardRef<ScheduleCalendarHandle, ScheduleCalendarProps>((props, ref) => {
+  const { t } = useTranslation();
   const { isAdmin, isRegistrator, isSpecialist, employeeId } = props;
   const canManage = isAdmin || isRegistrator;
   const [currentMonth, setCurrentMonth] = useState(dayjs());
   const today = dayjs();
   const { open: notify } = useNotification();
   const { confirm, ConfirmDialog } = useConfirmDialog();
+  // Филиал, в который пишем смены: у суперадмина — из глобального переключателя,
+  // у остальных — свой primaryBranch (совпадает с дефолтом бэка).
+  const effectiveBranch = useEffectiveBranch();
 
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -426,7 +432,7 @@ const ScheduleCalendar = React.forwardRef<ScheduleCalendarHandle, ScheduleCalend
   }, [currentMonth]);
 
   const weeks = useMemo(() => generateWeeksGrid(currentMonth), [currentMonth]);
-  const daysOfWeek = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"] as const;
+  const daysOfWeek = t("schedule.weekdaysShort", { returnObjects: true }) as string[];
 
   // --- Загрузка данных ---
   const fetchData = async () => {
@@ -447,20 +453,15 @@ const ScheduleCalendar = React.forwardRef<ScheduleCalendarHandle, ScheduleCalend
       }));
       setEmployees(loadedEmps);
 
-      // 2. Расписание из /api/v1/employee-schedules/ — грузим весь месяц постранично
+      // 2. Расписание из /api/v1/employee-schedules/ — серверный фильтр по датам
+      // (dateFrom/dateTo включительно), чтобы не тянуть все смены за всё время.
       const startDate = currentMonth.startOf('month').subtract(7, 'day').format('YYYY-MM-DD');
       const endDate = currentMonth.endOf('month').add(7, 'day').format('YYYY-MM-DD');
       const schedResults = await fetchAllPages<any>(
-        `/api/v1/employee-schedules/?ordering=date`
+        `/api/v1/employee-schedules/?ordering=date&dateFrom=${startDate}&dateTo=${endDate}`
       );
 
-      // Фильтруем по диапазону дат на клиенте
-      const inRange = schedResults.filter((s: any) => {
-        const d = s.date ?? "";
-        return d >= startDate && d <= endDate;
-      });
-
-      const mappedShifts: Shift[] = inRange.map((s: any) => {
+      const mappedShifts: Shift[] = schedResults.map((s: any) => {
         const empId = typeof s.employee === 'object' ? s.employee?.id : s.employee;
         const empObj = loadedEmps.find(e => e.id === empId) || (typeof s.employee === 'object' ? {
           id: empId,
@@ -586,10 +587,10 @@ const ScheduleCalendar = React.forwardRef<ScheduleCalendarHandle, ScheduleCalend
 
   const handleDelete = async (shiftId: string) => {
     const confirmed = await confirm({
-      title: "Удалить смену?",
-      message: "Вы уверены, что хотите удалить эту смену? Это действие нельзя отменить.",
-      confirmText: "Удалить",
-      cancelText: "Отмена",
+      title: t("schedule.deleteShiftTitle"),
+      message: t("schedule.deleteShiftMessage"),
+      confirmText: t("common.delete"),
+      cancelText: t("common.cancel"),
       variant: "error",
     });
 
@@ -599,69 +600,54 @@ const ScheduleCalendar = React.forwardRef<ScheduleCalendarHandle, ScheduleCalend
       await apiFetch(`/api/v1/employee-schedules/${shiftId}/`, { method: "DELETE" });
       const success = true;
       if (!success) throw new Error("Delete failed");
-      
+
       setShifts((prev) => prev.filter((s) => s.id !== shiftId));
       setEditingShift(null);
       setIsDrawerOpen(false);
       notify?.({
         type: "success",
-        message: "Смена успешно удалена",
+        message: t("schedule.deleteSuccess"),
       });
     } catch (err: any) {
       console.error("Error deleting shift:", err);
       notify?.({
         type: "error",
-        message: "Ошибка при удалении смены",
-        description: err.message || "Неизвестная ошибка",
+        message: t("schedule.deleteError"),
+        description: err.message || t("schedule.unknownError"),
       });
     }
   };
 
-  const saveScheduleEntry = async (employeeId: string, date: string, formData: any) => {
-    await apiFetch("/api/v1/employee-schedules/", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        employee: employeeId,
-        date,
-        startTime: formData.start_time ? formData.start_time + ":00" : undefined,
-        endTime: formData.end_time ? formData.end_time + ":00" : undefined,
-        shiftType: formData.is_night_shift ? "night" : "day",
-        isDayOff: false,
-      }),
-    });
+  const toScheduleItem = (employeeId: string, date: string, formData: any): EmployeeScheduleBulkItem => ({
+    employee: employeeId,
+    date,
+    startTime: formData.start_time ? formData.start_time + ":00" : undefined,
+    endTime: formData.end_time ? formData.end_time + ":00" : undefined,
+    shiftType: formData.is_night_shift ? "night" : "day",
+    isDayOff: false,
+    branch: effectiveBranch?.id,
+  });
+
+  // Одним bulk-запросом; смены, которые уже есть на дату (сотрудник+филиал+дата),
+  // пропускаем и сообщаем об этом — часы существующей смены меняются через PATCH.
+  const createScheduleItems = async (items: EmployeeScheduleBulkItem[]) => {
+    if (items.length === 0) return;
+    const result = await createEmployeeSchedulesBulk(items, "skip");
+    if (result.createdCount === 0 && result.skippedCount > 0) {
+      throw new Error(t("schedule.allSkipped", { count: result.skippedCount }));
+    }
+    if (result.skippedCount > 0) {
+      notify?.({
+        type: "error",
+        message: t("schedule.createdSkipped", { created: result.createdCount, skipped: result.skippedCount }),
+      });
+    }
   };
 
   const handleFormSuccess = async (formData: any) => {
     try {
       if (Array.isArray(formData)) {
-        const results = await Promise.allSettled(
-          formData.map((f) => saveScheduleEntry(f.employes_id, f.startDate, f))
-        );
-        const failed = results.filter((result) => result.status === "rejected");
-        const succeeded = results.length - failed.length;
-
-        if (succeeded === 0) {
-          throw new Error(
-            failed[0]?.status === "rejected"
-              ? failed[0].reason instanceof Error
-                ? failed[0].reason.message
-                : String(failed[0].reason)
-              : "Не удалось создать смены",
-          );
-        }
-
-        if (failed.length > 0) {
-          notify?.({
-            type: "error",
-            message: `Создано ${succeeded} из ${results.length} смен`,
-            description: failed[0]?.status === "rejected"
-              ? failed[0].reason instanceof Error
-                ? failed[0].reason.message
-                : String(failed[0].reason)
-              : undefined,
-          });
-        }
+        await createScheduleItems(formData.map((f) => toScheduleItem(f.employes_id, f.startDate, f)));
       } else if (editingShift) {
         // Редактирование одной записи
         await apiFetch(`/api/v1/employee-schedules/${editingShift.id}/`, {
@@ -678,36 +664,12 @@ const ScheduleCalendar = React.forwardRef<ScheduleCalendarHandle, ScheduleCalend
         const start = dayjs(formData.startDate);
         const end = dayjs(formData.endDate);
         const diff = end.diff(start, 'day');
-        const requests: Promise<void>[] = [];
+        const items: EmployeeScheduleBulkItem[] = [];
         for (let i = 0; i <= diff; i++) {
           const d = start.add(i, 'day').format('YYYY-MM-DD');
-          requests.push(saveScheduleEntry(formData.employes_id, d, formData));
+          items.push(toScheduleItem(formData.employes_id, d, formData));
         }
-        const results = await Promise.allSettled(requests);
-        const failed = results.filter((result) => result.status === "rejected");
-        const succeeded = results.length - failed.length;
-
-        if (succeeded === 0) {
-          throw new Error(
-            failed[0]?.status === "rejected"
-              ? failed[0].reason instanceof Error
-                ? failed[0].reason.message
-                : String(failed[0].reason)
-              : "Не удалось создать смены",
-          );
-        }
-
-        if (failed.length > 0) {
-          notify?.({
-            type: "error",
-            message: `Создано ${succeeded} из ${results.length} смен`,
-            description: failed[0]?.status === "rejected"
-              ? failed[0].reason instanceof Error
-                ? failed[0].reason.message
-                : String(failed[0].reason)
-              : undefined,
-          });
-        }
+        await createScheduleItems(items);
       }
 
       // Обновляем UI
@@ -717,15 +679,15 @@ const ScheduleCalendar = React.forwardRef<ScheduleCalendarHandle, ScheduleCalend
 
       notify?.({
         type: "success",
-        message: editingShift ? "Смена успешно обновлена" : "Смены успешно созданы",
+        message: editingShift ? t("schedule.updateSuccess") : t("schedule.createSuccess"),
       });
 
     } catch (e) {
       console.error("Error saving shift:", e);
       notify?.({
         type: "error",
-        message: "Ошибка при сохранении смены",
-        description: e instanceof Error ? e.message : "Неизвестная ошибка",
+        message: t("schedule.saveError"),
+        description: e instanceof Error ? e.message : t("schedule.unknownError"),
       });
     }
   };
@@ -763,7 +725,7 @@ const ScheduleCalendar = React.forwardRef<ScheduleCalendarHandle, ScheduleCalend
           {canManage && (
             <>
               <Chip
-                label="Все"
+                label={t("common.all")}
                 size="small"
                 variant={selectedRole === 'all' && !selectedSpec ? "filled" : "outlined"}
                 color={selectedRole === 'all' && !selectedSpec ? "primary" : "default"}
@@ -772,7 +734,7 @@ const ScheduleCalendar = React.forwardRef<ScheduleCalendarHandle, ScheduleCalend
                 sx={{ flexShrink: 0, fontWeight: 'bold' }}
               />
               <Chip
-                label="Специалисты"
+                label={t("schedule.specialists")}
                 size="small"
                 variant={selectedRole === 'specialist' ? "filled" : "outlined"}
                 color={selectedRole === 'specialist' ? "primary" : "default"}
@@ -781,7 +743,7 @@ const ScheduleCalendar = React.forwardRef<ScheduleCalendarHandle, ScheduleCalend
                 sx={{ flexShrink: 0 }}
               />
               <Chip
-                label="Менеджеры"
+                label={t("schedule.managers")}
                 size="small"
                 variant={selectedRole === 'manager' ? "filled" : "outlined"}
                 color={selectedRole === 'manager' ? "primary" : "default"}
@@ -790,7 +752,7 @@ const ScheduleCalendar = React.forwardRef<ScheduleCalendarHandle, ScheduleCalend
                 sx={{ flexShrink: 0 }}
               />
               <Chip
-                label="Бухгалтер"
+                label={t("schedule.accountant")}
                 size="small"
                 variant={selectedRole === 'accountant' ? "filled" : "outlined"}
                 color={selectedRole === 'accountant' ? "primary" : "default"}
@@ -799,7 +761,7 @@ const ScheduleCalendar = React.forwardRef<ScheduleCalendarHandle, ScheduleCalend
                 sx={{ flexShrink: 0 }}
               />
               <Chip
-                label="Ресепшн"
+                label={t("schedule.reception")}
                 size="small"
                 variant={selectedRole === 'receptionist' ? "filled" : "outlined"}
                 color={selectedRole === 'receptionist' ? "primary" : "default"}
@@ -862,7 +824,7 @@ const ScheduleCalendar = React.forwardRef<ScheduleCalendarHandle, ScheduleCalend
             {weeks.map((week, i) => (
               <TableRow key={String(i)}>
                 {week.map((day) => {
-                  const daySegments = filteredShifts.flatMap((shift) => getSegmentsForDay(shift, day));
+                  const daySegments = filteredShifts.flatMap((shift) => getSegmentsForDay(shift, day, t("schedule.unknownEmployee")));
                   const positioned = layoutDaySegments(daySegments);
                   const isToday = day.isSame(today, "day");
                   const isCurrentMonth = day.isSame(currentMonth, "month");
@@ -961,7 +923,7 @@ const ScheduleCalendar = React.forwardRef<ScheduleCalendarHandle, ScheduleCalend
               <Box>
                 <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 3 }}>
                   <Typography variant="h6">
-                    Смены: {selectedDate?.format("D MMMM")}
+                    {t("schedule.shiftsForDay", { date: selectedDate?.format("D MMMM") })}
                   </Typography>
                   <IconButton onClick={handleCloseDrawer}><Close /></IconButton>
                 </Stack>
@@ -989,12 +951,12 @@ const ScheduleCalendar = React.forwardRef<ScheduleCalendarHandle, ScheduleCalend
                   ))
                 }
                 {(!selectedDate || shifts.filter((s) => dayjs(selectedDate).isSame(s.startDate, "day")).length === 0) &&
-                  <Typography color="text.secondary" align="center" sx={{ mt: 4 }}>Нет смен на этот день</Typography>
+                  <Typography color="text.secondary" align="center" sx={{ mt: 4 }}>{t("schedule.noShiftsForDay")}</Typography>
                 }
               </Box>
               {canManage && (
                 <Button size="large" variant="contained" onClick={handleAddClick}>
-                  Добавить смену
+                  {t("schedule.addShift")}
                 </Button>
               )}
             </Stack>

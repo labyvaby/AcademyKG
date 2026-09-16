@@ -50,6 +50,15 @@ type ServiceOption = {
   id: string;
   label: string;
   maxParticipants?: number | null;
+  durationMinutes?: number | null;
+};
+
+// Конец = начало + длительность услуги. null, если длительность не задана.
+const endByDuration = (start: string, durationMinutes?: number | null): string | null => {
+  const minutes = Number(durationMinutes);
+  if (!start || !Number.isFinite(minutes) || minutes <= 0) return null;
+  const startAt = dayjs(`2000-01-01T${start}`);
+  return startAt.isValid() ? startAt.add(minutes, "minute").format("HH:mm") : null;
 };
 
 type Props = {
@@ -85,7 +94,22 @@ const ClientShiftForm: React.FC<Props> = ({
     id: s.id,
     label: s.name,
     maxParticipants: s.maxParticipants ?? null,
+    durationMinutes: s.durationMinutes ?? null,
   }));
+
+  // Выбор услуги / смена начала автоподставляют конец по длительности услуги;
+  // конец остаётся редактируемым вручную.
+  const handleServiceChange = (next: ServiceOption | null) => {
+    setService(next);
+    const autoEnd = endByDuration(startTime, next?.durationMinutes);
+    if (autoEnd) setEndTime(autoEnd);
+  };
+
+  const handleStartTimeChange = (nextStart: string) => {
+    setStartTime(nextStart);
+    const autoEnd = endByDuration(nextStart, service?.durationMinutes);
+    if (autoEnd) setEndTime(autoEnd);
+  };
 
   // Групповые занятия
   const [groupSessions, setGroupSessions] = useState<AppointmentGroup[]>([]);
@@ -297,7 +321,7 @@ const ClientShiftForm: React.FC<Props> = ({
             renderOption={(props, option) => {
               const { key, ...optionProps } = props;
               return (
-                <li key={key} {...optionProps}>
+                <li {...optionProps} key={option.id || key}>
                   {`${option.fullName || "Нет ФИО"} — ${option.phone || "Нет телефона"}`}
                 </li>
               );
@@ -323,7 +347,7 @@ const ClientShiftForm: React.FC<Props> = ({
           <AppAutocomplete
             options={serviceOptions}
             value={service}
-            onChange={(_, v) => setService(v)}
+            onChange={(_, v) => handleServiceChange(v)}
             loading={servicesLoading}
             getOptionLabel={(o) => o.label}
             isOptionEqualToValue={(a, b) => a.id === b.id}
@@ -424,7 +448,7 @@ const ClientShiftForm: React.FC<Props> = ({
                       </Typography>
                       <CustomTimePicker
                         value={dayjs(`2000-01-01T${startTime}`)}
-                        onChange={(val) => setStartTime(val ? val.format("HH:mm") : "")}
+                        onChange={(val) => handleStartTimeChange(val ? val.format("HH:mm") : "")}
                         slotProps={{ textField: { size: "small", fullWidth: true } }}
                       />
                     </Box>

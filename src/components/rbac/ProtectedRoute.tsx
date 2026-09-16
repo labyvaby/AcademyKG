@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Navigate } from 'react-router';
 import { useNotification } from "@refinedev/core";
 import LinearProgress from "@mui/material/LinearProgress";
@@ -47,6 +48,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   deniedRoles,
   redirectTo = '/home',
 }) => {
+  const { t } = useTranslation();
   const { hasAllPermissions, hasAnyPermission, hasRole, hasPermission, loading, role: userRole, isSuperAdmin } = usePermissions();
   const { open } = useNotification();
 
@@ -78,8 +80,8 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     if (userRole) {
       open?.({
         type: 'error',
-        message: 'Доступ запрещён',
-        description: 'У вас нет прав доступа к этому разделу',
+        message: t('rbac.accessDenied'),
+        description: t('rbac.noPermissionForSection'),
       });
     }
     return <Navigate to={getRedirectPath()} replace />;

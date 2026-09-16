@@ -39,7 +39,7 @@ export function mapSellableToServiceRow(item: any): ServiceRow {
     is_active: item.isActive ?? true,
     isGroup: item.isGroup ?? item.is_group ?? item.service?.isGroup ?? item.service?.is_group ?? false,
     maxParticipants: item.maxParticipants ?? null,
-    durationMinutes: item.durationMinutes ?? null,
+    durationMinutes: item.durationMinutes ?? item.duration_minutes ?? item.service?.durationMinutes ?? null,
     employee_ids: item.employeeIds ?? [],
   };
 

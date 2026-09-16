@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Box,
   Stack,
@@ -88,7 +89,7 @@ function formatTime(t?: string | null): string {
   return t.slice(0, 5);
 }
 
-function shiftDuration(start?: string | null, end?: string | null): string {
+function shiftDuration(start: string | null | undefined, end: string | null | undefined, hourUnit: string, minuteUnit: string): string {
   if (!start || !end) return "";
   const s = start.includes("T") ? dayjs(start) : dayjs(`2000-01-01T${start}`);
   const e = end.includes("T") ? dayjs(end) : dayjs(`2000-01-01T${end}`);
@@ -96,7 +97,7 @@ function shiftDuration(start?: string | null, end?: string | null): string {
   if (diff <= 0) return "";
   const h = Math.floor(diff / 60);
   const m = diff % 60;
-  return m > 0 ? `${h}ч ${m}мин` : `${h}ч`;
+  return m > 0 ? `${h}${hourUnit} ${m}${minuteUnit}` : `${h}${hourUnit}`;
 }
 
 function isIpAllowed(ip: string, allowedPattern: string): boolean {
@@ -131,6 +132,7 @@ type ShiftCardProps = {
 };
 
 const ShiftCard: React.FC<ShiftCardProps> = ({ shift, canEdit, onEdit, onDelete }) => {
+  const { t } = useTranslation();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const isActive = !!shift.clockIn && !shift.clockOut;
@@ -165,11 +167,11 @@ const ShiftCard: React.FC<ShiftCardProps> = ({ shift, canEdit, onEdit, onDelete 
           <Box sx={{ flex: 1, minWidth: 0 }}>
             <Stack direction="row" alignItems="center" justifyContent="space-between" flexWrap="wrap" gap={0.5}>
               <Typography variant="subtitle2" fontWeight={600} noWrap>
-                {shift.employee?.fullName ?? "Сотрудник"}
+                {shift.employee?.fullName ?? t("common.employee")}
               </Typography>
               <Chip
                 size="small"
-                label={isActive ? "На смене" : isDone ? "Завершено" : "Не начато"}
+                label={isActive ? t("skud.onShift") : isDone ? t("skud.completed") : t("skud.notStarted")}
                 color={isActive ? "success" : isDone ? "default" : "warning"}
                 icon={isActive || isDone
                   ? <CheckCircleOutlined sx={{ fontSize: 14 }} />
@@ -182,7 +184,7 @@ const ShiftCard: React.FC<ShiftCardProps> = ({ shift, canEdit, onEdit, onDelete 
             <Stack direction="row" spacing={0.5} alignItems="center" mt={0.5}>
               <LoginOutlined sx={{ fontSize: 14, color: "text.secondary" }} />
               <Typography variant="caption" color="text.secondary">
-                Плановое: {formatTime(shift.startTime)} – {formatTime(shift.endTime)}
+                {t("skud.planned")}: {formatTime(shift.startTime)} – {formatTime(shift.endTime)}
               </Typography>
             </Stack>
 
@@ -190,11 +192,11 @@ const ShiftCard: React.FC<ShiftCardProps> = ({ shift, canEdit, onEdit, onDelete 
               <Stack direction="row" spacing={0.5} alignItems="center" mt={0.25}>
                 <AccessTimeOutlined sx={{ fontSize: 14, color: isActive ? "success.main" : "text.secondary" }} />
                 <Typography variant="caption" color={isActive ? "success.main" : "text.secondary"} fontWeight={500}>
-                  Отмечено: {formatTime(shift.clockIn)}
+                  {t("skud.marked")}: {formatTime(shift.clockIn)}
                   {shift.clockOut && ` – ${formatTime(shift.clockOut)}`}
                   {shift.clockOut && (
                     <span style={{ marginLeft: 6, opacity: 0.7 }}>
-                      ({shiftDuration(shift.clockIn, shift.clockOut)})
+                      ({shiftDuration(shift.clockIn, shift.clockOut, t("skud.hourUnit"), t("skud.minuteUnit"))})
                     </span>
                   )}
                 </Typography>
@@ -204,12 +206,12 @@ const ShiftCard: React.FC<ShiftCardProps> = ({ shift, canEdit, onEdit, onDelete 
 
           {canEdit && (
             <Stack direction="row" spacing={0.5} flexShrink={0}>
-              <Tooltip title="Редактировать">
+              <Tooltip title={t("common.edit")}>
                 <IconButton size="small" onClick={() => onEdit(shift)} color="primary">
                   <EditOutlined fontSize="small" />
                 </IconButton>
               </Tooltip>
-              <Tooltip title="Удалить">
+              <Tooltip title={t("common.delete")}>
                 <IconButton size="small" onClick={() => onDelete(shift)} color="error">
                   <DeleteOutlineOutlined fontSize="small" />
                 </IconButton>
@@ -237,6 +239,7 @@ type ShiftFormProps = {
 const ShiftFormContent: React.FC<Omit<ShiftFormProps, "open">> = ({
   employees, initial, loading, onClose, onSave,
 }) => {
+  const { t } = useTranslation();
   const [employee, setEmployee] = useState<Employee | null>(null);
   const [shiftDate, setShiftDate] = useState<Dayjs>(dayjs());
   const [startTime, setStartTime] = useState<Dayjs>(dayjs("2000-01-01T09:00"));
@@ -281,11 +284,11 @@ const ShiftFormContent: React.FC<Omit<ShiftFormProps, "open">> = ({
   return (
     <Stack spacing={2.5} sx={{ p: { xs: 2, sm: 3 } }}>
       <Typography variant="h6" fontWeight={700}>
-        {initial ? "Редактировать смену" : "Создать смену"}
+        {initial ? t("skud.editShift") : t("skud.createShift")}
       </Typography>
 
       <Box>
-        <Label>Сотрудник *</Label>
+        <Label>{t("schedule.employeeRequired")}</Label>
         <Autocomplete
           options={employees}
           value={employee}
@@ -296,16 +299,16 @@ const ShiftFormContent: React.FC<Omit<ShiftFormProps, "open">> = ({
             <TextField
               {...params}
               size="small"
-              placeholder="Выберите сотрудника"
+              placeholder={t("schedule.selectEmployee")}
               error={touched && !employee}
-              helperText={touched && !employee ? "Обязательное поле" : ""}
+              helperText={touched && !employee ? t("common.requiredField") : ""}
             />
           )}
         />
       </Box>
 
       <Box>
-        <Label>Дата</Label>
+        <Label>{t("reports.date")}</Label>
         <CustomDatePicker
           value={shiftDate}
           onChange={(v) => v && setShiftDate(v)}
@@ -315,7 +318,7 @@ const ShiftFormContent: React.FC<Omit<ShiftFormProps, "open">> = ({
 
       <Stack direction="row" spacing={1.5}>
         <Box flex={1} minWidth={0}>
-          <Label>Начало</Label>
+          <Label>{t("schedule.startLabel")}</Label>
           <CustomTimePicker
             value={startTime}
             onChange={(v) => v && setStartTime(v)}
@@ -323,7 +326,7 @@ const ShiftFormContent: React.FC<Omit<ShiftFormProps, "open">> = ({
           />
         </Box>
         <Box flex={1} minWidth={0}>
-          <Label>Конец</Label>
+          <Label>{t("schedule.endLabel")}</Label>
           <CustomTimePicker
             value={endTime}
             onChange={(v) => v && setEndTime(v)}
@@ -339,13 +342,13 @@ const ShiftFormContent: React.FC<Omit<ShiftFormProps, "open">> = ({
             onChange={(e) => setIsNightShift(e.target.checked)}
           />
         }
-        label={<Typography variant="body2">Ночная смена</Typography>}
+        label={<Typography variant="body2">{t("skud.nightShift")}</Typography>}
       />
 
       <Stack direction="row" spacing={1.5} justifyContent="flex-end" pt={0.5}>
-        <Button onClick={onClose} color="inherit">Отмена</Button>
+        <Button onClick={onClose} color="inherit">{t("common.cancel")}</Button>
         <Button variant="contained" disableElevation onClick={handleSave} disabled={loading}>
-          {loading ? <CircularProgress size={18} color="inherit" /> : "Сохранить"}
+          {loading ? <CircularProgress size={18} color="inherit" /> : t("common.save")}
         </Button>
       </Stack>
     </Stack>
@@ -388,6 +391,7 @@ type SkudSettingFormProps = {
 const SkudSettingForm: React.FC<SkudSettingFormProps> = ({
   existing, currentIp, onSave, onCancel, saving, branchId,
 }) => {
+  const { t } = useTranslation();
   const [allowedIp, setAllowedIp] = useState(existing?.allowedIp ?? "");
   const [allowedSsid, setAllowedSsid] = useState(existing?.allowedSsid ?? "");
   const [enabled, setEnabled] = useState(existing?.enabled ?? false);
@@ -402,30 +406,30 @@ const SkudSettingForm: React.FC<SkudSettingFormProps> = ({
         control={
           <Switch checked={enabled} onChange={(e) => setEnabled(e.target.checked)} color="success" />
         }
-        label={<Typography variant="body2">Включить проверку сети перед отметкой</Typography>}
+        label={<Typography variant="body2">{t("skud.enableNetworkCheck")}</Typography>}
       />
 
       <Box>
         <Typography variant="body2" color="text.secondary" mb={0.5}>
-          Разрешённый IP-адрес или CIDR
+          {t("skud.allowedIpOrCidr")}
         </Typography>
         <Stack direction="row" spacing={1}>
           <TextField
             size="small"
             fullWidth
-            placeholder="например: 192.168.1.0/24 или 10.0.0.5"
+            placeholder={t("skud.ipExamplePlaceholder")}
             value={allowedIp}
             onChange={(e) => setAllowedIp(e.target.value)}
           />
           {currentIp && (
-            <Tooltip title={`Вставить мой IP: ${currentIp}`}>
+            <Tooltip title={t("skud.insertMyIp", { ip: currentIp })}>
               <Button
                 variant="outlined"
                 size="small"
                 sx={{ flexShrink: 0, whiteSpace: "nowrap" }}
                 onClick={() => setAllowedIp(currentIp)}
               >
-                Мой IP
+                {t("skud.myIp")}
               </Button>
             </Tooltip>
           )}
@@ -434,12 +438,12 @@ const SkudSettingForm: React.FC<SkudSettingFormProps> = ({
 
       <Box>
         <Typography variant="body2" color="text.secondary" mb={0.5}>
-          Название Wi-Fi сети (SSID) — опционально
+          {t("skud.wifiSsidOptional")}
         </Typography>
         <TextField
           size="small"
           fullWidth
-          placeholder="например: Office_WiFi"
+          placeholder={t("skud.ssidExamplePlaceholder")}
           value={allowedSsid}
           onChange={(e) => setAllowedSsid(e.target.value)}
         />
@@ -447,7 +451,7 @@ const SkudSettingForm: React.FC<SkudSettingFormProps> = ({
 
       <Stack direction="row" spacing={1} justifyContent="flex-end">
         <Button size="small" color="inherit" onClick={onCancel} disabled={saving}>
-          Отмена
+          {t("common.cancel")}
         </Button>
         <Button
           variant="contained"
@@ -457,7 +461,7 @@ const SkudSettingForm: React.FC<SkudSettingFormProps> = ({
           disabled={saving}
           onClick={handleSubmit}
         >
-          Сохранить
+          {t("common.save")}
         </Button>
       </Stack>
     </Stack>
@@ -465,6 +469,7 @@ const SkudSettingForm: React.FC<SkudSettingFormProps> = ({
 };
 
 const NetworkSettingsPanel: React.FC<NetworkSettingsProps> = ({ branches }) => {
+  const { t } = useTranslation();
   const [settings, setSettings] = useState<SkudSetting[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<string | null>(null);
@@ -534,7 +539,7 @@ const NetworkSettingsPanel: React.FC<NetworkSettingsProps> = ({ branches }) => {
       setEditingBranch(null);
       await loadSettings();
     } catch (e: any) {
-      setPanelError(e?.message || "Не удалось сохранить настройки СКУД");
+      setPanelError(e?.message || t("skud.saveSettingsError"));
     } finally {
       setSaving(null);
     }
@@ -560,17 +565,17 @@ const NetworkSettingsPanel: React.FC<NetworkSettingsProps> = ({ branches }) => {
           icon={<RouterOutlined />}
           sx={{ borderRadius: 2, "& .MuiAlert-message": { display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" } }}
         >
-          <span>Ваш текущий IP:</span>
+          <span>{t("skud.yourCurrentIp")}:</span>
           <Typography variant="body2" fontWeight={700} component="span">{currentIp}</Typography>
           <Typography variant="caption" color="text.secondary" component="span">
-            — можно скопировать в поле разрешённого IP
+            {t("skud.canCopyToAllowedIp")}
           </Typography>
         </Alert>
       )}
 
       {branches.length === 0 && (
         <Alert severity="warning" sx={{ borderRadius: 2 }}>
-          Нет доступных филиалов. Сначала создайте филиалы в разделе «Управление филиалами».
+          {t("skud.noBranchesAvailable")}
         </Alert>
       )}
 
@@ -592,7 +597,7 @@ const NetworkSettingsPanel: React.FC<NetworkSettingsProps> = ({ branches }) => {
                   {s && !isEditing && (
                     <Chip
                       size="small"
-                      label={s.enabled ? "Проверка включена" : "Проверка выключена"}
+                      label={s.enabled ? t("skud.checkEnabled") : t("skud.checkDisabled")}
                       color={s.enabled ? "success" : "default"}
                       sx={{ height: 22, fontSize: 11 }}
                     />
@@ -603,7 +608,7 @@ const NetworkSettingsPanel: React.FC<NetworkSettingsProps> = ({ branches }) => {
                 {!s && !isEditing && (
                   <Box>
                     <Typography variant="body2" color="text.secondary" mb={1.5}>
-                      Настройки для этого филиала ещё не созданы.
+                      {t("skud.settingsNotCreated")}
                     </Typography>
                     <Button
                       variant="outlined"
@@ -611,7 +616,7 @@ const NetworkSettingsPanel: React.FC<NetworkSettingsProps> = ({ branches }) => {
                       startIcon={<AddOutlined />}
                       onClick={() => { setPanelError(null); setEditingBranch(branch.id); }}
                     >
-                      Создать настройки
+                      {t("skud.createSettings")}
                     </Button>
                   </Box>
                 )}
@@ -626,7 +631,7 @@ const NetworkSettingsPanel: React.FC<NetworkSettingsProps> = ({ branches }) => {
                           IP/CIDR: <Typography component="span" variant="body2" fontWeight={600} color="text.primary">{s.allowedIp}</Typography>
                         </Typography>
                       ) : (
-                        <Typography variant="body2" color="text.disabled">IP не ограничен</Typography>
+                        <Typography variant="body2" color="text.disabled">{t("skud.ipNotRestricted")}</Typography>
                       )}
                       {s.allowedSsid && (
                         <Typography variant="body2" color="text.secondary">
@@ -641,7 +646,7 @@ const NetworkSettingsPanel: React.FC<NetworkSettingsProps> = ({ branches }) => {
                         startIcon={<EditOutlined />}
                         onClick={() => { setPanelError(null); setEditingBranch(branch.id); }}
                       >
-                        Изменить настройки
+                        {t("skud.editSettings")}
                       </Button>
                     </Stack>
                   </>
@@ -686,6 +691,7 @@ type BannerProps = {
 const CheckInBanner: React.FC<BannerProps> = ({
   shift, onCheckIn, onCheckOut, loading, blocked, blockedReason,
 }) => {
+  const { t } = useTranslation();
   const isActive = !!shift?.clockIn && !shift?.clockOut;
   const isDone = !!shift?.clockIn && !!shift?.clockOut;
 
@@ -715,14 +721,14 @@ const CheckInBanner: React.FC<BannerProps> = ({
           </Box>
           <Box>
             <Typography variant="subtitle1" fontWeight={700}>
-              {isActive ? "Вы на смене" : "Вы ещё не начали свой день"}
+              {isActive ? t("skud.youAreOnShift") : t("skud.youHaveNotStartedDay")}
             </Typography>
             <Typography variant="body2" color="text.secondary">
               {isActive
-                ? `Начало: ${formatTime(shift?.clockIn)}`
+                ? `${t("skud.start")}: ${formatTime(shift?.clockIn)}`
                 : blocked
-                ? blockedReason ?? "Отметка недоступна с текущей сети"
-                : "Пожалуйста, отметьтесь чтобы начать рабочий день"}
+                ? blockedReason ?? t("skud.checkInUnavailableFromNetwork")
+                : t("skud.pleaseCheckInToStartDay")}
             </Typography>
           </Box>
         </Stack>
@@ -739,7 +745,7 @@ const CheckInBanner: React.FC<BannerProps> = ({
             >
               {loading
                 ? <CircularProgress size={18} color="inherit" />
-                : isActive ? "Завершить смену" : "Отметиться"}
+                : isActive ? t("skud.endShift") : t("skud.checkIn")}
             </Button>
           </span>
         </Tooltip>
@@ -758,6 +764,7 @@ const CheckInBanner: React.FC<BannerProps> = ({
 // Main Page
 // ──────────────────────────────────────────────────────────────
 const SkudPage: React.FC = () => {
+  const { t } = useTranslation();
   const { hasPermission, employeeId, isSuperAdmin } = usePermissions();
   const { branches, selectedBranch } = useBranchContext();
 
@@ -808,7 +815,7 @@ const SkudPage: React.FC = () => {
     !isIpAllowed(currentIp, branchSetting.allowedIp)
   );
   const blockedReason = checkBlocked
-    ? `Ваш IP (${currentIp}) не входит в разрешённую сеть (${branchSetting?.allowedIp}). Убедитесь, что вы подключены к рабочей сети.`
+    ? t("skud.ipNotInAllowedNetwork", { ip: currentIp, allowedIp: branchSetting?.allowedIp })
     : undefined;
 
   // ── Загрузка данных ──────────────────────────────────────
@@ -884,7 +891,7 @@ const SkudPage: React.FC = () => {
       });
       await loadShifts();
     } catch (e: any) {
-      const msg = e?.message ?? "Ошибка при отметке";
+      const msg = e?.message ?? t("skud.checkInError");
       setCheckInError(msg);
     } finally {
       setCheckInLoading(false);
@@ -898,7 +905,7 @@ const SkudPage: React.FC = () => {
       await selfClockOut();
       await loadShifts();
     } catch (e: any) {
-      const msg = e?.message ?? "Ошибка при завершении смены";
+      const msg = e?.message ?? t("skud.checkOutError");
       setCheckInError(msg);
     } finally {
       setCheckInLoading(false);
@@ -942,7 +949,7 @@ const SkudPage: React.FC = () => {
   return (
     <Box sx={{ height: "100%", display: "flex", flexDirection: "column", overflowX: "hidden", overflowY: "auto" }} data-scrollable="true">
       <PageHeader
-        title="СКУД"
+        title={t("menu.skud")}
         onAdd={
           isManager && activeTab === "shifts"
             ? () => setAddOpen(true)
@@ -955,9 +962,9 @@ const SkudPage: React.FC = () => {
         addButtonText={
           canSelfClockIn && !isManager
             ? myShift?.clockIn && !myShift?.clockOut
-              ? "Завершить смену"
-              : "Отметиться"
-            : "Добавить смену"
+              ? t("skud.endShift")
+              : t("skud.checkIn")
+            : t("schedule.addShift")
         }
         addButtonIcon={
           canSelfClockIn && !isManager
@@ -979,7 +986,7 @@ const SkudPage: React.FC = () => {
               renderInput={(params) => (
                 <TextField
                   {...params}
-                  placeholder="Фильтр по сотруднику"
+                  placeholder={t("skud.filterByEmployee")}
                   InputProps={{
                     ...params.InputProps,
                     startAdornment: (
@@ -1006,8 +1013,8 @@ const SkudPage: React.FC = () => {
               "& .MuiTab-root": { textTransform: "none", fontWeight: 600, fontSize: "0.9rem", minHeight: 44 },
             }}
           >
-            <Tab label="Смены" value="shifts" icon={<AccessTimeOutlined sx={{ fontSize: 18 }} />} iconPosition="start" />
-            <Tab label="Настройки сети" value="settings" icon={<SettingsOutlined sx={{ fontSize: 18 }} />} iconPosition="start" />
+            <Tab label={t("skud.shiftsTab")} value="shifts" icon={<AccessTimeOutlined sx={{ fontSize: 18 }} />} iconPosition="start" />
+            <Tab label={t("skud.networkSettingsTab")} value="settings" icon={<SettingsOutlined sx={{ fontSize: 18 }} />} iconPosition="start" />
           </Tabs>
           <Divider />
         </Box>
@@ -1026,10 +1033,10 @@ const SkudPage: React.FC = () => {
                     icon={isActive ? <CheckCircleOutlined /> : isDone ? <CheckCircleOutlined /> : <RadioButtonUncheckedOutlined />}
                     label={
                       isActive
-                        ? `На смене с ${formatTime(myShift?.clockIn)}`
+                        ? t("skud.onShiftSince", { time: formatTime(myShift?.clockIn) })
                         : isDone
-                        ? `Смена завершена: ${formatTime(myShift?.clockIn)} – ${formatTime(myShift?.clockOut)}`
-                        : "Смена не начата"
+                        ? t("skud.shiftCompletedRange", { from: formatTime(myShift?.clockIn), to: formatTime(myShift?.clockOut) })
+                        : t("skud.shiftNotStarted")
                     }
                     color={isActive ? "success" : isDone ? "default" : "warning"}
                     variant={isDone ? "outlined" : "filled"}
@@ -1059,8 +1066,8 @@ const SkudPage: React.FC = () => {
             ) : visibleShifts.length === 0 ? (
               <Alert severity="info" sx={{ borderRadius: 2 }}>
                 {isManager
-                  ? "Нет смен на сегодня. Нажмите «Добавить смену» чтобы создать."
-                  : "У вас нет запланированной смены на сегодня."}
+                  ? t("skud.noShiftsToday")
+                  : t("skud.noPlannedShiftToday")}
               </Alert>
             ) : (
               <Stack spacing={1.5}>
@@ -1092,9 +1099,9 @@ const SkudPage: React.FC = () => {
 
       <ConfirmDialog
         open={!!deleteShift_}
-        title="Удалить смену?"
-        message={`Смена сотрудника «${deleteShift_?.employee?.fullName ?? ""}» будет удалена.`}
-        confirmText="Удалить"
+        title={t("skud.deleteShiftTitle")}
+        message={t("skud.deleteShiftMessage", { name: deleteShift_?.employee?.fullName ?? "" })}
+        confirmText={t("common.delete")}
         variant="error"
         onConfirm={handleDeleteConfirm}
         onClose={() => setDeleteShift(null)}
