@@ -31,7 +31,8 @@ import ShiftForm from "./ShiftForm";
 import { useConfirmDialog } from "../../hooks/useConfirmDialog";
 import { apiFetch } from "../../utility/apiClient";
 import { fetchAllPages } from "../../utility/pagination";
-import { fetchShifts, createShift, updateShift, deleteShift, Shift as ServiceShift } from "../../services/shifts";
+import { createEmployeeSchedulesBulk, type EmployeeScheduleBulkItem } from "../../services/employeeSchedules";
+import { useEffectiveBranch } from "../../hooks/useEffectiveBranch";
 
 dayjs.extend(isBetween);
 dayjs.extend(isoWeek);
@@ -408,6 +409,9 @@ const ScheduleCalendar = React.forwardRef<ScheduleCalendarHandle, ScheduleCalend
   const today = dayjs();
   const { open: notify } = useNotification();
   const { confirm, ConfirmDialog } = useConfirmDialog();
+  // Филиал, в который пишем смены: у суперадмина — из глобального переключателя,
+  // у остальных — свой primaryBranch (совпадает с дефолтом бэка).
+  const effectiveBranch = useEffectiveBranch();
 
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -449,20 +453,15 @@ const ScheduleCalendar = React.forwardRef<ScheduleCalendarHandle, ScheduleCalend
       }));
       setEmployees(loadedEmps);
 
-      // 2. Расписание из /api/v1/employee-schedules/ — грузим весь месяц постранично
+      // 2. Расписание из /api/v1/employee-schedules/ — серверный фильтр по датам
+      // (dateFrom/dateTo включительно), чтобы не тянуть все смены за всё время.
       const startDate = currentMonth.startOf('month').subtract(7, 'day').format('YYYY-MM-DD');
       const endDate = currentMonth.endOf('month').add(7, 'day').format('YYYY-MM-DD');
       const schedResults = await fetchAllPages<any>(
-        `/api/v1/employee-schedules/?ordering=date`
+        `/api/v1/employee-schedules/?ordering=date&dateFrom=${startDate}&dateTo=${endDate}`
       );
 
-      // Фильтруем по диапазону дат на клиенте
-      const inRange = schedResults.filter((s: any) => {
-        const d = s.date ?? "";
-        return d >= startDate && d <= endDate;
-      });
-
-      const mappedShifts: Shift[] = inRange.map((s: any) => {
+      const mappedShifts: Shift[] = schedResults.map((s: any) => {
         const empId = typeof s.employee === 'object' ? s.employee?.id : s.employee;
         const empObj = loadedEmps.find(e => e.id === empId) || (typeof s.employee === 'object' ? {
           id: empId,
@@ -619,51 +618,36 @@ const ScheduleCalendar = React.forwardRef<ScheduleCalendarHandle, ScheduleCalend
     }
   };
 
-  const saveScheduleEntry = async (employeeId: string, date: string, formData: any) => {
-    await apiFetch("/api/v1/employee-schedules/", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        employee: employeeId,
-        date,
-        startTime: formData.start_time ? formData.start_time + ":00" : undefined,
-        endTime: formData.end_time ? formData.end_time + ":00" : undefined,
-        shiftType: formData.is_night_shift ? "night" : "day",
-        isDayOff: false,
-      }),
-    });
+  const toScheduleItem = (employeeId: string, date: string, formData: any): EmployeeScheduleBulkItem => ({
+    employee: employeeId,
+    date,
+    startTime: formData.start_time ? formData.start_time + ":00" : undefined,
+    endTime: formData.end_time ? formData.end_time + ":00" : undefined,
+    shiftType: formData.is_night_shift ? "night" : "day",
+    isDayOff: false,
+    branch: effectiveBranch?.id,
+  });
+
+  // Одним bulk-запросом; смены, которые уже есть на дату (сотрудник+филиал+дата),
+  // пропускаем и сообщаем об этом — часы существующей смены меняются через PATCH.
+  const createScheduleItems = async (items: EmployeeScheduleBulkItem[]) => {
+    if (items.length === 0) return;
+    const result = await createEmployeeSchedulesBulk(items, "skip");
+    if (result.createdCount === 0 && result.skippedCount > 0) {
+      throw new Error(t("schedule.allSkipped", { count: result.skippedCount }));
+    }
+    if (result.skippedCount > 0) {
+      notify?.({
+        type: "error",
+        message: t("schedule.createdSkipped", { created: result.createdCount, skipped: result.skippedCount }),
+      });
+    }
   };
 
   const handleFormSuccess = async (formData: any) => {
     try {
       if (Array.isArray(formData)) {
-        const results = await Promise.allSettled(
-          formData.map((f) => saveScheduleEntry(f.employes_id, f.startDate, f))
-        );
-        const failed = results.filter((result) => result.status === "rejected");
-        const succeeded = results.length - failed.length;
-
-        if (succeeded === 0) {
-          throw new Error(
-            failed[0]?.status === "rejected"
-              ? failed[0].reason instanceof Error
-                ? failed[0].reason.message
-                : String(failed[0].reason)
-              : t("schedule.createFailedGeneric"),
-          );
-        }
-
-        if (failed.length > 0) {
-          notify?.({
-            type: "error",
-            message: t("schedule.createdPartial", { succeeded, total: results.length }),
-            description: failed[0]?.status === "rejected"
-              ? failed[0].reason instanceof Error
-                ? failed[0].reason.message
-                : String(failed[0].reason)
-              : undefined,
-          });
-        }
+        await createScheduleItems(formData.map((f) => toScheduleItem(f.employes_id, f.startDate, f)));
       } else if (editingShift) {
         // Редактирование одной записи
         await apiFetch(`/api/v1/employee-schedules/${editingShift.id}/`, {
@@ -680,36 +664,12 @@ const ScheduleCalendar = React.forwardRef<ScheduleCalendarHandle, ScheduleCalend
         const start = dayjs(formData.startDate);
         const end = dayjs(formData.endDate);
         const diff = end.diff(start, 'day');
-        const requests: Promise<void>[] = [];
+        const items: EmployeeScheduleBulkItem[] = [];
         for (let i = 0; i <= diff; i++) {
           const d = start.add(i, 'day').format('YYYY-MM-DD');
-          requests.push(saveScheduleEntry(formData.employes_id, d, formData));
+          items.push(toScheduleItem(formData.employes_id, d, formData));
         }
-        const results = await Promise.allSettled(requests);
-        const failed = results.filter((result) => result.status === "rejected");
-        const succeeded = results.length - failed.length;
-
-        if (succeeded === 0) {
-          throw new Error(
-            failed[0]?.status === "rejected"
-              ? failed[0].reason instanceof Error
-                ? failed[0].reason.message
-                : String(failed[0].reason)
-              : t("schedule.createFailedGeneric"),
-          );
-        }
-
-        if (failed.length > 0) {
-          notify?.({
-            type: "error",
-            message: t("schedule.createdPartial", { succeeded, total: results.length }),
-            description: failed[0]?.status === "rejected"
-              ? failed[0].reason instanceof Error
-                ? failed[0].reason.message
-                : String(failed[0].reason)
-              : undefined,
-          });
-        }
+        await createScheduleItems(items);
       }
 
       // Обновляем UI

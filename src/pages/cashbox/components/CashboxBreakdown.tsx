@@ -23,11 +23,13 @@ import CreditCardIcon from "@mui/icons-material/CreditCard";
 import FunctionsIcon from "@mui/icons-material/Functions";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 
-import { CashboxSummaryData } from "../../../types/cashbox";
+import { CashboxSummaryBlocks } from "../../../types/cashbox";
 
 type Props = {
-    data: CashboxSummaryData;
+    data: CashboxSummaryBlocks;
     format: (value: number | string | null | undefined) => string;
+    /** Z-отчёт смены: без KPI-карточек и без ledger-остатков (они в шапке смены: openingCash/expectedCash) */
+    compact?: boolean;
 };
 
 const n = (v: unknown): number => {
@@ -35,28 +37,44 @@ const n = (v: unknown): number => {
     return Number.isFinite(x) ? x : 0;
 };
 
-// Расшифровка кассы одного филиала: приход − расходы ± корректировки = остаток.
-export const CashboxBreakdown: React.FC<Props> = ({ data, format }) => {
+// Расшифровка кассы: остаток на начало + приход − расходы ± движения наличных = остаток на конец.
+export const CashboxBreakdown: React.FC<Props> = ({ data, format, compact = false }) => {
     const { t } = useTranslation();
     const theme = useTheme();
 
     const income = { cash: n(data.appointments.cashSum), card: n(data.appointments.cardSum) };
     const expenses = { cash: n(data.expenses.cashSum), card: n(data.expenses.cashlessSum) };
     const net = { cash: n(data.net.cashSum), card: n(data.net.cardSum) };
-    // Корректировки выводим как разницу: net − (приход − расходы). Так строка всегда
-    // сходится с итогом, какой бы знак ни был у adjustments.*NetSum на бэке
-    // (сейчас везде 0, знак не подтверждён — см. тикет 2026-09-15-cashbox).
+    // Корректировок на бэке сейчас нет (adjustments.* = 0, FinancialAdjustment удалён);
+    // строку показываем только если net вдруг перестанет сходиться с приход − расходы.
     const adjustments = {
         cash: net.cash - (income.cash - expenses.cash),
         card: net.card - (income.card - expenses.card),
     };
     const hasAdjustments = adjustments.cash !== 0 || adjustments.card !== 0 || data.counts.adjustmentsCount > 0;
 
+    const movements = {
+        cashIn: n(data.movements?.cashInSum),
+        cashOut: n(data.movements?.cashOutSum),
+        collection: n(data.movements?.collectionSum),
+        net: n(data.movements?.netSum),
+    };
+    const movementsCount = data.counts.movementsCount ?? 0;
+    const hasMovements = movements.net !== 0 || movementsCount > 0;
+
+    const hasBalances = !compact && !!data.openingBalance && !!data.closingBalance;
+    const opening = { cash: n(data.openingBalance?.cash), card: n(data.openingBalance?.card) };
+    const closing = { cash: n(data.closingBalance?.cash), card: n(data.closingBalance?.card) };
+
+    const deductions = { cash: n(data.deductions?.cashSum), card: n(data.deductions?.cashlessSum) };
+    const hasDeductions = deductions.cash !== 0 || deductions.card !== 0;
+
     const nonCash = { balance: n(data.appointments.balanceSum), bonuses: n(data.appointments.bonusesSum) };
     const isEmpty =
         data.counts.appointmentsCount === 0 &&
         data.counts.expensesCount === 0 &&
         data.counts.adjustmentsCount === 0 &&
+        movementsCount === 0 &&
         net.cash === 0 &&
         net.card === 0;
 
@@ -121,12 +139,12 @@ export const CashboxBreakdown: React.FC<Props> = ({ data, format }) => {
         cash: string,
         card: string,
         total: string,
-        opts: { bold?: boolean; count?: number; tone?: "success" | "error" | "warning" } = {},
+        opts: { bold?: boolean; count?: number; tone?: "success" | "error" | "warning"; muted?: boolean } = {},
     ) => (
         <TableRow
             sx={opts.bold ? { "& td": { borderBottom: "none", fontWeight: 800, bgcolor: alpha(theme.palette.primary.main, 0.04) } } : undefined}
         >
-            <TableCell sx={{ fontWeight: opts.bold ? 800 : 600 }}>
+            <TableCell sx={{ fontWeight: opts.bold ? 800 : 600, color: opts.muted ? "text.secondary" : undefined }}>
                 <Stack direction="row" spacing={1} alignItems="center">
                     <span>{label}</span>
                     {opts.count !== undefined && (
@@ -138,7 +156,11 @@ export const CashboxBreakdown: React.FC<Props> = ({ data, format }) => {
                 <TableCell
                     key={i}
                     align="right"
-                    sx={{ whiteSpace: "nowrap", color: opts.tone ? `${opts.tone}.main` : undefined, fontWeight: opts.bold ? 800 : 500 }}
+                    sx={{
+                        whiteSpace: "nowrap",
+                        color: opts.tone ? `${opts.tone}.main` : opts.muted ? "text.secondary" : undefined,
+                        fontWeight: opts.bold ? 800 : 500,
+                    }}
                 >
                     {v}
                 </TableCell>
@@ -146,19 +168,30 @@ export const CashboxBreakdown: React.FC<Props> = ({ data, format }) => {
         </TableRow>
     );
 
+    const hint = (label: string, title: string) => (
+        <Tooltip title={title}>
+            <Stack direction="row" spacing={0.5} alignItems="center" component="span">
+                <span>{label}</span>
+                <InfoOutlinedIcon sx={{ fontSize: 16, color: "text.secondary" }} />
+            </Stack>
+        </Tooltip>
+    );
+
     return (
         <Stack spacing={2.5}>
-            <Grid2 container spacing={2.5}>
-                <Grid2 size={{ xs: 12, md: 4 }}>
-                    {kpi(t("cashbox.cash"), net.cash, "success", <WalletIcon />)}
+            {!compact && (
+                <Grid2 container spacing={2.5}>
+                    <Grid2 size={{ xs: 12, md: 4 }}>
+                        {kpi(t("cashbox.cash"), net.cash, "success", <WalletIcon />)}
+                    </Grid2>
+                    <Grid2 size={{ xs: 12, md: 4 }}>
+                        {kpi(t("cashbox.cashless"), net.card, "info", <CreditCardIcon />)}
+                    </Grid2>
+                    <Grid2 size={{ xs: 12, md: 4 }}>
+                        {kpi(t("cashbox.totalMoney"), net.cash + net.card, "primary", <FunctionsIcon />)}
+                    </Grid2>
                 </Grid2>
-                <Grid2 size={{ xs: 12, md: 4 }}>
-                    {kpi(t("cashbox.cashless"), net.card, "info", <CreditCardIcon />)}
-                </Grid2>
-                <Grid2 size={{ xs: 12, md: 4 }}>
-                    {kpi(t("cashbox.totalMoney"), net.cash + net.card, "primary", <FunctionsIcon />)}
-                </Grid2>
-            </Grid2>
+            )}
 
             {isEmpty && (
                 <Typography variant="body2" color="text.secondary" textAlign="center">
@@ -182,6 +215,14 @@ export const CashboxBreakdown: React.FC<Props> = ({ data, format }) => {
                                 </TableRow>
                             </TableHead>
                             <TableBody>
+                                {hasBalances &&
+                                    row(
+                                        hint(t("cashbox.openingBalance"), t("cashbox.openingBalanceHint")),
+                                        format(opening.cash),
+                                        format(opening.card),
+                                        format(opening.cash + opening.card),
+                                        { muted: true },
+                                    )}
                                 {row(
                                     t("cashbox.incomeAppointments"),
                                     signed(income.cash, "+"),
@@ -198,18 +239,14 @@ export const CashboxBreakdown: React.FC<Props> = ({ data, format }) => {
                                 )}
                                 {hasAdjustments &&
                                     row(
-                                        <Tooltip
-                                            title={t("cashbox.adjustmentsHint", {
+                                        hint(
+                                            t("cashbox.adjustments"),
+                                            t("cashbox.adjustmentsHint", {
                                                 refunds: format(data.adjustments.refundsSum),
                                                 reversals: format(data.adjustments.reversalsSum),
                                                 adjustments: format(data.adjustments.adjustmentsSum),
-                                            })}
-                                        >
-                                            <Stack direction="row" spacing={0.5} alignItems="center" component="span">
-                                                <span>{t("cashbox.adjustments")}</span>
-                                                <InfoOutlinedIcon sx={{ fontSize: 16, color: "text.secondary" }} />
-                                            </Stack>
-                                        </Tooltip>,
+                                            }),
+                                        ),
                                         signed(adjustments.cash, "±"),
                                         signed(adjustments.card, "±"),
                                         signed(adjustments.cash + adjustments.card, "±"),
@@ -217,21 +254,44 @@ export const CashboxBreakdown: React.FC<Props> = ({ data, format }) => {
                                     )}
                                 {row(
                                     t("cashbox.netForPeriod"),
-                                    format(net.cash),
-                                    format(net.card),
-                                    format(net.cash + net.card),
-                                    { bold: true },
+                                    signed(net.cash, "±"),
+                                    signed(net.card, "±"),
+                                    signed(net.cash + net.card, "±"),
+                                    { bold: !hasBalances },
                                 )}
+                                {(hasMovements || hasBalances) &&
+                                    row(
+                                        hint(
+                                            t("cashbox.movements"),
+                                            t("cashbox.movementsHint", {
+                                                cashIn: format(movements.cashIn),
+                                                cashOut: format(movements.cashOut),
+                                                collection: format(movements.collection),
+                                            }),
+                                        ),
+                                        signed(movements.net, "±"),
+                                        format(0),
+                                        signed(movements.net, "±"),
+                                        { count: movementsCount, tone: "warning" },
+                                    )}
+                                {hasBalances &&
+                                    row(
+                                        t("cashbox.closingBalance"),
+                                        format(closing.cash),
+                                        format(closing.card),
+                                        format(closing.cash + closing.card),
+                                        { bold: true },
+                                    )}
                             </TableBody>
                         </Table>
                     </TableContainer>
                     <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1.5 }}>
-                        {t("cashbox.turnoverNote")}
+                        {t(hasBalances ? "cashbox.ledgerNote" : "cashbox.turnoverNote")}
                     </Typography>
                 </CardContent>
             </Card>
 
-            {(nonCash.balance !== 0 || nonCash.bonuses !== 0) && (
+            {(nonCash.balance !== 0 || nonCash.bonuses !== 0 || hasDeductions) && (
                 <Card variant="outlined" sx={{ borderRadius: 4 }}>
                     <CardContent sx={{ p: { xs: 2, md: 3 } }}>
                         <Typography variant="h6" sx={{ fontWeight: 800, mb: 0.5 }}>
@@ -240,13 +300,32 @@ export const CashboxBreakdown: React.FC<Props> = ({ data, format }) => {
                         <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
                             {t("cashbox.nonCashNote")}
                         </Typography>
-                        <Stack direction={{ xs: "column", sm: "row" }} spacing={{ xs: 1, sm: 4 }}>
-                            <Typography>
-                                {t("cashbox.paidByBalance")}: <b>{format(nonCash.balance)}</b>
-                            </Typography>
-                            <Typography>
-                                {t("cashbox.paidByBonuses")}: <b>{format(nonCash.bonuses)}</b>
-                            </Typography>
+                        <Stack direction={{ xs: "column", sm: "row" }} spacing={{ xs: 1, sm: 4 }} useFlexGap flexWrap="wrap">
+                            {(nonCash.balance !== 0 || !hasDeductions) && (
+                                <Typography>
+                                    {t("cashbox.paidByBalance")}: <b>{format(nonCash.balance)}</b>
+                                </Typography>
+                            )}
+                            {(nonCash.bonuses !== 0 || !hasDeductions) && (
+                                <Typography>
+                                    {t("cashbox.paidByBonuses")}: <b>{format(nonCash.bonuses)}</b>
+                                </Typography>
+                            )}
+                            {hasDeductions && (
+                                <Tooltip title={t("cashbox.deductionsHint")}>
+                                    <Typography component="span">
+                                        {t("cashbox.deductions")}: <b>{format(deductions.cash + deductions.card)}</b>
+                                        {data.counts.deductionsCount ? (
+                                            <Chip
+                                                size="small"
+                                                variant="outlined"
+                                                sx={{ ml: 1 }}
+                                                label={t("cashbox.operationsCount", { count: data.counts.deductionsCount })}
+                                            />
+                                        ) : null}
+                                    </Typography>
+                                </Tooltip>
+                            )}
                         </Stack>
                     </CardContent>
                 </Card>

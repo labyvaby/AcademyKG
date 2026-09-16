@@ -53,6 +53,12 @@ const _CASHBOX = {
   READ:   'cashbox.read',
   UPDATE: 'cashbox.update',
   DELETE: 'cashbox.delete',
+  /** Открыть смену кассы (POST /cashbox/shifts/open/). */
+  SHIFT_OPEN: 'cashbox.shift_open',
+  /** Закрыть любую открытую смену доступного филиала. */
+  SHIFT_CLOSE: 'cashbox.shift_close',
+  /** Внесение / изъятие / инкассация наличных и их отмена. */
+  MOVEMENTS_MANAGE: 'cashbox.movements_manage',
 } as const;
 
 const _CLIENT_DOCUMENTS = {
@@ -296,6 +302,9 @@ export const PERMISSIONS = {
   CASHBOX_READ:                      _CASHBOX.READ,
   CASHBOX_UPDATE:                    _CASHBOX.UPDATE,
   CASHBOX_DELETE:                    _CASHBOX.DELETE,
+  CASHBOX_SHIFT_OPEN:                _CASHBOX.SHIFT_OPEN,
+  CASHBOX_SHIFT_CLOSE:               _CASHBOX.SHIFT_CLOSE,
+  CASHBOX_MOVEMENTS_MANAGE:          _CASHBOX.MOVEMENTS_MANAGE,
   // Документы клиентов
   CLIENT_DOCUMENTS_CREATE:           _CLIENT_DOCUMENTS.CREATE,
   CLIENT_DOCUMENTS_READ:             _CLIENT_DOCUMENTS.READ,
@@ -456,6 +465,9 @@ export const P = {
   CASHBOX_READ:                      _CASHBOX.READ,
   CASHBOX_UPDATE:                    _CASHBOX.UPDATE,
   CASHBOX_DELETE:                    _CASHBOX.DELETE,
+  CASHBOX_SHIFT_OPEN:                _CASHBOX.SHIFT_OPEN,
+  CASHBOX_SHIFT_CLOSE:               _CASHBOX.SHIFT_CLOSE,
+  CASHBOX_MOVEMENTS_MANAGE:          _CASHBOX.MOVEMENTS_MANAGE,
   // Документы клиентов
   CLIENT_DOCUMENTS_CREATE:           _CLIENT_DOCUMENTS.CREATE,
   CLIENT_DOCUMENTS_READ:             _CLIENT_DOCUMENTS.READ,

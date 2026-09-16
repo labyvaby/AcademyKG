@@ -1,10 +1,12 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
     Box,
     Stack,
     CircularProgress,
     Paper,
+    Tab,
+    Tabs,
     Typography,
     ToggleButton,
     ToggleButtonGroup,
@@ -14,7 +16,7 @@ import {
 import { alpha, useTheme } from "@mui/material/styles";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
-import { useQueries, useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import dayjs from "dayjs";
 
 import { PageHeader, ReportBranchSelect } from "../../components/ui";
@@ -25,59 +27,67 @@ import { useBranchContext } from "../../contexts/branch-context";
 import { getCashboxSummary } from "../../services/cashbox";
 import { CASHBOX_DATE_FORMAT, CashboxPeriod, CashboxPreset, periodForPreset } from "./cashboxPeriod";
 import { CashboxBreakdown } from "./components/CashboxBreakdown";
-import { CashboxBranchesTable, CashboxBranchRow } from "./components/CashboxBranchesTable";
+import { CashboxBranchesTable } from "./components/CashboxBranchesTable";
+import { CashboxJournal } from "./components/CashboxJournal";
+import { CashboxShifts } from "./components/CashboxShifts";
 
 const PRESETS: Exclude<CashboxPreset, "custom">[] = ["today", "yesterday", "week", "month"];
+
+type CashboxTab = "summary" | "journal" | "shifts";
 
 const CashboxPage: React.FC = () => {
     const { t } = useTranslation();
     usePageTitle(t("menu.cashbox"));
     const theme = useTheme();
+    const queryClient = useQueryClient();
     const { isSuperAdmin } = usePermissions();
     const { branches, setSelectedBranch } = useBranchContext();
-    // Тот же скоуп, что у отчётов: не-суперадмин всегда шлёт явный ?branch=
-    // (без него бэк отвечает 400 «Укажите организацию или филиал»).
+    // Тот же скоуп, что у отчётов: не-суперадмин всегда шлёт явный ?branch=.
     const { branchId, branch, ready } = useReportBranchScope();
-    const { format } = useReportCurrency();
+    const { format, suffix, currency } = useReportCurrency();
 
     const [period, setPeriod] = useState<CashboxPeriod>(() => periodForPreset("today"));
+    const [tab, setTab] = useState<CashboxTab>("summary");
     const allBranchesMode = isSuperAdmin() && !branchId;
 
-    const single = useQuery({
-        queryKey: ["cashbox-summary", branchId, period.dateFrom, period.dateTo],
+    // «Все филиалы» одним запросом (ответ бэка A2): сотрудник с ролью superadmin
+    // шлёт organization=<своя>; Django-суперюзер (несколько организаций в списке
+    // филиалов) — без параметров, бэк сам отдаст все филиалы с разбивкой.
+    const organizationId = useMemo(() => {
+        const ids = new Set(branches.map((b) => b.organizationId).filter((id): id is string => !!id));
+        return ids.size === 1 ? Array.from(ids)[0] : undefined;
+    }, [branches]);
+
+    const branchById = useMemo(() => new Map(branches.map((b) => [b.id, b])), [branches]);
+    const branchNameById = (id: string | null) => {
+        if (!id) return "—";
+        const b = branchById.get(id);
+        return b ? b.brandName || b.name : id;
+    };
+    const branchCurrencyById = (id: string | null) => (id ? branchById.get(id)?.currency : undefined);
+
+    const summary = useQuery({
+        queryKey: ["cashbox-summary", branchId ?? `org:${organizationId ?? "all"}`, period.dateFrom, period.dateTo],
         queryFn: ({ signal }) =>
-            getCashboxSummary({ branch: branchId, dateFrom: period.dateFrom, dateTo: period.dateTo, signal }),
-        enabled: ready && !!branchId,
+            getCashboxSummary({
+                branch: branchId,
+                organization: branchId ? undefined : organizationId,
+                dateFrom: period.dateFrom,
+                dateTo: period.dateTo,
+                signal,
+            }),
+        enabled: ready && (!!branchId || allBranchesMode),
     });
-
-    const perBranch = useQueries({
-        queries: (allBranchesMode && ready ? branches : []).map((b) => ({
-            queryKey: ["cashbox-summary", b.id, period.dateFrom, period.dateTo],
-            queryFn: ({ signal }: { signal: AbortSignal }) =>
-                getCashboxSummary({
-                    branch: b.id,
-                    dateFrom: period.dateFrom,
-                    dateTo: period.dateTo,
-                    signal,
-                    skipClientRateLimit: true,
-                }),
-        })),
-    });
-
-    const branchRows: CashboxBranchRow[] = allBranchesMode
-        ? branches.map((b, i) => ({
-              branch: b,
-              data: perBranch[i]?.data?.data,
-              loading: perBranch[i]?.isLoading ?? true,
-              error: perBranch[i]?.error ? (perBranch[i].error as Error).message : undefined,
-          }))
-        : [];
 
     const refresh = () => {
-        if (allBranchesMode) perBranch.forEach((q) => void q.refetch());
-        else void single.refetch();
+        void queryClient.invalidateQueries({ queryKey: ["cashbox-summary"] });
+        void queryClient.invalidateQueries({ queryKey: ["cashbox-entries"] });
+        void queryClient.invalidateQueries({ queryKey: ["cashbox-shift-current"] });
+        void queryClient.invalidateQueries({ queryKey: ["cashbox-shift-summary"] });
+        void queryClient.invalidateQueries({ queryKey: ["cashbox-shifts"] });
+        void queryClient.invalidateQueries({ queryKey: ["cashbox-movements"] });
     };
-    const isFetching = allBranchesMode ? perBranch.some((q) => q.isFetching) : single.isFetching;
+    const isFetching = summary.isFetching;
 
     const setCustomDate = (key: "dateFrom" | "dateTo", value: dayjs.Dayjs | null) => {
         if (!value || !value.isValid()) return;
@@ -95,57 +105,92 @@ const CashboxPage: React.FC = () => {
             ? dayjs(period.dateFrom).format("DD.MM.YYYY")
             : `${dayjs(period.dateFrom).format("DD.MM.YYYY")} — ${dayjs(period.dateTo).format("DD.MM.YYYY")}`;
 
-    const renderContent = () => {
-        if (!ready) {
-            return (
-                <Box sx={{ display: "flex", justifyContent: "center", p: 10 }}>
-                    <CircularProgress size={54} thickness={4} />
-                </Box>
-            );
-        }
+    const spinner = (
+        <Box sx={{ display: "flex", justifyContent: "center", p: 10 }}>
+            <CircularProgress size={54} thickness={4} />
+        </Box>
+    );
+
+    const errorBox = (message?: string) => (
+        <Paper
+            variant="outlined"
+            sx={{
+                p: 3,
+                borderRadius: 3,
+                borderColor: "error.main",
+                bgcolor: alpha(theme.palette.error.main, 0.05),
+            }}
+        >
+            <Typography variant="h6" color="error.main" sx={{ fontWeight: 700, mb: 1 }}>
+                {t("cashbox.loadFailed")}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+                {message || t("cashbox.noData")}
+            </Typography>
+        </Paper>
+    );
+
+    const renderSummary = () => {
+        if (summary.isLoading) return spinner;
+        if (summary.error || !summary.data?.data) return errorBox((summary.error as Error | null)?.message);
+        const data = summary.data.data;
         if (allBranchesMode) {
             return (
                 <CashboxBranchesTable
-                    rows={branchRows}
-                    onSelectBranch={(b) => setSelectedBranch(b)}
+                    rows={data.byBranch ?? []}
+                    onSelectBranch={(id) => {
+                        const b = branchById.get(id);
+                        if (b) setSelectedBranch(b);
+                    }}
                 />
             );
         }
-        if (!branchId) {
+        return <CashboxBreakdown data={data} format={format} />;
+    };
+
+    const renderContent = () => {
+        if (!ready) return spinner;
+        if (!branchId && !allBranchesMode) {
             return (
                 <Typography variant="h6" color="text.secondary" textAlign="center">
                     {t("cashbox.noBranch")}
                 </Typography>
             );
         }
-        if (single.isLoading) {
-            return (
-                <Box sx={{ display: "flex", justifyContent: "center", p: 10 }}>
-                    <CircularProgress size={54} thickness={4} />
-                </Box>
-            );
+        switch (tab) {
+            case "journal":
+                return (
+                    <CashboxJournal
+                        branchId={branchId}
+                        organizationId={organizationId}
+                        dateFrom={period.dateFrom}
+                        dateTo={period.dateTo}
+                        currency={branchId ? currency : undefined}
+                        branchNameById={branchNameById}
+                        branchCurrencyById={branchCurrencyById}
+                    />
+                );
+            case "shifts":
+                if (!branchId) {
+                    return (
+                        <Typography variant="h6" color="text.secondary" textAlign="center">
+                            {t("cashbox.shiftsNeedBranch")}
+                        </Typography>
+                    );
+                }
+                return (
+                    <CashboxShifts
+                        branchId={branchId}
+                        dateFrom={period.dateFrom}
+                        dateTo={period.dateTo}
+                        format={format}
+                        suffix={suffix}
+                    />
+                );
+            case "summary":
+            default:
+                return renderSummary();
         }
-        if (single.error || !single.data?.data) {
-            return (
-                <Paper
-                    variant="outlined"
-                    sx={{
-                        p: 3,
-                        borderRadius: 3,
-                        borderColor: "error.main",
-                        bgcolor: alpha(theme.palette.error.main, 0.05),
-                    }}
-                >
-                    <Typography variant="h6" color="error.main" sx={{ fontWeight: 700, mb: 1 }}>
-                        {t("cashbox.loadFailed")}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                        {(single.error as Error | null)?.message || t("cashbox.noData")}
-                    </Typography>
-                </Paper>
-            );
-        }
-        return <CashboxBreakdown data={single.data.data} format={format} />;
     };
 
     return (
@@ -227,6 +272,19 @@ const CashboxPage: React.FC = () => {
                             </Stack>
                         </Stack>
                     </Paper>
+
+                    <Box sx={{ borderBottom: 1, borderColor: "divider" }}>
+                        <Tabs
+                            value={tab}
+                            onChange={(_, v: CashboxTab) => setTab(v)}
+                            variant="scrollable"
+                            allowScrollButtonsMobile
+                        >
+                            <Tab value="summary" label={t("cashbox.tabs.summary")} sx={{ textTransform: "none", fontWeight: 700 }} />
+                            <Tab value="journal" label={t("cashbox.tabs.journal")} sx={{ textTransform: "none", fontWeight: 700 }} />
+                            <Tab value="shifts" label={t("cashbox.tabs.shifts")} sx={{ textTransform: "none", fontWeight: 700 }} />
+                        </Tabs>
+                    </Box>
 
                     {renderContent()}
                 </Stack>
