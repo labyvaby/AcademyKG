@@ -56,6 +56,8 @@ import { useMobileSidebar } from "./mobile-context";
 import { SettingsModal } from "./SettingsModal";
 import { usePermissions } from "../../hooks/usePermissions";
 import { PERMISSIONS } from "../../constants/permissions";
+import { useNewBookingsCount } from "../../hooks/useNewBookingsCount";
+import EventAvailableOutlined from "@mui/icons-material/EventAvailableOutlined";
 
 import { AccountBalanceWalletOutlined } from "@mui/icons-material";
 
@@ -380,6 +382,8 @@ type SidebarEntry = {
   label: string;
   category: MenuCategory;
   visible: boolean;
+  /** Точка-индикатор: есть что обработать (например, новые онлайн-заявки). */
+  badge?: boolean;
 };
 
 // LocalStorage-ключ для запоминания выбранной категории между сессиями.
@@ -390,6 +394,7 @@ const SidebarSecondary: React.FC = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const { hasPermission, loading: permissionsLoading } = usePermissions();
+  const newBookingsCount = useNewBookingsCount();
   const { t } = useTranslation();
 
   const [activeCategory, setActiveCategory] = React.useState<MenuCategory | "all">(() => {
@@ -419,6 +424,7 @@ const SidebarSecondary: React.FC = () => {
     { to: "/home", icon: <HomeOutlined />, label: t("menu.reception"), category: "work", visible: hasPermission(PERMISSIONS.APPOINTMENTS_READ) && hasPermission(PERMISSIONS.RECEPTION_READ) },
     { to: "/specialist", icon: <LocalHospitalOutlined />, label: t("menu.specialist"), category: "work", visible: hasPermission(PERMISSIONS.APPOINTMENTS_READ) },
     { to: "/all-appointments", icon: <HistoryOutlined />, label: t("menu.allServices"), category: "work", visible: hasPermission(PERMISSIONS.APPOINTMENTS_READ) },
+    { to: "/bookings", icon: <EventAvailableOutlined />, label: t("menu.bookings"), category: "work", visible: hasPermission(PERMISSIONS.BOOKINGS_READ), badge: newBookingsCount > 0 },
     { to: "/schedule", icon: <CalendarMonthOutlined />, label: t("menu.schedule"), category: "work", visible: hasPermission(PERMISSIONS.EMPLOYEE_SCHEDULES_READ) },
     { to: "/skud", icon: <SecurityOutlined />, label: t("menu.skud"), category: "work", visible: hasPermission(PERMISSIONS.WORK_SHIFTS_READ) || hasPermission(PERMISSIONS.WORK_SHIFTS_SELF_CLOCK_IN) },
     { to: "/client-schedule", icon: <CalendarMonthOutlined />, label: t("menu.clientSchedule"), category: "work", visible: hasPermission(PERMISSIONS.CLIENT_SCHEDULES_READ) },
@@ -507,6 +513,7 @@ const SidebarSecondary: React.FC = () => {
             icon={e.icon}
             label={e.label}
             collapsed={siderCollapsed}
+            showBadge={e.badge}
           />
         ))}
       </List>
