@@ -108,12 +108,10 @@ export const BookingSettingsDrawer: React.FC<{ open: boolean; onClose: () => voi
   const employees: Option[] = React.useMemo(
     () =>
       (employeesQuery.data ?? [])
-        .filter((e: any) => {
-          // Работает в филиале: основной филиал или доступ через allowedBranches (как проверяет бэк).
-          const primary = String(e.primaryBranch?.id ?? e.branch?.id ?? e.branch ?? "");
-          const allowed: string[] = (e.allowedBranches ?? []).map((b: any) => String(b?.id ?? b));
-          return primary === branchId || allowed.includes(branchId);
-        })
+        // Только сотрудники с этим основным филиалом (как проверяет бэк): приём по заявке
+        // создаётся с проверкой исполнителя по основному филиалу — иначе регистратор
+        // филиала не сможет подтвердить заявку.
+        .filter((e: any) => String(e.primaryBranch?.id ?? e.branch?.id ?? e.branch ?? "") === branchId)
         .map((e: any) => ({ id: String(e.id), name: String(e.fullName ?? e.full_name ?? "") })),
     [employeesQuery.data, branchId],
   );
