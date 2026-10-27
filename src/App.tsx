@@ -45,6 +45,7 @@ import { API_BASE_URL } from "./utility/apiClient";
 import { getDefaultAuthorizedRoute } from "./utils/permissionHelpers";
 import dataProvider from "@refinedev/simple-rest";
 import { ShiftStartBanner } from "./components/skud/ShiftStartBanner";
+import { BookingConflictsNotice } from "./components/bookings/BookingConflictsNotice";
 
 // ОПТИМИЗАЦИЯ: Все страницы загружаются через lazy() для code splitting
 const UnderConstruction = lazy(() =>
@@ -342,6 +343,7 @@ function App() {
                                 }}
                               >
                                 <ShiftStartBanner />
+                                <BookingConflictsNotice />
                                 <Outlet />
                               </ThemedLayout>
                             </MobileSidebarProvider>

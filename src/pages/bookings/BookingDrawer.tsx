@@ -45,6 +45,7 @@ import {
   resolveBookingPrepayment,
   type BookingDetail,
   type PrepaymentDecision,
+  type SlotConflict,
 } from "../../services/bookings";
 import {
   BOOKING_STATUS_COLOR,
@@ -169,7 +170,12 @@ const BookingDetails: React.FC<{ booking: BookingDetail; lang: string; onDone: (
 
   let actions: React.ReactNode;
   if (booking.status === "awaiting_payment") {
-    actions = <Alert severity="info">{t("bookings.drawer.awaitingPayment")}</Alert>;
+    actions = (
+      <Stack spacing={2}>
+        <SlotConflicts booking={booking} lang={lang} />
+        <Alert severity="info">{t("bookings.drawer.awaitingPayment")}</Alert>
+      </Stack>
+    );
   } else if (booking.status === "new") {
     actions = <ProcessBooking booking={booking} onDone={onDone} />;
   } else if (booking.prepaymentNeedsAttention) {
@@ -579,6 +585,7 @@ const ProcessBooking: React.FC<{ booking: BookingDetail; onDone: () => void }> =
   const [reason, setReason] = React.useState("");
   const [decision, setDecision] = React.useState<"refunded" | "balance">("balance");
   const [decisionComment, setDecisionComment] = React.useState("");
+  const [attachConflict, setAttachConflict] = React.useState<SlotConflict | null>(null);
 
   const confirm = useMutation({
     mutationFn: (patientId: string) => confirmBooking(booking.id, patientId),
@@ -609,6 +616,20 @@ const ProcessBooking: React.FC<{ booking: BookingDetail; onDone: () => void }> =
 
   return (
     <Stack spacing={2}>
+      <SlotConflicts
+        booking={booking}
+        lang={i18n.language}
+        onAttach={canAttach ? setAttachConflict : undefined}
+        onReject={
+          canReject
+            ? () => {
+                setReason((current) => current || t("bookings.conflicts.rejectReason"));
+                setRejectOpen(true);
+              }
+            : undefined
+        }
+      />
+
       <Typography variant="subtitle1" fontWeight={800}>
         {t("bookings.drawer.pickClient")}
       </Typography>
@@ -696,7 +717,119 @@ const ProcessBooking: React.FC<{ booking: BookingDetail; onDone: () => void }> =
       </Dialog>
 
       <AttachDialog open={attachOpen} onClose={() => setAttachOpen(false)} booking={booking} patient={selected} onDone={onDone} />
+      <AttachConflictDialog booking={booking} conflict={attachConflict} onClose={() => setAttachConflict(null)} onDone={onDone} />
     </Stack>
+  );
+};
+
+// ── Время заявки уже занято приёмом ─────────────────────────────────────────
+
+/** Приёмы специалиста на время заявки (записали вручную) — мягкое предупреждение, не запрет. */
+const SlotConflicts: React.FC<{
+  booking: BookingDetail;
+  lang: string;
+  onAttach?: (conflict: SlotConflict) => void;
+  onReject?: () => void;
+}> = ({ booking, lang, onAttach, onReject }) => {
+  const { t } = useTranslation();
+  const conflicts = booking.slotConflicts ?? [];
+  if (conflicts.length === 0) return null;
+  const actionable = booking.status === "new";
+  return (
+    <Alert severity="warning">
+      <Typography variant="body2" fontWeight={700}>
+        {t("bookings.conflicts.title")}
+      </Typography>
+      <Stack spacing={1} sx={{ mt: 0.5 }}>
+        {conflicts.map((c) => (
+          <Box key={c.id}>
+            <Typography variant="body2">
+              {formatBookingStart(c.appointmentAt, booking.branch.timezone, lang)} ·{" "}
+              {t("book.minutes", { count: c.durationMinutes })} · {c.patient?.fullName ?? t("bookings.conflicts.hiddenClient")}
+              {c.branch && c.branch.id !== booking.branch.id ? ` · ${c.branch.name}` : ""}
+            </Typography>
+            <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 0.5 }}>
+              {c.sameClient && <Chip size="small" color="success" variant="outlined" label={t("bookings.conflicts.sameClient")} />}
+              {actionable && onAttach && c.accessible && (
+                <Button size="small" variant="outlined" color="inherit" onClick={() => onAttach(c)}>
+                  {t("bookings.conflicts.attach")}
+                </Button>
+              )}
+            </Stack>
+          </Box>
+        ))}
+      </Stack>
+      <Typography variant="caption" color="text.secondary" component="div" sx={{ mt: 1 }}>
+        {actionable ? t("bookings.conflicts.hint") : t("bookings.conflicts.hintAwaiting")}
+      </Typography>
+      {actionable && onReject && (
+        <Button size="small" color="error" onClick={onReject} sx={{ mt: 0.5, ml: -0.5 }}>
+          {t("bookings.conflicts.reject")}
+        </Button>
+      )}
+    </Alert>
+  );
+};
+
+/** Закрыть заявку приёмом, который уже стоит на её время. */
+const AttachConflictDialog: React.FC<{
+  booking: BookingDetail;
+  conflict: SlotConflict | null;
+  onClose: () => void;
+  onDone: () => void;
+}> = ({ booking, conflict, onClose, onDone }) => {
+  const { t, i18n } = useTranslation();
+  const { open: notify } = useNotification();
+  const invalidate = useInvalidateBookings(booking.id);
+  // Последний выбранный приём: текст не пропадает, пока диалог закрывается.
+  const [shown, setShown] = React.useState<SlotConflict | null>(conflict);
+  React.useEffect(() => {
+    if (conflict) setShown(conflict);
+  }, [conflict]);
+  const attach = useMutation({
+    mutationFn: (appointmentId: string) => attachBooking(booking.id, appointmentId),
+    onSuccess: () => {
+      invalidate();
+      onClose();
+      notify?.({ type: "success", message: t("bookings.attach.done") });
+      onDone();
+    },
+  });
+  const close = () => {
+    attach.reset();
+    onClose();
+  };
+
+  return (
+    <Dialog open={Boolean(conflict)} onClose={close} fullWidth maxWidth="xs">
+      <DialogTitle>{t("bookings.attach.title")}</DialogTitle>
+      <DialogContent>
+        {shown && (
+          <Typography variant="body1" fontWeight={700} sx={{ mb: 1 }}>
+            {formatBookingStart(shown.appointmentAt, booking.branch.timezone, i18n.language)} · {shown.patient?.fullName}
+          </Typography>
+        )}
+        <Typography variant="body2" color="text.secondary">
+          {isPaidUnresolved(booking) ? t("bookings.conflicts.attachTextPaid") : t("bookings.conflicts.attachText")}
+        </Typography>
+        {shown && !shown.sameClient && (
+          <Alert severity="info" sx={{ mt: 2 }}>
+            {t("bookings.conflicts.otherClient")}
+          </Alert>
+        )}
+        {attach.isError && (
+          <Alert severity="error" sx={{ mt: 2 }}>
+            {(attach.error as Error).message}
+          </Alert>
+        )}
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={close}>{t("bookings.drawer.cancel")}</Button>
+        <Button variant="contained" disabled={!conflict || attach.isPending} onClick={() => conflict && attach.mutate(conflict.id)}>
+          {t("bookings.attach.submit")}
+        </Button>
+      </DialogActions>
+    </Dialog>
   );
 };
 

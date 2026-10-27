@@ -18,6 +18,7 @@ import LinkOutlined from "@mui/icons-material/LinkOutlined";
 import SettingsOutlined from "@mui/icons-material/SettingsOutlined";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
+import { useSearchParams } from "react-router";
 
 import { PageHeader } from "../../components/ui";
 import { PERMISSIONS } from "../../constants/permissions";
@@ -76,6 +77,7 @@ const BookingsPage: React.FC = () => {
   const [search, setSearch] = React.useState("");
   const [debouncedSearch, setDebouncedSearch] = React.useState("");
   const [page, setPage] = React.useState(1);
+  const [searchParams, setSearchParams] = useSearchParams();
   const [openId, setOpenId] = React.useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = React.useState(false);
   const [linkCopied, setLinkCopied] = React.useState(false);
@@ -85,6 +87,20 @@ const BookingsPage: React.FC = () => {
     return () => window.clearTimeout(id);
   }, [search]);
   React.useEffect(() => setPage(1), [tab, debouncedSearch]);
+  // ?open=<id> — ссылка на заявку из предупреждения «на это время онлайн-заявка».
+  const linkedId = searchParams.get("open");
+  React.useEffect(() => {
+    if (!linkedId) return;
+    setOpenId(linkedId);
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete("open");
+        return next;
+      },
+      { replace: true },
+    );
+  }, [linkedId, setSearchParams]);
 
   const query = useQuery({
     queryKey: ["bookings", tab, debouncedSearch, page],
@@ -268,6 +284,11 @@ const BookingRow: React.FC<{ booking: Booking; lang: string; onOpen: () => void 
             )}
             {booking.claimedBy && booking.status === "new" && (
               <Chip size="small" variant="outlined" label={t("bookings.claim.chip", { who: booking.claimedBy.fullName })} />
+            )}
+            {booking.slotTaken && (
+              <Tooltip title={t("bookings.conflicts.chipHint")}>
+                <Chip size="small" color="error" variant="outlined" label={t("bookings.conflicts.chip")} />
+              </Tooltip>
             )}
             <Chip
               size="small"

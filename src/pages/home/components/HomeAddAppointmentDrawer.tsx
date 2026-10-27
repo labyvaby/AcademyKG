@@ -41,6 +41,7 @@ import { isValidSellableService, mapSellableToServiceRow } from "../../../utils/
 import AddPatientDrawer from "../../../components/patients/AddPatientDrawer";
 import AddServiceDrawer from "../../../components/services/AddServiceDrawer";
 import { apiFetch, getBranchFilter } from "../../../utility/apiClient";
+import { announceBookingConflicts } from "../../../services/bookings";
 import { roundDateTimeLocalToStep } from "../../../utility/time";
 import { branchWallTime, nowInBranch } from "../../../utility/branchTime";
 import { type ServiceRow } from "../../../services/services";
@@ -735,6 +736,7 @@ export const HomeAddAppointmentDrawer: React.FC<
           });
           const created = res?.data ?? res;
           createdPeriodId = String(created?.id ?? "");
+          announceBookingConflicts(res);
         } catch (err: any) {
           delete dayAppointmentsCacheRef.current[bookingDate];
           notify?.({
@@ -1056,6 +1058,7 @@ export const HomeAddAppointmentDrawer: React.FC<
         });
         const created = res?.data ?? res;
         createdAppointmentId = String(created?.id ?? "");
+        announceBookingConflicts(res);
       } catch (err: any) {
         console.error("API Error creating appointment:", err);
         // Сбрасываем кеш дня чтобы следующая попытка загрузила актуальные данные

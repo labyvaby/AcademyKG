@@ -66,6 +66,8 @@ export type Booking = {
   prepayment: BookingPrepayment | null;
   /** Деньги пришли, а заявка закрыта без приёма и без решения по деньгам. */
   prepaymentNeedsAttention: boolean;
+  /** На время заявки у специалиста уже есть приём (записали вручную) — заявку нужно разобрать. */
+  slotTaken: boolean;
   createdAt: string;
 };
 
@@ -77,7 +79,22 @@ export type SuggestedPatient = {
   branch: { id: string; name: string } | null;
 };
 
-export type BookingDetail = Booking & { suggestedPatients: SuggestedPatient[] };
+/** Приём специалиста на время заявки (во всех филиалах). */
+export type SlotConflict = {
+  id: string;
+  appointmentAt: string;
+  durationMinutes: number;
+  status: string;
+  branch: { id: string; name: string } | null;
+  /** null — приём вне филиалов сотрудника: клиента не показываем. */
+  patient: BookingRef | null;
+  /** Приём в филиалах сотрудника — им можно закрыть заявку. */
+  accessible: boolean;
+  /** У клиента приёма тот же телефон, что в заявке. */
+  sameClient: boolean;
+};
+
+export type BookingDetail = Booking & { suggestedPatients: SuggestedPatient[]; slotConflicts: SlotConflict[] };
 
 type Envelope<T> = { data?: T } & Partial<T>;
 type Page<T> = { count: number; results: T[] };
@@ -168,6 +185,24 @@ export const resolveBookingPrepayment = async (id: string, decision: PrepaymentD
 /** «Взять в работу» (перебивает чужую отметку) / снять отметку. */
 export const claimBooking = async (id: string, claim: boolean): Promise<BookingDetail> =>
   unwrap(await apiFetch<Envelope<BookingDetail>>(`/api/v1/bookings/${id}/claim/`, { method: claim ? "POST" : "DELETE" }));
+
+// ── Приём поверх заявки ─────────────────────────────────────────────────────
+
+/** Заявка, которая держит время приёма: `bookingConflicts` в ответе POST/PATCH /appointments/. */
+export type BookingConflict = Pick<
+  Booking,
+  "id" | "code" | "status" | "startAt" | "durationMinutes" | "clientName" | "contactName" | "contactPhone" | "branch" | "performer"
+>;
+
+export const BOOKING_CONFLICTS_EVENT = "booking-conflicts";
+
+/** Приём создан или перенесён на время онлайн-заявки — показать предупреждение (BookingConflictsNotice). */
+export function announceBookingConflicts(response: unknown): void {
+  const body = (response as { data?: unknown } | null)?.data ?? response;
+  const conflicts = (body as { bookingConflicts?: BookingConflict[] } | null)?.bookingConflicts;
+  if (!Array.isArray(conflicts) || conflicts.length === 0) return;
+  window.dispatchEvent(new CustomEvent<BookingConflict[]>(BOOKING_CONFLICTS_EVENT, { detail: conflicts }));
+}
 
 // ── Настройки онлайн-записи (одна запись на филиал) ─────────────────────────
 

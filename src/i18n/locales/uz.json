@@ -1456,6 +1456,24 @@
       "submit": "Arizani yopish",
       "done": "Ariza qabul bilan yopildi"
     },
+    "conflicts": {
+      "title": "Bu vaqtda mutaxassisda allaqachon qabul bor:",
+      "hiddenClient": "boshqa filial mijozi",
+      "sameClient": "O‘sha mehmon — telefon mos keldi",
+      "attach": "Arizani shu qabul bilan yopish",
+      "reject": "Arizani rad etish",
+      "rejectReason": "Mutaxassisning vaqti band",
+      "hint": "Agar mehmon qo‘ng‘iroq orqali allaqachon yozilgan bo‘lsa — arizani shu qabul bilan yoping. Agar vaqtni boshqa mijoz egallagan bo‘lsa, mehmonga qo‘ng‘iroq qilib, boshqa vaqt taklif qiling yoki arizani rad eting.",
+      "hintAwaiting": "Mehmon hali oldindan to‘lovni to‘layapti. To‘lov kelganda arizani shu qabul bilan yoping yoki rad eting.",
+      "attachText": "Ariza tasdiqlangan bo‘ladi va shu qabulga bog‘lanadi, mehmon kod orqali shu yozuvni ko‘radi.",
+      "attachTextPaid": "Ariza tasdiqlangan bo‘ladi va shu qabulga bog‘lanadi, onlayn oldindan to‘lov unga o‘tkaziladi.",
+      "otherClient": "Bu qabuldagi mijozning telefoni arizadagi raqamga mos kelmaydi. Bu o‘sha mehmon ekanini tekshiring.",
+      "chip": "Vaqt band",
+      "chipHint": "Ariza vaqtida mutaxassisda allaqachon qabul bor — arizani oching va ko‘rib chiqing.",
+      "noticeTitle": "Bu vaqtga onlayn ariza bor",
+      "noticeHint": "Qabul saqlandi. Arizani oching: uni shu qabul bilan yoping yoki rad eting.",
+      "openBooking": "Ochish"
+    },
     "payments": {
       "title": "Onlayn to‘lov (Bakai Paylink)",
       "statusReady": "Yoqilgan: mehmonlar oldindan to‘lovni bank sahifasida to‘laydi",
