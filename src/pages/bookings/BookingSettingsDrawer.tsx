@@ -6,6 +6,11 @@ import {
   Button,
   Chip,
   CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Divider,
   Drawer,
   FormControlLabel,
   IconButton,
@@ -16,6 +21,7 @@ import {
   Typography,
 } from "@mui/material";
 import CloseOutlined from "@mui/icons-material/CloseOutlined";
+import ContentCopyOutlined from "@mui/icons-material/ContentCopyOutlined";
 import { useNotification } from "@refinedev/core";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
@@ -26,8 +32,11 @@ import { usePermissions } from "../../hooks/usePermissions";
 import { apiFetch } from "../../utility/apiClient";
 import {
   createBookingSettings,
+  getBookingPaymentSettings,
   listBookingSettings,
+  updateBookingPaymentSettings,
   updateBookingSettings,
+  type BookingPaymentSettingsInput,
   type BookingSettings,
   type BookingSettingsInput,
 } from "../../services/bookings";
@@ -49,6 +58,8 @@ const DEFAULTS: FormState = {
   horizonDays: 14,
   services: [],
   employees: [],
+  contactPhone: "",
+  prepayments: [],
 };
 
 const toForm = (s?: BookingSettings): FormState =>
@@ -60,8 +71,18 @@ const toForm = (s?: BookingSettings): FormState =>
         horizonDays: s.horizonDays,
         services: s.services,
         employees: s.employees,
+        contactPhone: s.contactPhone ?? "",
+        // "700.00" → "700": так сумма читается и правится как в поле ввода.
+        prepayments: (s.prepayments ?? []).map((p) => ({ employee: p.employee, amount: String(Number(p.amount)) })),
       }
     : DEFAULTS;
+
+/** Что уходит на бэк: только выбранные на витрине специалисты и суммы больше нуля. */
+const toInput = (form: FormState): BookingSettingsInput => ({
+  ...form,
+  contactPhone: form.contactPhone.replace(/[\s()-]/g, ""),
+  prepayments: form.prepayments.filter((p) => form.employees.includes(p.employee) && Number(p.amount) > 0),
+});
 
 const pickResults = (res: any): any[] => res?.data?.results ?? res?.results ?? res?.data ?? [];
 
@@ -120,7 +141,8 @@ export const BookingSettingsDrawer: React.FC<{ open: boolean; onClose: () => voi
   React.useEffect(() => setForm(toForm(current)), [current, branchId]);
 
   const save = useMutation({
-    mutationFn: () => (current ? updateBookingSettings(current.id, form) : createBookingSettings(branchId, form)),
+    mutationFn: () =>
+      current ? updateBookingSettings(current.id, toInput(form)) : createBookingSettings(branchId, toInput(form)),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["booking-settings"] });
       notify?.({ type: "success", message: t("bookings.settings.saved") });
@@ -133,6 +155,18 @@ export const BookingSettingsDrawer: React.FC<{ open: boolean; onClose: () => voi
   const services = servicesQuery.data ?? [];
   const byId = (list: Option[], ids: string[]) => list.filter((o) => ids.includes(o.id));
   const loading = settingsQuery.isLoading || servicesQuery.isLoading || employeesQuery.isLoading;
+
+  const paymentQuery = useQuery({ queryKey: ["booking-payment-settings"], queryFn: getBookingPaymentSettings, enabled: open });
+  const prepaymentAmount = (employeeId: string) => form.prepayments.find((p) => p.employee === employeeId)?.amount ?? "";
+  const setPrepaymentAmount = (employeeId: string, amount: string) =>
+    setForm((f) => ({
+      ...f,
+      prepayments: [
+        ...f.prepayments.filter((p) => p.employee !== employeeId),
+        ...(amount ? [{ employee: employeeId, amount }] : []),
+      ],
+    }));
+  const hasPrepayments = form.prepayments.some((p) => form.employees.includes(p.employee) && Number(p.amount) > 0);
 
   return (
     <Drawer anchor="right" open={open} onClose={onClose} PaperProps={{ sx: { width: { xs: "100%", sm: 520 } } }}>
@@ -216,6 +250,51 @@ export const BookingSettingsDrawer: React.FC<{ open: boolean; onClose: () => voi
               )}
             />
 
+            {form.employees.length > 0 && (
+              <Box>
+                <Typography variant="subtitle2" fontWeight={800}>
+                  {t("bookings.settings.prepaymentTitle")}
+                </Typography>
+                <Typography variant="caption" color="text.secondary" component="p" sx={{ mb: 1 }}>
+                  {t("bookings.settings.prepaymentHint")}
+                </Typography>
+                <Stack spacing={1}>
+                  {byId(employees, form.employees).map((employee) => (
+                    <Stack key={employee.id} direction="row" spacing={1} alignItems="center">
+                      <Typography variant="body2" sx={{ flex: 1, minWidth: 0 }} noWrap>
+                        {employee.name}
+                      </Typography>
+                      <TextField
+                        size="small"
+                        type="number"
+                        placeholder={t("bookings.settings.prepaymentNone")}
+                        value={prepaymentAmount(employee.id)}
+                        onChange={(e) => setPrepaymentAmount(employee.id, e.target.value.replace(/[^\d.]/g, ""))}
+                        disabled={!canEdit}
+                        inputProps={{ min: 0, step: 50, "aria-label": t("bookings.settings.prepaymentAmount", { name: employee.name }) }}
+                        sx={{ width: 140 }}
+                      />
+                    </Stack>
+                  ))}
+                </Stack>
+                {hasPrepayments && paymentQuery.data && !paymentQuery.data.paymentsReady && (
+                  <Alert severity="warning" sx={{ mt: 1 }}>
+                    {t("bookings.settings.prepaymentNotReady")}
+                  </Alert>
+                )}
+              </Box>
+            )}
+
+            <TextField
+              label={t("bookings.settings.contactPhone")}
+              helperText={t("bookings.settings.contactPhoneHint")}
+              placeholder="+996312000111"
+              value={form.contactPhone}
+              onChange={(e) => setForm((f) => ({ ...f, contactPhone: e.target.value }))}
+              disabled={!canEdit}
+              inputProps={{ inputMode: "tel", maxLength: 20 }}
+            />
+
             <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
               <NumberSelect
                 label={t("bookings.settings.step")}
@@ -258,6 +337,9 @@ export const BookingSettingsDrawer: React.FC<{ open: boolean; onClose: () => voi
             )}
           </>
         )}
+
+        <Divider />
+        <PaymentSettingsSection />
       </Stack>
 
       <Box sx={{ p: 2, borderTop: 1, borderColor: "divider" }}>
@@ -299,5 +381,173 @@ const NumberSelect: React.FC<{
         </MenuItem>
       ))}
     </TextField>
+  );
+};
+
+/**
+ * Онлайн-оплата организации (Bakai Paylink): один мерчант на организацию. Менять может
+ * только администратор организации; остальные видят, включена ли оплата.
+ */
+const PaymentSettingsSection: React.FC = () => {
+  const { t } = useTranslation();
+  const { open: notify } = useNotification();
+  const queryClient = useQueryClient();
+  const query = useQuery({ queryKey: ["booking-payment-settings"], queryFn: getBookingPaymentSettings });
+  const data = query.data;
+
+  const [enabled, setEnabled] = React.useState(false);
+  const [token, setToken] = React.useState("");
+  const [termsUrl, setTermsUrl] = React.useState("");
+  const [privacyUrl, setPrivacyUrl] = React.useState("");
+  const [rotateOpen, setRotateOpen] = React.useState(false);
+  const [copied, setCopied] = React.useState(false);
+  React.useEffect(() => {
+    if (!data) return;
+    setEnabled(data.paymentsEnabled);
+    setTermsUrl(data.termsUrl);
+    setPrivacyUrl(data.privacyUrl);
+    setToken("");
+  }, [data]);
+
+  const save = useMutation({
+    mutationFn: (input: BookingPaymentSettingsInput) => updateBookingPaymentSettings(input),
+    onSuccess: (next) => {
+      queryClient.setQueryData(["booking-payment-settings"], next);
+      setRotateOpen(false);
+      notify?.({ type: "success", message: t("bookings.payments.saved") });
+    },
+  });
+
+  if (query.isLoading) {
+    return (
+      <Box sx={{ display: "flex", justifyContent: "center", py: 2 }}>
+        <CircularProgress size={24} />
+      </Box>
+    );
+  }
+  if (query.isError || !data) {
+    return <Alert severity="error">{(query.error as Error | null)?.message ?? t("bookings.payments.loadError")}</Alert>;
+  }
+
+  const status = data.paymentsReady
+    ? t("bookings.payments.statusReady")
+    : data.paymentsEnabled
+      ? t("bookings.payments.statusNotReady")
+      : t("bookings.payments.statusOff");
+
+  const copyWebhook = async () => {
+    if (!data.webhookUrl) return;
+    try {
+      await navigator.clipboard.writeText(data.webhookUrl);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch {
+      window.prompt(t("bookings.payments.webhookUrl"), data.webhookUrl);
+    }
+  };
+
+  return (
+    <Stack spacing={2}>
+      <Box>
+        <Typography variant="subtitle1" fontWeight={800}>
+          {t("bookings.payments.title")}
+        </Typography>
+        <Typography variant="body2" color={data.paymentsReady ? "success.main" : "text.secondary"}>
+          {status}
+        </Typography>
+      </Box>
+      {!data.bankConfigured && <Alert severity="warning">{t("bookings.payments.bankNotConfigured")}</Alert>}
+      {data.lastBankError && (
+        <Alert severity="error">
+          {t("bookings.payments.lastError", { error: data.lastBankError })}
+        </Alert>
+      )}
+
+      {!data.canManage ? (
+        <Alert severity="info">{t("bookings.payments.onlyOrgAdmin")}</Alert>
+      ) : (
+        <>
+          <TextField
+            label={t("bookings.payments.token")}
+            type="password"
+            autoComplete="off"
+            value={token}
+            onChange={(e) => setToken(e.target.value)}
+            placeholder={data.bakaiTokenSet ? data.bakaiTokenMasked : ""}
+            helperText={data.bakaiTokenSet ? t("bookings.payments.tokenSet") : t("bookings.payments.tokenHint")}
+          />
+          <FormControlLabel
+            control={<Switch checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />}
+            label={t("bookings.payments.enabled", { minutes: data.prepaymentTtlMinutes })}
+          />
+          <TextField
+            label={t("bookings.payments.webhookUrl")}
+            value={data.webhookUrl ?? ""}
+            helperText={t("bookings.payments.webhookHint")}
+            InputProps={{
+              readOnly: true,
+              endAdornment: (
+                <IconButton onClick={copyWebhook} aria-label={t("bookings.payments.copyWebhook")} edge="end">
+                  <ContentCopyOutlined fontSize="small" />
+                </IconButton>
+              ),
+            }}
+          />
+          {copied && (
+            <Typography variant="caption" color="success.main">
+              {t("bookings.linkCopied")}
+            </Typography>
+          )}
+          <TextField
+            label={t("bookings.payments.termsUrl")}
+            value={termsUrl}
+            onChange={(e) => setTermsUrl(e.target.value)}
+            placeholder="https://"
+            inputProps={{ inputMode: "url" }}
+          />
+          <TextField
+            label={t("bookings.payments.privacyUrl")}
+            value={privacyUrl}
+            onChange={(e) => setPrivacyUrl(e.target.value)}
+            placeholder="https://"
+            inputProps={{ inputMode: "url" }}
+          />
+          {save.isError && <Alert severity="error">{(save.error as Error).message}</Alert>}
+          <Stack direction="row" spacing={1}>
+            <Button
+              variant="contained"
+              disabled={save.isPending}
+              onClick={() =>
+                save.mutate({
+                  paymentsEnabled: enabled,
+                  termsUrl: termsUrl.trim(),
+                  privacyUrl: privacyUrl.trim(),
+                  // Пустое поле — токен не меняем (иначе пустая строка стёрла бы сохранённый).
+                  ...(token.trim() ? { bakaiToken: token.trim() } : {}),
+                })
+              }
+            >
+              {save.isPending ? <CircularProgress size={22} color="inherit" /> : t("bookings.payments.save")}
+            </Button>
+            <Button color="warning" onClick={() => setRotateOpen(true)} disabled={save.isPending}>
+              {t("bookings.payments.rotate")}
+            </Button>
+          </Stack>
+
+          <Dialog open={rotateOpen} onClose={() => setRotateOpen(false)} fullWidth maxWidth="xs">
+            <DialogTitle>{t("bookings.payments.rotateTitle")}</DialogTitle>
+            <DialogContent>
+              <Typography variant="body2">{t("bookings.payments.rotateText")}</Typography>
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={() => setRotateOpen(false)}>{t("bookings.drawer.cancel")}</Button>
+              <Button color="warning" variant="contained" onClick={() => save.mutate({ rotateWebhookSecret: true })}>
+                {t("bookings.payments.rotate")}
+              </Button>
+            </DialogActions>
+          </Dialog>
+        </>
+      )}
+    </Stack>
   );
 };

@@ -77,6 +77,10 @@ const BookingsPage = lazy(() => import("./pages/bookings"));
 // Публичная онлайн-запись (/book) — вне RequireAuth, ходит в /api/v1/public/booking/.
 const PublicBookPage = lazy(() => import("./pages/book"));
 const PublicBookingStatusPage = lazy(() => import("./pages/book/BookingStatusPage"));
+// Сюда банк возвращает гостя после оплаты (redirect_url ссылки Bakai) — дальше страница статуса.
+const PublicPaymentResultPage = lazy(() =>
+  import("./pages/book/BookingStatusPage").then((m) => ({ default: m.PaymentResultRedirect })),
+);
 
 
 // Вспомогательный компонент для обработки глобальных событий аутентификации
@@ -612,6 +616,14 @@ function App() {
                         element={
                           <Suspense fallback={<LinearProgress />}>
                             <PublicBookingStatusPage />
+                          </Suspense>
+                        }
+                      />
+                      <Route
+                        path="book/payment/result"
+                        element={
+                          <Suspense fallback={<LinearProgress />}>
+                            <PublicPaymentResultPage />
                           </Suspense>
                         }
                       />

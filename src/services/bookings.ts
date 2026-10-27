@@ -4,9 +4,33 @@ import { apiFetch } from "../utility/apiClient";
 // Контракт: kg_academy_back/docs/frontend-online-booking.md (2026-10-22).
 // Заявка — не приём: приём создаёт POST /bookings/{id}/confirm/ на выбранного клиента.
 
-export type BookingStatus = "new" | "confirmed" | "rejected";
+/** awaiting_payment — ждёт онлайн-предоплату (обработать нельзя); expired — не оплатили вовремя. */
+export type BookingStatus = "awaiting_payment" | "new" | "confirmed" | "rejected" | "expired";
 
 export type BookingRef = { id: string; fullName: string };
+
+export type PrepaymentStatus = "pending" | "paid" | "expired" | "failed";
+/** appointment — проведена в приём; balance — на баланс клиента; refunded — вернули гостю вне CRM. */
+export type PrepaymentResolution = "appointment" | "balance" | "refunded";
+
+/** Онлайн-предоплата заявки (Bakai Paylink). */
+export type BookingPrepayment = {
+  status: PrepaymentStatus;
+  amount: string;
+  /** Сумма по данным банка; null — ещё не оплачено. */
+  paidAmount: string | null;
+  paidAt: string | null;
+  expiresAt: string | null;
+  /** Ссылку можно переслать гостю, пока она жива. */
+  payUrl: string | null;
+  providerTxnId: string;
+  resolution: PrepaymentResolution | null;
+  resolutionComment: string;
+  resolvedAt: string | null;
+  resolvedBy: BookingRef | null;
+  /** Клиент, которому зачислены деньги. */
+  patient: BookingRef | null;
+};
 
 export type Booking = {
   id: string;
@@ -33,6 +57,15 @@ export type Booking = {
   rejectionReason: string;
   processedAt: string | null;
   processedBy: BookingRef | null;
+  /** «Взято в работу»: кто звонит гостю. Не блокировка. */
+  claimedAt: string | null;
+  claimedBy: BookingRef | null;
+  /** Текущая цена услуги — она уйдёт в приём (price — цена, которую видел гость). */
+  currentPrice: string;
+  /** null — заявка без предоплаты. */
+  prepayment: BookingPrepayment | null;
+  /** Деньги пришли, а заявка закрыта без приёма и без решения по деньгам. */
+  prepaymentNeedsAttention: boolean;
   createdAt: string;
 };
 
@@ -57,6 +90,11 @@ export type BookingListParams = {
   page?: number;
   pageSize?: number;
   ordering?: string;
+  /** true — новые, время визита которых прошло (пропущенные); false — остальные. */
+  overdue?: boolean;
+  /** Оплачены онлайн, закрыты без приёма и без решения по деньгам. */
+  needsAttention?: boolean;
+  prepaymentStatus?: PrepaymentStatus;
 };
 
 export const listBookings = async (params: BookingListParams = {}): Promise<Page<Booking>> => {
@@ -69,11 +107,12 @@ export const listBookings = async (params: BookingListParams = {}): Promise<Page
   return { count: Number(page?.count ?? 0), results: page?.results ?? [] };
 };
 
-/** Счётчик новых заявок (для бейджа в меню и вкладки «Новые»). */
-export const countNewBookings = async (): Promise<number> => {
-  const page = await listBookings({ status: "new", pageSize: 1 });
-  return page.count;
-};
+/** Счётчик заявок по фильтру (бейджи в меню и на вкладках). */
+export const countBookings = async (params: BookingListParams): Promise<number> =>
+  (await listBookings({ ...params, pageSize: 1 })).count;
+
+/** Счётчик новых заявок (для бейджа в меню): и ждущие, и пропущенные. */
+export const countNewBookings = (): Promise<number> => countBookings({ status: "new" });
 
 export const getBooking = async (id: string): Promise<BookingDetail> =>
   unwrap(await apiFetch<Envelope<BookingDetail>>(`/api/v1/bookings/${id}/`));
@@ -87,15 +126,52 @@ export const confirmBooking = async (id: string, patientId: string): Promise<Boo
     }),
   );
 
-export const rejectBooking = async (id: string, reason: string): Promise<BookingDetail> =>
+/** Что сделать с деньгами оплаченной заявки, закрытой без приёма. */
+export type PrepaymentDecision = {
+  resolution: Exclude<PrepaymentResolution, "appointment">;
+  /** Для balance — клиент, на баланс которого зачислить. */
+  patient?: string;
+  comment?: string;
+};
+
+/** Оплаченную онлайн заявку бэк отклоняет только вместе с решением по деньгам. */
+export const rejectBooking = async (
+  id: string,
+  reason: string,
+  prepaymentResolution?: PrepaymentDecision,
+): Promise<BookingDetail> =>
   unwrap(
     await apiFetch<Envelope<BookingDetail>>(`/api/v1/bookings/${id}/reject/`, {
       method: "POST",
-      body: JSON.stringify({ reason }),
+      body: JSON.stringify(prepaymentResolution ? { reason, prepaymentResolution } : { reason }),
     }),
   );
 
+/** Закрыть заявку приёмом, созданным вручную: заявка confirmed, предоплата — в этот приём. */
+export const attachBooking = async (id: string, appointmentId: string): Promise<BookingDetail> =>
+  unwrap(
+    await apiFetch<Envelope<BookingDetail>>(`/api/v1/bookings/${id}/attach/`, {
+      method: "POST",
+      body: JSON.stringify({ appointment: appointmentId }),
+    }),
+  );
+
+/** Решение по деньгам отклонённой или снятой заявки, по которой пришла оплата. */
+export const resolveBookingPrepayment = async (id: string, decision: PrepaymentDecision): Promise<BookingDetail> =>
+  unwrap(
+    await apiFetch<Envelope<BookingDetail>>(`/api/v1/bookings/${id}/resolve-prepayment/`, {
+      method: "POST",
+      body: JSON.stringify(decision),
+    }),
+  );
+
+/** «Взять в работу» (перебивает чужую отметку) / снять отметку. */
+export const claimBooking = async (id: string, claim: boolean): Promise<BookingDetail> =>
+  unwrap(await apiFetch<Envelope<BookingDetail>>(`/api/v1/bookings/${id}/claim/`, { method: claim ? "POST" : "DELETE" }));
+
 // ── Настройки онлайн-записи (одна запись на филиал) ─────────────────────────
+
+export type SpecialistPrepayment = { employee: string; amount: string };
 
 export type BookingSettings = {
   id: string;
@@ -107,11 +183,18 @@ export type BookingSettings = {
   horizonDays: number;
   services: string[];
   employees: string[];
+  /** Телефон филиала для гостей (E.164) или "". */
+  contactPhone: string;
+  /** Суммы онлайн-предоплаты по специалистам; нет строки — без предоплаты. Заменяется целиком. */
+  prepayments: SpecialistPrepayment[];
   updatedAt: string;
 };
 
 export type BookingSettingsInput = Partial<
-  Pick<BookingSettings, "isEnabled" | "slotStepMinutes" | "minLeadMinutes" | "horizonDays" | "services" | "employees">
+  Pick<
+    BookingSettings,
+    "isEnabled" | "slotStepMinutes" | "minLeadMinutes" | "horizonDays" | "services" | "employees" | "contactPhone" | "prepayments"
+  >
 >;
 
 export const listBookingSettings = async (): Promise<BookingSettings[]> => {
@@ -134,6 +217,48 @@ export const createBookingSettings = async (
 export const updateBookingSettings = async (id: string, input: BookingSettingsInput): Promise<BookingSettings> =>
   unwrap(
     await apiFetch<Envelope<BookingSettings>>(`/api/v1/booking-settings/${id}/`, {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    }),
+  );
+
+// ── Онлайн-оплата организации (Bakai Paylink) ───────────────────────────────
+
+export type BookingPaymentSettings = {
+  paymentsEnabled: boolean;
+  bakaiTokenSet: boolean;
+  bakaiTokenMasked: string;
+  /** Задан ли адрес API банка на сервере (BAKAI_BASE_URL). */
+  bankConfigured: boolean;
+  /** Можно выставлять ссылки: включено, токен есть, банк настроен. */
+  paymentsReady: boolean;
+  /** URL для кабинета Bakai (содержит секрет) — только при canManage. */
+  webhookUrl: string | null;
+  prepaymentTtlMinutes: number;
+  lastBankError: string;
+  lastBankErrorAt: string | null;
+  termsUrl: string;
+  privacyUrl: string;
+  /** Менять может только администратор организации (superadmin, accountant). */
+  canManage: boolean;
+  updatedAt: string;
+};
+
+export type BookingPaymentSettingsInput = Partial<
+  Pick<BookingPaymentSettings, "paymentsEnabled" | "termsUrl" | "privacyUrl">
+> & {
+  /** Не передавать, чтобы не менять; "" — стереть. */
+  bakaiToken?: string;
+  /** Новый секрет вебхука: старый URL перестаёт работать сразу. */
+  rotateWebhookSecret?: boolean;
+};
+
+export const getBookingPaymentSettings = async (): Promise<BookingPaymentSettings> =>
+  unwrap(await apiFetch<Envelope<BookingPaymentSettings>>("/api/v1/booking-payment-settings/?_noBranch=1"));
+
+export const updateBookingPaymentSettings = async (input: BookingPaymentSettingsInput): Promise<BookingPaymentSettings> =>
+  unwrap(
+    await apiFetch<Envelope<BookingPaymentSettings>>("/api/v1/booking-payment-settings/?_noBranch=1", {
       method: "PATCH",
       body: JSON.stringify(input),
     }),

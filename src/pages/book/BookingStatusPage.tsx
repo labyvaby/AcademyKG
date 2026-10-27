@@ -1,23 +1,48 @@
 import React from "react";
-import { Alert, Box, Button, Card, Chip, CircularProgress, Divider, IconButton, Stack, TextField, Tooltip, Typography } from "@mui/material";
+import { Alert, Box, Button, Card, Chip, CircularProgress, Divider, IconButton, Link, Stack, TextField, Tooltip, Typography } from "@mui/material";
 import CheckCircleOutlined from "@mui/icons-material/CheckCircleOutlined";
+import CreditCardOutlined from "@mui/icons-material/CreditCardOutlined";
+import PhoneOutlined from "@mui/icons-material/PhoneOutlined";
 import ContentCopyOutlined from "@mui/icons-material/ContentCopyOutlined";
 import PlaceOutlined from "@mui/icons-material/PlaceOutlined";
-import { Link as RouterLink, useNavigate, useParams, useSearchParams } from "react-router";
+import { Navigate, Link as RouterLink, useNavigate, useParams, useSearchParams } from "react-router";
 import { useTranslation } from "react-i18next";
 
 import { formatMoney } from "../../utility/currency";
-import { getPublicBooking, type PublicBookingStatus } from "../../services/publicBooking";
-import { BookShell, formatDay, StepMessage, useLoad } from "./shared";
+import { getPublicBooking, type PublicBooking, type PublicBookingStatus } from "../../services/publicBooking";
+import { formatPhone } from "../bookings/meta";
+import { BookShell, formatDay, readLastCodes, StepMessage, useLoad } from "./shared";
 
 // Статус заявки по коду (/book/status/:code) и форма «проверить заявку» (/book/status).
 // ?new=1 — гость только что отправил заявку: показываем подтверждение отправки.
+// ?payment=1 — гость вернулся со страницы банка: ждём подтверждения оплаты (вебхук),
+// опрашивая статус. «Я оплатил» на странице банка ничего не доказывает.
 
-const STATUS_COLOR: Record<PublicBookingStatus, "warning" | "success" | "error" | "default"> = {
+const STATUS_COLOR: Record<PublicBookingStatus, "warning" | "success" | "error" | "default" | "info"> = {
+  awaiting_payment: "info",
   pending: "warning",
   confirmed: "success",
   rejected: "error",
   cancelled: "default",
+  expired: "default",
+};
+const STATUS_ALERT: Record<PublicBookingStatus, "info" | "success" | "error" | "warning"> = {
+  awaiting_payment: "warning",
+  pending: "info",
+  confirmed: "success",
+  rejected: "error",
+  cancelled: "info",
+  expired: "error",
+};
+/** Как часто и сколько ждём вебхук банка после возврата гостя. */
+const PAYMENT_POLL_MS = 3000;
+const PAYMENT_POLL_LIMIT_MS = 3 * 60 * 1000;
+
+/** /book/payment/result?code=… — сюда банк возвращает гостя; дальше — обычная страница статуса. */
+export const PaymentResultRedirect: React.FC = () => {
+  const [params] = useSearchParams();
+  const code = (params.get("code") || "").trim().toUpperCase();
+  return <Navigate to={code ? `/book/status/${code}?payment=1` : "/book/status"} replace />;
 };
 
 const BookingStatusPage: React.FC = () => {
@@ -30,13 +55,7 @@ const CheckStatusForm: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [value, setValue] = React.useState("");
-  const lastCodes = React.useMemo<string[]>(() => {
-    try {
-      return JSON.parse(localStorage.getItem("academy.book.lastCodes") || "[]");
-    } catch {
-      return [];
-    }
-  }, []);
+  const lastCodes = React.useMemo(readLastCodes, []);
 
   return (
     <BookShell title={t("book.status.checkTitle")} subtitle={t("book.status.checkHint")}>
@@ -80,10 +99,22 @@ const BookingStatus: React.FC<{ code: string }> = ({ code }) => {
   const { t, i18n } = useTranslation();
   const [params] = useSearchParams();
   const justCreated = params.get("new") === "1";
+  const backFromBank = params.get("payment") === "1";
   const booking = useLoad((signal) => getPublicBooking(code, signal), [code]);
   const [copied, setCopied] = React.useState(false);
+  const now = useNow(booking.data?.status === "awaiting_payment");
 
-  if (booking.loading) {
+  // Ждём вебхук: опрашиваем, пока предоплата не оплачена и не снята (не дольше нескольких минут).
+  const waitingForBank = booking.data?.status === "awaiting_payment" && booking.data.payment?.status === "pending";
+  const pollStarted = React.useRef(Date.now());
+  const { reload } = booking;
+  React.useEffect(() => {
+    if (!waitingForBank || Date.now() - pollStarted.current > PAYMENT_POLL_LIMIT_MS) return;
+    const id = window.setTimeout(reload, PAYMENT_POLL_MS);
+    return () => window.clearTimeout(id);
+  }, [waitingForBank, booking.data, reload]);
+
+  if (booking.loading && !booking.data) {
     return (
       <BookShell>
         <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
@@ -118,18 +149,24 @@ const BookingStatus: React.FC<{ code: string }> = ({ code }) => {
     }
   };
 
+  const paidNow = backFromBank && b.payment?.status === "paid";
   return (
     <BookShell>
-      {justCreated && (
+      {(justCreated || paidNow) && (
         <Box sx={{ textAlign: "center", mb: 3 }}>
           <CheckCircleOutlined color="success" sx={{ fontSize: 56 }} />
           <Typography variant="h5" fontWeight={800} sx={{ mt: 1 }}>
-            {t("book.status.sentTitle")}
+            {paidNow ? t("book.status.paidTitle") : t("book.status.sentTitle")}
           </Typography>
           <Typography color="text.secondary" sx={{ mt: 1 }}>
-            {t("book.status.sentText")}
+            {paidNow ? t("book.status.paidText") : t("book.status.sentText")}
           </Typography>
         </Box>
+      )}
+      {backFromBank && waitingForBank && (
+        <Alert severity="info" icon={<CircularProgress size={20} />} sx={{ mb: 2 }}>
+          {t("book.status.waitingBank")}
+        </Alert>
       )}
 
       <Card variant="outlined" sx={{ p: 2.5 }}>
@@ -152,9 +189,10 @@ const BookingStatus: React.FC<{ code: string }> = ({ code }) => {
           <Chip label={t(`book.status.labels.${b.status}`)} color={STATUS_COLOR[b.status]} sx={{ fontWeight: 700 }} />
         </Stack>
 
-        <Alert severity={b.status === "rejected" ? "error" : b.status === "confirmed" ? "success" : "info"} sx={{ mt: 2 }}>
+        <Alert severity={STATUS_ALERT[b.status]} sx={{ mt: 2 }}>
           {t(`book.status.explain.${b.status}`)}
         </Alert>
+        {b.payment && <PaymentBlock booking={b} now={now} />}
 
         <Divider sx={{ my: 2 }} />
         <Stack spacing={1}>
@@ -177,6 +215,17 @@ const BookingStatus: React.FC<{ code: string }> = ({ code }) => {
             </Typography>
           </Stack>
         )}
+        {b.branch.phone && (
+          <Stack direction="row" spacing={0.75} alignItems="center" sx={{ mt: 1, color: "text.secondary" }}>
+            <PhoneOutlined fontSize="small" />
+            <Typography variant="body2">
+              {t("book.status.changeByPhone")}{" "}
+              <Link href={`tel:${b.branch.phone}`} underline="hover" fontWeight={700}>
+                {formatPhone(b.branch.phone)}
+              </Link>
+            </Typography>
+          </Stack>
+        )}
       </Card>
 
       {justCreated && (
@@ -193,6 +242,54 @@ const BookingStatus: React.FC<{ code: string }> = ({ code }) => {
         </Button>
       </Stack>
     </BookShell>
+  );
+};
+
+/** Тикающее «сейчас» — для обратного отсчёта оплаты без лишних запросов. */
+function useNow(active: boolean): number {
+  const [now, setNow] = React.useState(() => Date.now());
+  React.useEffect(() => {
+    if (!active) return;
+    const id = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, [active]);
+  return now;
+}
+
+function formatCountdown(ms: number): string {
+  const total = Math.max(0, Math.floor(ms / 1000));
+  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`;
+}
+
+const PaymentBlock: React.FC<{ booking: PublicBooking; now: number }> = ({ booking, now }) => {
+  const { t } = useTranslation();
+  const payment = booking.payment!;
+  const amount = formatMoney(payment.amount, booking.currency);
+  const left = new Date(payment.expiresAt).getTime() - now;
+  const payable = booking.status === "awaiting_payment" && payment.payUrl && left > 0;
+
+  if (payment.status === "paid") {
+    return (
+      <Alert severity="success" icon={<CreditCardOutlined />} sx={{ mt: 1.5 }}>
+        {t("book.status.payment.paid", { amount })}
+      </Alert>
+    );
+  }
+  if (!payable) return null;
+  return (
+    <Box sx={{ mt: 1.5, p: 1.5, borderRadius: 2, border: 1, borderColor: "warning.main" }}>
+      <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2}>
+        <Box>
+          <Typography fontWeight={800}>{t("book.status.payment.due", { amount })}</Typography>
+          <Typography variant="body2" color="text.secondary">
+            {t("book.status.payment.left", { time: formatCountdown(left) })}
+          </Typography>
+        </Box>
+        <Button variant="contained" href={payment.payUrl!} startIcon={<CreditCardOutlined />} sx={{ whiteSpace: "nowrap" }}>
+          {t("book.status.payment.pay")}
+        </Button>
+      </Stack>
+    </Box>
   );
 };
 

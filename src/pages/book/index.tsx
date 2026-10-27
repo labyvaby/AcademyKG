@@ -14,12 +14,14 @@ import {
 } from "@mui/material";
 import AccessTimeOutlined from "@mui/icons-material/AccessTimeOutlined";
 import ChevronRightOutlined from "@mui/icons-material/ChevronRightOutlined";
+import CreditCardOutlined from "@mui/icons-material/CreditCardOutlined";
 import PlaceOutlined from "@mui/icons-material/PlaceOutlined";
 import { useNavigate, useSearchParams } from "react-router";
 import { useTranslation } from "react-i18next";
 
 import { PhoneCountryCodeSelect } from "../../components/ui";
 import { formatMoney } from "../../utility/currency";
+import { formatPhone } from "../bookings/meta";
 import { composePhone, DEFAULT_PHONE_COUNTRY_CODE, getPhoneLocalMaxLength } from "../../utility/phone";
 import {
   createPublicBooking,
@@ -29,26 +31,16 @@ import {
   getPublicSpecialists,
   PublicBookingError,
   type PublicBranch,
+  type PublicInfo,
   type PublicService,
   type PublicSpecialist,
 } from "../../services/publicBooking";
-import { BookShell, formatDay, SpecialistAvatar, StepMessage, useLoad, useRelativeDay } from "./shared";
+import { BookingTerms, BookShell, formatDay, rememberCode, SpecialistAvatar, StepMessage, submitErrorKey, useLoad, useRelativeDay } from "./shared";
 
 // Публичная онлайн-запись: филиал → услуга → специалист → день и время → контакты.
 // Выбор живёт в query (?branch=&service=&specialist=&date=&time=): «назад» браузера
 // и обновление страницы ведут себя как ожидает гость. Заявка ждёт подтверждения
 // администратора — приём создаётся в CRM.
-
-const LAST_CODES_KEY = "academy.book.lastCodes";
-
-function rememberCode(code: string) {
-  try {
-    const prev: string[] = JSON.parse(localStorage.getItem(LAST_CODES_KEY) || "[]");
-    localStorage.setItem(LAST_CODES_KEY, JSON.stringify([code, ...prev.filter((c) => c !== code)].slice(0, 5)));
-  } catch {
-    /* приватный режим — код и так на экране */
-  }
-}
 
 const BookPage: React.FC = () => {
   const { t } = useTranslation();
@@ -210,11 +202,17 @@ const BookPage: React.FC = () => {
         branch={branch}
         service={service}
         specialist={specialist}
+        terms={info.data?.terms}
         date={date}
         time={time}
         onSlotLost={() => update({ time: null })}
-        onDone={(code) => {
+        onDone={(code, payUrl) => {
           rememberCode(code);
+          if (payUrl) {
+            // Страница банка; обратно банк вернёт на /book/payment/result?code=…
+            window.location.assign(payUrl);
+            return;
+          }
           navigate(`/book/status/${code}?new=1`, { replace: true });
         }}
       />
@@ -298,6 +296,12 @@ const SpecialistCard: React.FC<{
                 ? t("book.nearest", { day: relativeDay(nearest.date, branch.timezone) })
                 : t("book.noSlotsSoon")}
             </Typography>
+            {specialist.prepayment && (
+              <IconLine
+                icon={<CreditCardOutlined fontSize="small" />}
+                text={t("book.prepayment.badge", { amount: formatMoney(specialist.prepayment.amount, branch.currency) })}
+              />
+            )}
           </Box>
           <ChevronRightOutlined color="action" />
         </Stack>
@@ -403,11 +407,13 @@ const ContactsStep: React.FC<{
   branch: PublicBranch;
   service: PublicService;
   specialist: PublicSpecialist;
+  terms?: PublicInfo["terms"];
   date: string;
   time: string;
   onSlotLost: () => void;
-  onDone: (code: string) => void;
-}> = ({ branch, service, specialist, date, time, onSlotLost, onDone }) => {
+  /** payUrl — страница банка, если запись требует предоплату. */
+  onDone: (code: string, payUrl: string | null) => void;
+}> = ({ branch, service, specialist, terms, date, time, onSlotLost, onDone }) => {
   const { t, i18n } = useTranslation();
   const [clientName, setClientName] = React.useState("");
   const [birthDate, setBirthDate] = React.useState("");
@@ -451,19 +457,28 @@ const ContactsStep: React.FC<{
         contactPhone: phone,
         comment: comment.trim(),
       });
-      onDone(booking.code);
+      onDone(booking.code, booking.payment?.payUrl ?? null);
     } catch (err) {
       const e = err as PublicBookingError;
       if (e.code === "slot_taken" || e.code === "slot_unavailable") {
         setSlotLost(true);
       } else {
-        setFieldErrors(e.fieldErrors ?? {});
-        setError(e.message);
+        // Поля формы бэк называет по-человечески; общую ошибку — нашим текстом по коду,
+        // а не текстом бэка: он написан для разработчика.
+        const fields = e.fieldErrors ?? {};
+        setFieldErrors(e.code === "too_many_bookings" ? {} : fields);
+        const key = submitErrorKey(e);
+        setError(key ? t(key, { phone: branch.phone ? formatPhone(branch.phone) : "" }) : e.message);
       }
     } finally {
       setBusy(false);
     }
   };
+  const prepayment = specialist.prepayment;
+  // Согласие в блоке «Важно» называет ровно ту кнопку, которую нажмёт гость.
+  const submitLabel = prepayment
+    ? t("book.prepayment.submitWithAmount", { amount: formatMoney(prepayment.amount, branch.currency) })
+    : t("book.form.submit");
 
   if (slotLost) {
     return (
@@ -502,6 +517,14 @@ const ContactsStep: React.FC<{
             {formatMoney(service.price, branch.currency)}
           </Typography>
         </Stack>
+        {prepayment && (
+          <Stack direction="row" justifyContent="space-between" spacing={2} sx={{ mt: 1 }}>
+            <Typography variant="body2">{t("book.prepayment.line")}</Typography>
+            <Typography variant="body2" fontWeight={700} sx={{ whiteSpace: "nowrap" }}>
+              {formatMoney(prepayment.amount, branch.currency)}
+            </Typography>
+          </Stack>
+        )}
         {branch.address && <IconLine icon={<PlaceOutlined fontSize="small" />} text={branch.address} />}
       </Card>
 
@@ -569,13 +592,22 @@ const ContactsStep: React.FC<{
           fullWidth
           inputProps={{ maxLength: 1000 }}
         />
+        <BookingTerms
+          action={submitLabel}
+          prepayment={prepayment ? formatMoney(prepayment.amount, branch.currency) : null}
+          branchPhone={branch.phone}
+          termsUrl={terms?.termsUrl}
+          privacyUrl={terms?.privacyUrl}
+        />
         {error && <Alert severity="error">{error}</Alert>}
         <Button type="submit" variant="contained" size="large" disabled={busy} sx={{ py: 1.5, fontWeight: 700 }}>
-          {busy ? <CircularProgress size={24} color="inherit" /> : t("book.form.submit")}
+          {busy ? <CircularProgress size={24} color="inherit" /> : submitLabel}
         </Button>
-        <Typography variant="caption" color="text.secondary" textAlign="center">
-          {t("book.form.consent")}
-        </Typography>
+        {prepayment && (
+          <Typography variant="caption" color="text.secondary" textAlign="center">
+            {t("book.prepayment.hint")}
+          </Typography>
+        )}
       </Stack>
     </Box>
   );

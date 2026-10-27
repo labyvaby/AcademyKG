@@ -1,12 +1,53 @@
 import React from "react";
 import { Avatar, Box, Container, IconButton, Link, Stack, Typography } from "@mui/material";
 import ArrowBackOutlined from "@mui/icons-material/ArrowBackOutlined";
+import InfoOutlined from "@mui/icons-material/InfoOutlined";
 import { Link as RouterLink } from "react-router";
-import { useTranslation } from "react-i18next";
+import { Trans, useTranslation } from "react-i18next";
 
 import smallIcon from "../../assets/img/icon_2s.png";
+import type { PublicBookingError } from "../../services/publicBooking";
+import { formatPhone } from "../bookings/meta";
 
 // Общие куски публичной витрины онлайн-записи (/book).
+
+const LAST_CODES_KEY = "academy.book.lastCodes";
+
+/** Последние коды заявок гостя в этом браузере (для формы «проверить статус»). */
+export function readLastCodes(): string[] {
+  try {
+    const value = JSON.parse(localStorage.getItem(LAST_CODES_KEY) || "[]");
+    return Array.isArray(value) ? value.filter((c): c is string => typeof c === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+export function rememberCode(code: string) {
+  try {
+    localStorage.setItem(LAST_CODES_KEY, JSON.stringify([code, ...readLastCodes().filter((c) => c !== code)].slice(0, 5)));
+  } catch {
+    /* приватный режим — код и так на экране */
+  }
+}
+
+/**
+ * Ключ нашего текста для ошибки отправки заявки — по коду и статусу, никогда по тексту бэка:
+ * он адресован разработчику. null — показать текст как есть (ошибки сети и полей уже по-русски).
+ */
+export function submitErrorKey(error: PublicBookingError): string | null {
+  if (error.status === 429 || error.code === "throttled") return "book.errors.tooManyAttempts";
+  switch (error.code) {
+    case "too_many_bookings":
+      return "book.errors.tooManyBookings";
+    case "payment_unavailable":
+      return "book.errors.paymentUnavailable";
+    case "network":
+      return null;
+    default:
+      return error.status === 404 ? "book.errors.targetGone" : error.status >= 500 ? "book.errors.serverError" : null;
+  }
+}
 
 /** Дата "YYYY-MM-DD" (локальная дата филиала) → подпись на языке интерфейса. */
 export function formatDay(date: string, lang: string, opts: Intl.DateTimeFormatOptions): string {
@@ -173,3 +214,54 @@ export function useLoad<T>(loader: ((signal: AbortSignal) => Promise<T>) | null,
   const reload = React.useCallback(() => setAttempt((n) => n + 1), []);
   return { ...state, reload };
 }
+
+/**
+ * Блок «Важно» перед отправкой: согласие с правилами и обработкой данных, условия
+ * предоплаты (только когда она есть) и как перенести или отменить запись.
+ */
+export const BookingTerms: React.FC<{
+  /** Подпись кнопки, к которой относится согласие. */
+  action: string;
+  /** Сумма предоплаты (уже отформатированная) или null. */
+  prepayment: string | null;
+  branchPhone?: string;
+  termsUrl?: string;
+  privacyUrl?: string;
+}> = ({ action, prepayment, branchPhone, termsUrl, privacyUrl }) => {
+  const { t } = useTranslation();
+  const link = (href?: string) =>
+    href ? <Link href={href} target="_blank" rel="noopener noreferrer" underline="always" /> : <span />;
+  return (
+    <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: "action.hover" }}>
+      <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.75 }}>
+        <InfoOutlined fontSize="small" color="primary" />
+        <Typography variant="subtitle2" fontWeight={800}>
+          {t("book.terms.title")}
+        </Typography>
+      </Stack>
+      <Stack component="ul" spacing={0.5} sx={{ m: 0, pl: 2.5 }}>
+        {prepayment && (
+          <Typography component="li" variant="body2">
+            {t("book.terms.prepayment", { amount: prepayment })}
+          </Typography>
+        )}
+        <Typography component="li" variant="body2">
+          {branchPhone
+            ? t("book.terms.changeByPhone", { phone: formatPhone(branchPhone) })
+            : t("book.terms.changeByCall")}
+        </Typography>
+        <Typography component="li" variant="body2">
+          {termsUrl || privacyUrl ? (
+            <Trans
+              i18nKey={termsUrl && privacyUrl ? "book.terms.consentBoth" : termsUrl ? "book.terms.consentRules" : "book.terms.consentPrivacy"}
+              values={{ action }}
+              components={{ rules: link(termsUrl), privacy: link(privacyUrl) }}
+            />
+          ) : (
+            t("book.terms.consentPlain", { action })
+          )}
+        </Typography>
+      </Stack>
+    </Box>
+  );
+};

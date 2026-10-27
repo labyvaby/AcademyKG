@@ -1,12 +1,36 @@
-import type { BookingStatus } from "../../services/bookings";
+import type { BookingStatus, PrepaymentStatus } from "../../services/bookings";
 
 export const capitalizeFirst = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1);
 
-export const BOOKING_STATUS_COLOR: Record<BookingStatus, "warning" | "success" | "default"> = {
+export const BOOKING_STATUS_COLOR: Record<BookingStatus, "warning" | "success" | "default" | "info"> = {
+  awaiting_payment: "info",
   new: "warning",
   confirmed: "success",
   rejected: "default",
+  expired: "default",
 };
+
+/** Закрытые статусы — чип контурный, чтобы не спорил с живыми заявками. */
+export const isClosedStatus = (status: BookingStatus): boolean => status === "rejected" || status === "expired";
+
+export const PREPAYMENT_STATUS_COLOR: Record<PrepaymentStatus, "info" | "success" | "default" | "error"> = {
+  pending: "info",
+  paid: "success",
+  expired: "default",
+  failed: "error",
+};
+
+/** Новая заявка, время визита которой уже прошло: её пропустили. */
+export const isOverdue = (status: BookingStatus, startAt: string): boolean =>
+  status === "new" && new Date(startAt).getTime() < Date.now();
+
+/** «12:34» до конца срока оплаты; null — срок вышел. */
+export function paymentCountdown(expiresAt: string | null, now: number): string | null {
+  if (!expiresAt) return null;
+  const left = Math.floor((new Date(expiresAt).getTime() - now) / 1000);
+  if (left <= 0) return null;
+  return `${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")}`;
+}
 
 /** Начало заявки в часовом поясе её филиала: «чт, 23 окт., 09:00». */
 export function formatBookingStart(startAt: string, timezone: string, lang: string): string {

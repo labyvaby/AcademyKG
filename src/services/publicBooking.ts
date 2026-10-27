@@ -15,11 +15,15 @@ export type PublicBranch = {
   logoUrl: string | null;
   timezone: string;
   currency: string;
+  /** Телефон филиала для гостей (перенос и отмена — звонком); "" — не указан. */
+  phone: string;
 };
 
 export type PublicInfo = {
   organization: { id: string; name: string; brandName: string; brandDescription: string; brandSubtitle: string };
   branches: PublicBranch[];
+  /** Ссылки для блока «Важно»; "" — ссылки нет. */
+  terms: { termsUrl: string; privacyUrl: string };
 };
 
 export type PublicService = {
@@ -39,6 +43,8 @@ export type PublicSpecialist = {
   specializations: string[];
   /** Ближайший день с окнами и первые окна; null — окон нет в горизонте записи. */
   nearest: { date: string; times: string[] } | null;
+  /** Онлайн-предоплата при записи к специалисту; null — без предоплаты. */
+  prepayment: { amount: string } | null;
 };
 
 export type PublicCalendar = {
@@ -51,8 +57,24 @@ export type PublicCalendar = {
   days: { date: string; times: string[] }[];
 };
 
-/** pending — ждёт звонка администратора; cancelled — подтверждённый приём потом отменили. */
-export type PublicBookingStatus = "pending" | "confirmed" | "rejected" | "cancelled";
+/**
+ * awaiting_payment — ждём онлайн-предоплату; pending — ждёт звонка администратора;
+ * cancelled — подтверждённый приём потом отменили; expired — предоплата не пришла, запись снята.
+ */
+export type PublicBookingStatus = "awaiting_payment" | "pending" | "confirmed" | "rejected" | "cancelled" | "expired";
+
+/**
+ * Онлайн-предоплата (Bakai Paylink). Оплату подтверждает только вебхук банка:
+ * признак — status "paid" здесь, кнопка «Я оплатил» на странице банка ничего не доказывает.
+ */
+export type PublicPayment = {
+  status: "pending" | "paid" | "expired" | "failed";
+  amount: string;
+  /** Есть, только пока ссылку можно оплатить. */
+  payUrl: string | null;
+  expiresAt: string;
+  paidAt: string | null;
+};
 
 export type PublicBooking = {
   code: string;
@@ -64,9 +86,11 @@ export type PublicBooking = {
   price: string;
   currency: string;
   clientName: string;
-  branch: { id: string; name: string; address: string; timezone: string };
+  branch: { id: string; name: string; address: string; timezone: string; phone: string };
   service: { id: string; name: string };
   specialist: { id: string; fullName: string };
+  /** null — заявка без предоплаты. */
+  payment: PublicPayment | null;
   createdAt: string;
 };
 
@@ -86,7 +110,7 @@ export type CreatePublicBookingInput = {
   comment?: string;
 };
 
-/** Ошибка витрины: code — машинный код бэка (slot_taken, slot_unavailable, too_many_bookings…). */
+/** Ошибка витрины: code — машинный код бэка (slot_taken, slot_unavailable, too_many_bookings, payment_unavailable…). */
 export class PublicBookingError extends Error {
   status: number;
   code: string;

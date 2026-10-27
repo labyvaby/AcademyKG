@@ -25,23 +25,52 @@ import { useNewBookingsCount } from "../../hooks/useNewBookingsCount";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { usePermissions } from "../../hooks/usePermissions";
 import { formatMoney } from "../../utility/currency";
-import { listBookings, type Booking, type BookingStatus } from "../../services/bookings";
+import { countBookings, listBookings, type Booking, type BookingListParams } from "../../services/bookings";
 import { BookingDrawer } from "./BookingDrawer";
 import { BookingSettingsDrawer } from "./BookingSettingsDrawer";
-import { BOOKING_STATUS_COLOR, formatBookingStart, formatPhone } from "./meta";
+import {
+  BOOKING_STATUS_COLOR,
+  formatBookingStart,
+  formatPhone,
+  isClosedStatus,
+  isOverdue,
+  PREPAYMENT_STATUS_COLOR,
+} from "./meta";
 
 // Онлайн-заявки с витрины /book. Заявка — не приём: администратор подтверждает её
 // на карту клиента (создаётся приём) или отклоняет. Скоуп по филиалам — на бэке.
+// Новая заявка держит окно до обработки; пропущенные (время визита прошло) — своя вкладка.
 
-type TabValue = BookingStatus | "all";
-const TABS: TabValue[] = ["new", "confirmed", "rejected", "all"];
+type TabValue = "new" | "overdue" | "awaiting_payment" | "attention" | "confirmed" | "rejected" | "expired" | "all";
+const TAB_PARAMS: Record<TabValue, BookingListParams> = {
+  new: { status: "new", overdue: false },
+  overdue: { overdue: true },
+  awaiting_payment: { status: "awaiting_payment" },
+  attention: { needsAttention: true },
+  confirmed: { status: "confirmed" },
+  rejected: { status: "rejected" },
+  expired: { status: "expired" },
+  all: {},
+};
+// Вкладки предоплаты видны, только когда в них что-то есть (или они открыты).
+const OPTIONAL_TABS: TabValue[] = ["awaiting_payment", "attention", "expired"];
+const TABS: TabValue[] = ["new", "overdue", "awaiting_payment", "attention", "confirmed", "rejected", "expired", "all"];
+const COUNTED_TABS: TabValue[] = ["new", "overdue", "awaiting_payment", "attention", "expired"];
+const TAB_CHIP_COLOR: Partial<Record<TabValue, "warning" | "error" | "info" | "default">> = {
+  new: "warning",
+  overdue: "error",
+  awaiting_payment: "info",
+  attention: "error",
+  expired: "default",
+};
 const PAGE_SIZE = 20;
 
 const BookingsPage: React.FC = () => {
   const { t, i18n } = useTranslation();
   usePageTitle(t("menu.bookings"));
   const { hasPermission } = usePermissions();
-  const newCount = useNewBookingsCount();
+  // Бейдж в меню опрашивается там же; здесь — только чтобы вкладки обновились вместе с ним.
+  useNewBookingsCount();
 
   const [tab, setTab] = React.useState<TabValue>("new");
   const [search, setSearch] = React.useState("");
@@ -61,17 +90,31 @@ const BookingsPage: React.FC = () => {
     queryKey: ["bookings", tab, debouncedSearch, page],
     queryFn: () =>
       listBookings({
-        status: tab === "all" ? undefined : tab,
+        ...TAB_PARAMS[tab],
         search: debouncedSearch || undefined,
         page,
         pageSize: PAGE_SIZE,
-        // Новые — по времени визита (ближайшие сверху), остальные — свежие сверху.
+        // Новые и ждущие оплату — по времени визита (ближайшие сверху), пропущенные — самые
+        // давние сверху тоже по визиту, остальные — свежие сверху.
         // Значение ordering — в snake_case: CamelCaseMiddleWare переводит имена query-параметров, но не значения.
-        ordering: tab === "new" ? "start_at" : "-created_at",
+        ordering: tab === "new" || tab === "overdue" || tab === "awaiting_payment" ? "start_at" : "-created_at",
       }),
     placeholderData: keepPreviousData,
-    refetchInterval: tab === "new" ? 60_000 : false,
+    refetchInterval: tab === "new" || tab === "awaiting_payment" ? 60_000 : false,
   });
+
+  // Счётчики вкладок; ключ под ["bookings"] — обновляются вместе со списком после действий.
+  const countsQuery = useQuery({
+    queryKey: ["bookings", "tab-counts"],
+    queryFn: async () => {
+      const counts = await Promise.all(COUNTED_TABS.map((value) => countBookings(TAB_PARAMS[value])));
+      return Object.fromEntries(COUNTED_TABS.map((value, index) => [value, counts[index]])) as Partial<Record<TabValue, number>>;
+    },
+    refetchInterval: 60_000,
+    staleTime: 30_000,
+  });
+  const counts = countsQuery.data ?? {};
+  const visibleTabs = TABS.filter((value) => !OPTIONAL_TABS.includes(value) || value === tab || (counts[value] ?? 0) > 0);
 
   const publicLink = `${window.location.origin}/book`;
   const copyLink = async () => {
@@ -113,24 +156,37 @@ const BookingsPage: React.FC = () => {
       />
 
       <Tabs value={tab} onChange={(_, v) => setTab(v)} variant="scrollable" allowScrollButtonsMobile sx={{ mb: 1.5 }}>
-        {TABS.map((value) => (
-          <Tab
-            key={value}
-            value={value}
-            label={
-              value === "new" && newCount > 0 ? (
-                <Stack direction="row" spacing={1} alignItems="center">
-                  <span>{t(`bookings.tabs.${value}`)}</span>
-                  <Chip label={newCount} size="small" color="warning" sx={{ height: 20, fontWeight: 700 }} />
-                </Stack>
-              ) : (
-                t(`bookings.tabs.${value}`)
-              )
-            }
-          />
-        ))}
+        {visibleTabs.map((value) => {
+          const count = counts[value] ?? 0;
+          return (
+            <Tab
+              key={value}
+              value={value}
+              label={
+                count > 0 ? (
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    <span>{t(`bookings.tabs.${value}`)}</span>
+                    <Chip label={count} size="small" color={TAB_CHIP_COLOR[value] ?? "default"} sx={{ height: 20, fontWeight: 700 }} />
+                  </Stack>
+                ) : (
+                  t(`bookings.tabs.${value}`)
+                )
+              }
+            />
+          );
+        })}
       </Tabs>
 
+      {tab === "overdue" && rows.length > 0 && (
+        <Alert severity="warning" sx={{ mb: 1.5 }}>
+          {t("bookings.overdueHint")}
+        </Alert>
+      )}
+      {tab === "attention" && rows.length > 0 && (
+        <Alert severity="error" sx={{ mb: 1.5 }}>
+          {t("bookings.attentionHint")}
+        </Alert>
+      )}
       {query.isError && <Alert severity="error">{(query.error as Error).message}</Alert>}
       {query.isLoading ? (
         <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}>
@@ -139,7 +195,7 @@ const BookingsPage: React.FC = () => {
       ) : rows.length === 0 ? (
         <Box sx={{ textAlign: "center", py: 6 }}>
           <Typography fontWeight={700}>{t(`bookings.empty.${tab}`)}</Typography>
-          {tab === "new" && (
+          {(tab === "new" || tab === "all") && (
             <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
               {t("bookings.empty.hint")}
             </Typography>
@@ -193,18 +249,33 @@ const BookingRow: React.FC<{ booking: Booking; lang: string; onOpen: () => void 
               {booking.service.name} · {booking.performer.fullName}
             </Typography>
           </Box>
-          <Stack direction="row" spacing={1.5} alignItems="center" justifyContent="space-between">
+          <Stack direction="row" spacing={1.5} alignItems="center" justifyContent="space-between" flexWrap="wrap" rowGap={0.5}>
             <Typography variant="body2" sx={{ whiteSpace: "nowrap" }}>
               {formatPhone(booking.contactPhone)}
             </Typography>
             <Typography variant="body2" fontWeight={700} sx={{ whiteSpace: "nowrap" }}>
               {formatMoney(booking.price, booking.currency)}
             </Typography>
+            {booking.prepayment && (
+              <Chip
+                size="small"
+                variant="outlined"
+                color={booking.prepaymentNeedsAttention ? "error" : PREPAYMENT_STATUS_COLOR[booking.prepayment.status]}
+                label={t(`bookings.prepayment.chip.${booking.prepaymentNeedsAttention ? "attention" : booking.prepayment.status}`, {
+                  amount: formatMoney(booking.prepayment.paidAmount ?? booking.prepayment.amount, booking.currency),
+                })}
+              />
+            )}
+            {booking.claimedBy && booking.status === "new" && (
+              <Chip size="small" variant="outlined" label={t("bookings.claim.chip", { who: booking.claimedBy.fullName })} />
+            )}
             <Chip
               size="small"
-              label={t(`bookings.status.${booking.status}`)}
-              color={BOOKING_STATUS_COLOR[booking.status]}
-              variant={booking.status === "rejected" ? "outlined" : "filled"}
+              label={
+                isOverdue(booking.status, booking.startAt) ? t("bookings.status.overdue") : t(`bookings.status.${booking.status}`)
+              }
+              color={isOverdue(booking.status, booking.startAt) ? "error" : BOOKING_STATUS_COLOR[booking.status]}
+              variant={isClosedStatus(booking.status) ? "outlined" : "filled"}
             />
           </Stack>
         </Stack>
