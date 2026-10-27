@@ -1531,7 +1531,7 @@
       "services": "Vitrinadagi mashg‘ulotlar",
       "servicesHint": "Faqat shu filialning individual mashg‘ulotlari",
       "employees": "Vitrinadagi mutaxassislar",
-      "employeesHint": "Asosiy filiali shu bo‘lgan xodimlar; kartasida bog‘langan mashg‘ulotlar bo‘yicha ko‘rsatiladi",
+      "employeesHint": "Bu filial asosiy yoki «Ruxsat etilgan filiallar»da bo‘lgan xodimlar; kartasida bog‘langan mashg‘ulotlar bo‘yicha ko‘rsatiladi",
       "step": "Vaqt qadami",
       "lead": "Kamida qancha oldin",
       "leadNone": "Cheklovsiz",
