@@ -1286,7 +1286,8 @@
       "services": "Mashg‘ulotlarga onlayn yozilish hozircha ochilmagan",
       "specialists": "Bu mashg‘ulotga onlayn yozilish uchun mutaxassislar yo‘q",
       "slots": "Yaqin kunlarda bo‘sh vaqt yo‘q",
-      "callUs": "Bizga qo‘ng‘iroq qiling — vaqtni qo‘lda tanlab beramiz."
+      "callUs": "Bizga qo‘ng‘iroq qiling — vaqtni qo‘lda tanlab beramiz.",
+      "specialistLessons": "Mutaxassisda hozircha onlayn yozilish uchun mashg‘ulotlar yo‘q"
     },
     "errors": {
       "loadTitle": "Ma’lumotlarni yuklab bo‘lmadi",
@@ -1296,7 +1297,10 @@
       "tooManyBookings": "Bu raqamda administrator qo‘ng‘irog‘ini kutayotgan arizalar bor. Qo‘ng‘iroqni kuting yoki bizga qo‘ng‘iroq qiling.",
       "paymentUnavailable": "Onlayn to‘lov hozir mavjud emas. Bir-ikki daqiqadan keyin urinib ko‘ring yoki {{phone}} telefoni orqali yoziling.",
       "targetGone": "Bu mutaxassisga yozilish hozir mavjud emas. Sahifani yangilab, qaytadan tanlang.",
-      "serverError": "Arizani yuborib bo‘lmadi. Bir daqiqadan keyin qaytadan urinib ko‘ring."
+      "serverError": "Arizani yuborib bo‘lmadi. Bir daqiqadan keyin qaytadan urinib ko‘ring.",
+      "loadText": "Internetni tekshirib, qaytadan urinib ko‘ring.",
+      "network": "Server bilan aloqa yo‘q. Internetni tekshirib, qaytadan urinib ko‘ring.",
+      "slotTakenHint": "Siz formani to‘ldirayotganingizda bu vaqt band qilindi. Boshqa vaqtni tanlang."
     },
     "form": {
       "clientName": "Kimni yozamiz",
@@ -1359,6 +1363,45 @@
         "confirmed": "Yozilish tasdiqlandi. Sizni kutamiz!",
         "rejected": "Afsuski, bu vaqtga yozib bo‘lmadi. Bizga qo‘ng‘iroq qiling — boshqa vaqt tanlab beramiz.",
         "cancelled": "Yozilish bekor qilindi. Agar bu xato bo‘lsa — bizga qo‘ng‘iroq qiling."
+      }
+    },
+    "language": "Til",
+    "myRequest": "Mening arizam",
+    "callBranch": "Filialga qo‘ng‘iroq qilish",
+    "branchNotFound": "Filial topilmadi",
+    "branchNotFoundText": "Havola eskirgan bo‘lishi mumkin. Ro‘yxatdan filialni tanlang.",
+    "allBranches": "Barcha filiallar",
+    "allLessons": "Barcha mashg‘ulotlar",
+    "specialistGone": "Mutaxassis hozir onlayn yozilishni qabul qilmayapti",
+    "specialistGoneText": "Boshqa mutaxassisni tanlang yoki filialga qo‘ng‘iroq qiling.",
+    "pickLesson": "Mashg‘ulotni tanlang",
+    "lessonsCount": "Mashg‘ulotlar: {{count}}",
+    "pickTime": "Vaqtni tanlang",
+    "pickTimeFirst": "Vaqtni tanlang",
+    "localTime": "Vaqt mahalliy, filial bo‘yicha ({{offset}})",
+    "daysAhead": "Yaqin {{count}} kun",
+    "moreDays": "Yana {{count}} kunni ko‘rsatish",
+    "slotsCount_one": "{{count}} ta vaqt",
+    "slotsCount_other": "{{count}} ta vaqt",
+    "noSlotsDay": "bo‘sh emas",
+    "close": "Yopish",
+    "country": {
+      "KG": "Qirg‘iziston",
+      "UZ": "O‘zbekiston"
+    },
+    "stepper": {
+      "lesson": "Mashg‘ulot",
+      "date": "Sana",
+      "time": "Vaqt"
+    },
+    "profile": {
+      "experience_one": "Tajriba {{count}} yil",
+      "experience_other": "Tajriba {{count}} yil",
+      "languages": "Mashg‘ulot tillari: {{list}}",
+      "more": "Batafsil",
+      "less": "Yig‘ish",
+      "lang": {
+        "en": "English"
       }
     }
   },

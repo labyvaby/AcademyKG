@@ -7,6 +7,11 @@ import { API_BASE_URL } from "../utility/apiClient";
 
 const BASE = `${API_BASE_URL}/api/v1/public/booking`;
 
+/** Ссылки для блока «Важно»; "" — ссылки нет. */
+export type PublicTerms = { termsUrl: string; privacyUrl: string };
+
+export type BranchCountry = "KG" | "UZ";
+
 export type PublicBranch = {
   id: string;
   name: string;
@@ -17,13 +22,22 @@ export type PublicBranch = {
   currency: string;
   /** Телефон филиала для гостей (перенос и отмена — звонком); "" — не указан. */
   phone: string;
+  /** Короткий адрес витрины филиала (/book/<slug>); "" — ссылка по id. */
+  slug: string;
+  country: BranchCountry;
+  /** Код телефона гостя по умолчанию (+996 / +998). */
+  phoneCode: string;
+  /** Языки витрины филиала; первый — по умолчанию. */
+  languages: string[];
+  /** Свои ссылки филиала, иначе — организации. */
+  terms: PublicTerms;
 };
 
 export type PublicInfo = {
   organization: { id: string; name: string; brandName: string; brandDescription: string; brandSubtitle: string };
   branches: PublicBranch[];
-  /** Ссылки для блока «Важно»; "" — ссылки нет. */
-  terms: { termsUrl: string; privacyUrl: string };
+  /** Ссылки организации; у филиала могут быть свои — branches[].terms. */
+  terms: PublicTerms;
 };
 
 export type PublicService = {
@@ -41,11 +55,20 @@ export type PublicSpecialist = {
   nickname: string;
   photoUrl: string | null;
   specializations: string[];
+  /** «О специалисте»; "" — не заполнено. */
+  bio: string;
+  /** Год начала работы; стаж считаем сами. */
+  careerStartYear: number | null;
+  /** Языки занятий: ru | ky | uz | en. */
+  languages: string[];
   /** Ближайший день с окнами и первые окна; null — окон нет в горизонте записи. */
   nearest: { date: string; times: string[] } | null;
   /** Онлайн-предоплата при записи к специалисту; null — без предоплаты. */
   prepayment: { amount: string } | null;
 };
+
+/** Страница специалиста: профиль и его занятия в филиале (nearest здесь всегда null). */
+export type PublicSpecialistDetail = PublicSpecialist & { services: PublicService[] };
 
 export type PublicCalendar = {
   dateFrom: string;
@@ -86,7 +109,17 @@ export type PublicBooking = {
   price: string;
   currency: string;
   clientName: string;
-  branch: { id: string; name: string; address: string; timezone: string; phone: string };
+  branch: {
+    id: string;
+    name: string;
+    address: string;
+    timezone: string;
+    phone: string;
+    slug: string;
+    country: BranchCountry;
+    phoneCode: string;
+    languages: string[];
+  };
   service: { id: string; name: string };
   specialist: { id: string; fullName: string };
   /** null — заявка без предоплаты. */
@@ -164,6 +197,9 @@ export const getPublicSpecialists = (branchId: string, serviceId: string, signal
   request<PublicSpecialist[]>(`/branches/${branchId}/specialists/?service=${encodeURIComponent(serviceId)}`, {
     signal,
   });
+
+export const getPublicSpecialist = (branchId: string, specialistId: string, signal?: AbortSignal) =>
+  request<PublicSpecialistDetail>(`/branches/${branchId}/specialists/${specialistId}/`, { signal });
 
 export const getPublicCalendar = (branchId: string, specialistId: string, serviceId: string, signal?: AbortSignal) =>
   request<PublicCalendar>(

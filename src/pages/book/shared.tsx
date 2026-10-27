@@ -1,13 +1,29 @@
 import React from "react";
-import { Avatar, Box, Container, IconButton, Link, Stack, Typography } from "@mui/material";
-import ArrowBackOutlined from "@mui/icons-material/ArrowBackOutlined";
+import {
+  Box,
+  Button,
+  CircularProgress,
+  Container,
+  GlobalStyles,
+  IconButton,
+  Link,
+  Stack,
+  Typography,
+  type SxProps,
+  type Theme,
+} from "@mui/material";
+import ArrowBackIosNewOutlined from "@mui/icons-material/ArrowBackIosNewOutlined";
 import InfoOutlined from "@mui/icons-material/InfoOutlined";
+import ReceiptLongOutlined from "@mui/icons-material/ReceiptLongOutlined";
 import { Link as RouterLink } from "react-router";
 import { Trans, useTranslation } from "react-i18next";
 
-import smallIcon from "../../assets/img/icon_2s.png";
-import type { PublicBookingError } from "../../services/publicBooking";
+import logo from "../../assets/img/logo.png";
+import type { PublicBookingError, PublicBranch } from "../../services/publicBooking";
 import { formatPhone } from "../bookings/meta";
+import { branchPath, branchTitle } from "./BookContext";
+import { LANGUAGE_LABEL, LANGUAGE_SHORT, useBookLanguages } from "./i18n";
+import { BORDER, CARD_SHADOW, CONTENT_WIDTH, NARROW_WIDTH, PAGE_BG, PILL_RADIUS, RADIUS } from "./theme";
 
 // Общие куски публичной витрины онлайн-записи (/book).
 
@@ -33,7 +49,7 @@ export function rememberCode(code: string) {
 
 /**
  * Ключ нашего текста для ошибки отправки заявки — по коду и статусу, никогда по тексту бэка:
- * он адресован разработчику. null — показать текст как есть (ошибки сети и полей уже по-русски).
+ * он адресован разработчику. null — общий текст «не удалось отправить».
  */
 export function submitErrorKey(error: PublicBookingError): string | null {
   if (error.status === 429 || error.code === "throttled") return "book.errors.tooManyAttempts";
@@ -43,16 +59,51 @@ export function submitErrorKey(error: PublicBookingError): string | null {
     case "payment_unavailable":
       return "book.errors.paymentUnavailable";
     case "network":
-      return null;
+      return "book.errors.network";
     default:
       return error.status === 404 ? "book.errors.targetGone" : error.status >= 500 ? "book.errors.serverError" : null;
   }
 }
 
+/**
+ * Названия дней и месяцев для языков, которых нет в данных Intl браузеров: Chrome на
+ * «uz» пишет «M10 30, Fri», а на «ky» отдаёт русский. Индекс дня — getUTCDay (0 — вс).
+ */
+const CALENDAR_NAMES: Record<string, { weekdayShort: string[]; weekdayLong: string[]; monthShort: string[]; monthLong: string[] }> = {
+  ky: {
+    weekdayShort: ["жек", "дүй", "шей", "шар", "бей", "жум", "ише"],
+    weekdayLong: ["жекшемби", "дүйшөмбү", "шейшемби", "шаршемби", "бейшемби", "жума", "ишемби"],
+    monthShort: ["янв.", "фев.", "мар.", "апр.", "май", "июн.", "июл.", "авг.", "сен.", "окт.", "ноя.", "дек."],
+    monthLong: ["январь", "февраль", "март", "апрель", "май", "июнь", "июль", "август", "сентябрь", "октябрь", "ноябрь", "декабрь"],
+  },
+  uz: {
+    weekdayShort: ["ya", "du", "se", "cho", "pa", "ju", "sha"],
+    weekdayLong: ["yakshanba", "dushanba", "seshanba", "chorshanba", "payshanba", "juma", "shanba"],
+    monthShort: ["yan", "fev", "mar", "apr", "may", "iyn", "iyl", "avg", "sen", "okt", "noy", "dek"],
+    monthLong: ["yanvar", "fevral", "mart", "aprel", "may", "iyun", "iyul", "avgust", "sentabr", "oktabr", "noyabr", "dekabr"],
+  },
+};
+
+/** Дата по своим названиям: «juma, 30-oktabr», «30-окт.». Формат «день-месяц» — как пишут в KG и UZ. */
+function formatByNames(date: string, lang: string, opts: Intl.DateTimeFormatOptions): string | null {
+  const names = CALENDAR_NAMES[lang];
+  if (!names) return null;
+  const d = new Date(`${date}T12:00:00Z`);
+  const weekday = opts.weekday
+    ? (opts.weekday === "long" ? names.weekdayLong : names.weekdayShort)[d.getUTCDay()]
+    : "";
+  const month = opts.month ? (opts.month === "long" ? names.monthLong : names.monthShort)[d.getUTCMonth()] : "";
+  const day = opts.day ? String(d.getUTCDate()) : "";
+  const dayMonth = day && month ? `${day}-${month}` : day || month;
+  return [weekday, dayMonth].filter(Boolean).join(", ");
+}
+
 /** Дата "YYYY-MM-DD" (локальная дата филиала) → подпись на языке интерфейса. */
 export function formatDay(date: string, lang: string, opts: Intl.DateTimeFormatOptions): string {
   // Полдень UTC + timeZone UTC: дата не «съезжает» на соседний день ни в каком часовом поясе браузера.
-  const text = new Intl.DateTimeFormat(lang, { ...opts, timeZone: "UTC" }).format(new Date(`${date}T12:00:00Z`));
+  const text =
+    formatByNames(date, lang, opts) ??
+    new Intl.DateTimeFormat(lang, { ...opts, timeZone: "UTC" }).format(new Date(`${date}T12:00:00Z`));
   // Фраза с дня недели — с заглавной («Пятница, 23 октября»); только первая буква:
   // CSS capitalize дал бы «23 Октября». Месяц сам по себе («окт.») не трогаем.
   return opts.weekday ? text.charAt(0).toUpperCase() + text.slice(1) : text;
@@ -84,71 +135,159 @@ export function initials(fullName: string): string {
     .join("");
 }
 
-export const SpecialistAvatar: React.FC<{ name: string; photoUrl?: string | null; size?: number }> = ({
-  name,
-  photoUrl,
-  size = 56,
-}) => (
-  <Avatar
-    src={photoUrl ?? undefined}
-    alt={name}
-    sx={{ width: size, height: size, bgcolor: "primary.main", fontWeight: 700, fontSize: size * 0.36 }}
-  >
-    {initials(name)}
-  </Avatar>
-);
-
 type BookShellProps = {
+  /** Филиал страницы: бренд и адрес в шапке, языки витрины. */
+  branch?: PublicBranch | null;
+  /** Языки переключателя без филиала (выбор филиала, статус заявки). */
+  languages?: string[];
   title?: React.ReactNode;
   subtitle?: React.ReactNode;
-  /** Кнопка «назад» в шапке шага; без неё — только бренд. */
+  /** Стрелка «назад» у заголовка. */
   onBack?: () => void;
+  /** Узкая колонка — статус и проверка заявки; по умолчанию витрина во всю ширину. */
+  narrow?: boolean;
   children: React.ReactNode;
 };
 
-/** Оболочка витрины: бренд центра, заголовок шага и контент по центру (мобильный — во всю ширину). */
-export const BookShell: React.FC<BookShellProps> = ({ title, subtitle, onBack, children }) => {
+/**
+ * CRM держит html/body/#root в overflow: hidden — у неё скроллится свой контейнер.
+ * Витрина рендерится вне layout, поэтому на время её показа возвращаем прокрутку
+ * документа: иначе всё ниже первого экрана недостижимо.
+ */
+const scrollableDocument = (
+  <GlobalStyles
+    styles={{
+      html: { height: "auto", overflow: "visible" },
+      body: { height: "auto", minHeight: "100%", overflow: "visible", backgroundColor: PAGE_BG },
+      "#root": { height: "auto", minHeight: "100%", overflow: "visible" },
+    }}
+  />
+);
+
+/** Оболочка витрины: шапка с брендом и языком, заголовок страницы, контент. */
+export const BookShell: React.FC<BookShellProps> = ({
+  branch,
+  languages,
+  title,
+  subtitle,
+  onBack,
+  narrow,
+  children,
+}) => {
   const { t } = useTranslation();
+  const available = branch?.languages ?? languages ?? null;
+  const lang = useBookLanguages(available);
+  const maxWidth = narrow ? NARROW_WIDTH : CONTENT_WIDTH;
+
   return (
-    <Box sx={{ minHeight: "100dvh", bgcolor: "background.default", pb: 6 }}>
+    <Box sx={{ minHeight: "100dvh", bgcolor: PAGE_BG, pb: 8 }}>
+      {scrollableDocument}
       <Box
         component="header"
-        sx={{ borderBottom: 1, borderColor: "divider", bgcolor: "background.paper", position: "sticky", top: 0, zIndex: 2 }}
+        sx={{ bgcolor: "background.paper", borderBottom: 1, borderColor: BORDER, position: "sticky", top: 0, zIndex: 3 }}
       >
-        <Container maxWidth={false} sx={{ maxWidth: 600, py: 1.5, display: "flex", alignItems: "center", gap: 1.5 }}>
+        <Container
+          maxWidth={false}
+          sx={{ maxWidth: CONTENT_WIDTH, py: 1.25, display: "flex", alignItems: "center", gap: 1.5 }}
+        >
           <Box
-            component="img"
-            src={smallIcon}
-            alt=""
-            sx={{ width: 36, height: 36, borderRadius: "50%", objectFit: "contain", flexShrink: 0 }}
-          />
-          <Box sx={{ minWidth: 0 }}>
-            <Typography variant="subtitle1" fontWeight={800} lineHeight={1.2} noWrap>
-              {t("book.brandTitle")}
-            </Typography>
-            <Typography variant="caption" color="text.secondary" noWrap component="div">
-              {t("book.brandSubtitle")}
-            </Typography>
+            component={RouterLink}
+            to={branch ? branchPath(branch) : "/book"}
+            sx={{ display: "flex", alignItems: "center", gap: 1.25, minWidth: 0, color: "inherit", textDecoration: "none", flex: 1 }}
+          >
+            <Box
+              component="img"
+              src={branch?.logoUrl || logo}
+              alt=""
+              sx={{ width: 40, height: 40, objectFit: "contain", flexShrink: 0 }}
+            />
+            <Box sx={{ minWidth: 0 }}>
+              <Typography fontWeight={800} lineHeight={1.2} noWrap>
+                {branch ? branchTitle(branch) : t("book.brandTitle")}
+              </Typography>
+              <Typography variant="caption" color="text.secondary" noWrap component="div">
+                {branch?.address || t("book.brandSubtitle")}
+              </Typography>
+            </Box>
           </Box>
+          {lang.languages.length > 1 && (
+            <Stack direction="row" spacing={0.5} role="group" aria-label={t("book.language")}>
+              {lang.languages.map((code) => {
+                const active = code === lang.current;
+                return (
+                  <Box
+                    key={code}
+                    component="button"
+                    type="button"
+                    onClick={() => lang.choose(code)}
+                    aria-pressed={active}
+                    title={LANGUAGE_LABEL[code]}
+                    sx={{
+                      px: 1.25,
+                      height: 32,
+                      border: 1,
+                      borderRadius: PILL_RADIUS,
+                      cursor: "pointer",
+                      fontFamily: "inherit",
+                      fontSize: 12,
+                      fontWeight: 700,
+                      bgcolor: active ? "primary.main" : "background.paper",
+                      borderColor: active ? "primary.main" : BORDER,
+                      color: active ? "primary.contrastText" : "text.primary",
+                    }}
+                  >
+                    {LANGUAGE_SHORT[code] ?? code.toUpperCase()}
+                  </Box>
+                );
+              })}
+            </Stack>
+          )}
+          <Button
+            component={RouterLink}
+            to="/book/status"
+            size="small"
+            startIcon={<ReceiptLongOutlined />}
+            sx={{
+              display: { xs: "none", md: "inline-flex" },
+              borderRadius: PILL_RADIUS,
+              border: 1,
+              borderColor: BORDER,
+              color: "text.primary",
+              px: 1.5,
+              whiteSpace: "nowrap",
+            }}
+          >
+            {t("book.myRequest")}
+          </Button>
+          {/* Телефон: место в шапке — бренду филиала, заявка — значком. */}
+          <IconButton
+            component={RouterLink}
+            to="/book/status"
+            aria-label={t("book.myRequest")}
+            size="small"
+            sx={{ display: { xs: "inline-flex", md: "none" }, border: 1, borderColor: BORDER }}
+          >
+            <ReceiptLongOutlined fontSize="small" />
+          </IconButton>
         </Container>
       </Box>
 
-      <Container maxWidth={false} sx={{ maxWidth: 600, pt: 2.5 }}>
+      <Container maxWidth={false} sx={{ maxWidth, pt: { xs: 2, md: 3 } }}>
         {(title || onBack) && (
-          <Stack direction="row" alignItems="flex-start" spacing={1} sx={{ mb: 2 }}>
+          <Stack direction="row" alignItems="center" spacing={0.5} sx={{ mb: 2 }}>
             {onBack && (
-              <IconButton onClick={onBack} aria-label={t("book.back")} sx={{ mt: -0.5, ml: -1 }}>
-                <ArrowBackOutlined />
+              <IconButton onClick={onBack} aria-label={t("book.back")} size="small" sx={{ ml: -0.75 }}>
+                <ArrowBackIosNewOutlined sx={{ fontSize: 16 }} />
               </IconButton>
             )}
             <Box sx={{ minWidth: 0 }}>
               {title && (
-                <Typography variant="h5" fontWeight={800} lineHeight={1.25}>
+                <Typography fontWeight={700} sx={{ fontSize: { xs: 17, md: 20 } }} lineHeight={1.3}>
                   {title}
                 </Typography>
               )}
               {subtitle && (
-                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>
                   {subtitle}
                 </Typography>
               )}
@@ -156,7 +295,12 @@ export const BookShell: React.FC<BookShellProps> = ({ title, subtitle, onBack, c
           </Stack>
         )}
         {children}
-        <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ mt: 4 }}>
+        <Typography
+          variant="body2"
+          color="text.secondary"
+          textAlign="center"
+          sx={{ mt: 5, display: { xs: "block", md: "none" } }}
+        >
           <Link component={RouterLink} to="/book/status" underline="hover">
             {t("book.checkStatusLink")}
           </Link>
@@ -165,6 +309,19 @@ export const BookShell: React.FC<BookShellProps> = ({ title, subtitle, onBack, c
     </Box>
   );
 };
+
+/** Белая карточка витрины. */
+export const Panel: React.FC<{ children: React.ReactNode; sx?: SxProps<Theme> }> = ({ children, sx }) => (
+  <Box sx={[{ bgcolor: "background.paper", borderRadius: RADIUS, boxShadow: CARD_SHADOW, p: { xs: 2, md: 2.5 } }, ...(Array.isArray(sx) ? sx : [sx])]}>
+    {children}
+  </Box>
+);
+
+export const Loading: React.FC = () => (
+  <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
+    <CircularProgress />
+  </Box>
+);
 
 /** Пустое состояние / ошибка шага с действием. */
 export const StepMessage: React.FC<{ title: string; text?: string; action?: React.ReactNode }> = ({

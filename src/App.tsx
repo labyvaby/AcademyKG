@@ -75,13 +75,8 @@ const CategoriesPage = lazy(() => import("./pages/categories/index.tsx"));
 const BranchManagePage = lazy(() => import("./pages/branches/BranchManagePage"));
 const SkudPage = lazy(() => import("./pages/skud"));
 const BookingsPage = lazy(() => import("./pages/bookings"));
-// Публичная онлайн-запись (/book) — вне RequireAuth, ходит в /api/v1/public/booking/.
-const PublicBookPage = lazy(() => import("./pages/book"));
-const PublicBookingStatusPage = lazy(() => import("./pages/book/BookingStatusPage"));
-// Сюда банк возвращает гостя после оплаты (redirect_url ссылки Bakai) — дальше страница статуса.
-const PublicPaymentResultPage = lazy(() =>
-  import("./pages/book/BookingStatusPage").then((m) => ({ default: m.PaymentResultRedirect })),
-);
+// Публичная онлайн-запись (/book/*) — вне RequireAuth, ходит в /api/v1/public/booking/.
+const PublicBookApp = lazy(() => import("./pages/book/BookApp"));
 
 
 // Вспомогательный компонент для обработки глобальных событий аутентификации
@@ -606,26 +601,10 @@ function App() {
                         }
                       />
                       <Route
-                        path="book"
+                        path="book/*"
                         element={
                           <Suspense fallback={<LinearProgress />}>
-                            <PublicBookPage />
-                          </Suspense>
-                        }
-                      />
-                      <Route
-                        path="book/status/:code?"
-                        element={
-                          <Suspense fallback={<LinearProgress />}>
-                            <PublicBookingStatusPage />
-                          </Suspense>
-                        }
-                      />
-                      <Route
-                        path="book/payment/result"
-                        element={
-                          <Suspense fallback={<LinearProgress />}>
-                            <PublicPaymentResultPage />
+                            <PublicBookApp />
                           </Suspense>
                         }
                       />

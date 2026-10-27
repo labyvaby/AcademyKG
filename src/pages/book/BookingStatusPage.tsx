@@ -8,9 +8,11 @@ import PlaceOutlined from "@mui/icons-material/PlaceOutlined";
 import { Navigate, Link as RouterLink, useNavigate, useParams, useSearchParams } from "react-router";
 import { useTranslation } from "react-i18next";
 
-import { formatMoney } from "../../utility/currency";
+import { formatPrice } from "./money";
 import { getPublicBooking, type PublicBooking, type PublicBookingStatus } from "../../services/publicBooking";
 import { formatPhone } from "../bookings/meta";
+import { branchPath } from "./BookContext";
+import { BORDER, CARD_SHADOW, RADIUS } from "./theme";
 import { BookShell, formatDay, readLastCodes, StepMessage, useLoad } from "./shared";
 
 // Статус заявки по коду (/book/status/:code) и форма «проверить заявку» (/book/status).
@@ -58,7 +60,7 @@ const CheckStatusForm: React.FC = () => {
   const lastCodes = React.useMemo(readLastCodes, []);
 
   return (
-    <BookShell title={t("book.status.checkTitle")} subtitle={t("book.status.checkHint")}>
+    <BookShell narrow title={t("book.status.checkTitle")} subtitle={t("book.status.checkHint")}>
       <Stack
         component="form"
         spacing={2}
@@ -116,7 +118,7 @@ const BookingStatus: React.FC<{ code: string }> = ({ code }) => {
 
   if (booking.loading && !booking.data) {
     return (
-      <BookShell>
+      <BookShell narrow>
         <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
           <CircularProgress />
         </Box>
@@ -125,9 +127,13 @@ const BookingStatus: React.FC<{ code: string }> = ({ code }) => {
   }
   if (booking.error || !booking.data) {
     return (
-      <BookShell title={t("book.status.notFoundTitle")}>
+      <BookShell narrow title={t("book.status.notFoundTitle")}>
         <StepMessage
-          title={booking.error?.message ?? t("book.status.notFoundTitle")}
+          title={
+            (booking.error as { code?: string } | null)?.code === "network"
+              ? t("book.errors.network")
+              : t("book.status.notFoundTitle")
+          }
           text={t("book.status.notFoundText")}
           action={
             <Button component={RouterLink} to="/book/status">
@@ -151,7 +157,7 @@ const BookingStatus: React.FC<{ code: string }> = ({ code }) => {
 
   const paidNow = backFromBank && b.payment?.status === "paid";
   return (
-    <BookShell>
+    <BookShell narrow languages={b.branch.languages}>
       {(justCreated || paidNow) && (
         <Box sx={{ textAlign: "center", mb: 3 }}>
           <CheckCircleOutlined color="success" sx={{ fontSize: 56 }} />
@@ -169,7 +175,7 @@ const BookingStatus: React.FC<{ code: string }> = ({ code }) => {
         </Alert>
       )}
 
-      <Card variant="outlined" sx={{ p: 2.5 }}>
+      <Card variant="outlined" sx={{ p: 2.5, borderRadius: RADIUS, borderColor: BORDER, boxShadow: CARD_SHADOW }}>
         <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2}>
           <Box>
             <Typography variant="caption" color="text.secondary">
@@ -204,7 +210,7 @@ const BookingStatus: React.FC<{ code: string }> = ({ code }) => {
           </Row>
           <Row label={t("book.status.specialist")}>{b.specialist.fullName}</Row>
           <Row label={t("book.status.client")}>{b.clientName}</Row>
-          <Row label={t("book.status.price")}>{formatMoney(b.price, b.currency)}</Row>
+          <Row label={t("book.status.price")}>{formatPrice(b.price, b.currency)}</Row>
         </Stack>
         {(b.branch.address || b.branch.name) && (
           <Stack direction="row" spacing={0.75} alignItems="center" sx={{ mt: 2, color: "text.secondary" }}>
@@ -237,7 +243,7 @@ const BookingStatus: React.FC<{ code: string }> = ({ code }) => {
         <Button variant="outlined" onClick={booking.reload}>
           {t("book.status.refresh")}
         </Button>
-        <Button variant="text" component={RouterLink} to="/book">
+        <Button variant="text" component={RouterLink} to={branchPath(b.branch)}>
           {t("book.status.bookAgain")}
         </Button>
       </Stack>
@@ -264,7 +270,7 @@ function formatCountdown(ms: number): string {
 const PaymentBlock: React.FC<{ booking: PublicBooking; now: number }> = ({ booking, now }) => {
   const { t } = useTranslation();
   const payment = booking.payment!;
-  const amount = formatMoney(payment.amount, booking.currency);
+  const amount = formatPrice(payment.amount, booking.currency);
   const left = new Date(payment.expiresAt).getTime() - now;
   const payable = booking.status === "awaiting_payment" && payment.payUrl && left > 0;
 
