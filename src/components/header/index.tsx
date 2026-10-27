@@ -48,7 +48,7 @@ import PassportPhotoUploader from "../../features/employees/components/PassportP
 import { useNotification } from "@refinedev/core";
 import SaveIcon from "@mui/icons-material/Save";
 import { usePermissions, refetchPermissions } from "../../hooks/usePermissions";
-import { logout, changePassword } from "../../services/auth";
+import { logout, changePassword, requestPasswordReset } from "../../services/auth";
 import {
   parsePhone,
   DEFAULT_PHONE_COUNTRY_CODE,
@@ -96,6 +96,7 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
   const [showOldPassword, setShowOldPassword] = React.useState(false);
   const [showNewPassword, setShowNewPassword] = React.useState(false);
   const [passwordError, setPasswordError] = React.useState("");
+  const [passwordInfo, setPasswordInfo] = React.useState("");
 
   const { employee: empFromPerms, isSuperAdmin } = usePermissions();
   const permissionsEmployee = empFromPerms as { photoUrl?: string; fullName?: string } | null;
@@ -176,11 +177,12 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
     setEditMode(false);
     setEditNameError("");
     setChangePasswordMode(false);
-    setOldPassword(""); setNewPassword(""); setConfirmPassword(""); setPasswordError("");
+    setOldPassword(""); setNewPassword(""); setConfirmPassword(""); setPasswordError(""); setPasswordInfo("");
   };
 
   const handleChangePassword = async () => {
     setPasswordError("");
+    setPasswordInfo("");
     if (!oldPassword.trim()) { setPasswordError(t("profile.enterCurrentPassword")); return; }
     if (newPassword.length < 8) { setPasswordError(t("profile.passwordMin8")); return; }
     if (newPassword !== confirmPassword) { setPasswordError(t("profile.passwordsDoNotMatch")); return; }
@@ -196,6 +198,25 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       setPasswordError(msg || t("profile.passwordChangeFailed"));
+      setBusy(false);
+    }
+  };
+
+  // Сотрудники входят по SMS и часто не знают (или не задавали) пароль —
+  // отправляем ссылку сброса на email из профиля, без ввода текущего пароля
+  const handleForgotPassword = async () => {
+    setPasswordError("");
+    setPasswordInfo("");
+    const email = (employee?.email || identity?.email || "").trim();
+    if (!email) { setPasswordError(t("profile.resetNoEmail")); return; }
+    try {
+      setBusy(true);
+      await requestPasswordReset(email, `${window.location.origin}/reset-password`);
+      setPasswordInfo(t("profile.resetLinkSent", { email }));
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setPasswordError(msg || t("profile.resetLinkFailed"));
+    } finally {
       setBusy(false);
     }
   };
@@ -737,6 +758,7 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
                     </Box>
                     <Stack spacing={2} sx={{ width: '100%' }}>
                       {passwordError && <Alert severity="error" sx={{ borderRadius: 2 }}>{passwordError}</Alert>}
+                      {passwordInfo && <Alert severity="success" sx={{ borderRadius: 2 }}>{passwordInfo}</Alert>}
                       <Stack spacing={0.5}>
                         <Typography variant="caption" color="text.secondary" fontWeight={600}>{t("profile.currentPassword")} *</Typography>
                         <TextField
@@ -756,6 +778,17 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
                             ),
                           }}
                         />
+                        <Box sx={{ textAlign: "right" }}>
+                          <Button
+                            variant="text"
+                            size="small"
+                            onClick={handleForgotPassword}
+                            disabled={busy}
+                            sx={{ textTransform: "none", fontWeight: 600, px: 0.5 }}
+                          >
+                            {t("profile.forgotCurrentPassword")}
+                          </Button>
+                        </Box>
                       </Stack>
                       <Stack spacing={0.5}>
                         <Typography variant="caption" color="text.secondary" fontWeight={600}>{t("profile.newPassword")} *</Typography>
@@ -804,7 +837,7 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
                       <Button
                         variant="outlined"
                         startIcon={<ArrowBackOutlined />}
-                        onClick={() => { setChangePasswordMode(false); setOldPassword(""); setNewPassword(""); setConfirmPassword(""); setPasswordError(""); }}
+                        onClick={() => { setChangePasswordMode(false); setOldPassword(""); setNewPassword(""); setConfirmPassword(""); setPasswordError(""); setPasswordInfo(""); }}
                         disabled={busy}
                         sx={{ borderRadius: 24, flex: 1 }}
                       >
