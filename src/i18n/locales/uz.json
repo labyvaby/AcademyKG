@@ -1265,6 +1265,34 @@
     "multiServiceAppointmentError": "Bu qabulda bir nechta xizmat bor. Uni to‘liq qabul kartasidan o‘zgartiring."
   },
   "book": {
+    "me": {
+      "title": "Mening yozuvlarim",
+      "loginHint": "Yozilishda yoki markazda qoldirgan telefon raqamingiz bilan kiring — kelgusi mashg‘ulotlar va arizalarni ko‘rsatamiz.",
+      "phoneHint": "Kod bilan SMS yuboramiz",
+      "code": "SMS kodi",
+      "codeSent": "Kod {{phone}} raqamiga yuborildi",
+      "getCode": "Kod olish",
+      "signIn": "Kirish",
+      "changePhone": "Boshqa raqam",
+      "resend": "Qayta yuborish",
+      "resendIn": "{{seconds}} soniyadan keyin qayta",
+      "byCode": "Ariza kodi bormi? Holatini tekshirish",
+      "signOut": "Chiqish",
+      "visits": "Kelgusi mashg‘ulotlar",
+      "requests": "Arizalar",
+      "empty": "Hozircha yozuvlar yo‘q",
+      "emptyHint": "Bu yerda shu raqamdan kelgan arizalar va kartasida shu raqam ko‘rsatilgan bolalarning mashg‘ulotlari chiqadi.",
+      "changeByPhone": "Mashg‘ulotni ko‘chirish yoki bekor qilish filial telefoni orqali.",
+      "errors": {
+        "sms_unavailable": "Bu raqam uchun SMS orqali kirish hozircha mavjud emas. Arizani kodi bo‘yicha tekshiring.",
+        "code_cooldown": "Kod yuborildi. Bir daqiqadan keyin qayta yuborish mumkin.",
+        "too_many_codes": "Bir kunda juda ko‘p kod. Ertaga urinib ko‘ring yoki filialga qo‘ng‘iroq qiling.",
+        "code_invalid": "Kod noto‘g‘ri.",
+        "code_expired": "Kod muddati tugadi — yangisini so‘rang.",
+        "too_many_attempts": "Juda ko‘p urinish — yangi kod so‘rang.",
+        "generic": "Kirib bo‘lmadi. Qaytadan urinib ko‘ring."
+      }
+    },
     "brandTitle": "Akademiya KG",
     "brandSubtitle": "Mashg‘ulotlarga onlayn yozilish",
     "back": "Orqaga",

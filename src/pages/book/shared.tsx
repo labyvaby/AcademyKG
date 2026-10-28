@@ -178,6 +178,11 @@ export const BookShell: React.FC<BookShellProps> = ({
   const available = branch?.languages ?? languages ?? null;
   const lang = useBookLanguages(available);
   const maxWidth = narrow ? NARROW_WIDTH : CONTENT_WIDTH;
+  // «Мои записи» со входом по SMS — только там, где SMS доходят (KG); в узбекском филиале —
+  // проверка заявки по коду.
+  const withLogin = !branch || branch.country === "KG";
+  const mineLink = withLogin ? "/book/me" : "/book/status";
+  const mineLabel = withLogin ? t("book.me.title") : t("book.myRequest");
 
   return (
     <Box sx={{ minHeight: "100dvh", bgcolor: PAGE_BG, pb: 8 }}>
@@ -244,7 +249,7 @@ export const BookShell: React.FC<BookShellProps> = ({
           )}
           <Button
             component={RouterLink}
-            to="/book/status"
+            to={mineLink}
             size="small"
             startIcon={<ReceiptLongOutlined />}
             sx={{
@@ -257,13 +262,13 @@ export const BookShell: React.FC<BookShellProps> = ({
               whiteSpace: "nowrap",
             }}
           >
-            {t("book.myRequest")}
+            {mineLabel}
           </Button>
           {/* Телефон: место в шапке — бренду филиала, заявка — значком. */}
           <IconButton
             component={RouterLink}
-            to="/book/status"
-            aria-label={t("book.myRequest")}
+            to={mineLink}
+            aria-label={mineLabel}
             size="small"
             sx={{ display: { xs: "inline-flex", md: "none" }, border: 1, borderColor: BORDER }}
           >

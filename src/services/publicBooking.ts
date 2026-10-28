@@ -159,12 +159,16 @@ export class PublicBookingError extends Error {
 
 const snakeToCamel = (key: string) => key.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase());
 
-async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+async function request<T>(path: string, init: RequestInit = {}, guestToken?: string): Promise<T> {
   let response: Response;
   try {
     response = await fetch(`${BASE}${path}`, {
       ...init,
-      headers: { Accept: "application/json", ...(init.body ? { "Content-Type": "application/json" } : {}) },
+      headers: {
+        Accept: "application/json",
+        ...(init.body ? { "Content-Type": "application/json" } : {}),
+        ...(guestToken ? { "X-Guest-Token": guestToken } : {}),
+      },
       cache: "no-store",
     });
   } catch (err) {
@@ -172,6 +176,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     throw new PublicBookingError("Нет связи с сервером. Проверьте интернет и попробуйте ещё раз.", 0, "network");
   }
 
+  if (response.status === 204) return undefined as T;
   const payload = await response.json().catch(() => null);
   if (response.ok) return (payload?.data ?? payload) as T;
 
@@ -212,3 +217,35 @@ export const createPublicBooking = (input: CreatePublicBookingInput) =>
 
 export const getPublicBooking = (code: string, signal?: AbortSignal) =>
   request<PublicBooking>(`/bookings/${encodeURIComponent(code.trim())}/`, { signal });
+
+// ── Вход гостя по SMS и «Мои записи» ────────────────────────────────────────
+// Записаться можно без входа; вход открывает заявки с номера и визиты детей, у которых
+// этот номер в карте. Токен гостя — свой, в заголовке X-Guest-Token (не JWT сотрудника).
+
+/** Предстоящий визит ребёнка из CRM (без денег и заключений). */
+export type GuestVisit = {
+  id: string;
+  startAt: string;
+  date: string;
+  time: string;
+  durationMinutes: number;
+  clientName: string;
+  services: string[];
+  specialists: string[];
+  branch: { id: string; name: string; address: string; timezone: string; phone: string; slug: string };
+};
+
+export type GuestMe = { phone: string; bookings: PublicBooking[]; visits: GuestVisit[] };
+
+export const requestGuestCode = (phone: string) =>
+  request<{ resendInSeconds: number }>("/auth/code/", { method: "POST", body: JSON.stringify({ phone }) });
+
+export const verifyGuestCode = (phone: string, code: string) =>
+  request<{ token: string; phone: string; expiresAt: string }>("/auth/verify/", {
+    method: "POST",
+    body: JSON.stringify({ phone, code }),
+  });
+
+export const guestLogout = (token: string) => request<void>("/auth/logout/", { method: "POST" }, token);
+
+export const getGuestMe = (token: string, signal?: AbortSignal) => request<GuestMe>("/me/", { signal }, token);

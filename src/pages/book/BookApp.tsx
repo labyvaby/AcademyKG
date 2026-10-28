@@ -13,6 +13,7 @@ import { bookI18n } from "./i18n";
 //   /book/:branch                      занятия филиала; ?service= — специалисты занятия
 //   /book/:branch/specialist/:id       страница специалиста: занятие, день, время, заявка
 //   /book/status/:code?                статус заявки / проверка кода
+//   /book/me                           «Мои записи»: вход по SMS (только номера KG)
 //   /book/payment/result               возврат со страницы банка
 // :branch — короткий адрес филиала из настроек записи или его id.
 
@@ -20,6 +21,7 @@ const BranchPickerPage = lazy(() => import("./BranchPickerPage"));
 const BranchPage = lazy(() => import("./BranchPage"));
 const SpecialistPage = lazy(() => import("./SpecialistPage"));
 const BookingStatusPage = lazy(() => import("./BookingStatusPage"));
+const MyBookingsPage = lazy(() => import("./MyBookingsPage"));
 const PaymentResultRedirect = lazy(() =>
   import("./BookingStatusPage").then((m) => ({ default: m.PaymentResultRedirect })),
 );
@@ -41,6 +43,7 @@ const BookApp: React.FC = () => (
         <Routes>
           <Route index element={<BranchPickerPage />} />
           <Route path="status/:code?" element={<BookingStatusPage />} />
+          <Route path="me" element={<MyBookingsPage />} />
           <Route path="payment/result" element={<PaymentResultRedirect />} />
           <Route path=":branchRef" element={<BranchPage />} />
           <Route path=":branchRef/specialist/:specialistId" element={<SpecialistPage />} />
