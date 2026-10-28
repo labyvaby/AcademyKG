@@ -14,6 +14,7 @@ import {
   Drawer,
   FormControlLabel,
   IconButton,
+  InputAdornment,
   MenuItem,
   Stack,
   Switch,
@@ -22,6 +23,7 @@ import {
 } from "@mui/material";
 import CloseOutlined from "@mui/icons-material/CloseOutlined";
 import ContentCopyOutlined from "@mui/icons-material/ContentCopyOutlined";
+import QrCode2Outlined from "@mui/icons-material/QrCode2Outlined";
 import { useNotification } from "@refinedev/core";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
@@ -30,6 +32,8 @@ import { PERMISSIONS } from "../../constants/permissions";
 import { useBranchContext } from "../../contexts/branch-context";
 import { usePermissions } from "../../hooks/usePermissions";
 import { apiFetch } from "../../utility/apiClient";
+import { BranchQrDialog } from "./BranchQrDialog";
+import { branchBookLink, normalizeSlugInput, SLUG_RE, suggestSlug } from "./slug";
 import {
   createBookingSettings,
   getBookingPaymentSettings,
@@ -60,6 +64,9 @@ const DEFAULTS: FormState = {
   employees: [],
   contactPhone: "",
   prepayments: [],
+  publicSlug: "",
+  termsUrl: "",
+  privacyUrl: "",
 };
 
 const toForm = (s?: BookingSettings): FormState =>
@@ -74,23 +81,31 @@ const toForm = (s?: BookingSettings): FormState =>
         contactPhone: s.contactPhone ?? "",
         // "700.00" → "700": так сумма читается и правится как в поле ввода.
         prepayments: (s.prepayments ?? []).map((p) => ({ employee: p.employee, amount: String(Number(p.amount)) })),
+        publicSlug: s.publicSlug ?? "",
+        termsUrl: s.termsUrl ?? "",
+        privacyUrl: s.privacyUrl ?? "",
       }
     : DEFAULTS;
 
-/** Что уходит на бэк: только выбранные на витрине специалисты и суммы больше нуля. */
-const toInput = (form: FormState): BookingSettingsInput => ({
+/**
+ * Что уходит на бэк: только выбранные на витрине специалисты и суммы больше нуля. Без
+ * предоплаты в валюте филиала (Bakai — только сомы) суммы не отправляем: бэк ответил бы 400,
+ * а строки, заведённые до смены валюты, так и очищаются.
+ */
+const toInput = (form: FormState, prepaymentSupported: boolean): BookingSettingsInput => ({
   ...form,
   contactPhone: form.contactPhone.replace(/[\s()-]/g, ""),
-  prepayments: form.prepayments.filter((p) => form.employees.includes(p.employee) && Number(p.amount) > 0),
+  prepayments: prepaymentSupported
+    ? form.prepayments.filter((p) => form.employees.includes(p.employee) && Number(p.amount) > 0)
+    : [],
+  publicSlug: form.publicSlug.replace(/-+$/g, ""),
+  termsUrl: form.termsUrl.trim(),
+  privacyUrl: form.privacyUrl.trim(),
 });
 
 const pickResults = (res: any): any[] => res?.data?.results ?? res?.results ?? res?.data ?? [];
 
-export const BookingSettingsDrawer: React.FC<{ open: boolean; onClose: () => void; publicLink: string }> = ({
-  open,
-  onClose,
-  publicLink,
-}) => {
+export const BookingSettingsDrawer: React.FC<{ open: boolean; onClose: () => void }> = ({ open, onClose }) => {
   const { t } = useTranslation();
   const { branches, selectedBranch } = useBranchContext();
   const { hasPermission } = usePermissions();
@@ -142,9 +157,19 @@ export const BookingSettingsDrawer: React.FC<{ open: boolean; onClose: () => voi
   const [form, setForm] = React.useState<FormState>(DEFAULTS);
   React.useEffect(() => setForm(toForm(current)), [current, branchId]);
 
+  const branch = branches.find((b) => b.id === branchId);
+  // До первого сохранения настроек флага с бэка нет — судим по валюте филиала.
+  const prepaymentSupported = current ? current.prepaymentSupported : (branch?.currency ?? "KGS") === "KGS";
+  const branchCurrency = current?.branchCurrency ?? branch?.currency ?? "KGS";
+  const branchLink = branchBookLink(window.location.origin, branchId, current?.publicSlug ?? "");
+  const slugChanged = Boolean(current?.publicSlug) && form.publicSlug !== current?.publicSlug;
+  const slugInvalid = Boolean(form.publicSlug) && (form.publicSlug.length < 2 || !SLUG_RE.test(form.publicSlug.replace(/-+$/g, "")));
+
   const save = useMutation({
     mutationFn: () =>
-      current ? updateBookingSettings(current.id, toInput(form)) : createBookingSettings(branchId, toInput(form)),
+      current
+        ? updateBookingSettings(current.id, toInput(form, prepaymentSupported))
+        : createBookingSettings(branchId, toInput(form, prepaymentSupported)),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["booking-settings"] });
       notify?.({ type: "success", message: t("bookings.settings.saved") });
@@ -208,7 +233,7 @@ export const BookingSettingsDrawer: React.FC<{ open: boolean; onClose: () => voi
                 <Box>
                   <Typography fontWeight={700}>{t("bookings.settings.enabled")}</Typography>
                   <Typography variant="caption" color="text.secondary">
-                    {publicLink}
+                    {branchLink}
                   </Typography>
                 </Box>
               }
@@ -252,7 +277,20 @@ export const BookingSettingsDrawer: React.FC<{ open: boolean; onClose: () => voi
               )}
             />
 
-            {form.employees.length > 0 && (
+            <ShowcaseLinkSection
+              slug={form.publicSlug}
+              onSlug={(publicSlug) => setForm((f) => ({ ...f, publicSlug }))}
+              suggestion={suggestSlug(branch?.name ?? "")}
+              savedLink={branchLink}
+              invalid={slugInvalid}
+              changed={slugChanged}
+              disabled={!canEdit}
+            />
+
+            {form.employees.length > 0 && !prepaymentSupported && (
+              <Alert severity="info">{t("bookings.settings.prepaymentCurrency", { currency: branchCurrency })}</Alert>
+            )}
+            {form.employees.length > 0 && prepaymentSupported && (
               <Box>
                 <Typography variant="subtitle2" fontWeight={800}>
                   {t("bookings.settings.prepaymentTitle")}
@@ -290,12 +328,41 @@ export const BookingSettingsDrawer: React.FC<{ open: boolean; onClose: () => voi
             <TextField
               label={t("bookings.settings.contactPhone")}
               helperText={t("bookings.settings.contactPhoneHint")}
-              placeholder="+996312000111"
+              placeholder={current?.branchCountry === "UZ" ? "+998732000111" : "+996312000111"}
               value={form.contactPhone}
               onChange={(e) => setForm((f) => ({ ...f, contactPhone: e.target.value }))}
               disabled={!canEdit}
               inputProps={{ inputMode: "tel", maxLength: 20 }}
             />
+
+            <Box>
+              <Typography variant="subtitle2" fontWeight={800}>
+                {t("bookings.settings.branchTerms")}
+              </Typography>
+              <Typography variant="caption" color="text.secondary" component="p" sx={{ mb: 1 }}>
+                {t("bookings.settings.branchTermsHint")}
+              </Typography>
+              <Stack spacing={1.5}>
+                <TextField
+                  size="small"
+                  label={t("bookings.payments.termsUrl")}
+                  value={form.termsUrl}
+                  onChange={(e) => setForm((f) => ({ ...f, termsUrl: e.target.value }))}
+                  placeholder="https://"
+                  disabled={!canEdit}
+                  inputProps={{ inputMode: "url" }}
+                />
+                <TextField
+                  size="small"
+                  label={t("bookings.payments.privacyUrl")}
+                  value={form.privacyUrl}
+                  onChange={(e) => setForm((f) => ({ ...f, privacyUrl: e.target.value }))}
+                  placeholder="https://"
+                  disabled={!canEdit}
+                  inputProps={{ inputMode: "url" }}
+                />
+              </Stack>
+            </Box>
 
             <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
               <NumberSelect
@@ -349,13 +416,88 @@ export const BookingSettingsDrawer: React.FC<{ open: boolean; onClose: () => voi
           variant="contained"
           size="large"
           fullWidth
-          disabled={!canEdit || !branchId || save.isPending || loading}
+          disabled={!canEdit || !branchId || save.isPending || loading || slugInvalid}
           onClick={() => save.mutate()}
         >
           {save.isPending ? <CircularProgress size={22} color="inherit" /> : t("bookings.settings.save")}
         </Button>
       </Box>
     </Drawer>
+  );
+};
+
+/**
+ * Короткий адрес витрины филиала: ссылку дают в рекламе и печатают QR на ресепшн.
+ * Смена адреса ломает уже разосланные ссылки — предупреждаем до сохранения.
+ */
+const ShowcaseLinkSection: React.FC<{
+  slug: string;
+  onSlug: (slug: string) => void;
+  suggestion: string;
+  /** Ссылка по сохранённому адресу — её копируем и кодируем в QR. */
+  savedLink: string;
+  invalid: boolean;
+  changed: boolean;
+  disabled: boolean;
+}> = ({ slug, onSlug, suggestion, savedLink, invalid, changed, disabled }) => {
+  const { t } = useTranslation();
+  const [copied, setCopied] = React.useState(false);
+  const [qrOpen, setQrOpen] = React.useState(false);
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(savedLink);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch {
+      window.prompt(t("bookings.copyLinkPrompt"), savedLink);
+    }
+  };
+
+  return (
+    <Box>
+      <Typography variant="subtitle2" fontWeight={800}>
+        {t("bookings.settings.slugTitle")}
+      </Typography>
+      <Typography variant="caption" color="text.secondary" component="p" sx={{ mb: 1 }}>
+        {t("bookings.settings.slugHint")}
+      </Typography>
+      <TextField
+        size="small"
+        fullWidth
+        value={slug}
+        onChange={(e) => onSlug(normalizeSlugInput(e.target.value))}
+        placeholder={suggestion || "fergana"}
+        disabled={disabled}
+        error={invalid}
+        helperText={invalid ? t("bookings.settings.slugInvalid") : t("bookings.settings.slugFormat")}
+        InputProps={{
+          startAdornment: (
+            <InputAdornment position="start" sx={{ mr: 0 }}>
+              {`${window.location.host}/book/`}
+            </InputAdornment>
+          ),
+        }}
+      />
+      {!slug && suggestion && !disabled && (
+        <Button size="small" onClick={() => onSlug(suggestion)} sx={{ mt: 0.5 }}>
+          {t("bookings.settings.slugSuggest", { slug: suggestion })}
+        </Button>
+      )}
+      {changed && (
+        <Alert severity="warning" sx={{ mt: 1 }}>
+          {t("bookings.settings.slugChanged")}
+        </Alert>
+      )}
+      <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
+        <Button size="small" variant="outlined" startIcon={<ContentCopyOutlined />} onClick={copy}>
+          {copied ? t("bookings.linkCopied") : t("bookings.settings.copyBranchLink")}
+        </Button>
+        <Button size="small" variant="outlined" startIcon={<QrCode2Outlined />} onClick={() => setQrOpen(true)}>
+          {t("bookings.settings.qr")}
+        </Button>
+      </Stack>
+      <BranchQrDialog open={qrOpen} onClose={() => setQrOpen(false)} link={savedLink} />
+    </Box>
   );
 };
 

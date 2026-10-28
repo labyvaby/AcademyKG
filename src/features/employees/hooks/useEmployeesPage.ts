@@ -31,7 +31,13 @@ const EMPLOYEE_WRITE_FIELDS = new Set([
   "userEmail",
   "userPhoneNumber",
   "salaryRules",
+  "publicBio",
+  "careerStartYear",
+  "languages",
 ]);
+
+// Поля, которые очищают пустой строкой: «О специалисте» можно стереть.
+const CLEARABLE_STRING_FIELDS = new Set(["publicBio"]);
 
 function getErrorMessage(error: unknown): string {
   if (error instanceof Error) return error.message;
@@ -233,7 +239,7 @@ function sanitizeEmployeeWritePayload(payload: Record<string, unknown>): Record<
     Object.entries(payload).filter(([key, value]) => {
       if (!EMPLOYEE_WRITE_FIELDS.has(key)) return false;
       if (value === undefined) return false;
-      if (typeof value === "string" && !value.trim()) return false;
+      if (typeof value === "string" && !value.trim() && !CLEARABLE_STRING_FIELDS.has(key)) return false;
       return true;
     }),
   );

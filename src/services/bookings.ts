@@ -112,13 +112,19 @@ export type BookingListParams = {
   /** Оплачены онлайн, закрыты без приёма и без решения по деньгам. */
   needsAttention?: boolean;
   prepaymentStatus?: PrepaymentStatus;
+  /** Филиал; "all" — все доступные, даже если в сайдбаре выбран один; не задан — как в сайдбаре. */
+  branch?: string;
 };
 
 export const listBookings = async (params: BookingListParams = {}): Promise<Page<Booking>> => {
+  const { branch, ...rest } = params;
   const query = new URLSearchParams();
-  Object.entries(params).forEach(([key, value]) => {
+  Object.entries(rest).forEach(([key, value]) => {
     if (value !== undefined && value !== null && value !== "") query.set(key, String(value));
   });
+  // «Все филиалы» явно: _noBranch не даёт apiFetch подставить филиал из сайдбара.
+  if (branch === "all") query.set("_noBranch", "1");
+  else if (branch) query.set("branch", branch);
   const res = await apiFetch<Envelope<Page<Booking>>>(`/api/v1/bookings/?${query.toString()}`);
   const page = unwrap(res);
   return { count: Number(page?.count ?? 0), results: page?.results ?? [] };
@@ -222,13 +228,32 @@ export type BookingSettings = {
   contactPhone: string;
   /** Суммы онлайн-предоплаты по специалистам; нет строки — без предоплаты. Заменяется целиком. */
   prepayments: SpecialistPrepayment[];
+  /** Короткий адрес витрины филиала (/book/<publicSlug>); "" — не задан. */
+  publicSlug: string;
+  /** Свои ссылки филиала на правила и политику; "" — ссылки организации. */
+  termsUrl: string;
+  privacyUrl: string;
+  branchCountry: "KG" | "UZ";
+  branchCurrency: string;
+  /** Предоплата через Bakai возможна только в сомах. */
+  prepaymentSupported: boolean;
   updatedAt: string;
 };
 
 export type BookingSettingsInput = Partial<
   Pick<
     BookingSettings,
-    "isEnabled" | "slotStepMinutes" | "minLeadMinutes" | "horizonDays" | "services" | "employees" | "contactPhone" | "prepayments"
+    | "isEnabled"
+    | "slotStepMinutes"
+    | "minLeadMinutes"
+    | "horizonDays"
+    | "services"
+    | "employees"
+    | "contactPhone"
+    | "prepayments"
+    | "publicSlug"
+    | "termsUrl"
+    | "privacyUrl"
   >
 >;
 

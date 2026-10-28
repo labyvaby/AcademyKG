@@ -511,6 +511,21 @@
     "willCreateCount_other": "{{count}} ta smena yaratiladi:"
   },
   "employees": {
+    "showcase": {
+      "title": "Yozilish saytidagi profil",
+      "hint": "Uni ota-onalar onlayn yozilishdagi mutaxassis sahifasida ko‘radi — u ishlaydigan barcha filiallarda.",
+      "bio": "Mutaxassis haqida",
+      "careerStartYear": "Ishlay boshlagan yili",
+      "careerStartYearHint": "Tajribani sayt o‘zi hisoblaydi, masalan 2018",
+      "careerStartYearInvalid": "1960-yildan joriy yilgacha",
+      "languages": "Mashg‘ulot tillari",
+      "lang": {
+        "ru": "Ruscha",
+        "ky": "Qirg‘izcha",
+        "uz": "O‘zbekcha",
+        "en": "Inglizcha"
+      }
+    },
     "addEmployee": "Xodim qo‘shish",
     "groupByRoles": "Rollar bo‘yicha guruhlash",
     "listView": "Ro‘yxat",
@@ -1053,6 +1068,14 @@
     "notImportant": "Muhim emas"
   },
   "branches": {
+    "country": "Mamlakat",
+    "countryHint": "Valyuta, vaqt mintaqasi, telefon kodi va onlayn yozilish tillarini belgilaydi",
+    "countryOptions": {
+      "KG": "Qirg‘iziston",
+      "UZ": "O‘zbekiston"
+    },
+    "countryMismatch": "Valyuta yoki vaqt mintaqasi mamlakatga mos emas. Mintaqani o‘zgartirsangiz, yozilgan qabullar vaqti mintaqalar farqiga suriladi.",
+    "countryFix": "Tuzatish",
     "enterBranchName": "Filial nomini kiriting",
     "selectOrganization": "Tashkilotni tanlang",
     "editBranch": "Filialni tahrirlash",
@@ -1406,6 +1429,8 @@
     }
   },
   "bookings": {
+    "branchFilter": "Filial",
+    "allBranches": "Barcha filiallar",
     "searchPlaceholder": "Kod, ism yoki telefon",
     "copyLink": "Yozilish havolasi",
     "copyLinkPrompt": "Onlayn yozilish havolasi:",
@@ -1585,6 +1610,20 @@
       "expiredInfo": "Mehmon oldindan to‘lovni o‘z vaqtida to‘lamadi — ariza bekor qilindi, vaqt bo‘shatildi."
     },
     "settings": {
+      "slugTitle": "Filial vitrinasining manzili",
+      "slugHint": "Reklama, Instagram va 2GIS uchun qisqa havola: mehmon darhol shu filialga — uning tilida va narxlari bilan kiradi.",
+      "slugFormat": "Lotin harflari, raqamlar va chiziqcha, masalan fergana",
+      "slugInvalid": "Faqat lotin harflari, raqamlar va chiziqcha, kamida 2 belgi",
+      "slugSuggest": "Taklif: {{slug}}",
+      "slugChanged": "Saqlangandan keyin eski havola ishlamay qoladi — uni reklamada va QR-kodda yangilang.",
+      "copyBranchLink": "Havolani nusxalash",
+      "qr": "QR-kod",
+      "qrTitle": "Filial vitrinasining QR-kodi",
+      "qrHint": "Qabulxonada chop eting yoki reklamaga qo‘shing. Kod saqlangan manzilga olib boradi.",
+      "qrDownload": "PNG yuklab olish",
+      "prepaymentCurrency": "Bakai orqali onlayn oldindan to‘lov faqat somda (KGS) ishlaydi, filial valyutasi esa — {{currency}}. Bu filialda yozilish oldindan to‘lovsiz.",
+      "branchTerms": "Filial qoidalari va siyosati",
+      "branchTermsHint": "Filialning o‘z yuridik shaxsi bo‘lsa — uning havolalarini kiriting. Bo‘sh bo‘lsa — tashkilotning umumiy havolalari.",
       "open": "Yozilish sozlamalari",
       "title": "Onlayn yozilish",
       "branch": "Filial",

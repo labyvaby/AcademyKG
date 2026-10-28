@@ -7,10 +7,12 @@ import {
   CardActionArea,
   Chip,
   CircularProgress,
+  MenuItem,
   Pagination,
   Stack,
   Tab,
   Tabs,
+  TextField,
   Tooltip,
   Typography,
 } from "@mui/material";
@@ -22,13 +24,21 @@ import { useSearchParams } from "react-router";
 
 import { PageHeader } from "../../components/ui";
 import { PERMISSIONS } from "../../constants/permissions";
+import { useBranchContext } from "../../contexts/branch-context";
 import { useNewBookingsCount } from "../../hooks/useNewBookingsCount";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { usePermissions } from "../../hooks/usePermissions";
 import { formatMoney } from "../../utility/currency";
-import { countBookings, listBookings, type Booking, type BookingListParams } from "../../services/bookings";
+import {
+  countBookings,
+  listBookings,
+  listBookingSettings,
+  type Booking,
+  type BookingListParams,
+} from "../../services/bookings";
 import { BookingDrawer } from "./BookingDrawer";
 import { BookingSettingsDrawer } from "./BookingSettingsDrawer";
+import { branchBookLink } from "./slug";
 import {
   BOOKING_STATUS_COLOR,
   formatBookingStart,
@@ -82,11 +92,17 @@ const BookingsPage: React.FC = () => {
   const [settingsOpen, setSettingsOpen] = React.useState(false);
   const [linkCopied, setLinkCopied] = React.useState(false);
 
+  // Филиал заявок: по умолчанию — выбранный в сайдбаре; «Все» — явно все доступные
+  // (у роли филиала их может быть несколько, а переключатель в сайдбаре есть не у всех).
+  const { branches, selectedBranch } = useBranchContext();
+  const [branchFilter, setBranchFilter] = React.useState<string>(selectedBranch?.id ?? "all");
+  React.useEffect(() => setBranchFilter(selectedBranch?.id ?? "all"), [selectedBranch?.id]);
+
   React.useEffect(() => {
     const id = window.setTimeout(() => setDebouncedSearch(search.trim()), 350);
     return () => window.clearTimeout(id);
   }, [search]);
-  React.useEffect(() => setPage(1), [tab, debouncedSearch]);
+  React.useEffect(() => setPage(1), [tab, debouncedSearch, branchFilter]);
   // ?open=<id> — ссылка на заявку из предупреждения «на это время онлайн-заявка».
   const linkedId = searchParams.get("open");
   React.useEffect(() => {
@@ -103,10 +119,11 @@ const BookingsPage: React.FC = () => {
   }, [linkedId, setSearchParams]);
 
   const query = useQuery({
-    queryKey: ["bookings", tab, debouncedSearch, page],
+    queryKey: ["bookings", tab, debouncedSearch, page, branchFilter],
     queryFn: () =>
       listBookings({
         ...TAB_PARAMS[tab],
+        branch: branchFilter,
         search: debouncedSearch || undefined,
         page,
         pageSize: PAGE_SIZE,
@@ -121,9 +138,11 @@ const BookingsPage: React.FC = () => {
 
   // Счётчики вкладок; ключ под ["bookings"] — обновляются вместе со списком после действий.
   const countsQuery = useQuery({
-    queryKey: ["bookings", "tab-counts"],
+    queryKey: ["bookings", "tab-counts", branchFilter],
     queryFn: async () => {
-      const counts = await Promise.all(COUNTED_TABS.map((value) => countBookings(TAB_PARAMS[value])));
+      const counts = await Promise.all(
+        COUNTED_TABS.map((value) => countBookings({ ...TAB_PARAMS[value], branch: branchFilter })),
+      );
       return Object.fromEntries(COUNTED_TABS.map((value, index) => [value, counts[index]])) as Partial<Record<TabValue, number>>;
     },
     refetchInterval: 60_000,
@@ -132,7 +151,18 @@ const BookingsPage: React.FC = () => {
   const counts = countsQuery.data ?? {};
   const visibleTabs = TABS.filter((value) => !OPTIONAL_TABS.includes(value) || value === tab || (counts[value] ?? 0) > 0);
 
-  const publicLink = `${window.location.origin}/book`;
+  // Ссылка на витрину: выбран филиал — его короткий адрес, иначе общий выбор филиала.
+  const settingsQuery = useQuery({
+    queryKey: ["booking-settings"],
+    queryFn: listBookingSettings,
+    enabled: hasPermission(PERMISSIONS.BOOKING_SETTINGS_READ),
+    staleTime: 60_000,
+  });
+  const filteredSettings = settingsQuery.data?.find((item) => item.branch === branchFilter);
+  const publicLink =
+    branchFilter === "all"
+      ? `${window.location.origin}/book`
+      : branchBookLink(window.location.origin, branchFilter, filteredSettings?.publicSlug ?? "");
   const copyLink = async () => {
     try {
       await navigator.clipboard.writeText(publicLink);
@@ -157,6 +187,23 @@ const BookingsPage: React.FC = () => {
         loading={query.isFetching}
         actions={
           <Stack direction="row" spacing={1}>
+            {branches.length > 1 && (
+              <TextField
+                select
+                size="small"
+                label={t("bookings.branchFilter")}
+                value={branchFilter}
+                onChange={(e) => setBranchFilter(e.target.value)}
+                sx={{ minWidth: 180 }}
+              >
+                <MenuItem value="all">{t("bookings.allBranches")}</MenuItem>
+                {branches.map((b) => (
+                  <MenuItem key={b.id} value={b.id}>
+                    {b.brandName || b.name}
+                  </MenuItem>
+                ))}
+              </TextField>
+            )}
             <Tooltip title={linkCopied ? t("bookings.linkCopied") : publicLink}>
               <Button variant="outlined" startIcon={<LinkOutlined />} onClick={copyLink}>
                 {t("bookings.copyLink")}
@@ -232,7 +279,7 @@ const BookingsPage: React.FC = () => {
       )}
 
       <BookingDrawer bookingId={openId} onClose={() => setOpenId(null)} />
-      <BookingSettingsDrawer open={settingsOpen} onClose={() => setSettingsOpen(false)} publicLink={publicLink} />
+      <BookingSettingsDrawer open={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </Box>
   );
 };
