@@ -48,7 +48,7 @@ import PassportPhotoUploader from "../../features/employees/components/PassportP
 import { useNotification } from "@refinedev/core";
 import SaveIcon from "@mui/icons-material/Save";
 import { usePermissions, refetchPermissions } from "../../hooks/usePermissions";
-import { logout, changePassword } from "../../services/auth";
+import { logout, changePassword, requestPasswordChangeCode } from "../../services/auth";
 import {
   parsePhone,
   DEFAULT_PHONE_COUNTRY_CODE,
@@ -96,6 +96,10 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
   const [showOldPassword, setShowOldPassword] = React.useState(false);
   const [showNewPassword, setShowNewPassword] = React.useState(false);
   const [passwordError, setPasswordError] = React.useState("");
+  const [passwordInfo, setPasswordInfo] = React.useState("");
+  // Подтверждение смены кодом из SMS вместо текущего пароля
+  const [smsMode, setSmsMode] = React.useState(false);
+  const [smsCode, setSmsCode] = React.useState("");
 
   const { employee: empFromPerms, isSuperAdmin } = usePermissions();
   const permissionsEmployee = empFromPerms as { photoUrl?: string; fullName?: string } | null;
@@ -170,23 +174,35 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
     }
   }, [employee]);
 
+  const resetPasswordForm = () => {
+    setOldPassword(""); setNewPassword(""); setConfirmPassword(""); setPasswordError(""); setPasswordInfo("");
+    setSmsMode(false); setSmsCode("");
+  };
+
   // При закрытии диалога — сбрасываем режим редактирования
   const handleClose = () => {
     setProfileOpen(false);
     setEditMode(false);
     setEditNameError("");
     setChangePasswordMode(false);
-    setOldPassword(""); setNewPassword(""); setConfirmPassword(""); setPasswordError("");
+    resetPasswordForm();
   };
 
   const handleChangePassword = async () => {
     setPasswordError("");
-    if (!oldPassword.trim()) { setPasswordError(t("profile.enterCurrentPassword")); return; }
+    setPasswordInfo("");
+    if (smsMode) {
+      if (!smsCode.trim()) { setPasswordError(t("profile.enterSmsCode")); return; }
+    } else if (!oldPassword.trim()) { setPasswordError(t("profile.enterCurrentPassword")); return; }
     if (newPassword.length < 8) { setPasswordError(t("profile.passwordMin8")); return; }
     if (newPassword !== confirmPassword) { setPasswordError(t("profile.passwordsDoNotMatch")); return; }
     try {
       setBusy(true);
-      await changePassword(oldPassword.trim(), newPassword.trim(), confirmPassword.trim());
+      await changePassword(
+        smsMode ? { smsCode: smsCode.trim() } : { oldPassword: oldPassword.trim() },
+        newPassword.trim(),
+        confirmPassword.trim(),
+      );
       notify?.({ type: "success", message: t("profile.passwordChanged") });
       // Сервер инвалидировал все refresh-токены — нужна повторная авторизация
       setTimeout(() => {
@@ -196,6 +212,25 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       setPasswordError(msg || t("profile.passwordChangeFailed"));
+      setBusy(false);
+    }
+  };
+
+  // Сотрудники входят по SMS и пароля не знают (при создании он не задаётся) —
+  // подтверждаем смену кодом из SMS вместо текущего пароля
+  const handleSendPasswordCode = async () => {
+    setPasswordError("");
+    setPasswordInfo("");
+    try {
+      setBusy(true);
+      await requestPasswordChangeCode();
+      setSmsMode(true);
+      setOldPassword("");
+      setPasswordInfo(t("profile.smsCodeSent"));
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setPasswordError(msg || t("profile.smsCodeFailed"));
+    } finally {
       setBusy(false);
     }
   };
@@ -737,26 +772,73 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
                     </Box>
                     <Stack spacing={2} sx={{ width: '100%' }}>
                       {passwordError && <Alert severity="error" sx={{ borderRadius: 2 }}>{passwordError}</Alert>}
-                      <Stack spacing={0.5}>
-                        <Typography variant="caption" color="text.secondary" fontWeight={600}>{t("profile.currentPassword")} *</Typography>
-                        <TextField
-                          value={oldPassword}
-                          onChange={(e) => setOldPassword(e.target.value)}
-                          fullWidth
-                          size="small"
-                          type={showOldPassword ? "text" : "password"}
-                          placeholder="••••••••"
-                          InputProps={{
-                            endAdornment: (
-                              <InputAdornment position="end">
-                                <IconButton size="small" onClick={() => setShowOldPassword(!showOldPassword)}>
-                                  {showOldPassword ? <VisibilityOffOutlined fontSize="small" /> : <VisibilityOutlined fontSize="small" />}
-                                </IconButton>
-                              </InputAdornment>
-                            ),
-                          }}
-                        />
-                      </Stack>
+                      {passwordInfo && <Alert severity="info" sx={{ borderRadius: 2 }}>{passwordInfo}</Alert>}
+                      {smsMode ? (
+                        <Stack spacing={0.5}>
+                          <Typography variant="caption" color="text.secondary" fontWeight={600}>{t("profile.smsCode")} *</Typography>
+                          <TextField
+                            value={smsCode}
+                            onChange={(e) => setSmsCode(e.target.value.replace(/[^0-9]/g, "").slice(0, 6))}
+                            fullWidth
+                            size="small"
+                            autoFocus
+                            placeholder="••••"
+                            inputProps={{ inputMode: "numeric", autoComplete: "one-time-code" }}
+                          />
+                          <Stack direction="row" justifyContent="space-between">
+                            <Button
+                              variant="text"
+                              size="small"
+                              onClick={() => { setSmsMode(false); setSmsCode(""); setPasswordInfo(""); }}
+                              disabled={busy}
+                              sx={{ textTransform: "none", fontWeight: 600, px: 0.5 }}
+                            >
+                              {t("profile.useCurrentPassword")}
+                            </Button>
+                            <Button
+                              variant="text"
+                              size="small"
+                              onClick={handleSendPasswordCode}
+                              disabled={busy}
+                              sx={{ textTransform: "none", fontWeight: 600, px: 0.5 }}
+                            >
+                              {t("profile.resendCode")}
+                            </Button>
+                          </Stack>
+                        </Stack>
+                      ) : (
+                        <Stack spacing={0.5}>
+                          <Typography variant="caption" color="text.secondary" fontWeight={600}>{t("profile.currentPassword")} *</Typography>
+                          <TextField
+                            value={oldPassword}
+                            onChange={(e) => setOldPassword(e.target.value)}
+                            fullWidth
+                            size="small"
+                            type={showOldPassword ? "text" : "password"}
+                            placeholder="••••••••"
+                            InputProps={{
+                              endAdornment: (
+                                <InputAdornment position="end">
+                                  <IconButton size="small" onClick={() => setShowOldPassword(!showOldPassword)}>
+                                    {showOldPassword ? <VisibilityOffOutlined fontSize="small" /> : <VisibilityOutlined fontSize="small" />}
+                                  </IconButton>
+                                </InputAdornment>
+                              ),
+                            }}
+                          />
+                          <Box sx={{ textAlign: "right" }}>
+                            <Button
+                              variant="text"
+                              size="small"
+                              onClick={handleSendPasswordCode}
+                              disabled={busy}
+                              sx={{ textTransform: "none", fontWeight: 600, px: 0.5 }}
+                            >
+                              {t("profile.forgotCurrentPassword")}
+                            </Button>
+                          </Box>
+                        </Stack>
+                      )}
                       <Stack spacing={0.5}>
                         <Typography variant="caption" color="text.secondary" fontWeight={600}>{t("profile.newPassword")} *</Typography>
                         <TextField
@@ -804,7 +886,7 @@ export const Header: React.FC<RefineThemedLayoutHeaderProps> = ({
                       <Button
                         variant="outlined"
                         startIcon={<ArrowBackOutlined />}
-                        onClick={() => { setChangePasswordMode(false); setOldPassword(""); setNewPassword(""); setConfirmPassword(""); setPasswordError(""); }}
+                        onClick={() => { setChangePasswordMode(false); resetPasswordForm(); }}
                         disabled={busy}
                         sx={{ borderRadius: 24, flex: 1 }}
                       >

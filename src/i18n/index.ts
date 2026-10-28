@@ -20,15 +20,18 @@ export const DEFAULT_LANGUAGE: LanguageCode = "ru";
 // Ключ localStorage для запоминания выбора между сессиями.
 export const LANGUAGE_STORAGE_KEY = "app.language";
 
+// Общие словари: их же берёт отдельный экземпляр i18n публичной витрины (pages/book/i18n.ts).
+export const I18N_RESOURCES = {
+  ru: { translation: ru },
+  ky: { translation: ky },
+  uz: { translation: uz },
+};
+
 i18n
   .use(LanguageDetector)
   .use(initReactI18next)
   .init({
-    resources: {
-      ru: { translation: ru },
-      ky: { translation: ky },
-      uz: { translation: uz },
-    },
+    resources: I18N_RESOURCES,
     fallbackLng: DEFAULT_LANGUAGE,
     supportedLngs: SUPPORTED_LANGUAGES.map((l) => l.code),
     // Русский — язык-источник; недостающие ключи KG/UZ откатываются на него.

@@ -67,6 +67,13 @@ const METHOD_LABEL_KEYS: Record<PaymentMethod, string> = {
   card: "expenses.cashlessAmount",
 };
 
+// В истории бывает и «online» — онлайн-предоплата заявки, её проводит только бэк
+// (выбрать её при пополнении вручную нельзя, поэтому в METHOD_LABEL_KEYS её нет).
+const HISTORY_METHOD_LABEL_KEYS: Record<string, string> = {
+  ...METHOD_LABEL_KEYS,
+  online: "patientSearch.onlineMethod",
+};
+
 const TX_TYPE_COLOR: Record<string, "primary" | "warning"> = {
   balance: "primary",
   bonuses: "warning",
@@ -374,7 +381,7 @@ const BalanceTopUpDrawer: React.FC<Props> = ({
                           />
                           {tx.paymentMethod && (
                             <Chip
-                              label={METHOD_LABEL_KEYS[tx.paymentMethod as PaymentMethod] ? t(METHOD_LABEL_KEYS[tx.paymentMethod as PaymentMethod]) : tx.paymentMethod}
+                              label={HISTORY_METHOD_LABEL_KEYS[tx.paymentMethod] ? t(HISTORY_METHOD_LABEL_KEYS[tx.paymentMethod]) : tx.paymentMethod}
                               size="small"
                               variant="outlined"
                             />

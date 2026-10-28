@@ -11,6 +11,7 @@ export const DEFAULT_TIMEZONE = "Asia/Bishkek";
 export const BRANCH_TIMEZONE_OPTIONS: { value: string; label: string }[] = [
   { value: "Asia/Bishkek", label: "Бишкек (Кыргызстан)" },
   { value: "Asia/Tashkent", label: "Ташкент / Фергана (Узбекистан)" },
+  { value: "Asia/Samarkand", label: "Самарканд (Узбекистан)" },
   { value: "Asia/Almaty", label: "Алматы (Казахстан)" },
 ];
 

@@ -1,4 +1,5 @@
 import { apiFetch } from "../../utility/apiClient";
+import { announceBookingConflicts } from "../../services/bookings";
 import { branchWallTime } from "../../utility/branchTime";
 import i18n from "../../i18n";
 
@@ -142,7 +143,7 @@ export async function createPatientVisit(params: {
     resolveEmployeeId(params.doctorInput),
   ]);
 
-  return apiFetch("/api/v1/appointments/", {
+  const res = await apiFetch("/api/v1/appointments/", {
     method: "POST",
     body: JSON.stringify({
       patient: params.patientId,
@@ -150,6 +151,8 @@ export async function createPatientVisit(params: {
       services: [buildServicePayload(serviceId, performerId)],
     }),
   });
+  announceBookingConflicts(res);
+  return res;
 }
 
 function matchesCurrentValue(input: string, currentId: string, currentName: string): boolean {
@@ -203,11 +206,13 @@ export async function updatePatientVisit(params: {
   const quantityRaw = currentService?.quantity;
   const quantity = Number(quantityRaw);
 
-  return apiFetch(`/api/v1/appointments/${params.appointmentId}/`, {
+  const res = await apiFetch(`/api/v1/appointments/${params.appointmentId}/`, {
     method: "PATCH",
     body: JSON.stringify({
       appointmentAt: appointmentAt.toISOString(),
       services: [buildServicePayload(serviceId, performerId, Number.isFinite(quantity) && quantity > 0 ? quantity : 1)],
     }),
   });
+  announceBookingConflicts(res);
+  return res;
 }

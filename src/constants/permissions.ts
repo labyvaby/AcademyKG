@@ -41,6 +41,21 @@ const _BALANCE_TRANSACTIONS = {
   DELETE: 'balance_transactions.delete',
 } as const;
 
+const _BOOKINGS = {
+  CREATE: 'bookings.create',
+  READ:   'bookings.read',
+  /** Подтвердить / отклонить онлайн-заявку (подтверждение требует ещё appointments.create). */
+  UPDATE: 'bookings.update',
+  DELETE: 'bookings.delete',
+} as const;
+
+const _BOOKING_SETTINGS = {
+  CREATE: 'booking_settings.create',
+  READ:   'booking_settings.read',
+  UPDATE: 'booking_settings.update',
+  DELETE: 'booking_settings.delete',
+} as const;
+
 const _BRANCHES = {
   CREATE: 'branches.create',
   READ:   'branches.read',
@@ -244,6 +259,8 @@ export const PERMISSIONS = {
   APPOINTMENT_GROUPS:      _APPOINTMENT_GROUPS,
   APP_SETTINGS:            _APP_SETTINGS,
   BALANCE_TRANSACTIONS:    _BALANCE_TRANSACTIONS,
+  BOOKINGS:                _BOOKINGS,
+  BOOKING_SETTINGS:        _BOOKING_SETTINGS,
   BRANCHES:                _BRANCHES,
   CASHBOX:                 _CASHBOX,
   CLIENT_DOCUMENTS:        _CLIENT_DOCUMENTS,
@@ -297,6 +314,15 @@ export const PERMISSIONS = {
   BRANCHES_READ:                     _BRANCHES.READ,
   BRANCHES_UPDATE:                   _BRANCHES.UPDATE,
   BRANCHES_DELETE:                   _BRANCHES.DELETE,
+  // Онлайн-запись
+  BOOKINGS_CREATE:                   _BOOKINGS.CREATE,
+  BOOKINGS_READ:                     _BOOKINGS.READ,
+  BOOKINGS_UPDATE:                   _BOOKINGS.UPDATE,
+  BOOKINGS_DELETE:                   _BOOKINGS.DELETE,
+  BOOKING_SETTINGS_CREATE:           _BOOKING_SETTINGS.CREATE,
+  BOOKING_SETTINGS_READ:             _BOOKING_SETTINGS.READ,
+  BOOKING_SETTINGS_UPDATE:           _BOOKING_SETTINGS.UPDATE,
+  BOOKING_SETTINGS_DELETE:           _BOOKING_SETTINGS.DELETE,
   // Касса
   CASHBOX_CREATE:                    _CASHBOX.CREATE,
   CASHBOX_READ:                      _CASHBOX.READ,
@@ -460,6 +486,15 @@ export const P = {
   BRANCHES_READ:                     _BRANCHES.READ,
   BRANCHES_UPDATE:                   _BRANCHES.UPDATE,
   BRANCHES_DELETE:                   _BRANCHES.DELETE,
+  // Онлайн-запись
+  BOOKINGS_CREATE:                   _BOOKINGS.CREATE,
+  BOOKINGS_READ:                     _BOOKINGS.READ,
+  BOOKINGS_UPDATE:                   _BOOKINGS.UPDATE,
+  BOOKINGS_DELETE:                   _BOOKINGS.DELETE,
+  BOOKING_SETTINGS_CREATE:           _BOOKING_SETTINGS.CREATE,
+  BOOKING_SETTINGS_READ:             _BOOKING_SETTINGS.READ,
+  BOOKING_SETTINGS_UPDATE:           _BOOKING_SETTINGS.UPDATE,
+  BOOKING_SETTINGS_DELETE:           _BOOKING_SETTINGS.DELETE,
   // Касса
   CASHBOX_CREATE:                    _CASHBOX.CREATE,
   CASHBOX_READ:                      _CASHBOX.READ,

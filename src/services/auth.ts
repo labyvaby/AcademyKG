@@ -153,18 +153,28 @@ export function logout(): void {
 }
 
 /**
+ * SMS-код для смены пароля без текущего (сотрудники входят по SMS и пароля не знают).
+ * POST /api/v1/auth/change-password/code/
+ * Код уходит на телефон текущего пользователя; повтор — не чаще раза в минуту.
+ */
+export async function requestPasswordChangeCode(): Promise<void> {
+  await apiFetch("/api/v1/auth/change-password/code/", { method: "POST" });
+}
+
+/**
  * Смена пароля.
  * POST /api/v1/auth/change-password/
+ * Подтверждение — текущий пароль либо код из requestPasswordChangeCode().
  * После успеха refresh-токены инвалидируются на сервере — нужна повторная авторизация.
  */
 export async function changePassword(
-  oldPassword: string,
+  confirmation: { oldPassword: string } | { smsCode: string },
   newPassword: string,
   passwordConfirm: string
 ): Promise<void> {
   await apiFetch("/api/v1/auth/change-password/", {
     method: "POST",
-    body: JSON.stringify({ oldPassword, newPassword, passwordConfirm }),
+    body: JSON.stringify({ ...confirmation, newPassword, passwordConfirm }),
   });
 }
 

@@ -45,6 +45,7 @@ import { API_BASE_URL } from "./utility/apiClient";
 import { getDefaultAuthorizedRoute } from "./utils/permissionHelpers";
 import dataProvider from "@refinedev/simple-rest";
 import { ShiftStartBanner } from "./components/skud/ShiftStartBanner";
+import { BookingConflictsNotice } from "./components/bookings/BookingConflictsNotice";
 
 // ОПТИМИЗАЦИЯ: Все страницы загружаются через lazy() для code splitting
 const UnderConstruction = lazy(() =>
@@ -73,6 +74,9 @@ const RolesPage = lazy(() => import("./pages/roles"));
 const CategoriesPage = lazy(() => import("./pages/categories/index.tsx"));
 const BranchManagePage = lazy(() => import("./pages/branches/BranchManagePage"));
 const SkudPage = lazy(() => import("./pages/skud"));
+const BookingsPage = lazy(() => import("./pages/bookings"));
+// Публичная онлайн-запись (/book/*) — вне RequireAuth, ходит в /api/v1/public/booking/.
+const PublicBookApp = lazy(() => import("./pages/book/BookApp"));
 
 
 // Вспомогательный компонент для обработки глобальных событий аутентификации
@@ -334,6 +338,7 @@ function App() {
                                 }}
                               >
                                 <ShiftStartBanner />
+                                <BookingConflictsNotice />
                                 <Outlet />
                               </ThemedLayout>
                             </MobileSidebarProvider>
@@ -511,6 +516,16 @@ function App() {
 
 
                         <Route
+                          path="bookings"
+                          element={
+                            <ProtectedRoute requiredPermissions={['bookings.read']}>
+                              <Suspense fallback={<LinearProgress />}>
+                                <BookingsPage />
+                              </Suspense>
+                            </ProtectedRoute>
+                          }
+                        />
+                        <Route
                           path="all-appointments"
                           element={
                             <ProtectedRoute requiredPermissions={['appointments.read']}>
@@ -582,6 +597,14 @@ function App() {
                         element={
                           <Suspense fallback={<LinearProgress />}>
                             <ResetPasswordConfirmPage />
+                          </Suspense>
+                        }
+                      />
+                      <Route
+                        path="book/*"
+                        element={
+                          <Suspense fallback={<LinearProgress />}>
+                            <PublicBookApp />
                           </Suspense>
                         }
                       />
