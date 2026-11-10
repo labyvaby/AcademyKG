@@ -95,6 +95,37 @@ export async function loginWithEmail(
 }
 
 /**
+ * Вход по номеру телефона и паролю.
+ * POST /api/v1/auth/login/password/
+ * Body: { phoneNumber, password }
+ * Новым сотрудникам выдают стандартный пароль: после входа с ним
+ * users/me отдаёт mustChangePassword=true и RequireAuth показывает смену пароля.
+ */
+export async function loginWithPhone(
+  phoneNumber: string,
+  password: string
+): Promise<{ access: string; refresh: string }> {
+  const res = await apiFetch<VerifyResponse>(
+    "/api/v1/auth/login/password/",
+    {
+      method: "POST",
+      body: JSON.stringify({ phoneNumber, password }),
+    },
+    true
+  );
+
+  const access = res?.data?.accessToken ?? res?.data?.access ?? res?.access ?? "";
+  const refresh = res?.data?.refreshToken ?? res?.data?.refresh ?? res?.refresh ?? "";
+
+  if (!access || !refresh) {
+    throw new Error("Не удалось получить токены авторизации");
+  }
+
+  tokenStorage.set(access, refresh);
+  return { access, refresh };
+}
+
+/**
  * Запрос сброса пароля.
  * POST /api/v1/auth/reset-password/request/
  * Body: { email, redirectUrl }
@@ -176,6 +207,23 @@ export async function changePassword(
     method: "POST",
     body: JSON.stringify({ ...confirmation, newPassword, passwordConfirm }),
   });
+}
+
+/**
+ * Смена стандартного пароля (users/me: mustChangePassword=true).
+ * Текущий пароль сервер в этом состоянии не спрашивает. Смена отзывает
+ * refresh-токены, поэтому сразу входим заново новым паролем.
+ */
+export async function changeStartingPassword(
+  phoneNumber: string,
+  newPassword: string,
+  passwordConfirm: string
+): Promise<void> {
+  await apiFetch("/api/v1/auth/change-password/", {
+    method: "POST",
+    body: JSON.stringify({ newPassword, passwordConfirm }),
+  });
+  await loginWithPhone(phoneNumber, newPassword);
 }
 
 /**

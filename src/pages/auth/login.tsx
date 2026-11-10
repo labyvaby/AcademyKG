@@ -30,7 +30,7 @@ import {
   getPhoneLocalMaxLength,
   type PhoneCountryCode,
 } from "../../utility/phone";
-import { isAuthenticated, requestSmsCode, verifySmsCode, loginWithEmail, logout } from "../../services/auth";
+import { isAuthenticated, requestSmsCode, verifySmsCode, loginWithEmail, loginWithPhone, logout } from "../../services/auth";
 import { refetchPermissions } from "../../hooks/usePermissions";
 
 const MAX_ATTEMPTS = 5;
@@ -50,6 +50,19 @@ function setFailState(count: number, lockedUntil: number) {
 
 function clearFailState() {
   localStorage.removeItem("login_fail_state");
+}
+
+// Вкладка «Телефон»: пароль или код из SMS. По умолчанию пароль — SMS доходит
+// не всегда, а новым сотрудникам выдают стандартный пароль.
+type PhoneMode = "password" | "code";
+const PHONE_MODE_KEY = "login_phone_mode";
+
+function readPhoneMode(): PhoneMode {
+  try {
+    return localStorage.getItem(PHONE_MODE_KEY) === "code" ? "code" : "password";
+  } catch {
+    return "password";
+  }
 }
 
 const LoginPage: React.FC = () => {
@@ -118,6 +131,18 @@ const LoginPage: React.FC = () => {
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [showPassword, setShowPassword] = React.useState(false);
+  const [phoneMode, setPhoneModeState] = React.useState<PhoneMode>(readPhoneMode);
+  const [phonePassword, setPhonePassword] = React.useState("");
+  const [showPhonePassword, setShowPhonePassword] = React.useState(false);
+
+  const setPhoneMode = (mode: PhoneMode) => {
+    setPhoneModeState(mode);
+    try {
+      localStorage.setItem(PHONE_MODE_KEY, mode);
+    } catch { /* ignore */ }
+    setErrorMsg(null);
+    setInfoMsg(null);
+  };
 
   React.useEffect(() => {
     if (isAuthenticated()) {
@@ -204,6 +229,40 @@ const LoginPage: React.FC = () => {
       navigate(redirectTo, { replace: true });
     } catch (err) {
       handleFailedAttempt();
+      setErrorMsg(getErrorMessage(err));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePhonePasswordLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (isLocked) return;
+    const digits = phoneLocal.replace(/[^0-9]/g, "");
+    const fullPhone = composePhone(phoneCountryCode, phoneLocal);
+    if (!fullPhone || digits.length < getPhoneLocalMaxLength(phoneCountryCode)) {
+      setErrorMsg(t("login.enterFullPhone"));
+      return;
+    }
+    if (!phonePassword) {
+      setErrorMsg(t("login.enterPassword"));
+      return;
+    }
+
+    setLoading(true);
+    setErrorMsg(null);
+    setInfoMsg(null);
+
+    try {
+      logout(); // Clean start
+      await loginWithPhone(fullPhone, phonePassword);
+      handleSuccessfulLogin();
+      await refetchPermissions();
+      navigate(redirectTo, { replace: true });
+    } catch (err) {
+      if (!handle429FromServer(err)) {
+        handleFailedAttempt();
+      }
       setErrorMsg(getErrorMessage(err));
     } finally {
       setLoading(false);
@@ -372,7 +431,7 @@ const LoginPage: React.FC = () => {
                 animate="visible"
                 exit="exit"
               >
-                <Stack component="form" onSubmit={handleSendCode} spacing={3}>
+                <Stack component="form" onSubmit={phoneMode === "password" ? handlePhonePasswordLogin : handleSendCode} spacing={3}>
                   <Box>
                     <Typography variant="subtitle2" fontWeight={600} mb={1} color="text.primary">
                       {t("login.phoneNumber")}
@@ -417,6 +476,43 @@ const LoginPage: React.FC = () => {
                       }}
                     />
                   </Box>
+                  {phoneMode === "password" && (
+                    <Box>
+                      <Typography variant="subtitle2" fontWeight={600} mb={1} color="text.primary">
+                        {t("login.password")}
+                      </Typography>
+                      <TextField
+                        value={phonePassword}
+                        onChange={(e) => setPhonePassword(e.target.value)}
+                        fullWidth
+                        name="password"
+                        autoComplete="current-password"
+                        type={showPhonePassword ? "text" : "password"}
+                        placeholder="••••••••"
+                        InputProps={{
+                          endAdornment: (
+                            <InputAdornment position="end">
+                              <IconButton onClick={() => setShowPhonePassword(!showPhonePassword)} edge="end">
+                                {showPhonePassword ? <VisibilityOffOutlined /> : <VisibilityOutlined />}
+                              </IconButton>
+                            </InputAdornment>
+                          ),
+                        }}
+                        sx={{
+                          "& .MuiOutlinedInput-root": {
+                            borderRadius: "16px",
+                            bgcolor: "rgba(255, 255, 255, 0.6)",
+                            transition: "all 0.2s ease-in-out",
+                            "&:hover": { bgcolor: "rgba(255, 255, 255, 0.9)" },
+                            "&.Mui-focused": {
+                              bgcolor: "#fff",
+                              boxShadow: "0 0 0 4px rgba(42, 82, 152, 0.1)",
+                            }
+                          }
+                        }}
+                      />
+                    </Box>
+                  )}
                   <Button
                     type="submit"
                     variant="contained"
@@ -438,7 +534,23 @@ const LoginPage: React.FC = () => {
                     }}
                     startIcon={loading ? <CircularProgress size={20} color="inherit" /> : undefined}
                   >
-                    {loading ? t("login.sending") : t("login.getCode")}
+                    {phoneMode === "password"
+                      ? (loading ? t("login.signingIn") : t("login.signIn"))
+                      : (loading ? t("login.sending") : t("login.getCode"))}
+                  </Button>
+                  <Button
+                    variant="text"
+                    onClick={() => setPhoneMode(phoneMode === "password" ? "code" : "password")}
+                    disabled={loading}
+                    sx={{
+                      mt: "8px !important",
+                      textTransform: "none",
+                      fontWeight: 600,
+                      color: "text.secondary",
+                      "&:hover": { color: "primary.main", background: "transparent" }
+                    }}
+                  >
+                    {phoneMode === "password" ? t("login.noPasswordUseCode") : t("login.usePhonePassword")}
                   </Button>
                 </Stack>
               </motion.div>

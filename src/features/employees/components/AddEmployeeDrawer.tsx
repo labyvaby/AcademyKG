@@ -24,11 +24,12 @@ import { usePermissions } from "../../../hooks/usePermissions";
 import { PERMISSIONS } from "../../../constants/permissions";
 import { isApiError } from "../../../utility/apiClient";
 import { useBranchCurrency } from "../../../hooks/useBranchCurrency";
+import type { StartingCredentials } from "./StartingPasswordDialog";
 
 export type AddEmployeeDrawerProps = {
   open: boolean;
   onClose: () => void;
-  onCreated: (rec: EmployesRow) => void;
+  onCreated: (rec: EmployesRow, credentials?: StartingCredentials) => void;
 };
 
 type RoleRow = { id: string; name: string; display_name: string };
@@ -205,7 +206,13 @@ const AddEmployeeDrawer: React.FC<AddEmployeeDrawerProps> = ({ open, onClose, on
       }
 
       notify?.({ type: "success", message: t("employees.employeeCreated") });
-      onCreated({} as unknown as EmployesRow);
+      // Новый аккаунт получил стандартный пароль — показать админу, что передать.
+      const temporaryPassword: string | null = created?.temporaryPassword ?? created?.data?.temporaryPassword ?? null;
+      const credentials: StartingCredentials | undefined =
+        temporaryPassword && fullPhone
+          ? { fullName: fullNameTrim, phone: fullPhone, password: temporaryPassword }
+          : undefined;
+      onCreated({} as unknown as EmployesRow, credentials);
       onClose();
     } catch (e: unknown) {
       if (isApiError(e) && e.fieldErrors) {
