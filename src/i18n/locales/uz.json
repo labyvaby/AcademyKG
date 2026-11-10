@@ -329,7 +329,10 @@
     "credentialsLogin": "Telefon raqami",
     "copy": "Nusxalash",
     "copied": "Nusxalandi",
-    "understood": "Tushunarli"
+    "understood": "Tushunarli",
+    "forgotPhoneHint": "SMS orqali kod oling va kiring — kirgandan so‘ng yangi parol o‘rnating.",
+    "resetTitle": "Yangi parol",
+    "resetInfo": "Siz SMS kodi orqali kirdingiz. Yangi parol o‘ylab toping — keyin raqam va shu parol bilan kirasiz."
   },
   "profile": {
     "selectedBranch": "Tanlangan filial: {{name}}",

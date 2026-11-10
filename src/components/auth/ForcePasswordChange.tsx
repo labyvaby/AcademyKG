@@ -29,7 +29,7 @@ import AuthLayout from "./AuthLayout";
 import AuthCard from "./AuthCard";
 import { LanguageSwitcher } from "../language/LanguageSwitcher";
 import { apiFetch } from "../../utility/apiClient";
-import { changeStartingPassword, logout } from "../../services/auth";
+import { changeStartingPassword, logout, PASSWORD_RESET_FLOW_KEY } from "../../services/auth";
 import { markPasswordChanged } from "../../hooks/usePermissions";
 
 const MIN_LENGTH = 8;
@@ -59,6 +59,19 @@ const ForcePasswordChange: React.FC = () => {
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [phone, setPhone] = React.useState<string | null>(null);
+  // Пришли через «Забыли пароль?» (вход по коду), а не со стандартным паролем.
+  const [resetFlow] = React.useState(() => {
+    try {
+      return sessionStorage.getItem(PASSWORD_RESET_FLOW_KEY) === "1";
+    } catch {
+      return false;
+    }
+  });
+  const clearResetFlow = () => {
+    try {
+      sessionStorage.removeItem(PASSWORD_RESET_FLOW_KEY);
+    } catch { /* ignore */ }
+  };
 
   // Телефон нужен, чтобы после смены сразу войти новым паролем.
   React.useEffect(() => {
@@ -79,6 +92,7 @@ const ForcePasswordChange: React.FC = () => {
   const mismatch = confirm.length > 0 && next !== confirm;
 
   const signOut = () => {
+    clearResetFlow();
     logout();
     window.location.href = "/login";
   };
@@ -98,6 +112,7 @@ const ForcePasswordChange: React.FC = () => {
     try {
       if (phone) {
         await changeStartingPassword(phone, next, confirm);
+        clearResetFlow();
         markPasswordChanged();
       } else {
         // Телефона не узнали — пароль сменён, входим заново вручную.
@@ -136,10 +151,14 @@ const ForcePasswordChange: React.FC = () => {
             mb: 2,
           }}
         >
-          {t("login.changeTitle")}
+          {resetFlow ? t("login.resetTitle") : t("login.changeTitle")}
         </Typography>
-        <Alert severity="warning" icon={<LockOutlined fontSize="inherit" />} sx={{ mb: 3, borderRadius: 2 }}>
-          {t("login.changeWarning")}
+        <Alert
+          severity={resetFlow ? "info" : "warning"}
+          icon={<LockOutlined fontSize="inherit" />}
+          sx={{ mb: 3, borderRadius: 2 }}
+        >
+          {resetFlow ? t("login.resetInfo") : t("login.changeWarning")}
         </Alert>
         {error && (
           <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }}>

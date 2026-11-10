@@ -30,7 +30,15 @@ import {
   getPhoneLocalMaxLength,
   type PhoneCountryCode,
 } from "../../utility/phone";
-import { isAuthenticated, requestSmsCode, verifySmsCode, loginWithEmail, loginWithPhone, logout } from "../../services/auth";
+import {
+  isAuthenticated,
+  requestSmsCode,
+  verifySmsCode,
+  loginWithEmail,
+  loginWithPhone,
+  logout,
+  PASSWORD_RESET_FLOW_KEY,
+} from "../../services/auth";
 import { refetchPermissions } from "../../hooks/usePermissions";
 
 const MAX_ATTEMPTS = 5;
@@ -134,8 +142,11 @@ const LoginPage: React.FC = () => {
   const [phoneMode, setPhoneModeState] = React.useState<PhoneMode>(readPhoneMode);
   const [phonePassword, setPhonePassword] = React.useState("");
   const [showPhonePassword, setShowPhonePassword] = React.useState(false);
+  // «Забыли пароль?»: вход по коду, после которого сервер требует новый пароль.
+  const [forgotFlow, setForgotFlow] = React.useState(false);
 
   const setPhoneMode = (mode: PhoneMode) => {
+    setForgotFlow(false);
     setPhoneModeState(mode);
     try {
       localStorage.setItem(PHONE_MODE_KEY, mode);
@@ -193,7 +204,7 @@ const LoginPage: React.FC = () => {
     setInfoMsg(null);
 
     try {
-      await requestSmsCode(fullPhone);
+      await requestSmsCode(fullPhone, forgotFlow ? "reset" : "login");
       setLastSentPhone(fullPhone);
       setIsOtpSent(true);
       setInfoMsg(t("login.codeSentTo", { phone: fullPhone }));
@@ -223,7 +234,11 @@ const LoginPage: React.FC = () => {
 
     try {
       logout(); // Clean start
-      await verifySmsCode(fullPhone, otpCode.trim());
+      await verifySmsCode(fullPhone, otpCode.trim(), forgotFlow ? "reset" : "login");
+      try {
+        if (forgotFlow) sessionStorage.setItem(PASSWORD_RESET_FLOW_KEY, "1");
+        else sessionStorage.removeItem(PASSWORD_RESET_FLOW_KEY);
+      } catch { /* ignore */ }
       handleSuccessfulLogin();
       await refetchPermissions();
       navigate(redirectTo, { replace: true });
@@ -511,6 +526,28 @@ const LoginPage: React.FC = () => {
                           }
                         }}
                       />
+                      <Box sx={{ textAlign: "right", mt: 0.5 }}>
+                        <Button
+                          variant="text"
+                          size="small"
+                          onClick={() => {
+                            // Не запоминаем: в следующий раз снова вход по паролю.
+                            setPhoneModeState("code");
+                            setErrorMsg(null);
+                            setForgotFlow(true);
+                            setInfoMsg(t("login.forgotPhoneHint"));
+                          }}
+                          disabled={loading}
+                          sx={{
+                            textTransform: "none",
+                            fontWeight: 600,
+                            color: "text.secondary",
+                            "&:hover": { color: "primary.main", background: "transparent" }
+                          }}
+                        >
+                          {t("login.forgotPassword")}
+                        </Button>
+                      </Box>
                     </Box>
                   )}
                   <Button

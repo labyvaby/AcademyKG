@@ -28,12 +28,22 @@ export interface TokenRefreshResponse {
  * POST /api/v1/auth/login/
  * Body: { phoneNumber: string }
  */
-export async function requestSmsCode(phoneNumber: string): Promise<void> {
+export async function requestSmsCode(
+  phoneNumber: string,
+  purpose: SmsLoginPurpose = "login"
+): Promise<void> {
   await apiFetch("/api/v1/auth/login/", {
     method: "POST",
-    body: JSON.stringify({ phoneNumber }),
+    body: JSON.stringify({ phoneNumber, purpose }),
   }, true);
 }
+
+/** login — обычный вход по коду; reset — «Забыли пароль?»: после входа сервер
+ *  ставит mustChangePassword, и RequireAuth показывает экран нового пароля. */
+export type SmsLoginPurpose = "login" | "reset";
+
+/** Флаг вкладки: вошли через «Забыли пароль?» — экран смены пишет другой текст. */
+export const PASSWORD_RESET_FLOW_KEY = "password_reset_flow";
 
 /**
  * Шаг 2: Подтверждение SMS-кода.
@@ -43,13 +53,14 @@ export async function requestSmsCode(phoneNumber: string): Promise<void> {
  */
 export async function verifySmsCode(
   phoneNumber: string,
-  code: string
+  code: string,
+  purpose: SmsLoginPurpose = "login"
 ): Promise<{ access: string; refresh: string }> {
   const res = await apiFetch<VerifyResponse>(
     "/api/v1/auth/verify/",
     {
       method: "POST",
-      body: JSON.stringify({ phoneNumber, code, purpose: "login" }),
+      body: JSON.stringify({ phoneNumber, code, purpose }),
     },
     true
   );
