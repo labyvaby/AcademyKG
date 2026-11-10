@@ -33,11 +33,12 @@ import { usePermissions } from "../../../hooks/usePermissions";
 import { PERMISSIONS } from "../../../constants/permissions";
 import { isApiError } from "../../../utility/apiClient";
 import { useBranchCurrency } from "../../../hooks/useBranchCurrency";
+import type { StartingCredentials } from "./StartingPasswordDialog";
 
 export type EditEmployeeDrawerProps = {
   record: EmployesRow | null;
   onClose: () => void;
-  onUpdated: (rec: EmployesRow) => void;
+  onUpdated: (rec: EmployesRow, credentials?: StartingCredentials) => void;
 };
 
 type RoleRow = { id: string; name: string; display_name: string };
@@ -334,7 +335,16 @@ const EditEmployeeDrawer: React.FC<EditEmployeeDrawerProps> = ({ record, onClose
         };
       }
 
-      await employeeFormUtils.updateEmployeeApi(String(record.id), payload);
+      const saved = (await employeeFormUtils.updateEmployeeApi(String(record.id), payload)) as
+        | { temporaryPassword?: string | null; data?: { temporaryPassword?: string | null } }
+        | null;
+      // Номер добавили сотруднику без аккаунта — бэкенд завёл аккаунт со
+      // стандартным паролем; показать админу, что передать.
+      const temporaryPassword: string | null = saved?.temporaryPassword ?? saved?.data?.temporaryPassword ?? null;
+      const credentials: StartingCredentials | undefined =
+        temporaryPassword && fullPhone
+          ? { fullName: fullNameTrim || record.full_name, phone: fullPhone, password: temporaryPassword }
+          : undefined;
 
       // Обновляем доступные филиалы отдельным PATCH.
       // Эндпоинт переназначает branch → бэк требует employees.manage_sensitive;
@@ -382,7 +392,7 @@ const EditEmployeeDrawer: React.FC<EditEmployeeDrawerProps> = ({ record, onClose
       } catch { /* используем старые данные */ }
 
       notify?.({ type: "success", message: t("employees.changesSaved") });
-      onUpdated(updatedRecord);
+      onUpdated(updatedRecord, credentials);
       onClose();
     } catch (e: unknown) {
       console.error("[EditEmployee] error:", e);

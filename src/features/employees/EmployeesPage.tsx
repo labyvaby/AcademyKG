@@ -236,7 +236,8 @@ const EmployeesPage: React.FC = () => {
       <EditEmployeeDrawer
         record={state.editOpen}
         onClose={() => state.setEditOpen(null)}
-        onUpdated={(rec) => {
+        onUpdated={(rec, created) => {
+          if (created) setCredentials(created);
           state.setItems((pr) => pr.map((x) => (x.id === rec.id ? rec : x)));
           if (state.detailsOpen && state.detailsOpen.id === rec.id) {
             state.setDetailsOpen(rec);
