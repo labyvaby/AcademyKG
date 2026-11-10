@@ -532,6 +532,10 @@
     "willCreateCount_other": "{{count}} ta smena yaratiladi:"
   },
   "employees": {
+    "resetPassword": "Parolni tiklash",
+    "resetPasswordTitle": "Parol tiklansinmi?",
+    "resetPasswordText": "«{{name}}» xodimining paroli standart parolga aylanadi, joriy barcha kirishlari yakunlanadi. U telefon raqami va standart parol bilan kira oladi — tizim darhol o‘z parolini o‘ylab topishni so‘raydi.",
+    "resetPasswordFailed": "Parolni tiklab bo‘lmadi",
     "showcase": {
       "title": "Yozilish saytidagi profil",
       "hint": "Uni ota-onalar onlayn yozilishdagi mutaxassis sahifasida ko‘radi — u ishlaydigan barcha filiallarda.",
