@@ -1,5 +1,5 @@
 /**
- * PaymentReceipt — термочек 58mm для печати после оплаты.
+ * PaymentReceipt — термочек 58mm или 80mm для печати после оплаты.
  * Данные передаются в popup-окно, вызывается window.print().
  */
 import React from "react";
@@ -54,11 +54,39 @@ function ddmm(iso: string): string {
   return parts.length === 3 ? `${parts[2]}.${parts[1]}` : iso;
 }
 
-// Термочек 58mm. Точно по референсу с фото.
-const RECEIPT_CSS = `
+/** Ширина чековой ленты, мм. */
+export type ReceiptWidth = 58 | 80;
+
+export const RECEIPT_WIDTHS: ReceiptWidth[] = [58, 80];
+const DEFAULT_RECEIPT_WIDTH: ReceiptWidth = 58;
+// Принтер подключён к конкретной кассе, поэтому ширина хранится на устройстве, а не на бэке.
+const RECEIPT_WIDTH_STORAGE_KEY = "receipt_paper_width";
+
+/** Ширина ленты, выбранная на этой кассе («Последние чеки»). По умолчанию 58 мм. */
+export function getReceiptWidth(): ReceiptWidth {
+  try {
+    const raw = Number(localStorage.getItem(RECEIPT_WIDTH_STORAGE_KEY));
+    return RECEIPT_WIDTHS.includes(raw as ReceiptWidth) ? (raw as ReceiptWidth) : DEFAULT_RECEIPT_WIDTH;
+  } catch (_) {
+    return DEFAULT_RECEIPT_WIDTH;
+  }
+}
+
+export function setReceiptWidth(width: ReceiptWidth): void {
+  try {
+    localStorage.setItem(RECEIPT_WIDTH_STORAGE_KEY, String(width));
+  } catch (_) { /* хранилище недоступно — печатаем с шириной по умолчанию */ }
+}
+
+// Термочек 58mm — точно по референсу с фото. Для 80mm меняется только ширина
+// и боковые поля (область печати 80-мм принтера — 72 мм), шрифты те же.
+function buildReceiptCss(width: ReceiptWidth): string {
+  const w = `${width}mm`;
+  const pad = width === 80 ? "3mm 4mm 4mm" : "3mm 3mm 4mm";
+  return `
   @page {
     margin: 0;
-    size: 58mm auto;
+    size: ${w} auto;
   }
   * {
     margin: 0;
@@ -68,19 +96,19 @@ const RECEIPT_CSS = `
     print-color-adjust: exact !important;
   }
   html, body {
-    width: 58mm !important;
+    width: ${w} !important;
     min-width: 0 !important;
-    max-width: 58mm !important;
+    max-width: ${w} !important;
     margin: 0 !important;
     padding: 0 !important;
     background: #fff !important;
     -webkit-font-smoothing: none;
   }
   .receipt-print-root {
-    width: 58mm !important;
-    max-width: 58mm !important;
+    width: ${w} !important;
+    max-width: ${w} !important;
     margin: 0 !important;
-    padding: 3mm 3mm 4mm !important;
+    padding: ${pad} !important;
     box-sizing: border-box !important;
     font-family: "Courier New", Courier, monospace !important;
     font-size: 16px !important;
@@ -133,8 +161,9 @@ const RECEIPT_CSS = `
   /* Нижняя отрывная — только одна линия */
   .tear { border-top: 2px dashed #000; margin: 3mm 0 2mm; }
   /* Второй чек — разрыв страницы перед ним */
-  .receipt-copy { page-break-before: always; width: 58mm !important; max-width: 58mm !important; margin: 0 !important; padding: 3mm 3mm 4mm !important; box-sizing: border-box !important; font-family: "Courier New", Courier, monospace !important; font-size: 16px !important; font-weight: 700 !important; line-height: 1.4 !important; color: #000 !important; background: #fff !important; }
+  .receipt-copy { page-break-before: always; width: ${w} !important; max-width: ${w} !important; margin: 0 !important; padding: ${pad} !important; box-sizing: border-box !important; font-family: "Courier New", Courier, monospace !important; font-size: 16px !important; font-weight: 700 !important; line-height: 1.4 !important; color: #000 !important; background: #fff !important; }
 `;
+}
 
 // "110 000" без знака валюты; копейки только если они есть.
 // Неразрывный пробел — чтобы сумма не переносилась на 58mm ленте.
@@ -170,7 +199,7 @@ function parseServices(appointment: Appointment): AppointmentServiceJson[] {
   return [];
 }
 
-export function buildReceiptHtml(data: ReceiptData): string {
+export function buildReceiptHtml(data: ReceiptData, width: ReceiptWidth = getReceiptWidth()): string {
   const {
     appointment,
     cashPaid,
@@ -282,9 +311,9 @@ export function buildReceiptHtml(data: ReceiptData): string {
 <html lang="ru">
 <head>
 <meta charset="utf-8"/>
-<meta name="viewport" content="width=220"/>
+<meta name="viewport" content="width=${width === 80 ? 302 : 220}"/>
 <title>Чек #${receiptNo}</title>
-<style>${RECEIPT_CSS}</style>
+<style>${buildReceiptCss(width)}</style>
 </head>
 <body>
 <div class="receipt-print-root">
@@ -391,13 +420,15 @@ ${isReprint ? "" : `<div class="receipt-copy">
 }
 
 /**
- * Печатает чек через скрытый iframe с реальными размерами (58mm × 300mm).
+ * Печатает чек через скрытый iframe с реальными размерами (ширина ленты × 300mm).
  * iframe не display:none и не width:0 — браузер видит его размеры и
- * корректно применяет @page size:58mm из CSS документа.
+ * корректно применяет @page size из CSS документа.
  * Видимого popup-окна нет — пользователь видит только системный print dialog.
+ * Ширина ленты (58/80 мм) берётся из настройки этой кассы.
  */
 export function printReceipt(data: ReceiptData): void {
-  const html = buildReceiptHtml(data);
+  const width = getReceiptWidth();
+  const html = buildReceiptHtml(data, width);
 
   const iframe = document.createElement("iframe");
   // Реальные размеры нужны браузеру для @page size; visibility:hidden скрывает от пользователя
@@ -405,7 +436,7 @@ export function printReceipt(data: ReceiptData): void {
     "position:fixed",
     "left:-10000px",
     "top:0",
-    "width:58mm",
+    `width:${width}mm`,
     "height:300mm",
     "border:0",
     "visibility:hidden",

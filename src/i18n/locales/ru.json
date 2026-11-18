@@ -62,7 +62,10 @@
     "empty": "Оплат пока нет",
     "loadError": "Не удалось загрузить чеки",
     "print": "Печать",
-    "fromBalance": "Со счёта"
+    "fromBalance": "Со счёта",
+    "paperWidth": "Ширина ленты",
+    "paperWidthMm": "{{width}} мм",
+    "paperWidthHint": "Настройка сохраняется на этом компьютере и действует на все чеки"
   },
   "payment": {
     "periodPayment": "Оплата за период",

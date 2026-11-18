@@ -62,7 +62,10 @@
     "empty": "Hozircha to‘lovlar yo‘q",
     "loadError": "Cheklarni yuklab bo‘lmadi",
     "print": "Chop etish",
-    "fromBalance": "Hisobdan"
+    "fromBalance": "Hisobdan",
+    "paperWidth": "Lenta kengligi",
+    "paperWidthMm": "{{width}} mm",
+    "paperWidthHint": "Sozlama shu kompyuterda saqlanadi va barcha cheklarga qo‘llanadi"
   },
   "payment": {
     "periodPayment": "Davr uchun to‘lov",
