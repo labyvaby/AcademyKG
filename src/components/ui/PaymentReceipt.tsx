@@ -27,13 +27,13 @@ export type ReceiptData = {
   finalPrice: number;
   /** Имя кассира/менеджера */
   cashierName?: string | null;
-  /** Название организации */
+  /** Название организации (бренд) — в шапке чека только как запасной вариант, если нет названия филиала */
   orgName?: string;
-  /** Название филиала */
+  /** Название филиала — печатается в шапке чека */
   branchName?: string | null;
   /** Код валюты филиала (branch.currency) — подпись итоговой строки «Сом»/«Сум»/… */
   currency?: string | null;
-  /** Повторная печать чека (из карточки/истории, а не сразу после оплаты) */
+  /** Повторная печать чека (из карточки/истории, а не сразу после оплаты): без талона-копии, пометки на чеке нет */
   isReprint?: boolean;
   /** Оплата за период: начало периода (YYYY-MM-DD). */
   periodFrom?: string | null;
@@ -119,12 +119,8 @@ function buildReceiptCss(width: ReceiptWidth): string {
   }
   .center { text-align: center; }
   .bold   { font-weight: 700; }
-  /* Пометка повторной печати */
-  .reprint { text-align: center; font-size: 16px; font-weight: 700; border: 2px solid #000; padding: 1mm 0; margin: 0 0 2mm; letter-spacing: 1px; }
-  /* Название организации — центр, средний */
-  .org    { text-align: center; font-size: 17px; font-weight: 700; margin-bottom: 1mm; }
-  /* Филиал — под организацией, если отличается от неё */
-  .branch { text-align: center; font-size: 15px; font-weight: 700; margin: -0.5mm 0 1mm; word-break: break-word; }
+  /* Название в шапке (филиал) — центр, средний */
+  .org    { text-align: center; font-size: 17px; font-weight: 700; margin-bottom: 1mm; word-break: break-word; }
   /* Строка "1 Чек #XXXXX" */
   .chek   { font-size: 15px; font-weight: 700; margin: 1mm 0; }
   /* Дата+время — строка "метка слева / значение справа", влезает в 58mm */
@@ -318,12 +314,8 @@ export function buildReceiptHtml(data: ReceiptData, width: ReceiptWidth = getRec
 <body>
 <div class="receipt-print-root">
 
-  <!-- Пометка повторной печати -->
-  ${isReprint ? `<div class="reprint">ПОВТОРНЫЙ ЧЕК</div>` : ""}
-
-  <!-- Название организации по центру -->
-  <div class="org">${orgName}</div>
-  ${branchName && branchName !== orgName ? `<div class="branch">${branchName}</div>` : ""}
+  <!-- Шапка: одна строка — название филиала; бренд организации печатается, только если филиала нет -->
+  <div class="org">${branchName || orgName}</div>
 
   <!-- "1 Чек #XXXXX" — слева, обычный размер -->
   <div class="chek">1 Чек #${receiptNo}</div>
