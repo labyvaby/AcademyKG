@@ -22,6 +22,8 @@ type GlobalState = {
   lastFetchedAt: number;
   employeeId?: string | null;
   currentUserId?: string | null;
+  /** Вошёл стандартным паролем (users/me: mustChangePassword) — RequireAuth показывает смену пароля. */
+  mustChangePassword: boolean;
 };
 
 // ---------------------------------------------------------------------------
@@ -37,6 +39,7 @@ let globalState: GlobalState = {
   lastFetchedAt: 0,
   employeeId: null,
   currentUserId: null,
+  mustChangePassword: false,
 };
 
 let inFlight: Promise<void> | null = null;
@@ -151,6 +154,7 @@ async function fetchPermissions(opts: { force?: boolean; silent?: boolean } = {}
           loaded: true,
           currentUserId: user.id,
           employeeId: null,
+          mustChangePassword: Boolean(user.mustChangePassword),
         }, version);
         return;
       }
@@ -263,6 +267,7 @@ async function fetchPermissions(opts: { force?: boolean; silent?: boolean } = {}
         loaded: true,
         employeeId: emp.id,
         currentUserId: user.id,
+        mustChangePassword: Boolean(user.mustChangePassword),
       }, version);
     } catch (error) {
       console.error('Ошибка загрузки профиля:', error);
@@ -618,9 +623,28 @@ export const clearPermissions = () => {
     currentUserId: null,
     employeeId: null,
     lastFetchedAt: 0,
+    mustChangePassword: false,
   };
   notify();
 };
+
+/** Пользователь вошёл стандартным паролем и должен его сменить. */
+export const useMustChangePassword = (): boolean => {
+  const [value, setValue] = useState(globalState.mustChangePassword);
+  useEffect(() => {
+    const listener = (s: GlobalState) => setValue(s.mustChangePassword);
+    listeners.add(listener);
+    listener(globalState);
+    void fetchPermissions();
+    return () => {
+      listeners.delete(listener);
+    };
+  }, []);
+  return value;
+};
+
+/** Пароль сменён — снять экран обязательной смены сразу, не дожидаясь users/me. */
+export const markPasswordChanged = () => setGlobal({ mustChangePassword: false });
 
 /** Принудительная перезагрузка профиля (например после смены роли или логина) */
 export const refetchPermissions = (): Promise<void> => {

@@ -69,11 +69,22 @@ export type CreatedPatient = {
   responsiblePersons?: ResponsiblePersonPayload[];
 };
 
+/** Предзаполнение формы (например, из онлайн-заявки). Мемоизируйте объект у вызывающего. */
+export type AddPatientInitialValues = {
+  fullName?: string;
+  /** YYYY-MM-DD */
+  birthDate?: string | null;
+  responsiblePersons?: ResponsiblePersonPayload[];
+  /** Филиал карты — приоритетнее выбранного в шапке и филиала сотрудника. */
+  branchId?: string;
+};
+
 type Props = {
   open: boolean;
   onClose: () => void;
   onCreated?: (p: CreatedPatient) => void;
   initialPhone?: string;
+  initialValues?: AddPatientInitialValues;
 };
 
 type PatientFieldKey = "fio" | "phone" | "birth" | "inn" | "blacklistReason";
@@ -102,7 +113,7 @@ const mapApiErrorToField = (rawMsg: string): { field?: PatientFieldKey; message:
   return { message: "Не удалось сохранить клиента. Проверьте заполненные поля." };
 };
 
-const AddPatientDrawer: React.FC<Props> = ({ open, onClose, onCreated, initialPhone }) => {
+const AddPatientDrawer: React.FC<Props> = ({ open, onClose, onCreated, initialPhone, initialValues }) => {
   const { open: notify } = useNotification();
   const [fio, setFio] = React.useState("");
   const [phone, setPhone] = React.useState("");
@@ -186,6 +197,7 @@ const AddPatientDrawer: React.FC<Props> = ({ open, onClose, onCreated, initialPh
       employee?.branch?.id ?? employee?.branch ?? employee?.branchId ?? ""
     );
     const preferredBranchId =
+      initialValues?.branchId ||
       getBranchFilter() ||
       employeeBranchId ||
       branches[0]?.id ||
@@ -196,7 +208,7 @@ const AddPatientDrawer: React.FC<Props> = ({ open, onClose, onCreated, initialPh
     if (!preferredBranch) return;
     setSelectedBranchId((current) => current || preferredBranch.id);
     setSelectedOrganizationId((current) => current || preferredBranch.organizationId);
-  }, [open, branches, employee]);
+  }, [open, branches, employee, initialValues?.branchId]);
 
   React.useEffect(() => {
     if (!open) {
@@ -217,12 +229,21 @@ const AddPatientDrawer: React.FC<Props> = ({ open, onClose, onCreated, initialPh
       setSelectedBranchId("");
       setFieldErrors({});
       setResponsiblePersonErrors([]);
-    } else if (initialPhone) {
-      const parsed = parsePhone(initialPhone);
-      setPhone(parsed.local);
-      setPhoneCountryCode(parsed.countryCode);
+    } else {
+      if (initialPhone) {
+        const parsed = parsePhone(initialPhone);
+        setPhone(parsed.local);
+        setPhoneCountryCode(parsed.countryCode);
+      }
+      if (initialValues) {
+        if (initialValues.fullName) setFio(initialValues.fullName);
+        if (initialValues.birthDate) setBirth(initialValues.birthDate);
+        if (initialValues.responsiblePersons?.length) {
+          setResponsiblePersons(ensureResponsiblePersonValues(initialValues.responsiblePersons));
+        }
+      }
     }
-  }, [open, initialPhone]);
+  }, [open, initialPhone, initialValues]);
 
   const availableBranches = React.useMemo(
     () => branches.filter((branch) => branch.organizationId === selectedOrganizationId),

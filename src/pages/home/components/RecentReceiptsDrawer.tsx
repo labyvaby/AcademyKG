@@ -16,6 +16,8 @@ import {
   Drawer,
   IconButton,
   Stack,
+  ToggleButton,
+  ToggleButtonGroup,
   Typography,
 } from "@mui/material";
 import CloseOutlined from "@mui/icons-material/CloseOutlined";
@@ -24,7 +26,14 @@ import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "../../../utility/apiClient";
 import dayjs from "dayjs";
 import { dayjsBranch } from "../../../utility/branchTime";
-import { hasAppointmentPayment, reprintAppointmentReceipt } from "../../../components/ui/PaymentReceipt";
+import {
+  RECEIPT_WIDTHS,
+  getReceiptWidth,
+  hasAppointmentPayment,
+  reprintAppointmentReceipt,
+  setReceiptWidth,
+  type ReceiptWidth,
+} from "../../../components/ui/PaymentReceipt";
 import { useEffectiveBranch } from "../../../hooks/useEffectiveBranch";
 import { useBranchCurrency } from "../../../hooks/useBranchCurrency";
 import { useBranchContext } from "../../../contexts/branch-context";
@@ -46,6 +55,8 @@ const RecentReceiptsDrawer: React.FC<Props> = ({ open, onClose, date, onOpenAppo
   const branch = useEffectiveBranch();
   const { selectedBranch } = useBranchContext();
   const { format } = useBranchCurrency();
+  // Ширина ленты принтера этой кассы: хранится на устройстве, действует на все чеки
+  const [paperWidth, setPaperWidth] = React.useState<ReceiptWidth>(getReceiptWidth);
 
   const { data: receipts = [], isFetching, isError } = useQuery<Appointment[]>({
     queryKey: ["appointments", "recent-receipts", date, selectedBranch?.id ?? null],
@@ -85,6 +96,34 @@ const RecentReceiptsDrawer: React.FC<Props> = ({ open, onClose, date, onOpenAppo
         <IconButton onClick={onClose} aria-label={t("common.close")}>
           <CloseOutlined />
         </IconButton>
+      </Box>
+      <Divider />
+
+      <Box sx={{ px: 2, py: 1 }}>
+        <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1}>
+          <Typography variant="body2">{t("receipts.paperWidth")}</Typography>
+          <ToggleButtonGroup
+            size="small"
+            exclusive
+            value={paperWidth}
+            onChange={(_, value: ReceiptWidth | null) => {
+              // exclusive-группа отдаёт null при клике по уже выбранной кнопке
+              if (value === null) return;
+              setReceiptWidth(value);
+              setPaperWidth(value);
+            }}
+            aria-label={t("receipts.paperWidth")}
+          >
+            {RECEIPT_WIDTHS.map((width) => (
+              <ToggleButton key={width} value={width} sx={{ textTransform: "none", py: 0.25, px: 1.5 }}>
+                {t("receipts.paperWidthMm", { width })}
+              </ToggleButton>
+            ))}
+          </ToggleButtonGroup>
+        </Stack>
+        <Typography variant="caption" color="text.secondary">
+          {t("receipts.paperWidthHint")}
+        </Typography>
       </Box>
       <Divider />
 

@@ -40,6 +40,7 @@ import type { EmployesRow } from "../types";
 import { formatDateRu } from "../../../utility/format";
 import { apiFetch, resolveApiUrl } from "../../../utility/apiClient";
 import { useBranchCurrency } from "../../../hooks/useBranchCurrency";
+import ResetPasswordButton from "./ResetPasswordButton";
 
 function resolveUrl(url: string | null | undefined): string | undefined {
   return resolveApiUrl(url) ?? undefined;
@@ -435,6 +436,13 @@ const EmployeeCard: React.FC<EmployeeCardProps> = ({ emp }) => {
                 <Divider sx={{ mb: 2 }} />
               </>
             )}
+
+            {/* ─── Сброс пароля (сотрудник не может войти) ─── */}
+            <ResetPasswordButton
+              employeeId={String(emp.id)}
+              fullName={fio}
+              phone={d?.phone ?? emp.phone ?? null}
+            />
 
             {/* ─── Telegram, Email, Счёт, ИНН ─── */}
             <Stack spacing={2} sx={{ mb: 2 }}>

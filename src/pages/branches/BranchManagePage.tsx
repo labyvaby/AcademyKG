@@ -1,6 +1,7 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 import {
+  Alert,
   Box,
   Paper,
   Typography,
@@ -39,6 +40,24 @@ import { BRANCH_TIMEZONE_OPTIONS, DEFAULT_TIMEZONE } from "../../utility/branchT
 
 type Organization = { id: string; name: string };
 
+type BranchCountry = "KG" | "UZ";
+type BranchPayload = {
+  name: string;
+  address: string;
+  organization: string;
+  currency: string;
+  timezone: string;
+  country: BranchCountry;
+};
+
+// Страна филиала задаёт его валюту и часовой пояс — бэк проверяет то же сочетание
+// (Branch.country_rules). Первый пояс в списке — по умолчанию.
+const COUNTRY_RULES: Record<BranchCountry, { currency: string; timezones: string[] }> = {
+  KG: { currency: "KGS", timezones: ["Asia/Bishkek"] },
+  UZ: { currency: "UZS", timezones: ["Asia/Tashkent", "Asia/Samarkand"] },
+};
+const COUNTRIES = Object.keys(COUNTRY_RULES) as BranchCountry[];
+
 type BranchItem = {
   id: string;
   name: string;
@@ -47,6 +66,7 @@ type BranchItem = {
   organizationName: string;
   currency: string;
   timezone: string;
+  country: BranchCountry;
   createdAt: string;
 };
 
@@ -57,7 +77,7 @@ type BranchDialogProps = {
   organizations: Organization[];
   busy: boolean;
   onClose: () => void;
-  onSubmit: (data: { name: string; address: string; organization: string; currency: string; timezone: string }) => void;
+  onSubmit: (data: BranchPayload) => void;
 };
 
 const BranchDialog: React.FC<BranchDialogProps> = ({
@@ -69,6 +89,7 @@ const BranchDialog: React.FC<BranchDialogProps> = ({
   const [orgId, setOrgId] = React.useState("");
   const [currency, setCurrency] = React.useState<string>(DEFAULT_CURRENCY);
   const [timezone, setTimezone] = React.useState<string>(DEFAULT_TIMEZONE);
+  const [country, setCountry] = React.useState<BranchCountry>("KG");
   const [nameError, setNameError] = React.useState("");
   const [orgError, setOrgError] = React.useState("");
 
@@ -79,6 +100,7 @@ const BranchDialog: React.FC<BranchDialogProps> = ({
       setOrgId(initial?.organizationId ?? (organizations[0]?.id ?? ""));
       setCurrency(initial?.currency || DEFAULT_CURRENCY);
       setTimezone(initial?.timezone || DEFAULT_TIMEZONE);
+      setCountry(initial?.country || "KG");
       setNameError("");
       setOrgError("");
     }
@@ -91,7 +113,17 @@ const BranchDialog: React.FC<BranchDialogProps> = ({
     if (!orgId) { setOrgError(t("branches.selectOrganization")); valid = false; }
     else setOrgError("");
     if (!valid) return;
-    onSubmit({ name: name.trim(), address: address.trim(), organization: orgId, currency, timezone });
+    onSubmit({ name: name.trim(), address: address.trim(), organization: orgId, currency, timezone, country });
+  };
+
+  const rules = COUNTRY_RULES[country];
+  // Филиал, настроенный до появления страны, может не совпадать с ней (Фергана с бишкекским
+  // поясом). Молча не меняем: смена пояса сдвигает время уже записанных приёмов.
+  const mismatch = currency !== rules.currency || !rules.timezones.includes(timezone);
+  const applyCountry = (next: BranchCountry) => {
+    setCountry(next);
+    setCurrency(COUNTRY_RULES[next].currency);
+    setTimezone(COUNTRY_RULES[next].timezones[0]);
   };
 
   return (
@@ -139,16 +171,36 @@ const BranchDialog: React.FC<BranchDialogProps> = ({
           </TextField>
           <TextField
             select
+            label={t("branches.country")}
+            value={country}
+            onChange={(e) => applyCountry(e.target.value as BranchCountry)}
+            fullWidth
+            helperText={t("branches.countryHint")}
+          >
+            {COUNTRIES.map((code) => (
+              <MenuItem key={code} value={code}>{t(`branches.countryOptions.${code}`)}</MenuItem>
+            ))}
+          </TextField>
+          {mismatch && (
+            <Alert
+              severity="warning"
+              action={<Button color="inherit" size="small" onClick={() => applyCountry(country)}>{t("branches.countryFix")}</Button>}
+            >
+              {t("branches.countryMismatch")}
+            </Alert>
+          )}
+          <TextField
+            select
             label={t("branches.currency")}
             value={currency}
             onChange={(e) => setCurrency(e.target.value)}
             fullWidth
             helperText={t("branches.currencyHint")}
           >
-            {CURRENCY_OPTIONS.map((c) => (
+            {CURRENCY_OPTIONS.filter((c) => c.code === rules.currency).map((c) => (
               <MenuItem key={c.code} value={c.code}>{t(`branches.currencyOptions.${c.code}`, { defaultValue: c.label })}</MenuItem>
             ))}
-            {!CURRENCY_OPTIONS.some((c) => c.code === currency) && currency && (
+            {currency !== rules.currency && currency && (
               <MenuItem value={currency}>{currency}</MenuItem>
             )}
           </TextField>
@@ -160,10 +212,14 @@ const BranchDialog: React.FC<BranchDialogProps> = ({
             fullWidth
             helperText={t("branches.timezoneHint")}
           >
-            {BRANCH_TIMEZONE_OPTIONS.map((tz) => (
-              <MenuItem key={tz.value} value={tz.value}>{t(`branches.timezoneOptions.${tz.value}`, { defaultValue: tz.label })}</MenuItem>
+            {rules.timezones.map((value) => (
+              <MenuItem key={value} value={value}>
+                {t(`branches.timezoneOptions.${value}`, {
+                  defaultValue: BRANCH_TIMEZONE_OPTIONS.find((tz) => tz.value === value)?.label ?? value,
+                })}
+              </MenuItem>
             ))}
-            {!BRANCH_TIMEZONE_OPTIONS.some((tz) => tz.value === timezone) && timezone && (
+            {!rules.timezones.includes(timezone) && timezone && (
               <MenuItem value={timezone}>{timezone}</MenuItem>
             )}
           </TextField>
@@ -259,6 +315,7 @@ const BranchManagePage: React.FC = () => {
         organizationName: b.organizationName ?? "",
         currency: b.currency ?? DEFAULT_CURRENCY,
         timezone: b.timezone ?? DEFAULT_TIMEZONE,
+        country: b.country === "UZ" ? "UZ" : "KG",
         createdAt: b.createdAt ?? "",
       })));
     } catch {
@@ -270,7 +327,7 @@ const BranchManagePage: React.FC = () => {
 
   React.useEffect(() => { load(); }, [load]);
 
-  const handleCreate = async (data: { name: string; address: string; organization: string; currency: string; timezone: string }) => {
+  const handleCreate = async (data: BranchPayload) => {
     try {
       setFormBusy(true);
       await apiFetch("/api/v1/branches/", {
@@ -287,7 +344,7 @@ const BranchManagePage: React.FC = () => {
     }
   };
 
-  const handleEdit = async (data: { name: string; address: string; organization: string; currency: string; timezone: string }) => {
+  const handleEdit = async (data: BranchPayload) => {
     if (!editTarget) return;
     try {
       setFormBusy(true);
@@ -505,6 +562,7 @@ const BranchManagePage: React.FC = () => {
                             {branch.organizationName && (
                               <Chip label={branch.organizationName} size="small" variant="outlined" sx={{ height: 20, fontSize: "0.7rem" }} />
                             )}
+                            <Chip label={branch.country} size="small" variant="outlined" sx={{ height: 20, fontSize: "0.7rem" }} />
                             {branch.currency && (
                               <Chip label={branch.currency} size="small" color="primary" variant="outlined" sx={{ height: 20, fontSize: "0.7rem" }} />
                             )}

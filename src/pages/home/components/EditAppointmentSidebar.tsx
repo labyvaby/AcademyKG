@@ -19,6 +19,7 @@ import { CardContent } from "@mui/material";
 import { AppCard } from "../../../components/ui";
 
 import { apiFetch } from "../../../utility/apiClient";
+import { announceBookingConflicts } from "../../../services/bookings";
 import type { Appointment, PatientOption, ServiceRowEntry } from "../types";
 import type { EmployeesRow } from "../../../pages/expenses/types";
 import { type ServiceRow } from "../../../services/services";
@@ -363,10 +364,11 @@ const EditAppointmentSidebar: React.FC<EditAppointmentSidebarProps> = ({
         payload.adminComment = adminComment.trim();
       }
 
-      await apiFetch(`/api/v1/appointments/${item.id}/`, {
+      const res = await apiFetch(`/api/v1/appointments/${item.id}/`, {
         method: "PATCH",
         body: JSON.stringify(payload),
       });
+      announceBookingConflicts(res);
       const firstDoctor = employees.find((e) => e.id === serviceRows[0]?.doctorId);
       const updatedItem: Appointment = {
         ...item,

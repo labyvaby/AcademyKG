@@ -22,15 +22,23 @@ import {
   type PhoneCountryCode,
 } from "../../../utility/phone";
 import SalarySettings from "./SalarySettings";
+import ShowcaseProfileFields, {
+  EMPTY_SHOWCASE_PROFILE,
+  isCareerYearInvalid,
+  showcaseProfileFromDetail,
+  showcaseProfilePayload,
+  type ShowcaseProfile,
+} from "./ShowcaseProfileFields";
 import { usePermissions } from "../../../hooks/usePermissions";
 import { PERMISSIONS } from "../../../constants/permissions";
 import { isApiError } from "../../../utility/apiClient";
 import { useBranchCurrency } from "../../../hooks/useBranchCurrency";
+import type { StartingCredentials } from "./StartingPasswordDialog";
 
 export type EditEmployeeDrawerProps = {
   record: EmployesRow | null;
   onClose: () => void;
-  onUpdated: (rec: EmployesRow) => void;
+  onUpdated: (rec: EmployesRow, credentials?: StartingCredentials) => void;
 };
 
 type RoleRow = { id: string; name: string; display_name: string };
@@ -77,6 +85,7 @@ const EditEmployeeDrawer: React.FC<EditEmployeeDrawerProps> = ({ record, onClose
   const [organizationId, setOrganizationId] = React.useState("");
   const [branches, setBranches] = React.useState<BranchRow[]>([]);
   const [allowedBranches, setAllowedBranches] = React.useState<BranchRow[]>([]);
+  const [showcaseProfile, setShowcaseProfile] = React.useState<ShowcaseProfile>(EMPTY_SHOWCASE_PROFILE);
 
   const selectedRole = roles.find(r => r.id === roleId);
   const isTrainerRole = selectedRole?.name === "specialist";
@@ -105,6 +114,7 @@ const EditEmployeeDrawer: React.FC<EditEmployeeDrawerProps> = ({ record, onClose
       setPhotoFile(null);
       setPassportPhotos([]); setPassportFiles([]); setRemovedPassportUrls([]);
       setBranchId(""); setOrganizationId(""); setPhoneApiError(""); setAllowedBranches([]);
+      setShowcaseProfile(EMPTY_SHOWCASE_PROFILE);
       return;
     }
 
@@ -151,6 +161,7 @@ const EditEmployeeDrawer: React.FC<EditEmployeeDrawerProps> = ({ record, onClose
         setInn(d?.inn ?? (record as any).inn ?? "");
         if (d?.photoUrl) setPhotoPreview(d.photoUrl);
         if (d?.birthDate) setBirthDate(normalizeDateInput(d.birthDate));
+        setShowcaseProfile(showcaseProfileFromDetail(d));
 
         // Load salary rules from detail response (camelCase from backend → snake_case for UI)
         if (d?.salaryRules) {
@@ -302,6 +313,8 @@ const EditEmployeeDrawer: React.FC<EditEmployeeDrawerProps> = ({ record, onClose
 
       // Для нетренерских ролей связи по услугам должны быть очищены.
       payload.serviceIds = isTrainerRole ? selectedServices.map(s => s.id) : [];
+      // Профиль витрины онлайн-записи — только у специалистов (их и выводит витрина).
+      if (isTrainerRole) Object.assign(payload, showcaseProfilePayload(showcaseProfile));
 
       // Зарплатные правила — конвертируем snake_case UI → camelCase API
       if (salaryRules !== null) {
@@ -322,7 +335,16 @@ const EditEmployeeDrawer: React.FC<EditEmployeeDrawerProps> = ({ record, onClose
         };
       }
 
-      await employeeFormUtils.updateEmployeeApi(String(record.id), payload);
+      const saved = (await employeeFormUtils.updateEmployeeApi(String(record.id), payload)) as
+        | { temporaryPassword?: string | null; data?: { temporaryPassword?: string | null } }
+        | null;
+      // Номер добавили сотруднику без аккаунта — бэкенд завёл аккаунт со
+      // стандартным паролем; показать админу, что передать.
+      const temporaryPassword: string | null = saved?.temporaryPassword ?? saved?.data?.temporaryPassword ?? null;
+      const credentials: StartingCredentials | undefined =
+        temporaryPassword && fullPhone
+          ? { fullName: fullNameTrim || record.full_name, phone: fullPhone, password: temporaryPassword }
+          : undefined;
 
       // Обновляем доступные филиалы отдельным PATCH.
       // Эндпоинт переназначает branch → бэк требует employees.manage_sensitive;
@@ -370,7 +392,7 @@ const EditEmployeeDrawer: React.FC<EditEmployeeDrawerProps> = ({ record, onClose
       } catch { /* используем старые данные */ }
 
       notify?.({ type: "success", message: t("employees.changesSaved") });
-      onUpdated(updatedRecord);
+      onUpdated(updatedRecord, credentials);
       onClose();
     } catch (e: unknown) {
       console.error("[EditEmployee] error:", e);
@@ -396,7 +418,11 @@ const EditEmployeeDrawer: React.FC<EditEmployeeDrawerProps> = ({ record, onClose
   return (
     <DrawerBase open={open} title={t("employees.editTitle")} onClose={onClose} busy={busy}
       onSubmit={handleSubmit} submitLabel={t("common.save")}
-      submitDisabled={(phone.trim().length > 0 && phoneError) || !!emailErrorMsg}
+      submitDisabled={
+        (phone.trim().length > 0 && phoneError) ||
+        !!emailErrorMsg ||
+        (isTrainerRole && isCareerYearInvalid(showcaseProfile.careerStartYear))
+      }
     >
       <Stack spacing={3}>
         <Stack spacing={0.5}>
@@ -572,6 +598,8 @@ const EditEmployeeDrawer: React.FC<EditEmployeeDrawerProps> = ({ record, onClose
             />
           </Stack>
         )}
+
+        {isTrainerRole && <ShowcaseProfileFields value={showcaseProfile} onChange={setShowcaseProfile} />}
 
         <Stack spacing={0.5}>
           <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>Telegram ID</Typography>

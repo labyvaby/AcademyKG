@@ -28,12 +28,22 @@ export interface TokenRefreshResponse {
  * POST /api/v1/auth/login/
  * Body: { phoneNumber: string }
  */
-export async function requestSmsCode(phoneNumber: string): Promise<void> {
+export async function requestSmsCode(
+  phoneNumber: string,
+  purpose: SmsLoginPurpose = "login"
+): Promise<void> {
   await apiFetch("/api/v1/auth/login/", {
     method: "POST",
-    body: JSON.stringify({ phoneNumber }),
+    body: JSON.stringify({ phoneNumber, purpose }),
   }, true);
 }
+
+/** login — обычный вход по коду; reset — «Забыли пароль?»: после входа сервер
+ *  ставит mustChangePassword, и RequireAuth показывает экран нового пароля. */
+export type SmsLoginPurpose = "login" | "reset";
+
+/** Флаг вкладки: вошли через «Забыли пароль?» — экран смены пишет другой текст. */
+export const PASSWORD_RESET_FLOW_KEY = "password_reset_flow";
 
 /**
  * Шаг 2: Подтверждение SMS-кода.
@@ -43,13 +53,14 @@ export async function requestSmsCode(phoneNumber: string): Promise<void> {
  */
 export async function verifySmsCode(
   phoneNumber: string,
-  code: string
+  code: string,
+  purpose: SmsLoginPurpose = "login"
 ): Promise<{ access: string; refresh: string }> {
   const res = await apiFetch<VerifyResponse>(
     "/api/v1/auth/verify/",
     {
       method: "POST",
-      body: JSON.stringify({ phoneNumber, code, purpose: "login" }),
+      body: JSON.stringify({ phoneNumber, code, purpose }),
     },
     true
   );
@@ -79,6 +90,37 @@ export async function loginWithEmail(
     {
       method: "POST",
       body: JSON.stringify({ email, password }),
+    },
+    true
+  );
+
+  const access = res?.data?.accessToken ?? res?.data?.access ?? res?.access ?? "";
+  const refresh = res?.data?.refreshToken ?? res?.data?.refresh ?? res?.refresh ?? "";
+
+  if (!access || !refresh) {
+    throw new Error("Не удалось получить токены авторизации");
+  }
+
+  tokenStorage.set(access, refresh);
+  return { access, refresh };
+}
+
+/**
+ * Вход по номеру телефона и паролю.
+ * POST /api/v1/auth/login/password/
+ * Body: { phoneNumber, password }
+ * Новым сотрудникам выдают стандартный пароль: после входа с ним
+ * users/me отдаёт mustChangePassword=true и RequireAuth показывает смену пароля.
+ */
+export async function loginWithPhone(
+  phoneNumber: string,
+  password: string
+): Promise<{ access: string; refresh: string }> {
+  const res = await apiFetch<VerifyResponse>(
+    "/api/v1/auth/login/password/",
+    {
+      method: "POST",
+      body: JSON.stringify({ phoneNumber, password }),
     },
     true
   );
@@ -153,19 +195,46 @@ export function logout(): void {
 }
 
 /**
+ * SMS-код для смены пароля без текущего (сотрудники входят по SMS и пароля не знают).
+ * POST /api/v1/auth/change-password/code/
+ * Код уходит на телефон текущего пользователя; повтор — не чаще раза в минуту.
+ */
+export async function requestPasswordChangeCode(): Promise<void> {
+  await apiFetch("/api/v1/auth/change-password/code/", { method: "POST" });
+}
+
+/**
  * Смена пароля.
  * POST /api/v1/auth/change-password/
+ * Подтверждение — текущий пароль либо код из requestPasswordChangeCode().
  * После успеха refresh-токены инвалидируются на сервере — нужна повторная авторизация.
  */
 export async function changePassword(
-  oldPassword: string,
+  confirmation: { oldPassword: string } | { smsCode: string },
   newPassword: string,
   passwordConfirm: string
 ): Promise<void> {
   await apiFetch("/api/v1/auth/change-password/", {
     method: "POST",
-    body: JSON.stringify({ oldPassword, newPassword, passwordConfirm }),
+    body: JSON.stringify({ ...confirmation, newPassword, passwordConfirm }),
   });
+}
+
+/**
+ * Смена стандартного пароля (users/me: mustChangePassword=true).
+ * Текущий пароль сервер в этом состоянии не спрашивает. Смена отзывает
+ * refresh-токены, поэтому сразу входим заново новым паролем.
+ */
+export async function changeStartingPassword(
+  phoneNumber: string,
+  newPassword: string,
+  passwordConfirm: string
+): Promise<void> {
+  await apiFetch("/api/v1/auth/change-password/", {
+    method: "POST",
+    body: JSON.stringify({ newPassword, passwordConfirm }),
+  });
+  await loginWithPhone(phoneNumber, newPassword);
 }
 
 /**

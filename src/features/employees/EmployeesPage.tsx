@@ -20,6 +20,7 @@ import EmployeeCard from "./components/EmployeeCard";
 import AddEmployeeDrawer from "./components/AddEmployeeDrawer";
 import EditEmployeeDrawer from "./components/EditEmployeeDrawer";
 import DeleteEmployeeDialog from "./components/DeleteEmployeeDialog";
+import StartingPasswordDialog, { type StartingCredentials } from "./components/StartingPasswordDialog";
 import { useEmployeesPageState, fetchRoles } from "./hooks/useEmployeesPage";
 import { fetchServices, type ServiceRow as ServiceDto } from "../../services/services";
 import { AppBottomSheet, PageHeader } from "../../components/ui";
@@ -31,6 +32,7 @@ const EmployeesPage: React.FC = () => {
   const { t } = useTranslation();
   usePageTitle(t("menu.employees"));
   const state = useEmployeesPageState();
+  const [credentials, setCredentials] = React.useState<StartingCredentials | null>(null);
   const [isGrouped, setIsGrouped] = React.useState(true);
   const { hasPermission, employeeId, hasRole } = usePermissions();
   const theme = useTheme();
@@ -224,12 +226,18 @@ const EmployeesPage: React.FC = () => {
       <AddEmployeeDrawer
         open={state.addOpen}
         onClose={() => state.setAddOpen(false)}
-        onCreated={() => { state.setAddOpen(false); state.reload(); }}
+        onCreated={(_rec, created) => {
+          state.setAddOpen(false);
+          state.reload();
+          if (created) setCredentials(created);
+        }}
       />
+      <StartingPasswordDialog credentials={credentials} onClose={() => setCredentials(null)} />
       <EditEmployeeDrawer
         record={state.editOpen}
         onClose={() => state.setEditOpen(null)}
-        onUpdated={(rec) => {
+        onUpdated={(rec, created) => {
+          if (created) setCredentials(created);
           state.setItems((pr) => pr.map((x) => (x.id === rec.id ? rec : x)));
           if (state.detailsOpen && state.detailsOpen.id === rec.id) {
             state.setDetailsOpen(rec);
